@@ -34,10 +34,7 @@ export default function SettingsPanel({
   return (
     <aside className="settings-panel panel">
       <div className="panel-title">
-        <div>
-          <strong>Настройки</strong>
-          <small>Все изменения применяются сразу</small>
-        </div>
+        <strong>Настройки</strong>
         <button className="text-button" type="button" onClick={resetSettings}>
           Сбросить
         </button>
@@ -55,28 +52,6 @@ export default function SettingsPanel({
             <span>Обычный шрифт не содержит однолинейных траекторий. Подключение и запуск плоттера заблокированы.</span>
           </div>
         )}
-        <div className="color-grid">
-          <label className="field">
-            <span>Чернила</span>
-            <input
-              type="color"
-              value={settings.inkColor}
-              onChange={(event) =>
-                updateSetting("inkColor", event.target.value)
-              }
-            />
-          </label>
-          <label className="field">
-            <span>Бумага</span>
-            <input
-              type="color"
-              value={settings.pageColor}
-              onChange={(event) =>
-                updateSetting("pageColor", event.target.value)
-              }
-            />
-          </label>
-        </div>
         <RangeControl
           label="Размер шрифта"
           value={settings.fontSize}
@@ -113,29 +88,31 @@ export default function SettingsPanel({
         />
       </SettingSection>
       <SettingSection title="Страница и поля">
-        <label className="field">
-          <span>Формат страницы</span>
-          <select
-            value={settings.pageSize}
-            onChange={(event) => updatePageSize(event.target.value)}
-          >
-            {Object.entries(PAGE_SIZES).map(([key, page]) => (
-              <option value={key} key={key}>
-                {page.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>Ориентация</span>
-          <select
-            value={settings.pageOrientation || "portrait"}
-            onChange={(event) => updateSetting("pageOrientation", event.target.value)}
-          >
-            <option value="portrait">Книжная</option>
-            <option value="landscape">Альбомная</option>
-          </select>
-        </label>
+        <div className="page-format-field">
+          <span className="field-label">Формат страницы</span>
+          <div className="page-format-row">
+            <select
+              value={settings.pageSize}
+              onChange={(event) => updatePageSize(event.target.value)}
+              aria-label="Формат страницы"
+            >
+              {Object.entries(PAGE_SIZES).map(([key, page]) => (
+                <option value={key} key={key}>
+                  {page.label}
+                </option>
+              ))}
+            </select>
+            <button
+              className="orientation-toggle"
+              type="button"
+              aria-label={`Сменить ориентацию. Сейчас ${settings.pageOrientation === "landscape" ? "альбомная" : "книжная"}`}
+              title={settings.pageOrientation === "landscape" ? "Альбомная ориентация" : "Книжная ориентация"}
+              onClick={() => updateSetting("pageOrientation", settings.pageOrientation === "landscape" ? "portrait" : "landscape")}
+            >
+              <span className={settings.pageOrientation === "landscape" ? "landscape" : "portrait"} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
         <RangeControl
           label="Отступ сверху"
           value={settings.marginTop}

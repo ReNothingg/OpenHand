@@ -115,10 +115,8 @@
   border-radius: 10px;
   background: #eef4fb;
 }
-.plotter-settings-heading > div { display: flex; flex-direction: column; gap: 2px; }
 .plotter-settings-heading strong { color: #1e293b; font-size: 12px; }
-.plotter-settings-heading > div span { color: #64748b; font-size: 9px; }
-.plotter-inline-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; color: #64748b; font-size: 10px; }
+.plotter-reset-row { display: flex; justify-content: flex-end; margin-bottom: -4px; }
 .settings-wide-button { width: 100%; margin-top: 3px; }
 
 .plotter-exit { white-space: nowrap; }

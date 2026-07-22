@@ -93,7 +93,6 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange })
                       role="option"
                       aria-selected={fontType === 'plotter' && selectedPlotter.familyId === family.id}
                       key={family.id}
-                      title={family.description}
                       onClick={() => chooseFamily(family)}
                     >
                       <span>{family.label}</span>
@@ -131,7 +130,6 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange })
                         </button>
                       ))}
                     </div>
-                    <p>{activeFamily.description}. Ползунок меняет геометрию штрихов, сам GFont остаётся однолинейным.</p>
                   </div>
                 )}
               </div>

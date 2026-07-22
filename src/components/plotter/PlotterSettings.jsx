@@ -18,7 +18,7 @@ export default function PlotterSettings({ workspace }) {
   return (
     <div className={`integrated-plotter-settings ${enabled ? 'enabled' : 'disabled'}`}>
       <div className="plotter-settings-heading">
-        <div><strong>Плоттер</strong><span>Управление устройством</span></div>
+        <strong>Плоттер</strong>
         <span className={`plotter-status ${plotter.status}`}><i />{{ disconnected: 'Не подключён', connecting: 'Подключение…', connected: 'Подключён', running: 'Печать', paused: 'Пауза' }[plotter.status]}</span>
       </div>
 
@@ -35,7 +35,7 @@ export default function PlotterSettings({ workspace }) {
         </SettingSection>
 
         <SettingSection title="Механика">
-          <div className="plotter-inline-title"><span>Параметры движения</span><button className="text-button" type="button" disabled={locked} onClick={workspace.resetMechanics}>Сбросить</button></div>
+          <div className="plotter-reset-row"><button className="text-button" type="button" disabled={locked} onClick={workspace.resetMechanics}>Сбросить</button></div>
           {config.profile !== 'ebb' && <label className="field"><Caption help="Servo управляет сервоприводом, Z/E — шаговым мотором. Laser может немедленно включить излучатель — сначала снимите с него питание.">Механизм пера</Caption><select value={config.penMode} disabled={running} onChange={(event) => workspace.updateConfig('penMode', event.target.value)}><option value="servo">Сервопривод</option><option value="stepper">Ось Z</option>{config.profile === 'grbl' && <option value="laser">Лазер / PWM</option>}{config.profile === 'marlin' && <option value="estepper">Ось E</option>}</select></label>}
           {config.profile === 'ebb'
             ? <label className="field"><Caption help="Количество шагов моторов на миллиметр. Начинайте с малого тестового перемещения.">Шагов на миллиметр</Caption><input type="number" min="1" max="1000" value={config.mmToSteps} onChange={number('mmToSteps', 1, 1000)} /></label>

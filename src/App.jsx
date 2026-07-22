@@ -124,31 +124,21 @@ export default function App() {
 
   const updatePageSize = (pageSize) => {
     setSettings((current) => {
-      if (pageSize !== 'Notebook' && pageSize !== 'NotebookSpread') return { ...current, pageSize }
-      const isSpread = pageSize === 'NotebookSpread'
+      if (pageSize !== 'NotebookSpread') return { ...current, pageSize }
       return {
         ...current,
         pageSize,
-        pageOrientation: isSpread ? 'landscape' : 'portrait',
+        pageOrientation: 'landscape',
         marginTop: 56,
         marginLeft: 72,
         marginLeftEven: 72,
         marginBottom: 44,
-        textWidth: Math.min(current.textWidth, Math.max(PAGE_SIZES[pageSize].width, PAGE_SIZES[pageSize].height) - (isSpread ? 144 : 96)),
+        textWidth: Math.min(current.textWidth, Math.max(PAGE_SIZES[pageSize].width, PAGE_SIZES[pageSize].height) - 144),
         fontSize: Math.min(current.fontSize, 24),
         lineHeight: 1.25,
         ruledPaper: true,
       }
     })
-  }
-
-  const insertText = (text) => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    setActiveSource(`${activeSource.slice(0, start)}${text}${activeSource.slice(end)}`)
-    requestAnimationFrame(() => textarea.setSelectionRange(start + text.length, start + text.length))
   }
 
   const importSource = async (event) => {
@@ -229,7 +219,6 @@ export default function App() {
           activeSource={activeSource}
           setActiveSource={setActiveSource}
           textareaRef={textareaRef}
-          insertText={insertText}
           wordCount={wordCount}
           characterCount={activeSource.length}
         />

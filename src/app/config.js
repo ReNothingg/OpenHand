@@ -4,7 +4,6 @@ export const PAGE_SIZES = {
   A4: { width: 794, height: 1123, label: 'A4', millimeters: '210 × 297 мм' },
   A5: { width: 559, height: 794, label: 'A5', millimeters: '148 × 210 мм' },
   Letter: { width: 816, height: 1056, label: 'Letter', millimeters: '216 × 279 мм' },
-  Notebook: { width: 624, height: 768, label: 'Тетрадь — страница', millimeters: '165 × 203 мм' },
   NotebookSpread: { width: 768, height: 1248, label: 'Тетрадь — разворот', millimeters: '330 × 203 мм' },
 }
 
@@ -22,9 +21,9 @@ export const DEFAULT_SETTINGS = {
   textRotation: 0,
   inkColor: '#1f2937',
   pageColor: '#ffffff',
-  pageSize: 'A4',
-  pageOrientation: 'portrait',
-  ruledPaper: false,
+  pageSize: 'NotebookSpread',
+  pageOrientation: 'landscape',
+  ruledPaper: true,
   directionChance: 50,
   maxWordTilt: 2,
   maxLift: 2.5,
@@ -49,6 +48,12 @@ const LEGACY_EFFECTS = [
 
 export function normalizeSettings(incoming = {}) {
   const settings = { ...DEFAULT_SETTINGS, ...incoming }
+
+  if (settings.pageSize === 'Notebook' || !PAGE_SIZES[settings.pageSize]) {
+    settings.pageSize = 'NotebookSpread'
+    settings.pageOrientation = 'landscape'
+    settings.ruledPaper = true
+  }
 
   if (settings.fontType !== 'plotter') settings.fontType = 'screen'
 
