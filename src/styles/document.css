@@ -265,12 +265,24 @@
 }
 .markdown-body .katex {
   color: inherit;
-  font-family: inherit !important;
   font-size: 1em;
 }
-.markdown-body .katex span {
-  font-family: inherit !important;
+.markdown-body u,
+.markdown-body .underline-wavy,
+.markdown-body .underline-double {
+  text-decoration-color: currentColor;
+  text-underline-offset: 0.16em;
+  text-decoration-thickness: 1.25px;
 }
+.markdown-body .underline-wavy { text-decoration-line: underline; text-decoration-style: wavy; }
+.markdown-body .underline-double { text-decoration-line: underline; text-decoration-style: double; }
+.markdown-body mark {
+  padding: 0 0.12em;
+  color: inherit;
+  background: #fef08a;
+  box-decoration-break: clone;
+}
+.markdown-body del { opacity: 0.68; text-decoration-thickness: 1.2px; }
 .markdown-body .katex-display {
   margin: 0.65em 0 0.9em;
   padding-left: 0.14em;

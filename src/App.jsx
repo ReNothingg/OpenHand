@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_SETTINGS, normalizeSettings, PAGE_SIZES, STORAGE_KEYS } from './app/config.js'
 import { SAMPLE_MARKDOWN, SAMPLE_TEX } from './app/samples.js'
 import EditorPanel from './components/editor/EditorPanel.jsx'
 import PreviewPanel from './components/preview/PreviewPanel.jsx'
 import SettingsPanel from './components/settings/SettingsPanel.jsx'
 import { useDocumentPersistence } from './hooks/useDocumentPersistence.js'
+import { useIntegratedPlotter } from './hooks/useIntegratedPlotter.js'
 import { usePreviewInteractions } from './hooks/usePreviewInteractions.js'
 import { useLineEffects, useRenderedPages } from './hooks/useRenderedPages.js'
 import { downloadFile } from './lib/files.js'
 import { getPageMetrics } from './lib/pagination.js'
 import { loadStoredObject, loadStoredText } from './lib/storage.js'
 import { renderMarkdown } from './markdown.js'
+import { htmlToPlotterText } from './plotter/richText.js'
 import { renderTex } from './tex.js'
 
 export default function App() {
@@ -22,6 +24,7 @@ export default function App() {
   const [activePreset, setActivePreset] = useState('')
   const [previewOnly, setPreviewOnly] = useState(false)
   const [viewMode, setViewMode] = useState('single')
+  const [activeSheetIndex, setActiveSheetIndex] = useState(0)
 
   const textareaRef = useRef(null)
   const previewRef = useRef(null)
@@ -36,17 +39,55 @@ export default function App() {
   const updateSetting = useCallback((key, value) => {
     setSettings((current) => ({ ...current, [key]: value }))
   }, [])
+  const updateFontSelection = useCallback(({ type, value }) => {
+    setSettings((current) => type === 'plotter'
+      ? { ...current, fontType: 'plotter', plotterFontId: value }
+      : { ...current, fontType: 'screen', fontFamily: value })
+  }, [])
 
-  const metrics = getPageMetrics(settings)
+  const metrics = useMemo(() => getPageMetrics(settings), [
+    settings.pageSize,
+    settings.pageOrientation,
+    settings.marginTop,
+    settings.marginLeft,
+    settings.marginLeftEven,
+    settings.marginBottom,
+    settings.textWidth,
+  ])
   const selectedPool = useMemo(
     () => settings.fontPool?.length ? settings.fontPool : [settings.fontFamily],
     [settings.fontPool, settings.fontFamily],
   )
+  const deferredMarkdown = useDeferredValue(markdown)
+  const deferredTexSource = useDeferredValue(texSource)
+  const renderSettings = useMemo(() => ({
+    seed: settings.seed,
+    directionChance: settings.directionChance,
+    wordFrequency: settings.wordFrequency,
+    maxWordTilt: settings.maxWordTilt,
+    maxLift: settings.maxLift,
+    fontRandomization: settings.fontRandomization,
+    maxLetterSpacing: settings.maxLetterSpacing,
+    letterFrequency: settings.letterFrequency,
+    maxLineDrift: settings.maxLineDrift,
+    maxLineIndent: settings.maxLineIndent,
+  }), [
+    settings.seed,
+    settings.directionChance,
+    settings.wordFrequency,
+    settings.maxWordTilt,
+    settings.maxLift,
+    settings.fontRandomization,
+    settings.maxLetterSpacing,
+    settings.letterFrequency,
+    settings.maxLineDrift,
+    settings.maxLineIndent,
+  ])
   const renderedHtml = useMemo(
     () => sourceMode === 'tex'
-      ? renderTex(texSource, settings, selectedPool)
-      : renderMarkdown(markdown, settings, selectedPool),
-    [sourceMode, texSource, markdown, settings, selectedPool],
+      ? renderTex(deferredTexSource, renderSettings, selectedPool)
+      : renderMarkdown(deferredMarkdown, renderSettings, selectedPool),
+    [sourceMode, deferredTexSource, deferredMarkdown, renderSettings, selectedPool],
   )
   const { pages, measureRef } = useRenderedPages(renderedHtml, settings)
   const setZoom = useCallback((zoom) => updateSetting('zoom', zoom), [updateSetting])
@@ -83,15 +124,17 @@ export default function App() {
 
   const updatePageSize = (pageSize) => {
     setSettings((current) => {
-      if (pageSize !== 'Notebook') return { ...current, pageSize }
+      if (pageSize !== 'Notebook' && pageSize !== 'NotebookSpread') return { ...current, pageSize }
+      const isSpread = pageSize === 'NotebookSpread'
       return {
         ...current,
         pageSize,
+        pageOrientation: isSpread ? 'landscape' : 'portrait',
         marginTop: 56,
         marginLeft: 72,
         marginLeftEven: 72,
         marginBottom: 44,
-        textWidth: Math.min(current.textWidth, PAGE_SIZES.Notebook.width - 96),
+        textWidth: Math.min(current.textWidth, Math.max(PAGE_SIZES[pageSize].width, PAGE_SIZES[pageSize].height) - (isSpread ? 144 : 96)),
         fontSize: Math.min(current.fontSize, 24),
         lineHeight: 1.25,
         ruledPaper: true,
@@ -163,6 +206,18 @@ export default function App() {
   }
 
   const wordCount = activeSource.trim() ? activeSource.trim().split(/\s+/u).length : 0
+  const renderedPageTexts = useMemo(
+    () => pages.map((html) => htmlToPlotterText(html)),
+    [pages],
+  )
+  const plotterWorkspace = useIntegratedPlotter({
+    enabled: settings.fontType === 'plotter',
+    fontId: settings.plotterFontId,
+    pageTexts: renderedPageTexts.length ? renderedPageTexts : [activeSource],
+    settings,
+    metrics,
+    activeSheetIndex,
+  })
 
   return (
     <div className={`app ${previewOnly ? 'preview-only' : ''}`}>
@@ -179,41 +234,46 @@ export default function App() {
           characterCount={activeSource.length}
         />
         <PreviewPanel
-          pages={pages}
-          settings={settings}
-          metrics={metrics}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          previewOnly={previewOnly}
-          setPreviewOnly={setPreviewOnly}
-          reshuffle={() => updateSetting('seed', Math.floor(Math.random() * 999999))}
-          previewRef={previewRef}
-          measureRef={measureRef}
-          panHandlers={{
-            onPointerDown: panHandlers.beginPan,
-            onPointerMove: panHandlers.movePan,
-            onPointerUp: panHandlers.endPan,
-            onPointerCancel: panHandlers.endPan,
-          }}
-        />
+            pages={pages}
+            settings={settings}
+            metrics={metrics}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            previewOnly={previewOnly}
+            setPreviewOnly={setPreviewOnly}
+            reshuffle={() => updateSetting('seed', Math.floor(Math.random() * 999999))}
+            previewRef={previewRef}
+            measureRef={measureRef}
+            panHandlers={{
+              onPointerDown: panHandlers.beginPan,
+              onPointerMove: panHandlers.movePan,
+              onPointerUp: panHandlers.endPan,
+              onPointerCancel: panHandlers.endPan,
+            }}
+            plotterWorkspace={plotterWorkspace}
+            activeSheetIndex={activeSheetIndex}
+            onActiveSheetChange={setActiveSheetIndex}
+          />
         <SettingsPanel
-          settings={settings}
-          metrics={metrics}
-          updateSetting={updateSetting}
-          updatePageSize={updatePageSize}
-          resetSettings={() => setSettings({ ...DEFAULT_SETTINGS })}
-          togglePoolFont={togglePoolFont}
-          presets={presets}
-          activePreset={activePreset}
-          selectPreset={selectPreset}
-          savePreset={savePreset}
-          deletePreset={deletePreset}
-          sourceMode={sourceMode}
-          openSource={() => sourceImportRef.current?.click()}
-          downloadSource={downloadSource}
-          exportSettings={() => downloadFile('handwriting-settings.json', JSON.stringify(settings, null, 2), 'application/json')}
-          importSettings={() => settingsImportRef.current?.click()}
-        />
+            settings={settings}
+            metrics={metrics}
+            updateSetting={updateSetting}
+            updateFontSelection={updateFontSelection}
+            updatePageSize={updatePageSize}
+            resetSettings={() => setSettings({ ...DEFAULT_SETTINGS })}
+            togglePoolFont={togglePoolFont}
+            presets={presets}
+            activePreset={activePreset}
+            selectPreset={selectPreset}
+            savePreset={savePreset}
+            deletePreset={deletePreset}
+            sourceMode={sourceMode}
+            openSource={() => sourceImportRef.current?.click()}
+            downloadSource={downloadSource}
+            exportSettings={() => downloadFile('handwriting-settings.json', JSON.stringify(settings, null, 2), 'application/json')}
+            importSettings={() => settingsImportRef.current?.click()}
+            plotterWorkspace={plotterWorkspace}
+          />
       </div>
 
       <input ref={sourceImportRef} type="file" accept=".md,.markdown,.txt,.tex,text/markdown,text/plain,application/x-tex" hidden onChange={importSource} />

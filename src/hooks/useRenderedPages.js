@@ -22,8 +22,11 @@ export function useRenderedPages(renderedHtml, settings) {
     settings.lineHeight,
     settings.textWidth,
     settings.marginTop,
+    settings.marginLeft,
+    settings.marginLeftEven,
     settings.marginBottom,
     settings.pageSize,
+    settings.pageOrientation,
   ])
 
   return { pages, measureRef }
@@ -33,5 +36,18 @@ export function useLineEffects(previewRef, pages, settings) {
   useLayoutEffect(() => {
     const frame = requestAnimationFrame(() => applyLineEffects(previewRef.current, settings))
     return () => cancelAnimationFrame(frame)
-  }, [previewRef, pages, settings])
+  }, [
+    previewRef,
+    pages,
+    settings.seed,
+    settings.directionChance,
+    settings.wordFrequency,
+    settings.maxWordTilt,
+    settings.maxLift,
+    settings.fontRandomization,
+    settings.maxLetterSpacing,
+    settings.letterFrequency,
+    settings.maxLineDrift,
+    settings.maxLineIndent,
+  ])
 }

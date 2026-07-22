@@ -34,10 +34,11 @@ function signed(settings, value, key) {
 }
 
 export function renderMarkdown(markdown, settings, fontPool) {
-  const source = markdown.replace(
-    /^\s*:::pagebreak\s*$/gm,
-    '<div data-page-break="true"></div>',
-  );
+  const source = markdown
+    .replace(/^\s*:::pagebreak\s*$/gm, '<div data-page-break="true"></div>')
+    .replace(/\+\+\+([^\n]+?)\+\+\+/g, '<span class="underline-double">$1</span>')
+    .replace(/\+\+([^\n]+?)\+\+/g, '<u>$1</u>')
+    .replace(/==([^\n]+?)==/g, '<mark>$1</mark>');
   return renderHandwrittenHtml(marked.parse(source), settings, fontPool);
 }
 

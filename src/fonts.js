@@ -30,6 +30,16 @@ export const fonts = [
   { name: 'Shantell Sans', family: 'ShantellSans', cyrillic: true, group: 'Дополнительные' },
   { name: 'Sriracha', family: 'Sriracha', cyrillic: false, group: 'Дополнительные' },
   { name: 'Underdog', family: 'Underdog', cyrillic: true, group: 'Дополнительные' },
+  { name: 'MewTooHand', family: 'MewTooHand', cyrillic: true, group: 'Рукописные · кириллица' },
+  { name: 'Gochi Hand Cyrillic', family: 'GochiHandCyrillic', cyrillic: true, group: 'Рукописные · кириллица' },
+  { name: 'Itim Cyrillic', family: 'ItimCyrillic', cyrillic: true, group: 'Рукописные · кириллица' },
+  { name: 'Hi Melody Cyrillic', family: 'HiMelodyCyrillic', cyrillic: true, group: 'Рукописные · кириллица' },
+  { name: 'East Sea Dokdo Cyrillic', family: 'EastSeaDokdoCyrillic', cyrillic: true, group: 'Рукописные · кириллица' },
+  { name: 'Romochka', family: 'Romochka', cyrillic: true, group: 'Рукописные · кириллица' },
+  { name: 'Pecita', family: 'Pecita', cyrillic: true, group: 'Рукописные · кириллица' },
+  { name: 'Miama Nueva', family: 'MiamaNueva', cyrillic: true, group: 'Рукописные · кириллица' },
+  { name: 'Manskribo Sans', family: 'ManskriboSans', cyrillic: true, group: 'Рукописные · кириллица' },
+  { name: 'Maksik Hand', family: 'MaksikHand', cyrillic: 'partial', group: 'Рукописные · кириллица' },
 ]
 
 export const defaultFontPool = fonts.filter((font) => font.cyrillic === true).map((font) => font.family)

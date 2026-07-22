@@ -22,7 +22,7 @@ export function usePreviewInteractions({
     const applyZoomAtPoint = (nextZoom, clientX, clientY) => {
       const currentZoom = zoomRef.current;
       if (!Number.isFinite(nextZoom)) return;
-      nextZoom = Math.max(1, Math.round(nextZoom));
+      nextZoom = Math.min(400, Math.max(10, Math.round(nextZoom)));
       if (nextZoom === currentZoom) return;
       const bounds = viewport.getBoundingClientRect();
       zoomAnchorRef.current = {
@@ -36,11 +36,11 @@ export function usePreviewInteractions({
       setZoom(nextZoom);
     };
     const zoomWithTrackpad = (event) => {
-      if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
       const currentZoom = zoomRef.current;
       const direction = event.deltaY > 0 ? -1 : 1;
-      let nextZoom = Math.round(currentZoom * Math.exp(-event.deltaY * 0.012));
+      const sensitivity = event.ctrlKey || event.metaKey ? 0.012 : 0.0015;
+      let nextZoom = Math.round(currentZoom * Math.exp(-event.deltaY * sensitivity));
       if (nextZoom === currentZoom) nextZoom += direction;
       applyZoomAtPoint(nextZoom, event.clientX, event.clientY);
     };
@@ -75,7 +75,7 @@ export function usePreviewInteractions({
       viewport.removeEventListener("gesturechange", changeGestureZoom);
       viewport.removeEventListener("gestureend", endGestureZoom);
     };
-  }, [previewRef, setZoom]);
+  });
 
   useLayoutEffect(() => {
     const viewport = previewRef.current;

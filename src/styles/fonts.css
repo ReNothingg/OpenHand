@@ -29,3 +29,14 @@
 @font-face { font-family: 'ShantellSans'; src: url('../../font/ShantellSans[BNCE,INFM,SPAC,wght].ttf') format('truetype'); font-display: swap; }
 @font-face { font-family: 'Sriracha'; src: url('../../font/Sriracha-Regular.ttf') format('truetype'); font-display: swap; }
 @font-face { font-family: 'Underdog'; src: url('../../font/Underdog-Regular.ttf') format('truetype'); font-display: swap; }
+
+@font-face { font-family: 'MewTooHand'; src: url('../../font/handwritten/mew-too-hand/MewTooHand.otf') format('opentype'); font-display: swap; }
+@font-face { font-family: 'GochiHandCyrillic'; src: url('../../font/handwritten/gochi-hand/GochiHand-Cyrillic.otf') format('opentype'); font-display: swap; }
+@font-face { font-family: 'ItimCyrillic'; src: url('../../font/handwritten/itim/Itim-Cyrillic.otf') format('opentype'); font-display: swap; }
+@font-face { font-family: 'HiMelodyCyrillic'; src: url('../../font/handwritten/hi-melody/HiMelody-Cyrillic.otf') format('opentype'); font-display: swap; }
+@font-face { font-family: 'EastSeaDokdoCyrillic'; src: url('../../font/handwritten/east-sea-dokdo/EastSeaDokdo-Cyrillic.otf') format('opentype'); font-display: swap; }
+@font-face { font-family: 'Romochka'; src: url('../../font/handwritten/romochka/Romochka.otf') format('opentype'); font-display: swap; }
+@font-face { font-family: 'Pecita'; src: url('../../font/handwritten/pecita/Pecita.otf') format('opentype'); font-display: swap; }
+@font-face { font-family: 'MiamaNueva'; src: url('../../font/handwritten/miama-nueva/MiamaNueva.otf') format('opentype'); font-display: swap; }
+@font-face { font-family: 'ManskriboSans'; src: url('../../font/handwritten/manskribo-sans/ManskriboSans.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'MaksikHand'; src: url('../../font/handwritten/maksik-hand/MaksikHand.otf') format('opentype'); font-display: swap; }

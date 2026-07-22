@@ -1,5 +1,6 @@
 import { PAGE_SIZES } from "../../app/config.js";
 import { fonts } from "../../fonts.js";
+import PlotterSettings from "../plotter/PlotterSettings.jsx";
 import FontPicker from "./controls/FontPicker.jsx";
 import RangeControl from "./controls/RangeControl.jsx";
 import SettingSection from "./controls/SettingSection.jsx";
@@ -9,6 +10,7 @@ export default function SettingsPanel({
   settings,
   metrics,
   updateSetting,
+  updateFontSelection,
   updatePageSize,
   resetSettings,
   togglePoolFont,
@@ -22,6 +24,7 @@ export default function SettingsPanel({
   downloadSource,
   exportSettings,
   importSettings,
+  plotterWorkspace,
 }) {
   const maxTextWidth = Math.max(
     260,
@@ -41,9 +44,17 @@ export default function SettingsPanel({
       </div>
       <SettingSection title="Шрифт и текст">
         <FontPicker
+          fontType={settings.fontType}
           value={settings.fontFamily}
-          onChange={(value) => updateSetting("fontFamily", value)}
+          plotterFontId={settings.plotterFontId}
+          onChange={updateFontSelection}
         />
+        {settings.fontType !== "plotter" && (
+          <div className="font-compat-warning" role="note">
+            <b>!</b>
+            <span>Обычный шрифт не содержит однолинейных траекторий. Подключение и запуск плоттера заблокированы.</span>
+          </div>
+        )}
         <div className="color-grid">
           <label className="field">
             <span>Чернила</span>
@@ -101,7 +112,6 @@ export default function SettingsPanel({
           onChange={(value) => updateSetting("textRotation", value)}
         />
       </SettingSection>
-      ы
       <SettingSection title="Страница и поля">
         <label className="field">
           <span>Формат страницы</span>
@@ -114,6 +124,16 @@ export default function SettingsPanel({
                 {page.label}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Ориентация</span>
+          <select
+            value={settings.pageOrientation || "portrait"}
+            onChange={(event) => updateSetting("pageOrientation", event.target.value)}
+          >
+            <option value="portrait">Книжная</option>
+            <option value="landscape">Альбомная</option>
           </select>
         </label>
         <RangeControl
@@ -149,6 +169,7 @@ export default function SettingsPanel({
           onChange={(value) => updateSetting("marginBottom", value)}
         />
       </SettingSection>
+      <PlotterSettings workspace={plotterWorkspace} />
       <SettingSection title="Живой почерк">
         <RangeControl
           label="Случайное направление"

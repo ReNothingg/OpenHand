@@ -21,6 +21,8 @@
   border-left: 1px solid var(--line);
   overflow-y: auto;
   min-width: 0;
+  padding-bottom: 12px;
+  background: #f3f5f7;
 }
 .panel-title {
   height: 59px;
@@ -34,6 +36,13 @@
 }
 .panel-title strong {
   font-size: 13px;
+}
+.settings-panel > .panel-title {
+  position: sticky;
+  z-index: 40;
+  top: 0;
+  background: #fff;
+  box-shadow: 0 1px 0 #e2e8f0, 0 5px 14px rgb(15 23 42 / 0.04);
 }
 .preview-only .editor-panel,
 .preview-only .settings-panel {

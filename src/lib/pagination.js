@@ -2,11 +2,20 @@ import { PAGE_SIZES } from '../app/config.js'
 
 export function getPageMetrics(settings) {
   const page = PAGE_SIZES[settings.pageSize]
+  const landscape = settings.pageOrientation === 'landscape'
+  const width = landscape ? page.height : page.width
+  const height = landscape ? page.width : page.height
   const horizontalMargin = Math.max(settings.marginLeft, settings.marginLeftEven)
+  const spreadInnerMargin = 24
+  const writableWidth = settings.pageSize === 'NotebookSpread' ? width / 2 : width
   return {
     ...page,
-    contentHeight: Math.max(180, page.height - settings.marginTop - settings.marginBottom),
-    contentWidth: Math.min(settings.textWidth, Math.max(220, page.width - horizontalMargin - 24)),
+    width,
+    height,
+    orientation: landscape ? 'Альбомная' : 'Книжная',
+    spreadInnerMargin,
+    contentHeight: Math.max(180, height - settings.marginTop - settings.marginBottom),
+    contentWidth: Math.min(settings.textWidth, Math.max(220, writableWidth - horizontalMargin - spreadInnerMargin)),
   }
 }
 

@@ -3,6 +3,18 @@
   align-items: center;
   gap: 10px;
 }
+.editor-panel.has-expanded-editor { z-index: 210; }
+.editor-expand-button {
+  width: 29px;
+  height: 29px;
+  border: 1px solid #cfd6df;
+  border-radius: 7px;
+  color: #334155;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+.editor-expand-button:hover { border-color: #7c93ad; background: #f8fafc; }
 .source-tabs {
   display: flex;
   align-items: center;
@@ -43,6 +55,129 @@
     Consolas,
     monospace;
   tab-size: 2;
+}
+.formatting-bar {
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  padding: 6px 10px;
+  border-bottom: 1px solid #dfe4ea;
+  background: #f8fafc;
+}
+.formatting-bar.compact { min-height: 38px; padding: 4px 8px; }
+.formatting-bar button {
+  min-width: 31px;
+  height: 29px;
+  flex: 0 0 auto;
+  padding: 0 7px;
+  border: 1px solid #d7dde5;
+  border-radius: 6px;
+  color: #334155;
+  background: #fff;
+  cursor: pointer;
+  font: 700 10px/1 ui-sans-serif, system-ui, sans-serif;
+}
+.formatting-bar button:hover { border-color: #7c93ad; color: #0f172a; background: #eef2f6; }
+
+.expanded-editor-backdrop {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 0.68);
+  backdrop-filter: blur(5px);
+}
+.expanded-editor {
+  width: min(1180px, 100%);
+  height: min(820px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  background: #f8fafc;
+  box-shadow: 0 30px 90px rgb(15 23 42 / 0.38);
+}
+.expanded-editor > header {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 18px;
+  border-bottom: 1px solid #dbe2ea;
+  background: #fff;
+}
+.expanded-editor-identity,
+.expanded-editor-header-actions { display: flex; align-items: center; gap: 12px; }
+.expanded-editor-identity > div { display: flex; flex-direction: column; gap: 2px; }
+.expanded-editor-identity strong { color: #0f172a; font-size: 14px; }
+.expanded-editor-identity small { color: #64748b; font-size: 10px; }
+.editor-document-dot { width: 12px; height: 12px; border: 3px solid #dbeafe; border-radius: 50%; background: #2563eb; }
+.expanded-editor-header-actions .source-tabs button { min-width: 70px; }
+.expanded-editor-close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+  font-size: 23px;
+}
+.expanded-editor-close:hover { color: #0f172a; background: #eef2f6; }
+.expanded-editor-body {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+}
+.expanded-editor-body textarea {
+  min-width: 0;
+  resize: none;
+  border: 0;
+  border-right: 1px solid #dbe2ea;
+  outline: 0;
+  padding: 28px 32px 80px;
+  color: #172033;
+  background: #fff;
+  font: 15px/1.75 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  tab-size: 2;
+}
+.expanded-editor-body textarea:focus { box-shadow: inset 3px 0 #2563eb; }
+.expanded-editor-body aside {
+  overflow-y: auto;
+  padding: 20px 16px;
+  color: #475569;
+  background: #f3f6f9;
+}
+.expanded-editor-body aside strong { display: block; margin-bottom: 12px; color: #1e293b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+.expanded-editor-body aside code { display: block; margin-bottom: 7px; padding: 7px 8px; border: 1px solid #dbe2ea; border-radius: 6px; color: #334155; background: #fff; font: 10px/1.35 ui-monospace, monospace; }
+.expanded-editor-body aside p { margin: 16px 0 0; font-size: 9px; line-height: 1.5; }
+.expanded-editor > footer {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-top: 1px solid #dbe2ea;
+  color: #64748b;
+  background: #fff;
+  font-size: 9px;
+}
+.expanded-editor > footer i { width: 7px; height: 7px; margin-left: auto; border-radius: 50%; background: #22c55e; }
+
+@media (max-width: 760px) {
+  .expanded-editor-backdrop { padding: 0; }
+  .expanded-editor { width: 100%; height: 100vh; border: 0; border-radius: 0; }
+  .expanded-editor-body { grid-template-columns: 1fr; }
+  .expanded-editor-body aside { display: none; }
+  .expanded-editor > header { padding: 8px 12px; }
+  .expanded-editor-identity small { display: none; }
 }
 .markdown-editor::selection {
   background: #dbeafe;
