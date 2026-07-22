@@ -89,7 +89,6 @@ export default function SettingsPanel({
       </SettingSection>
       <SettingSection title="Страница и поля">
         <div className="page-format-field">
-          <span className="field-label">Формат страницы</span>
           <div className="page-format-row">
             <select
               value={settings.pageSize}

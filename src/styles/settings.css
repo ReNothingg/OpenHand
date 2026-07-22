@@ -386,9 +386,8 @@
   font-style: normal;
   white-space: nowrap;
 }
-.plotter-font-section {
+.unified-font-section {
   padding-bottom: 8px;
-  border-bottom: 1px solid #e5e7eb;
 }
 .plotter-family-tabs {
   display: grid;
@@ -547,9 +546,7 @@
   margin-top: 4px;
   border-top: 1px solid #f1f5f9;
 }
-.featured-font-group {
-  padding-bottom: 5px;
-}
+.unified-font-group { margin-top: 7px; }
 .screen-font-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -576,13 +573,6 @@
 .font-picker-group button.screen-font-card span {
   font-size: 16px;
   line-height: 1.1;
-}
-.featured-font-group .screen-font-card span {
-  font-size: 14px;
-  line-height: 1.05;
-  overflow: hidden;
-  text-overflow: clip;
-  white-space: normal;
 }
 .font-picker-group button.screen-font-card em {
   flex: 0 0 auto;
