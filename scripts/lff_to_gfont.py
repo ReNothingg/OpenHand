@@ -104,17 +104,42 @@ def encode_glyph(codepoint, strokes, scale):
     ))
 
 
-def convert(source, destination, scale):
+def stretch_strokes(strokes, width):
+    points = [point for stroke in strokes for point in stroke]
+    if not points:
+        return strokes
+    center = (min(point[0] for point in points) + max(point[0] for point in points)) / 2
+    return [
+        [(center + (x - center) * width, y) for x, y in stroke]
+        for stroke in strokes
+    ]
+
+
+def convert(source, destination, scale, fallback_gfont=None):
     glyphs = read_lff(source)
+    if 0x2014 not in glyphs and 0x002D in glyphs:
+        glyphs[0x2014] = {
+            "strokes": stretch_strokes(resolve_strokes(0x002D, glyphs), 2.4),
+            "copies": [],
+        }
+    encoded = {}
+    for codepoint in sorted(glyphs):
+        if codepoint > 0xFFFF:
+            continue
+        strokes = resolve_strokes(codepoint, glyphs)
+        if strokes:
+            encoded[codepoint] = encode_glyph(codepoint, strokes, scale)
+    if fallback_gfont:
+        with zipfile.ZipFile(fallback_gfont) as fallback:
+            for name in fallback.namelist():
+                if name.isdigit():
+                    encoded.setdefault(int(name), fallback.read(name))
+
     destination.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for codepoint in sorted(glyphs):
-            if codepoint > 0xFFFF:
-                continue
-            strokes = resolve_strokes(codepoint, glyphs)
-            if strokes:
-                archive.writestr(str(codepoint), encode_glyph(codepoint, strokes, scale))
-    return len(glyphs)
+        for codepoint, data in sorted(encoded.items()):
+            archive.writestr(str(codepoint), data)
+    return len(encoded)
 
 
 def main():
@@ -122,8 +147,9 @@ def main():
     parser.add_argument("source", type=Path)
     parser.add_argument("destination", type=Path)
     parser.add_argument("--scale", type=float, default=40.0)
+    parser.add_argument("--fallback-gfont", type=Path)
     args = parser.parse_args()
-    count = convert(args.source, args.destination, args.scale)
+    count = convert(args.source, args.destination, args.scale, args.fallback_gfont)
     print(f"Converted {count} glyphs: {args.destination}")
 
 

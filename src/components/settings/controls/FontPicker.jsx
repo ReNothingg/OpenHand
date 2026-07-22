@@ -5,6 +5,15 @@ import { BUILTIN_GFONT_FAMILIES, BUILTIN_GFONT_OPTIONS } from '../../../plotter/
 const HANDWRITTEN_GROUP = 'Рукописные · кириллица'
 const SCREEN_GROUPS = [HANDWRITTEN_GROUP, 'Скриншот', 'Дополнительные']
 
+function pluralize(count, one, few, many) {
+  const tens = count % 100
+  const units = count % 10
+  if (tens >= 11 && tens <= 19) return many
+  if (units === 1) return one
+  if (units >= 2 && units <= 4) return few
+  return many
+}
+
 export default function FontPicker({ fontType, value, plotterFontId, onChange }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -67,7 +76,11 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange })
               <div className="plotter-font-section">
                 <div className="font-section-heading">
                   <span>Для плоттера</span>
-                  <em>{BUILTIN_GFONT_FAMILIES.length} шрифта · {BUILTIN_GFONT_OPTIONS.length} стилей</em>
+                  <em>
+                    {BUILTIN_GFONT_FAMILIES.length} {pluralize(BUILTIN_GFONT_FAMILIES.length, 'шрифт', 'шрифта', 'шрифтов')}
+                    {' · '}
+                    {BUILTIN_GFONT_OPTIONS.length} {pluralize(BUILTIN_GFONT_OPTIONS.length, 'стиль', 'стиля', 'стилей')}
+                  </em>
                 </div>
                 <div className="plotter-family-tabs" role="listbox" aria-label="Однолинейный шрифт">
                   {filteredFamilies.map((family) => (
@@ -84,7 +97,9 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange })
                       onClick={() => chooseFamily(family)}
                     >
                       <span>{family.label}</span>
-                      <small>{family.variants.length} {family.variants.length === 5 ? 'вариантов' : 'варианта'}</small>
+                      <small>
+                        {family.variants.length} {pluralize(family.variants.length, 'вариант', 'варианта', 'вариантов')}
+                      </small>
                     </button>
                   ))}
                 </div>

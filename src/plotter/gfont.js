@@ -1,6 +1,3 @@
-import ifDreamBase64 from '../../font/plotter/ifdream-unicode.gfont?base64'
-import iso3098Base64 from '../../font/plotter/iso-3098-cyrillic.gfont?base64'
-
 const EOCD_SIGNATURE = 0x06054b50
 const CENTRAL_SIGNATURE = 0x02014b50
 const LOCAL_SIGNATURE = 0x04034b50
@@ -30,6 +27,50 @@ export const BUILTIN_GFONT_FAMILIES = [
       { id: 'iso-narrow', label: 'узкий', transform: { slant: 0.08, width: 0.78 } },
     ],
   },
+  {
+    id: 'opengost-a',
+    label: 'OpenGost A',
+    description: 'узкий чертёжный ГОСТ с полной кириллицей',
+    source: 'opengost-a.gfont',
+    variants: [
+      { id: 'opengost-a-original', label: 'оригинал' },
+      { id: 'opengost-a-slanted', label: 'наклонный', transform: { slant: 0.2, width: 0.98 } },
+      { id: 'opengost-a-notes', label: 'конспектный', transform: { slant: 0.1, width: 0.84 } },
+    ],
+  },
+  {
+    id: 'opengost-b',
+    label: 'OpenGost B',
+    description: 'широкий ровный ГОСТ с полной кириллицей',
+    source: 'opengost-b.gfont',
+    variants: [
+      { id: 'opengost-b-original', label: 'оригинал' },
+      { id: 'opengost-b-slanted', label: 'наклонный', transform: { slant: 0.18, width: 0.98 } },
+      { id: 'opengost-b-wide', label: 'размашистый', transform: { slant: 0.06, width: 1.14 } },
+    ],
+  },
+  {
+    id: 'unicode-stroke',
+    label: 'Unicode Stroke',
+    description: 'универсальный однолинейный шрифт LibreCAD',
+    source: 'unicode-stroke.gfont',
+    variants: [
+      { id: 'unicode-stroke-original', label: 'оригинал' },
+      { id: 'unicode-stroke-slanted', label: 'наклонный', transform: { slant: 0.17, width: 0.96 } },
+      { id: 'unicode-stroke-compact', label: 'компактный', transform: { slant: 0.05, width: 0.8 } },
+    ],
+  },
+  {
+    id: 'hershey-cyrillic',
+    label: 'Hershey Cyrillic',
+    description: 'классический чертёжный шрифт с засечками',
+    source: 'hershey-cyrillic.gfont',
+    variants: [
+      { id: 'hershey-cyrillic-original', label: 'оригинал' },
+      { id: 'hershey-cyrillic-slanted', label: 'наклонный', transform: { slant: 0.19, width: 0.98 } },
+      { id: 'hershey-cyrillic-compact', label: 'компактный', transform: { slant: 0.06, width: 0.82 } },
+    ],
+  },
 ]
 
 export const BUILTIN_GFONT_OPTIONS = BUILTIN_GFONT_FAMILIES.flatMap((family) => (
@@ -45,9 +86,13 @@ export const BUILTIN_GFONT_OPTIONS = BUILTIN_GFONT_FAMILIES.flatMap((family) => 
 
 const bundledSourceCache = new Map()
 
-const BUNDLED_GFONT_DATA = {
-  'ifdream-unicode.gfont': ifDreamBase64,
-  'iso-3098-cyrillic.gfont': iso3098Base64,
+const BUNDLED_GFONT_LOADERS = {
+  'ifdream-unicode.gfont': () => import('../../font/plotter/ifdream-unicode.gfont?base64').then((module) => module.default),
+  'iso-3098-cyrillic.gfont': () => import('../../font/plotter/iso-3098-cyrillic.gfont?base64').then((module) => module.default),
+  'opengost-a.gfont': () => import('../../font/plotter/opengost-a.gfont?base64').then((module) => module.default),
+  'opengost-b.gfont': () => import('../../font/plotter/opengost-b.gfont?base64').then((module) => module.default),
+  'unicode-stroke.gfont': () => import('../../font/plotter/unicode-stroke.gfont?base64').then((module) => module.default),
+  'hershey-cyrillic.gfont': () => import('../../font/plotter/hershey-cyrillic.gfont?base64').then((module) => module.default),
 }
 
 function decodeBase64(encoded) {
@@ -235,9 +280,9 @@ function createVariantFont(base, option) {
 
 async function loadBundledSource(filename) {
   if (bundledSourceCache.has(filename)) return bundledSourceCache.get(filename)
-  const encoded = BUNDLED_GFONT_DATA[filename]
-  if (!encoded) throw new Error(`Встроенный шрифт «${filename}» не найден в сборке.`)
-  const pending = Promise.resolve().then(() => loadGFont(decodeBase64(encoded), filename))
+  const loader = BUNDLED_GFONT_LOADERS[filename]
+  if (!loader) throw new Error(`Встроенный шрифт «${filename}» не найден в сборке.`)
+  const pending = loader().then((encoded) => loadGFont(decodeBase64(encoded), filename))
   bundledSourceCache.set(filename, pending)
   return pending
 }
