@@ -1,0 +1,154 @@
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #eef0f3;
+  overflow: hidden;
+}
+.preview-toolbar {
+  min-height: 59px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: #ffffff;
+  z-index: 4;
+}
+.preview-heading {
+  display: flex;
+  flex-direction: column;
+  margin-right: auto;
+}
+.preview-heading strong {
+  font-size: 13px;
+}
+.preview-heading span {
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 2px;
+}
+.layout-select {
+  height: 31px;
+  padding: 0 27px 0 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #374151;
+  background: #fff;
+  outline: 0;
+  font-size: 11px;
+  cursor: pointer;
+}
+.layout-select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px #dbeafe;
+}
+.pages-viewport {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  overscroll-behavior: contain;
+  cursor: grab;
+  touch-action: none;
+}
+.pages-viewport.is-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+.pages-canvas {
+  width: max-content;
+  min-width: calc(100% + 640px);
+  min-height: calc(100% + 520px);
+  display: grid;
+  align-content: start;
+  justify-content: center;
+  gap: 28px;
+  padding: 200px 320px;
+}
+.pages-canvas.single {
+  grid-template-columns: min-content;
+}
+.pages-canvas.spread {
+  grid-template-columns: repeat(2, min-content);
+}
+.page-shell {
+  flex: 0 0 auto;
+  position: relative;
+}
+.paper {
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform-origin: top left;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  outline: 1px solid #dfe3e8;
+}
+.paper.ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--rule-size) - 1px),
+    rgba(102, 143, 174, 0.17) calc(var(--rule-size) - 1px),
+    rgba(102, 143, 174, 0.17) var(--rule-size)
+  );
+  background-position-y: 74px;
+}
+.paper.notebook-paper {
+  --rule-size: 30px !important;
+  background-color: #fff !important;
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 62px,
+      rgba(220, 38, 38, 0.55) 62px,
+      rgba(220, 38, 38, 0.55) 64px,
+      transparent 64px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 29px,
+      rgba(59, 130, 246, 0.28) 29px,
+      rgba(59, 130, 246, 0.28) 30px
+    ) !important;
+  background-position:
+    0 0,
+    0 48px !important;
+  background-size:
+    100% 100%,
+    100% 30px !important;
+}
+.page-content {
+  position: absolute;
+  transform-origin: top left;
+  overflow: hidden;
+}
+.page-number {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(55, 57, 52, 0.38);
+  font:
+    11px/1 ui-sans-serif,
+    sans-serif;
+}
+.measure-host {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.measure-paper {
+  position: relative;
+  box-shadow: none;
+}
+.measure-paper .page-content {
+  position: relative;
+  inset: auto;
+  overflow: hidden;
+}

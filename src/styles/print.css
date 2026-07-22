@@ -1,0 +1,54 @@
+@media print {
+  html,
+  body,
+  #root,
+  .app {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  body {
+    overflow: visible !important;
+  }
+  .editor-panel,
+  .settings-panel,
+  .preview-toolbar,
+  .measure-host {
+    display: none !important;
+  }
+  .workspace,
+  .preview-panel,
+  .pages-viewport,
+  .pages-canvas {
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .page-shell {
+    width: auto !important;
+    height: auto !important;
+    position: static !important;
+  }
+  .paper {
+    position: relative !important;
+    inset: auto !important;
+    transform: none !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+    break-after: page;
+    page-break-after: always;
+  }
+  .page-shell:last-child .paper {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .page-number {
+    display: none;
+  }
+}

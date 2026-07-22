@@ -1,0 +1,62 @@
+.editor-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.source-tabs {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: #f3f4f6;
+}
+.source-tabs button {
+  min-width: 39px;
+  height: 25px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+.source-tabs button.active {
+  color: #fff;
+  background: var(--green);
+}
+.markdown-editor {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  border: 0;
+  outline: 0;
+  padding: 20px 18px 36px;
+  background: #ffffff;
+  color: #111827;
+  font:
+    14px/1.65 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  tab-size: 2;
+}
+.markdown-editor::selection {
+  background: #dbeafe;
+}
+.editor-footer {
+  height: 34px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  background: #f9fafb;
+}
