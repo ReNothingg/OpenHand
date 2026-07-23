@@ -147,6 +147,50 @@ export default function SettingsPanel({
       </SettingSection>
       <PlotterSettings workspace={plotterWorkspace} />
       <SettingSection title="Живой почерк">
+        <Toggle
+          checked={settings.trueHandwriting}
+          onChange={(value) => updateSetting("trueHandwriting", value)}
+          label="Настоящий почерк"
+        ><small>Варианты глифов, контекстные соединения, начала и окончания слов, давление и редкие исправления.</small></Toggle>
+        {settings.trueHandwriting && <>
+          <RangeControl
+            label="Вариативность букв"
+            value={settings.glyphVariation}
+            min={0}
+            max={100}
+            suffix="%"
+            onChange={(value) => updateSetting("glyphVariation", value)}
+            hint="Выбирает один из нескольких устойчивых вариантов каждой буквы."
+          />
+          <RangeControl
+            label="Связность"
+            value={settings.connectionStrength}
+            min={0}
+            max={100}
+            suffix="%"
+            onChange={(value) => updateSetting("connectionStrength", value)}
+            hint="Частота контекстных соединений между соседними буквами."
+          />
+          <RangeControl
+            label="Редкие исправления"
+            value={settings.correctionChance}
+            min={0}
+            max={5}
+            step={0.1}
+            suffix="%"
+            onChange={(value) => updateSetting("correctionChance", value)}
+            hint="Вероятность естественного зачёркивания слова."
+          />
+          <RangeControl
+            label="Изменение давления"
+            value={settings.pressureVariation}
+            min={0}
+            max={50}
+            suffix="%"
+            onChange={(value) => updateSetting("pressureVariation", value)}
+            hint="Слегка меняет толщину предпросмотра и усилие пера между штрихами."
+          />
+        </>}
         <RangeControl
           label="Случайное направление"
           value={settings.directionChance}

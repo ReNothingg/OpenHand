@@ -33,6 +33,11 @@ export const DEFAULT_SETTINGS = {
   maxLineIndent: 0,
   wordFrequency: 4,
   letterFrequency: 25,
+  trueHandwriting: true,
+  glyphVariation: 58,
+  connectionStrength: 62,
+  correctionChance: 1.2,
+  pressureVariation: 18,
   seed: 31847,
   zoom: 72,
   fontPool: defaultFontPool,
@@ -80,4 +85,5 @@ export const STORAGE_KEYS = {
   sourceMode: 'handwriter-source-mode-v1',
   settings: 'handwriter-settings-v2',
   presets: 'handwriter-presets-v2',
+  manualLayout: 'handwriter-manual-layout-v1',
 }

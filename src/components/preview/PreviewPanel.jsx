@@ -1,8 +1,18 @@
 import PlotterFooter from '../plotter/PlotterFooter.jsx'
 import PlotterPaper from '../plotter/PlotterPaper.jsx'
+import { useEffect, useState } from 'react'
+import BlockInspector from './BlockInspector.jsx'
+import ManualPageContent from './ManualPageContent.jsx'
 
 export default function PreviewPanel({
   pages,
+  manualPages,
+  manualEditing,
+  setManualEditing,
+  onUpdateManualBlock,
+  onCommitManualBlock,
+  onMeasureManualBlocks,
+  onResetManualBlock,
   settings,
   metrics,
   viewMode,
@@ -17,11 +27,25 @@ export default function PreviewPanel({
   activeSheetIndex,
   onActiveSheetChange,
 }) {
+  const [selectedBlock, setSelectedBlock] = useState(null)
   const isNotebookSpread = settings.pageSize === 'NotebookSpread'
   const displayedPages = isNotebookSpread
     ? Array.from({ length: Math.ceil(pages.length / 2) }, (_, index) => pages.slice(index * 2, index * 2 + 2))
     : pages.map((page) => [page])
   const plotterMode = plotterWorkspace.enabled
+  useEffect(() => {
+    if (!manualEditing) setSelectedBlock(null)
+  }, [manualEditing])
+  useEffect(() => {
+    if (!selectedBlock) return
+    for (let pageIndex = 0; pageIndex < manualPages.length; pageIndex += 1) {
+      const block = manualPages[pageIndex]?.find((item) => item.id === selectedBlock.block.id)
+      if (block && (pageIndex !== selectedBlock.pageIndex || block.layout !== selectedBlock.block.layout)) {
+        setSelectedBlock({ pageIndex, block })
+        return
+      }
+    }
+  }, [manualPages, selectedBlock])
   const sheetCount = displayedPages.length
   const plotterStatusLabel = {
     disconnected: 'Не подключён',
@@ -63,10 +87,14 @@ export default function PreviewPanel({
             </span>
           )}
         </div>
+        <button className={`button compact placement-toggle ${manualEditing ? 'active' : ''}`} type="button" aria-pressed={manualEditing} onClick={() => setManualEditing((value) => !value)}>
+          <span aria-hidden="true">⌁</span>{manualEditing ? 'Готово' : 'Расставить'}
+        </button>
         <select className="layout-select" value={viewMode} onChange={(event) => setViewMode(event.target.value)} aria-label="Раскладка страниц"><option value="single">По 1 листу</option><option value="spread">По 2 листа</option></select>
         {!plotterMode && <button className="button ghost compact" type="button" onClick={reshuffle}>Перемешать</button>}
         <button className="button ghost compact" type="button" onClick={() => setPreviewOnly((value) => !value)}>{previewOnly ? 'Вернуть панели' : 'Только листы'}</button>
       </div>
+      {manualEditing && <BlockInspector selected={selectedBlock} onUpdate={onUpdateManualBlock} onCommit={onCommitManualBlock} onReset={(originPage, blockId) => { onResetManualBlock(originPage, blockId); setSelectedBlock(null) }} />}
       <div className="pages-viewport" ref={previewRef} {...panHandlers} onScroll={detectActiveSheet}>
         <div className={`pages-canvas ${viewMode}`}>
           {displayedPages.map((spreadPages, index) => {
@@ -77,7 +105,7 @@ export default function PreviewPanel({
             return (
               <div className="page-shell" data-page-index={firstPageIndex} data-sheet-index={index} key={`${index}-${settings.seed}`} style={{ width: metrics.width * settings.zoom / 100, height: metrics.height * settings.zoom / 100 }}>
                 <article
-                  className={`paper ${settings.ruledPaper || settings.pageSize.startsWith('Notebook') ? 'ruled' : ''} ${settings.pageSize.startsWith('Notebook') ? 'notebook-paper' : ''} ${settings.pageSize === 'NotebookSpread' ? 'notebook-spread' : ''} ${settings.pageSize === 'Notebook' ? (index % 2 === 0 ? 'notebook-right-page' : 'notebook-left-page') : ''}`}
+                  className={`paper ${manualEditing ? 'manual-editing' : ''} ${settings.ruledPaper || settings.pageSize.startsWith('Notebook') ? 'ruled' : ''} ${settings.pageSize.startsWith('Notebook') ? 'notebook-paper' : ''} ${settings.pageSize === 'NotebookSpread' ? 'notebook-spread' : ''} ${settings.pageSize === 'Notebook' ? (index % 2 === 0 ? 'notebook-right-page' : 'notebook-left-page') : ''}`}
                   style={{
                     width: metrics.width,
                     height: metrics.height,
@@ -90,34 +118,48 @@ export default function PreviewPanel({
                     '--rule-size': `${settings.fontSize * settings.lineHeight}px`,
                   }}
                 >
-                  {plotterMode ? (
+                  {plotterMode && !manualEditing ? (
                     <>
                       <PlotterPaper layout={plotterWorkspace.layouts[index]} settings={settings} metrics={metrics} pageIndex={index} />
                       {plotterWorkspace.busy && <div className="integrated-plotter-loading">Строю траекторию…</div>}
                     </>
                   ) : <>
-                    <div
-                      className="page-content markdown-body"
-                      style={{
+                    <ManualPageContent
+                      blocks={manualPages[firstPageIndex] || []}
+                      pageIndex={firstPageIndex}
+                      editing={manualEditing}
+                      selected={selectedBlock}
+                      zoom={settings.zoom}
+                      onSelect={setSelectedBlock}
+                      onUpdate={onUpdateManualBlock}
+                      onCommit={onCommitManualBlock}
+                      onMeasure={onMeasureManualBlocks}
+                      contentStyle={{
                         top: settings.marginTop,
                         left,
                         width: metrics.contentWidth,
                         height: metrics.contentHeight,
                         transform: `rotate(${settings.textRotation}deg)`,
                       }}
-                      dangerouslySetInnerHTML={{ __html: spreadPages[0] || '' }}
                     />
                     {isNotebookSpread && (
-                      <div
-                        className="page-content markdown-body spread-right-content"
-                        style={{
+                      <ManualPageContent
+                        blocks={manualPages[firstPageIndex + 1] || []}
+                        pageIndex={firstPageIndex + 1}
+                        editing={manualEditing}
+                        selected={selectedBlock}
+                        zoom={settings.zoom}
+                        onSelect={setSelectedBlock}
+                        onUpdate={onUpdateManualBlock}
+                        onCommit={onCommitManualBlock}
+                        onMeasure={onMeasureManualBlocks}
+                        contentStyle={{
                           top: settings.marginTop,
                           left: metrics.width / 2 + settings.marginLeftEven,
                           width: metrics.contentWidth,
                           height: metrics.contentHeight,
                           transform: `rotate(${settings.textRotation}deg)`,
                         }}
-                        dangerouslySetInnerHTML={{ __html: spreadPages[1] || '' }}
                       />
                     )}
                   </>}

@@ -7,6 +7,7 @@ import {
   createOriginCommands,
   createPenCommand,
   DEFAULT_PLOTTER_CONFIG,
+  layoutBlocks,
   layoutText,
   pageSettingsToMillimeters,
 } from '../plotter/job.js'
@@ -59,23 +60,23 @@ export function mechanicsDefaults(profile) {
   }
 }
 
-function buildSheets(pageTexts, settings, metrics) {
+function buildSheets(pageTexts, pageBlocks, settings, metrics) {
   if (settings.pageSize === 'NotebookSpread') {
     return Array.from({ length: Math.ceil(pageTexts.length / 2) }, (_, index) => ({
       page: pageSettingsToMillimeters(settings, metrics, false, 'left'),
       parts: [
-        { text: pageTexts[index * 2] || '', page: pageSettingsToMillimeters(settings, metrics, false, 'left') },
-        { text: pageTexts[index * 2 + 1] || '', page: pageSettingsToMillimeters(settings, metrics, true, 'right') },
+        { text: pageTexts[index * 2] || '', blocks: pageBlocks[index * 2] || [], page: pageSettingsToMillimeters(settings, metrics, false, 'left') },
+        { text: pageTexts[index * 2 + 1] || '', blocks: pageBlocks[index * 2 + 1] || [], page: pageSettingsToMillimeters(settings, metrics, true, 'right') },
       ],
     }))
   }
   return pageTexts.map((text, index) => ({
     page: pageSettingsToMillimeters(settings, metrics, index % 2 === 1),
-    parts: [{ text, page: pageSettingsToMillimeters(settings, metrics, index % 2 === 1) }],
+    parts: [{ text, blocks: pageBlocks[index] || [], page: pageSettingsToMillimeters(settings, metrics, index % 2 === 1) }],
   }))
 }
 
-export function useIntegratedPlotter({ enabled, fontId, pageTexts, settings, metrics, activeSheetIndex }) {
+export function useIntegratedPlotter({ enabled, fontId, pageTexts, pageBlocks = [], settings, metrics, activeSheetIndex }) {
   const [config, setConfig] = useState(() => ({ ...loadConfig(), fontId: fontId || DEFAULT_PLOTTER_CONFIG.fontId }))
   const [font, setFont] = useState(null)
   const [fontStatus, setFontStatus] = useState('Выберите однолинейный GFont')
@@ -84,8 +85,9 @@ export function useIntegratedPlotter({ enabled, fontId, pageTexts, settings, met
   const [error, setError] = useState('')
   const [armed, setArmed] = useState(false)
   const plotter = usePlotter()
-  const sheets = useMemo(() => buildSheets(pageTexts, settings, metrics), [
+  const sheets = useMemo(() => buildSheets(pageTexts, pageBlocks, settings, metrics), [
     pageTexts,
+    pageBlocks,
     metrics,
     settings.pageSize,
     settings.marginTop,
@@ -135,23 +137,49 @@ export function useIntegratedPlotter({ enabled, fontId, pageTexts, settings, met
     setBusy(true)
     setError('')
     Promise.all(sheets.map(async (sheet) => {
-      const parts = await Promise.all(sheet.parts.map((part) => layoutText(part.text, font, part.page, { letterSpacing: config.letterSpacing })))
+      const layoutConfig = {
+        ...config,
+        seed: settings.seed,
+        trueHandwriting: settings.trueHandwriting,
+        glyphVariation: settings.glyphVariation,
+        connectionStrength: settings.connectionStrength,
+        correctionChance: settings.correctionChance,
+        pressureVariation: settings.pressureVariation,
+      }
+      const parts = await Promise.all(sheet.parts.map((part) => (
+        part.blocks.some((block) => block.layout)
+          ? layoutBlocks(part.blocks, font, part.page, layoutConfig)
+          : layoutText(part.text, font, part.page, layoutConfig)
+      )))
       return {
         page: sheet.page,
         strokes: parts.flatMap((part) => part.strokes),
         missing: [...new Set(parts.flatMap((part) => part.missing))],
         clipped: parts.some((part) => part.clipped),
+        clippedItems: [...new Set(parts.flatMap((part) => part.clippedItems || []))],
       }
     }))
       .then((nextLayouts) => !cancelled && setLayouts(nextLayouts))
       .catch((reason) => !cancelled && setError(reason.message))
       .finally(() => !cancelled && setBusy(false))
     return () => { cancelled = true }
-  }, [enabled, font, sheets, config.letterSpacing])
+  }, [
+    enabled,
+    font,
+    sheets,
+    config.letterSpacing,
+    settings.seed,
+    settings.trueHandwriting,
+    settings.glyphVariation,
+    settings.connectionStrength,
+    settings.correctionChance,
+    settings.pressureVariation,
+  ])
 
   const activeIndex = Math.min(Math.max(0, activeSheetIndex || 0), Math.max(0, layouts.length - 1))
-  const activeLayout = layouts[activeIndex] || { strokes: [], missing: [], clipped: false, page: sheets[activeIndex]?.page }
+  const activeLayout = layouts[activeIndex] || { strokes: [], missing: [], clipped: false, clippedItems: [], page: sheets[activeIndex]?.page }
   const job = useMemo(() => compilePlotJob(activeLayout.strokes, config), [activeLayout.strokes, config])
+  const jobs = useMemo(() => layouts.map((layout) => compilePlotJob(layout.strokes, config)), [layouts, config])
   const connected = plotter.status !== 'disconnected' && plotter.status !== 'connecting'
   const running = plotter.status === 'running' || plotter.status === 'paused'
   const progressPercent = plotter.progress.total ? plotter.progress.current / plotter.progress.total * 100 : 0
@@ -209,6 +237,7 @@ export function useIntegratedPlotter({ enabled, fontId, pageTexts, settings, met
     activeIndex,
     activeLayout,
     job,
+    jobs,
     busy,
     error,
     armed,
@@ -223,6 +252,10 @@ export function useIntegratedPlotter({ enabled, fontId, pageTexts, settings, met
     pen: (up) => safeAction(() => plotter.sendCommands(createPenCommand(up, config))),
     setOrigin: () => safeAction(() => plotter.sendCommands(createOriginCommands(config))),
     run: () => safeAction(() => plotter.run(job.commands)),
+    runSheets: (indices) => safeAction(() => {
+      const commands = indices.flatMap((index) => jobs[index]?.commands || [])
+      return plotter.run(commands)
+    }),
     pause: () => safeAction(plotter.pause),
     resume: () => safeAction(plotter.resume),
     stop: () => safeAction(plotter.stop),

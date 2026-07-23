@@ -113,7 +113,7 @@ export default function EditorPanel({
               <aside>
                 <strong>Шпаргалка</strong>
                 {sourceMode === 'markdown' ? <>
-                  <code># Заголовок</code><code>**жирный**</code><code>*курсив*</code><code>++подчёркнутый++</code><code>+++двойная линия+++</code><code>~~зачёркнутый~~</code><code>==маркер==</code><code>$E = mc^2$</code><code>$$ ... $$</code><code>&gt; цитата</code><code>- список</code><code>1. нумерация</code><code>- [x] задача</code><code>:::center<br />по центру<br />:::</code><code>:::right<br />справа<br />:::</code><code>&gt; [!NOTE] заметка</code><code>&lt;details&gt;&lt;summary&gt;Ответ&lt;/summary&gt;текст&lt;/details&gt;</code><code>| таблица | столбец |</code>
+                  <code># Заголовок</code><code>**жирный**</code><code>*курсив*</code><code>++подчёркнутый++</code><code>+++двойная линия+++</code><code>~~зачёркнутый~~</code><code>==маркер==</code><code>$E = mc^2$</code><code>$$ ... $$</code><code>&gt; цитата</code><code>- список</code><code>1. нумерация</code><code>- [x] задача</code><code>:::center<br />по центру<br />:::</code><code>:::right<br />справа<br />:::</code><code>:::place id=intro page=2 x=40 y=70 width=380 height=120 rotate=-2 align=center nowrap<br />## Свободный блок<br />:::</code><code>&gt; [!NOTE] заметка</code><code>&lt;details&gt;&lt;summary&gt;Ответ&lt;/summary&gt;текст&lt;/details&gt;</code><code>| таблица | столбец |</code>
                 </> : <>
                   <code>\section&#123;Раздел&#125;</code><code>\textbf&#123;жирный&#125;</code><code>\textit&#123;курсив&#125;</code><code>\underline&#123;текст&#125;</code><code>\(E = mc^2\)</code><code>\[ ... \]</code><code>\begin&#123;enumerate&#125;</code><code>\item пункт</code>
                 </>}

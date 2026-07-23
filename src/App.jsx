@@ -10,6 +10,7 @@ import { usePreviewInteractions } from './hooks/usePreviewInteractions.js'
 import { useLineEffects, useRenderedPages } from './hooks/useRenderedPages.js'
 import { downloadFile } from './lib/files.js'
 import { getPageMetrics } from './lib/pagination.js'
+import { arrangeManualPages, createManualPages, updatePlacementDirective } from './lib/manualLayout.js'
 import { loadStoredObject, loadStoredText } from './lib/storage.js'
 import { renderMarkdown } from './markdown.js'
 import { htmlToPlotterText } from './plotter/richText.js'
@@ -25,6 +26,8 @@ export default function App() {
   const [previewOnly, setPreviewOnly] = useState(false)
   const [viewMode, setViewMode] = useState('single')
   const [activeSheetIndex, setActiveSheetIndex] = useState(0)
+  const [manualEditing, setManualEditing] = useState(false)
+  const [manualLayouts, setManualLayouts] = useState(() => loadStoredObject(STORAGE_KEYS.manualLayout, {}))
 
   const textareaRef = useRef(null)
   const previewRef = useRef(null)
@@ -71,6 +74,11 @@ export default function App() {
     letterFrequency: settings.letterFrequency,
     maxLineDrift: settings.maxLineDrift,
     maxLineIndent: settings.maxLineIndent,
+    trueHandwriting: settings.trueHandwriting,
+    glyphVariation: settings.glyphVariation,
+    connectionStrength: settings.connectionStrength,
+    correctionChance: settings.correctionChance,
+    pressureVariation: settings.pressureVariation,
   }), [
     settings.seed,
     settings.directionChance,
@@ -82,6 +90,11 @@ export default function App() {
     settings.letterFrequency,
     settings.maxLineDrift,
     settings.maxLineIndent,
+    settings.trueHandwriting,
+    settings.glyphVariation,
+    settings.connectionStrength,
+    settings.correctionChance,
+    settings.pressureVariation,
   ])
   const renderedHtml = useMemo(
     () => sourceMode === 'tex'
@@ -90,9 +103,46 @@ export default function App() {
     [sourceMode, deferredTexSource, deferredMarkdown, renderSettings, selectedPool],
   )
   const { pages, measureRef } = useRenderedPages(renderedHtml, settings)
+  const manualPages = useMemo(() => createManualPages(pages), [pages])
+  useEffect(() => {
+    setManualLayouts((current) => {
+      const next = { ...current }
+      let changed = false
+      manualPages.forEach((blocks, originPage) => {
+        blocks.forEach((block) => {
+          if (!block.defaultLayout) return
+          const existing = next[originPage]?.[block.id]
+          if (existing?.sourceLayoutKey === block.sourceLayoutKey) return
+          next[originPage] = { ...(next[originPage] || {}) }
+          next[originPage][block.id] = {
+            ...(existing || {}),
+            ...block.defaultLayout,
+            sourceLayoutKey: block.sourceLayoutKey,
+            dirty: false,
+          }
+          changed = true
+        })
+      })
+      return changed ? next : current
+    })
+  }, [manualPages])
+  const arrangedManualPages = useMemo(
+    () => arrangeManualPages(manualPages, manualLayouts),
+    [manualPages, manualLayouts],
+  )
+  const displayPages = useMemo(
+    () => Array.from({ length: arrangedManualPages.length }, (_, index) => pages[index] || ''),
+    [arrangedManualPages.length, pages],
+  )
   const setZoom = useCallback((zoom) => updateSetting('zoom', zoom), [updateSetting])
 
   useDocumentPersistence({ markdown, texSource, sourceMode, settings })
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      localStorage.setItem(STORAGE_KEYS.manualLayout, JSON.stringify(manualLayouts))
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [manualLayouts])
   useLineEffects(previewRef, pages, settings)
   const panHandlers = usePreviewInteractions({
     previewRef,
@@ -197,17 +247,62 @@ export default function App() {
 
   const wordCount = activeSource.trim() ? activeSource.trim().split(/\s+/u).length : 0
   const renderedPageTexts = useMemo(
-    () => pages.map((html) => htmlToPlotterText(html)),
-    [pages],
+    () => displayPages.map((html) => htmlToPlotterText(html)),
+    [displayPages],
+  )
+  const plotterPageBlocks = useMemo(
+    () => arrangedManualPages.map((blocks) => blocks.map((block) => ({
+      ...block,
+      layout: block.layout,
+    }))),
+    [arrangedManualPages],
   )
   const plotterWorkspace = useIntegratedPlotter({
     enabled: settings.fontType === 'plotter',
     fontId: settings.plotterFontId,
     pageTexts: renderedPageTexts.length ? renderedPageTexts : [activeSource],
+    pageBlocks: plotterPageBlocks,
     settings,
     metrics,
     activeSheetIndex,
   })
+  const updateManualBlock = useCallback((originPage, blockId, patch) => {
+    setManualLayouts((current) => ({
+      ...current,
+      [originPage]: {
+        ...(current[originPage] || {}),
+        [blockId]: { ...(current[originPage]?.[blockId] || {}), ...patch, dirty: true },
+      },
+    }))
+  }, [])
+  const measureManualBlocks = useCallback((pageIndex, measurements) => {
+    setManualLayouts((current) => {
+      const next = { ...current }
+      let changed = false
+      Object.entries(measurements).forEach(([blockId, measurement]) => {
+        const originPage = Number.isFinite(measurement.originPage) ? measurement.originPage : pageIndex
+        const pageLayout = { ...(next[originPage] || {}) }
+        if (!pageLayout[blockId]) {
+          const { originPage: ignored, ...geometry } = measurement
+          pageLayout[blockId] = { ...geometry, pageIndex, rotation: 0, align: 'left', noWrap: false, dirty: false }
+          next[originPage] = pageLayout
+          changed = true
+        }
+      })
+      return changed ? next : current
+    })
+  }, [])
+  const resetManualBlock = useCallback((pageIndex, blockId) => {
+    setManualLayouts((current) => {
+      const pageLayout = { ...(current[pageIndex] || {}) }
+      delete pageLayout[blockId]
+      return { ...current, [pageIndex]: pageLayout }
+    })
+  }, [])
+  const commitManualBlock = useCallback((originPage, blockId, layout) => {
+    if (sourceMode !== 'markdown' || !blockId.startsWith('md-')) return
+    setMarkdown((current) => updatePlacementDirective(current, blockId.slice(3), layout))
+  }, [sourceMode])
 
   return (
     <div className={`app ${previewOnly ? 'preview-only' : ''}`}>
@@ -223,7 +318,14 @@ export default function App() {
           characterCount={activeSource.length}
         />
         <PreviewPanel
-            pages={pages}
+            pages={displayPages}
+            manualPages={arrangedManualPages}
+            manualEditing={manualEditing}
+            setManualEditing={setManualEditing}
+            onUpdateManualBlock={updateManualBlock}
+            onCommitManualBlock={commitManualBlock}
+            onMeasureManualBlocks={measureManualBlocks}
+            onResetManualBlock={resetManualBlock}
             settings={settings}
             metrics={metrics}
             viewMode={viewMode}

@@ -13,6 +13,19 @@ import {
 const PX_TO_MM = 25.4 / 96
 const FONT_EM = 400
 
+function seededRandom(seed, key) {
+  let value = 2166136261
+  const source = `${seed}:${key}`
+  for (let index = 0; index < source.length; index += 1) {
+    value ^= source.charCodeAt(index)
+    value = Math.imul(value, 16777619)
+  }
+  value += 0x6d2b79f5
+  value = Math.imul(value ^ (value >>> 15), value | 1)
+  value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
+  return ((value ^ (value >>> 14)) >>> 0) / 4294967296
+}
+
 export const DEFAULT_PLOTTER_CONFIG = {
   fontId: 'ifdream-original',
   profile: 'grbl',
@@ -49,17 +62,28 @@ export function pageSettingsToMillimeters(settings, metrics, evenPage = false, s
   }
 }
 
-function splitGlyphStrokes(glyph, cursorX, baseline, scale) {
+function splitGlyphStrokes(glyph, cursorX, baseline, scale, handwriting = null) {
   const strokes = []
   let stroke = null
+  const variation = handwriting?.enabled ? Math.max(0, Math.min(100, Number(handwriting.variation) || 0)) : 0
+  const variant = variation > 0 && seededRandom(handwriting.seed, `${handwriting.key}:active`) * 100 < variation
+    ? Math.floor(seededRandom(handwriting.seed, `${handwriting.key}:variant`) * 4)
+    : 0
+  const slant = (seededRandom(handwriting?.seed, `${handwriting?.key}:slant`) - 0.5) * variation * 0.0017
+  const scaleX = 1 + (variant === 1 ? -0.025 : variant === 2 ? 0.035 : variant === 3 ? 0.012 : 0)
+  const scaleY = 1 + (seededRandom(handwriting?.seed, `${handwriting?.key}:height`) - 0.5) * variation * 0.0022
+  const pressure = 1 + (seededRandom(handwriting?.seed, `${handwriting?.key}:pressure`) - 0.5) * Number(handwriting?.pressure || 0) * 0.012
   for (let index = 0; index < glyph.points.length; index += 1) {
     const source = glyph.points[index]
+    const localY = source.y * scale * scaleY
+    const localX = (source.x - glyph.bounds.minX) * scale * scaleX + localY * slant
     const point = {
-      x: cursorX + (source.x - glyph.bounds.minX) * scale,
-      y: baseline + source.y * scale,
+      x: cursorX + localX,
+      y: baseline + localY,
     }
     if (glyph.flags[index] === 0 || !stroke) {
       stroke = [point]
+      stroke.pressure = pressure
       strokes.push(stroke)
     } else {
       stroke.push(point)
@@ -136,6 +160,7 @@ export async function layoutText(text, font, page, config) {
   const maxY = page.pageHeight - page.bottom
   let clipped = false
   let activeCallout = null
+  let glyphOccurrence = 0
 
   const markCalloutContent = () => {
     if (!activeCallout) return
@@ -239,7 +264,9 @@ export async function layoutText(text, font, page, config) {
     }, 0)
   let activeAlignment = 'left'
 
-  for (const rawLine of text.replace(/\r/g, '').split('\n')) {
+  const rawLines = text.replace(/\r/g, '').split('\n')
+  for (let rawLineIndex = 0; rawLineIndex < rawLines.length; rawLineIndex += 1) {
+    const rawLine = rawLines[rawLineIndex]
     Array.from(rawLine).forEach((char) => {
       if (alignmentStarts.has(char)) activeAlignment = alignmentStarts.get(char)
     })
@@ -337,7 +364,11 @@ export async function layoutText(text, font, page, config) {
       }
       const tokenWidth = Array.from(token).reduce((total, char) => total + (PLOTTER_CONTROL_MARKS.has(char) ? 0 : advanceFor(char)), 0)
       if (x > page.left && x + tokenWidth > maxX) nextLine()
-      for (const char of token) {
+      const tokenChars = Array.from(token)
+      const tokenStartX = x
+      let previousGlyphEnd = null
+      for (let charIndex = 0; charIndex < tokenChars.length; charIndex += 1) {
+        const char = tokenChars[charIndex]
         if (char === PLOTTER_CALLOUT_MARKS.start) {
           closeCallout()
           activeCallout = {
@@ -368,12 +399,79 @@ export async function layoutText(text, font, page, config) {
         if (x > page.left && x + advance > maxX) nextLine()
         if (clipped) break
         const glyph = glyphs.get(char)
-        if (glyph) strokes.push(...splitGlyphStrokes(glyph, x, baseline, scale))
+        if (glyph) {
+          const glyphStrokes = splitGlyphStrokes(glyph, x, baseline, scale, {
+            enabled: Boolean(config.trueHandwriting),
+            variation: config.glyphVariation,
+            pressure: config.pressureVariation,
+            seed: config.seed,
+            key: `${glyphOccurrence}:${char}`,
+          })
+          const firstPoint = glyphStrokes[0]?.[0]
+          const connectionChance = Math.max(0, Math.min(100, Number(config.connectionStrength) || 0))
+          if (
+            config.trueHandwriting &&
+            previousGlyphEnd &&
+            firstPoint &&
+            seededRandom(config.seed, `join:${glyphOccurrence}`) * 100 < connectionChance &&
+            Math.hypot(firstPoint.x - previousGlyphEnd.x, firstPoint.y - previousGlyphEnd.y) < page.fontSize * 0.82
+          ) {
+            const connector = [
+              previousGlyphEnd,
+              {
+                x: (previousGlyphEnd.x + firstPoint.x) / 2,
+                y: Math.min(previousGlyphEnd.y, firstPoint.y) + page.fontSize * 0.055,
+              },
+              firstPoint,
+            ]
+            connector.pressure = 0.88
+            strokes.push(connector)
+          }
+          if (config.trueHandwriting && charIndex === 0 && glyphStrokes[0]?.[0] && seededRandom(config.seed, `lead:${glyphOccurrence}`) < 0.34) {
+            const start = glyphStrokes[0][0]
+            const lead = [
+              { x: start.x - page.fontSize * (0.08 + seededRandom(config.seed, `lead-width:${glyphOccurrence}`) * 0.08), y: start.y + page.fontSize * 0.05 },
+              start,
+            ]
+            lead.pressure = 0.78
+            strokes.push(lead)
+          }
+          strokes.push(...glyphStrokes)
+          previousGlyphEnd = glyphStrokes.at(-1)?.at(-1) || previousGlyphEnd
+          glyphOccurrence += 1
+        } else {
+          previousGlyphEnd = null
+        }
         x += advance
         if (glyph || !/\s/u.test(char)) markCalloutContent()
       }
+      if (
+        config.trueHandwriting &&
+        previousGlyphEnd &&
+        seededRandom(config.seed, `tail:${glyphOccurrence}`) < 0.3
+      ) {
+        const tail = [
+          previousGlyphEnd,
+          { x: previousGlyphEnd.x + page.fontSize * 0.13, y: previousGlyphEnd.y - page.fontSize * 0.025 },
+        ]
+        tail.pressure = 0.76
+        strokes.push(tail)
+      }
+      if (
+        config.trueHandwriting &&
+        x > tokenStartX &&
+        seededRandom(config.seed, `correction:${glyphOccurrence}:${token}`) * 100 < Number(config.correctionChance || 0)
+      ) {
+        const correction = [
+          { x: tokenStartX - page.fontSize * 0.04, y: baseline - page.fontSize * 0.38 },
+          { x: x + page.fontSize * 0.05, y: baseline - page.fontSize * 0.31 },
+        ]
+        correction.pressure = 1.08
+        strokes.push(correction)
+      }
     }
-    nextLine()
+    if (rawLineIndex < rawLines.length - 1) nextLine()
+    else closeLineDecorations()
     if (endsAlignment) activeAlignment = 'left'
     if (clipped) break
   }
@@ -382,20 +480,94 @@ export async function layoutText(text, font, page, config) {
   return { strokes, missing: [...missing], clipped }
 }
 
+export async function layoutBlocks(blocks, font, page, config) {
+  const strokes = []
+  const missing = new Set()
+  const clippedItems = []
+  let clipped = false
+
+  for (const [index, block] of blocks.entries()) {
+    const layout = block.layout || {
+      x: 0,
+      y: index * page.lineHeight / PX_TO_MM * 1.4,
+      width: (page.pageWidth - page.left - page.right) / PX_TO_MM,
+      height: page.lineHeight / PX_TO_MM * 1.5,
+      rotation: 0,
+      align: 'left',
+      noWrap: false,
+    }
+    const left = page.left + Number(layout.x || 0) * PX_TO_MM
+    const top = page.top + Number(layout.y || 0) * PX_TO_MM
+    const width = Math.max(8, Number(layout.width || 240) * PX_TO_MM)
+    const height = Math.max(page.lineHeight, Number(layout.height || 40) * PX_TO_MM)
+    const alignment = ['left', 'center', 'right'].includes(layout.align) ? layout.align : 'left'
+    const markedText = alignment === 'left'
+      ? block.text
+      : `${PLOTTER_ALIGN_MARKS[`${alignment}Start`]}${block.text}${PLOTTER_ALIGN_MARKS[`${alignment}End`]}`
+    const blockPage = {
+      ...page,
+      left,
+      top,
+      right: layout.noWrap ? -page.pageWidth * 3 : page.pageWidth - left - width,
+      bottom: Math.max(0, page.pageHeight - top - height),
+    }
+    const result = await layoutText(markedText, font, blockPage, { ...config, noWrap: layout.noWrap })
+    result.missing.forEach((char) => missing.add(char))
+
+    const angle = Number(layout.rotation || 0) * Math.PI / 180
+    const cosine = Math.cos(angle)
+    const sine = Math.sin(angle)
+    const transformed = result.strokes.map((stroke) => {
+      const next = stroke.map((point) => {
+        const x = point.x - left
+        const y = point.y - top
+        return {
+          x: left + x * cosine - y * sine,
+          y: top + x * sine + y * cosine,
+        }
+      })
+      next.pressure = stroke.pressure
+      return next
+    })
+    const points = transformed.flat()
+    const outsidePage = points.some((point) => (
+      point.x < 0 || point.y < 0 || point.x > page.pageWidth || point.y > page.pageHeight
+    ))
+    const tolerance = page.fontSize * 0.28
+    const outsideBlock = !layout.noWrap && points.some((point) => (
+      point.x < left - tolerance || point.x > left + width + tolerance || point.y < top - tolerance || point.y > top + height + tolerance
+    ))
+    if (result.clipped || outsidePage || outsideBlock) {
+      clipped = true
+      clippedItems.push(block.label || `Блок ${index + 1}`)
+    }
+    strokes.push(...transformed.filter((stroke) => stroke.every((point) => (
+      point.x >= 0 && point.y >= 0 && point.x <= page.pageWidth && point.y <= page.pageHeight
+    ))))
+  }
+
+  return { strokes, missing: [...missing], clipped, clippedItems }
+}
+
 function number(value, digits = 3) {
   return Number(value.toFixed(digits)).toString()
 }
 
-function penCommand(up, config) {
+function penCommand(up, config, pressure = 1) {
+  const servoMax = config.profile === 'marlin' ? 180 : 32767
+  const pressuredPenDown = Math.max(0, Math.min(
+    servoMax,
+    Number(config.penUp) + (Number(config.penDown) - Number(config.penUp)) * Math.max(0.72, Math.min(1.28, pressure)),
+  ))
   if (config.profile === 'ebb') return `SP,${up ? 1 : 0},${Math.round(config.penDelay * 1000)}`
   if (config.profile === 'marlin') {
     if (config.penMode === 'stepper') return `G1G90Z${number(up ? config.zUp : config.zDown)}F${config.zSpeed}`
     if (config.penMode === 'estepper') return `G1G90E${number(up ? config.zUp : config.zDown)}F${config.zSpeed}`
-    return `M280P0S${up ? config.penUp : config.penDown}`
+    return `M280P0S${Math.round(up ? config.penUp : pressuredPenDown)}`
   }
   if (config.penMode === 'stepper') return `G1G90Z${number(up ? config.zUp : config.zDown)}F${config.zSpeed}`
   if (config.penMode === 'laser') return up ? 'M5' : `M3S${config.laserPower}`
-  return `M3S${up ? config.penUp : config.penDown}`
+  return `M3S${Math.round(up ? config.penUp : pressuredPenDown)}`
 }
 
 function buildEbbMove(from, to, speedMmMin, config, residue) {
@@ -413,14 +585,17 @@ function buildEbbMove(from, to, speedMmMin, config, residue) {
 
 export function compilePlotJob(strokes, config) {
   const commands = []
-  const addPen = (up) => {
-    commands.push(penCommand(up, config))
+  const addPen = (up, pressure = 1) => {
+    commands.push(penCommand(up, config, pressure))
     if (config.profile !== 'ebb' && Number(config.penDelay) > 0) commands.push(`G4P${number(Number(config.penDelay))}`)
   }
   let current = { x: 0, y: 0 }
   const residue = { x: 0, y: 0 }
   let distance = 0
+  let drawDistance = 0
+  let travelDistance = 0
   let penChanges = 0
+  let penLifts = 0
 
   if (config.profile !== 'ebb') commands.push('G21', 'G90')
   addPen(true)
@@ -428,24 +603,31 @@ export function compilePlotJob(strokes, config) {
   for (const stroke of strokes) {
     if (stroke.length < 2) continue
     const start = stroke[0]
-    distance += Math.hypot(start.x - current.x, start.y - current.y)
+    const travel = Math.hypot(start.x - current.x, start.y - current.y)
+    distance += travel
+    travelDistance += travel
     if (config.profile === 'ebb') commands.push(buildEbbMove(current, start, config.jogSpeed, config, residue))
     else commands.push(`G0X${number(start.x)}Y${number(start.y)}F${config.jogSpeed}`)
     current = start
-    addPen(false)
+    addPen(false, stroke.pressure || 1)
     penChanges += 1
     for (const point of stroke.slice(1)) {
-      distance += Math.hypot(point.x - current.x, point.y - current.y)
+      const drawn = Math.hypot(point.x - current.x, point.y - current.y)
+      distance += drawn
+      drawDistance += drawn
       if (config.profile === 'ebb') commands.push(buildEbbMove(current, point, config.feedRate, config, residue))
       else commands.push(`G1X${number(point.x)}Y${number(point.y)}F${config.feedRate}`)
       current = point
     }
     addPen(true)
     penChanges += 1
+    penLifts += 1
   }
 
-  const estimatedSeconds = distance / Math.max(1, Number(config.feedRate)) * 60 + penChanges * Number(config.penDelay)
-  return { commands, distance, estimatedSeconds }
+  const estimatedSeconds = drawDistance / Math.max(1, Number(config.feedRate)) * 60
+    + travelDistance / Math.max(1, Number(config.jogSpeed)) * 60
+    + penChanges * Number(config.penDelay)
+  return { commands, distance, drawDistance, travelDistance, penLifts, penChanges, estimatedSeconds }
 }
 
 export function createJogCommands(dx, dy, config) {

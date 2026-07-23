@@ -80,6 +80,44 @@ function renderAlignmentBlocks(markdown) {
   )
 }
 
+function escapeAttribute(value) {
+  return String(value).replace(/[&"]/g, (character) => character === '&' ? '&amp;' : '&quot;')
+}
+
+function renderPlacementBlocks(markdown) {
+  return String(markdown).replace(
+    /^:::place(?:[ \t]+([^\n]+))?[ \t]*\n([\s\S]*?)\n:::[ \t]*$/gm,
+    (_, attributeSource = '', contents) => {
+      const attributes = {}
+      attributeSource.replace(/([\w-]+)(?:=("[^"]*"|'[^']*'|[^\s]+))?/g, (match, key, rawValue) => {
+        const value = rawValue ? rawValue.replace(/^(['"])([\s\S]*)\1$/, '$2') : 'true'
+        attributes[key.toLowerCase()] = value
+        return match
+      })
+      const number = (key, alias, fallback) => {
+        const value = Number(attributes[key] ?? attributes[alias])
+        return Number.isFinite(value) ? value : fallback
+      }
+      const id = attributes.id || `place-${Math.abs(hashSeed(contents)).toString(36)}`
+      const page = Math.max(0, Math.round(number('page', 'sheet', 1)) - 1)
+      const align = ['left', 'center', 'right'].includes(attributes.align) ? attributes.align : 'left'
+      const noWrap = ['true', '1', 'yes', 'on'].includes(String(attributes.nowrap || 'false').toLowerCase())
+      const placementAttributes = [
+        `data-layout-id="${escapeAttribute(id)}"`,
+        `data-layout-page="${page}"`,
+        `data-layout-x="${number('x', 'left', 0)}"`,
+        `data-layout-y="${number('y', 'top', 0)}"`,
+        `data-layout-width="${Math.max(36, number('width', 'w', 320))}"`,
+        `data-layout-height="${Math.max(24, number('height', 'h', 80))}"`,
+        `data-layout-rotation="${number('rotate', 'rotation', 0)}"`,
+        `data-layout-align="${align}"`,
+        `data-layout-nowrap="${noWrap}"`,
+      ].join(' ')
+      return `<section class="manual-source-block" ${placementAttributes}>\n${marked.parse(contents.trim())}\n</section>`
+    },
+  )
+}
+
 function protectSvgBlocks(markdown) {
   const blocks = []
   const store = (block) => {
@@ -105,7 +143,7 @@ function protectSvgBlocks(markdown) {
 
 export function renderMarkdown(markdown, settings, fontPool) {
   const protectedSvg = protectSvgBlocks(markdown)
-  const source = renderAlignmentBlocks(preserveExtraBlankLines(protectedSvg.source)
+  const source = renderAlignmentBlocks(preserveExtraBlankLines(renderPlacementBlocks(protectedSvg.source))
     .replace(/^\s*:::pagebreak\s*$/gm, '<div data-page-break="true"></div>')
     .replace(/\+\+\+([^\n]+?)\+\+\+/g, '<span class="underline-double">$1</span>')
     .replace(/\+\+([^\n]+?)\+\+/g, '<u>$1</u>')
@@ -122,6 +160,15 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
       "preserveAspectRatio",
       "data-page-break",
       "data-preserved-blank",
+      "data-layout-id",
+      "data-layout-page",
+      "data-layout-x",
+      "data-layout-y",
+      "data-layout-width",
+      "data-layout-height",
+      "data-layout-rotation",
+      "data-layout-align",
+      "data-layout-nowrap",
     ],
     USE_PROFILES: { html: true, mathMl: true, svg: true },
   });
@@ -200,6 +247,7 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
       const active = wordIndex % wordInterval === 0;
       const word = documentNode.createElement("span");
       word.className = "hw-word";
+      if (settings.trueHandwriting) word.classList.add("hw-natural");
       if (Array.from(part).length > 18) word.classList.add("hw-breakable");
       word.dataset.wordIndex = String(wordIndex);
       const tilt =
@@ -222,6 +270,13 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
           : 0;
       word.style.setProperty("--word-rotation", `${tilt.toFixed(2)}deg`);
       word.style.setProperty("--word-lift", `${lift.toFixed(2)}px`);
+      if (
+        settings.trueHandwriting &&
+        randomFor(settings.seed, `word:${wordIndex}:correction`) * 100 <
+          Number(settings.correctionChance || 0)
+      ) {
+        word.classList.add("hw-correction");
+      }
 
       if (
         active &&
@@ -239,10 +294,28 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
         word.style.fontFamily = `'${selected}'`;
       }
 
-      Array.from(part).forEach((character) => {
+      const wordCharacters = Array.from(part);
+      wordCharacters.forEach((character, characterIndex) => {
         const letter = documentNode.createElement("span");
         letter.className = "hw-letter";
         letter.textContent = character;
+        if (settings.trueHandwriting) {
+          const variation = Math.max(0, Math.min(100, Number(settings.glyphVariation) || 0));
+          const variant = randomFor(settings.seed, `letter:${letterIndex}:variant-active`) * 100 < variation
+            ? Math.floor(randomFor(settings.seed, `letter:${letterIndex}:variant`) * 4)
+            : 0;
+          const slant = (randomFor(settings.seed, `letter:${letterIndex}:slant`) - 0.5) * variation * 0.05;
+          const scaleY = 1 + (randomFor(settings.seed, `letter:${letterIndex}:height`) - 0.5) * variation * 0.0024;
+          const pressure = 1 + (randomFor(settings.seed, `letter:${letterIndex}:pressure`) - 0.5) * Number(settings.pressureVariation || 0) * 0.012;
+          letter.classList.add("hw-glyph-variant", `variant-${variant}`);
+          if (characterIndex === 0) letter.classList.add("word-start");
+          if (characterIndex === wordCharacters.length - 1) letter.classList.add("word-end");
+          letter.style.setProperty("--glyph-slant", `${slant.toFixed(2)}deg`);
+          letter.style.setProperty("--glyph-height", scaleY.toFixed(3));
+          letter.style.setProperty("--glyph-pressure", pressure.toFixed(3));
+          letter.style.setProperty("--glyph-join", `${Math.max(0, Number(settings.connectionStrength || 0)) * -0.006}em`);
+          letter.style.fontFeatureSettings = `"calt" 1, "liga" 1, "salt" ${variant ? 1 : 0}, "ss0${variant + 1}" 1`;
+        }
         const applySpacing =
           settings.maxLetterSpacing > 0 &&
           randomFor(settings.seed, `letter:${letterIndex}:active`) * 100 <

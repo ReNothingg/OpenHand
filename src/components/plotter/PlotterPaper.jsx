@@ -7,7 +7,15 @@ function svgPath(strokes) {
 }
 
 export default function PlotterPaper({ layout, settings, metrics, pageIndex }) {
-  const path = useMemo(() => svgPath(layout?.strokes || []), [layout?.strokes])
+  const pressurePaths = useMemo(() => {
+    const groups = new Map()
+    ;(layout?.strokes || []).forEach((stroke) => {
+      const pressure = Math.round((stroke.pressure || 1) * 10) / 10
+      if (!groups.has(pressure)) groups.set(pressure, [])
+      groups.get(pressure).push(stroke)
+    })
+    return Array.from(groups, ([pressure, strokes]) => ({ pressure, path: svgPath(strokes) }))
+  }, [layout?.strokes])
   const pageWidth = layout?.page?.pageWidth || metrics.width * 25.4 / 96
   const pageHeight = layout?.page?.pageHeight || metrics.height * 25.4 / 96
 
@@ -27,7 +35,9 @@ export default function PlotterPaper({ layout, settings, metrics, pageIndex }) {
           <line className="plotter-margin-line" x1={pageWidth - 16.5} y1="0" x2={pageWidth - 16.5} y2={pageHeight} />
         </> : <line className="plotter-margin-line" x1={pageIndex % 2 === 0 ? pageWidth - 16.5 : 16.5} y1="0" x2={pageIndex % 2 === 0 ? pageWidth - 16.5 : 16.5} y2={pageHeight} />}
       </>}
-      <path className="plotter-strokes" d={path} style={{ stroke: settings.inkColor }} />
+      {pressurePaths.map(({ pressure, path }) => (
+        <path className="plotter-strokes" d={path} key={pressure} style={{ stroke: settings.inkColor, strokeWidth: 0.22 * pressure, opacity: Math.min(1, 0.72 + pressure * 0.25) }} />
+      ))}
     </svg>
   )
 }
