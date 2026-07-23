@@ -10,6 +10,7 @@ function formatDuration(seconds) {
 
 export default function PreflightDialog({ workspace, onClose }) {
   const [selected, setSelected] = useState(() => workspace.activeIndex)
+  const jobs = useMemo(() => workspace.createJobs(), [workspace.createJobs])
   useEffect(() => {
     const close = (event) => event.key === 'Escape' && onClose()
     window.addEventListener('keydown', close)
@@ -17,14 +18,14 @@ export default function PreflightDialog({ workspace, onClose }) {
   }, [onClose])
 
   const totals = useMemo(() => {
-    const job = workspace.jobs[selected]
+    const job = jobs[selected]
     return {
       time: job?.estimatedSeconds || 0,
       path: job?.drawDistance || 0,
       travel: job?.travelDistance || 0,
       lifts: job?.penLifts || 0,
     }
-  }, [selected, workspace.jobs])
+  }, [jobs, selected])
   const allMissing = [...new Set(workspace.layouts[selected]?.missing || [])]
   const clipped = workspace.layouts[selected]?.clipped
     ? [{ index: selected, items: workspace.layouts[selected].clippedItems || [] }]
@@ -49,7 +50,7 @@ export default function PreflightDialog({ workspace, onClose }) {
             <div className="preflight-section-title"><div><h3>Лист для отправки</h3><p>Плоттер запускает один физический лист за раз.</p></div></div>
             <div className="preflight-sheet-list">
               {workspace.layouts.map((layout, index) => {
-                const job = workspace.jobs[index]
+                const job = jobs[index]
                 const checked = selected === index
                 return (
                   <label className={`preflight-sheet ${checked ? 'selected' : ''}`} key={index}>

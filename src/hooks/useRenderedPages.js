@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { applyLineEffects } from '../markdown.js'
 import { paginateHtml } from '../lib/pagination.js'
 
@@ -6,15 +6,23 @@ export function useRenderedPages(renderedHtml, settings) {
   const [pages, setPages] = useState([''])
   const measureRef = useRef(null)
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     let cancelled = false
+    let frame = 0
     const calculate = async () => {
       await document.fonts.ready
       if (cancelled || !measureRef.current) return
-      setPages(paginateHtml(renderedHtml, settings, measureRef.current))
+      frame = requestAnimationFrame(() => {
+        if (!cancelled && measureRef.current) {
+          setPages(paginateHtml(renderedHtml, settings, measureRef.current))
+        }
+      })
     }
     calculate()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(frame)
+    }
   }, [
     renderedHtml,
     settings.fontFamily,
@@ -33,7 +41,7 @@ export function useRenderedPages(renderedHtml, settings) {
 }
 
 export function useLineEffects(previewRef, pages, settings) {
-  useLayoutEffect(() => {
+  useEffect(() => {
     const frame = requestAnimationFrame(() => applyLineEffects(previewRef.current, settings))
     return () => cancelAnimationFrame(frame)
   }, [

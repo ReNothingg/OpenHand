@@ -1,10 +1,11 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { DEFAULT_SETTINGS, normalizeSettings, PAGE_SIZES, STORAGE_KEYS } from './app/config.js'
 import { SAMPLE_MARKDOWN, SAMPLE_TEX } from './app/samples.js'
 import EditorPanel from './components/editor/EditorPanel.jsx'
 import PreviewPanel from './components/preview/PreviewPanel.jsx'
 import SettingsPanel from './components/settings/SettingsPanel.jsx'
 import { useDocumentPersistence } from './hooks/useDocumentPersistence.js'
+import { useDebouncedValue } from './hooks/useDebouncedValue.js'
 import { useIntegratedPlotter } from './hooks/useIntegratedPlotter.js'
 import { usePreviewInteractions } from './hooks/usePreviewInteractions.js'
 import { useLineEffects, useRenderedPages } from './hooks/useRenderedPages.js'
@@ -73,9 +74,17 @@ export default function App() {
     () => settings.fontPool?.length ? settings.fontPool : [settings.fontFamily],
     [settings.fontPool, settings.fontFamily],
   )
-  const deferredMarkdown = useDeferredValue(markdown)
-  const deferredTexSource = useDeferredValue(texSource)
-  const renderSettings = useMemo(() => ({
+  const calculationSettings = useMemo(() => ({
+    fontFamily: settings.fontFamily,
+    fontSize: settings.fontSize,
+    textWidth: settings.textWidth,
+    lineHeight: settings.lineHeight,
+    marginTop: settings.marginTop,
+    marginLeft: settings.marginLeft,
+    marginLeftEven: settings.marginLeftEven,
+    marginBottom: settings.marginBottom,
+    pageSize: settings.pageSize,
+    pageOrientation: settings.pageOrientation,
     seed: settings.seed,
     directionChance: settings.directionChance,
     wordFrequency: settings.wordFrequency,
@@ -92,6 +101,16 @@ export default function App() {
     correctionChance: settings.correctionChance,
     pressureVariation: settings.pressureVariation,
   }), [
+    settings.fontFamily,
+    settings.fontSize,
+    settings.textWidth,
+    settings.lineHeight,
+    settings.marginTop,
+    settings.marginLeft,
+    settings.marginLeftEven,
+    settings.marginBottom,
+    settings.pageSize,
+    settings.pageOrientation,
     settings.seed,
     settings.directionChance,
     settings.wordFrequency,
@@ -108,13 +127,40 @@ export default function App() {
     settings.correctionChance,
     settings.pressureVariation,
   ])
+  const deferredSettings = useDebouncedValue(calculationSettings)
+  const deferredMarkdown = useDebouncedValue(markdown, 90)
+  const deferredTexSource = useDebouncedValue(texSource, 90)
+  const deferredPool = useDebouncedValue(selectedPool)
+  const calculationPending = (
+    deferredSettings !== calculationSettings ||
+    deferredPool !== selectedPool ||
+    (sourceMode === 'tex' ? deferredTexSource !== texSource : deferredMarkdown !== markdown)
+  )
+  const layoutMetrics = useMemo(() => getPageMetrics(deferredSettings), [deferredSettings])
+  const renderSettings = useMemo(() => ({
+    seed: deferredSettings.seed,
+    directionChance: deferredSettings.directionChance,
+    wordFrequency: deferredSettings.wordFrequency,
+    maxWordTilt: deferredSettings.maxWordTilt,
+    maxLift: deferredSettings.maxLift,
+    fontRandomization: deferredSettings.fontRandomization,
+    maxLetterSpacing: deferredSettings.maxLetterSpacing,
+    letterFrequency: deferredSettings.letterFrequency,
+    maxLineDrift: deferredSettings.maxLineDrift,
+    maxLineIndent: deferredSettings.maxLineIndent,
+    trueHandwriting: deferredSettings.trueHandwriting,
+    glyphVariation: deferredSettings.glyphVariation,
+    connectionStrength: deferredSettings.connectionStrength,
+    correctionChance: deferredSettings.correctionChance,
+    pressureVariation: deferredSettings.pressureVariation,
+  }), [deferredSettings])
   const renderedHtml = useMemo(
     () => sourceMode === 'tex'
-      ? renderTex(deferredTexSource, renderSettings, selectedPool)
-      : renderMarkdown(deferredMarkdown, renderSettings, selectedPool),
-    [sourceMode, deferredTexSource, deferredMarkdown, renderSettings, selectedPool],
+      ? renderTex(deferredTexSource, renderSettings, deferredPool)
+      : renderMarkdown(deferredMarkdown, renderSettings, deferredPool),
+    [sourceMode, deferredTexSource, deferredMarkdown, renderSettings, deferredPool],
   )
-  const { pages, measureRef } = useRenderedPages(renderedHtml, settings)
+  const { pages, measureRef } = useRenderedPages(renderedHtml, deferredSettings)
   const manualPages = useMemo(() => createManualPages(pages), [pages])
   useEffect(() => {
     setManualLayouts((current) => {
@@ -155,7 +201,7 @@ export default function App() {
     }, 250)
     return () => window.clearTimeout(timer)
   }, [manualLayouts])
-  useLineEffects(previewRef, pages, settings)
+  useLineEffects(previewRef, pages, deferredSettings)
   const panHandlers = usePreviewInteractions({
     previewRef,
     zoom: settings.zoom,
@@ -275,9 +321,10 @@ export default function App() {
     customFont: customPlotterFont,
     pageTexts: renderedPageTexts.length ? renderedPageTexts : [activeSource],
     pageBlocks: plotterPageBlocks,
-    settings,
-    metrics,
+    settings: deferredSettings,
+    metrics: layoutMetrics,
     activeSheetIndex,
+    pending: calculationPending,
   })
   const updateManualBlock = useCallback((originPage, blockId, patch) => {
     setManualLayouts((current) => ({

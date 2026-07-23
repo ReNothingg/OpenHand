@@ -28,7 +28,10 @@ export default function PlotterFooter({ workspace }) {
       <div className="plotter-footer-actions">
         <label className="plotter-arm"><input type="checkbox" checked={armed} onChange={(event) => setArmed(event.target.checked)} /><span>Перо и нулевая точка проверены.</span></label>
         <div className="plotter-runbar">
-          <button className="button compact" type="button" disabled={!job.commands.length || busy} onClick={() => downloadFile(`openhand-page-${workspace.activeIndex + 1}.${config.profile === 'ebb' ? 'ebb.txt' : 'gcode'}`, `${job.commands.join('\n')}\n`, 'text/plain;charset=utf-8')}>Скачать команды</button>
+          <button className="button compact" type="button" disabled={!job.commands.length || busy} onClick={() => {
+            const currentJob = workspace.createJob()
+            downloadFile(`openhand-page-${workspace.activeIndex + 1}.${config.profile === 'ebb' ? 'ebb.txt' : 'gcode'}`, `${currentJob.commands.join('\n')}\n`, 'text/plain;charset=utf-8')
+          }}>Скачать команды</button>
           {!running && <button className="button primary compact" type="button" disabled={!job.commands.length || busy} onClick={() => setPreflightOpen(true)}>Проверить и запустить</button>}
           {plotter.status === 'running' && <button className="button compact" type="button" onClick={workspace.pause}>Пауза</button>}
           {plotter.status === 'paused' && <button className="button primary compact" type="button" onClick={workspace.resume}>Продолжить</button>}

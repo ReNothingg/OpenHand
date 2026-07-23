@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 
 function svgPath(strokes) {
   return strokes
@@ -6,7 +6,7 @@ function svgPath(strokes) {
     .join('')
 }
 
-export default function PlotterPaper({ layout, settings, metrics, pageIndex }) {
+function PlotterPaper({ layout, settings, metrics, pageIndex }) {
   const pressurePaths = useMemo(() => {
     const groups = new Map()
     ;(layout?.strokes || []).forEach((stroke) => {
@@ -41,3 +41,13 @@ export default function PlotterPaper({ layout, settings, metrics, pageIndex }) {
     </svg>
   )
 }
+
+export default memo(PlotterPaper, (previous, next) => (
+  previous.layout === next.layout &&
+  previous.pageIndex === next.pageIndex &&
+  previous.metrics.width === next.metrics.width &&
+  previous.metrics.height === next.metrics.height &&
+  previous.settings.pageColor === next.settings.pageColor &&
+  previous.settings.inkColor === next.settings.inkColor &&
+  previous.settings.pageSize === next.settings.pageSize
+))

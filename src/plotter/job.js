@@ -92,6 +92,117 @@ function splitGlyphStrokes(glyph, cursorX, baseline, scale, handwriting = null) 
   return strokes.filter((item) => item.length > 1)
 }
 
+const LETTER_PATTERN = /^\p{L}$/u
+
+function glyphStrokeBounds(strokes) {
+  const points = strokes.flat()
+  if (!points.length) return null
+  return {
+    minX: Math.min(...points.map((point) => point.x)),
+    maxX: Math.max(...points.map((point) => point.x)),
+    minY: Math.min(...points.map((point) => point.y)),
+    maxY: Math.max(...points.map((point) => point.y)),
+  }
+}
+
+export function findCursiveAnchor(strokes, side, baseline, fontSize) {
+  const bounds = glyphStrokeBounds(strokes)
+  if (!bounds) return null
+
+  const endpoints = strokes.flatMap((stroke, strokeIndex) => {
+    if (stroke.length < 2) return []
+    return [
+      { point: stroke[0], neighbor: stroke[1], strokeIndex, atStart: true },
+      { point: stroke.at(-1), neighbor: stroke.at(-2), strokeIndex, atStart: false },
+    ]
+  })
+  if (!endpoints.length) return null
+
+  const width = Math.max(fontSize * 0.12, bounds.maxX - bounds.minX)
+  const edgeX = side === 'entry' ? bounds.minX : bounds.maxX
+  const maximumInset = Math.max(fontSize * 0.055, width * 0.18)
+  const targetY = baseline + fontSize * 0.015
+  const candidates = endpoints
+    .map((candidate) => {
+      const edgeInset = Math.abs(candidate.point.x - edgeX)
+      const baselineDistance = Math.abs(candidate.point.y - targetY)
+      const tangentX = side === 'entry'
+        ? candidate.neighbor.x - candidate.point.x
+        : candidate.point.x - candidate.neighbor.x
+      const tangentY = side === 'entry'
+        ? candidate.neighbor.y - candidate.point.y
+        : candidate.point.y - candidate.neighbor.y
+      const tangentLength = Math.max(0.001, Math.hypot(tangentX, tangentY))
+      const outwardness = tangentX / tangentLength
+      const verticality = Math.abs(tangentY) / tangentLength
+      const directionPenalty = Math.max(0, 0.22 - outwardness) * fontSize * 0.52
+      return {
+        ...candidate,
+        edgeInset,
+        baselineDistance,
+        outwardness,
+        verticality,
+        score: edgeInset * 4.8
+          + baselineDistance * 0.78
+          + directionPenalty
+          + verticality * fontSize * 0.07,
+      }
+    })
+    .filter((candidate) => (
+      candidate.edgeInset <= maximumInset &&
+      candidate.baselineDistance <= fontSize * 0.4 &&
+      candidate.outwardness >= -0.18
+    ))
+    .sort((left, right) => left.score - right.score)
+
+  const anchor = candidates[0]
+  if (!anchor) return null
+  return {
+    ...anchor,
+    quality: Math.max(0, 1 - (
+      anchor.edgeInset / maximumInset * 0.5
+      + anchor.baselineDistance / (fontSize * 0.4) * 0.32
+      + Math.max(0, 0.22 - anchor.outwardness) * 0.18
+    )),
+  }
+}
+
+export function createCursiveConnector(start, end, fontSize, strength = 100) {
+  if (!start || !end) return null
+  const gap = end.x - start.x
+  const verticalDistance = Math.abs(end.y - start.y)
+  if (
+    gap < fontSize * 0.018 ||
+    gap > fontSize * 0.48 ||
+    verticalDistance > fontSize * 0.3
+  ) return null
+
+  const normalizedStrength = Math.max(0, Math.min(100, Number(strength) || 0)) / 100
+  const handle = Math.min(gap * 0.32, fontSize * 0.11)
+  const bow = Math.min(gap * 0.09, fontSize * (0.008 + normalizedStrength * 0.018))
+  const control1 = { x: start.x + handle, y: start.y + bow }
+  const control2 = { x: end.x - handle, y: end.y + bow }
+  const connector = []
+  const steps = Math.max(5, Math.ceil(gap / Math.max(fontSize * 0.055, 0.15)))
+
+  for (let index = 0; index <= steps; index += 1) {
+    const t = index / steps
+    const inverse = 1 - t
+    connector.push({
+      x: inverse ** 3 * start.x
+        + 3 * inverse ** 2 * t * control1.x
+        + 3 * inverse * t ** 2 * control2.x
+        + t ** 3 * end.x,
+      y: inverse ** 3 * start.y
+        + 3 * inverse ** 2 * t * control1.y
+        + 3 * inverse * t ** 2 * control2.y
+        + t ** 3 * end.y,
+    })
+  }
+  connector.pressure = 0.82 + normalizedStrength * 0.08
+  return connector
+}
+
 export async function layoutText(text, font, page, config) {
   const scale = page.fontSize / FONT_EM
   const spaceWidth = page.fontSize * 0.46
@@ -366,7 +477,7 @@ export async function layoutText(text, font, page, config) {
       if (x > page.left && x + tokenWidth > maxX) nextLine()
       const tokenChars = Array.from(token)
       const tokenStartX = x
-      let previousGlyphEnd = null
+      let previousJoin = null
       for (let charIndex = 0; charIndex < tokenChars.length; charIndex += 1) {
         const char = tokenChars[charIndex]
         if (char === PLOTTER_CALLOUT_MARKS.start) {
@@ -396,7 +507,10 @@ export async function layoutText(text, font, page, config) {
           continue
         }
         const advance = advanceFor(char)
-        if (x > page.left && x + advance > maxX) nextLine()
+        if (x > page.left && x + advance > maxX) {
+          nextLine()
+          previousJoin = null
+        }
         if (clipped) break
         const glyph = glyphs.get(char)
         if (glyph) {
@@ -407,28 +521,32 @@ export async function layoutText(text, font, page, config) {
             seed: config.seed,
             key: `${glyphOccurrence}:${char}`,
           })
-          const firstPoint = glyphStrokes[0]?.[0]
+          const isLetter = LETTER_PATTERN.test(char)
+          const entryAnchor = isLetter
+            ? findCursiveAnchor(glyphStrokes, 'entry', baseline, page.fontSize)
+            : null
+          const exitAnchor = isLetter
+            ? findCursiveAnchor(glyphStrokes, 'exit', baseline, page.fontSize)
+            : null
           const connectionChance = Math.max(0, Math.min(100, Number(config.connectionStrength) || 0))
           if (
             config.trueHandwriting &&
-            previousGlyphEnd &&
-            firstPoint &&
+            previousJoin &&
+            entryAnchor &&
             seededRandom(config.seed, `join:${glyphOccurrence}`) * 100 < connectionChance &&
-            Math.hypot(firstPoint.x - previousGlyphEnd.x, firstPoint.y - previousGlyphEnd.y) < page.fontSize * 0.82
+            previousJoin.charIsLetter &&
+            isLetter
           ) {
-            const connector = [
-              previousGlyphEnd,
-              {
-                x: (previousGlyphEnd.x + firstPoint.x) / 2,
-                y: Math.min(previousGlyphEnd.y, firstPoint.y) + page.fontSize * 0.055,
-              },
-              firstPoint,
-            ]
-            connector.pressure = 0.88
-            strokes.push(connector)
+            const connector = createCursiveConnector(
+              previousJoin.anchor.point,
+              entryAnchor.point,
+              page.fontSize,
+              connectionChance,
+            )
+            if (connector) strokes.push(connector)
           }
-          if (config.trueHandwriting && charIndex === 0 && glyphStrokes[0]?.[0] && seededRandom(config.seed, `lead:${glyphOccurrence}`) < 0.34) {
-            const start = glyphStrokes[0][0]
+          if (config.trueHandwriting && charIndex === 0 && entryAnchor && seededRandom(config.seed, `lead:${glyphOccurrence}`) < 0.34) {
+            const start = entryAnchor.point
             const lead = [
               { x: start.x - page.fontSize * (0.08 + seededRandom(config.seed, `lead-width:${glyphOccurrence}`) * 0.08), y: start.y + page.fontSize * 0.05 },
               start,
@@ -437,22 +555,23 @@ export async function layoutText(text, font, page, config) {
             strokes.push(lead)
           }
           strokes.push(...glyphStrokes)
-          previousGlyphEnd = glyphStrokes.at(-1)?.at(-1) || previousGlyphEnd
+          previousJoin = exitAnchor ? { anchor: exitAnchor, charIsLetter: isLetter } : null
           glyphOccurrence += 1
         } else {
-          previousGlyphEnd = null
+          previousJoin = null
         }
         x += advance
         if (glyph || !/\s/u.test(char)) markCalloutContent()
       }
       if (
         config.trueHandwriting &&
-        previousGlyphEnd &&
+        previousJoin &&
         seededRandom(config.seed, `tail:${glyphOccurrence}`) < 0.3
       ) {
+        const tailStart = previousJoin.anchor.point
         const tail = [
-          previousGlyphEnd,
-          { x: previousGlyphEnd.x + page.fontSize * 0.13, y: previousGlyphEnd.y - page.fontSize * 0.025 },
+          tailStart,
+          { x: tailStart.x + page.fontSize * 0.13, y: tailStart.y - page.fontSize * 0.025 },
         ]
         tail.pressure = 0.76
         strokes.push(tail)

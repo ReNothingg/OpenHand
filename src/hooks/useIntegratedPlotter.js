@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useDebouncedValue } from './useDebouncedValue.js'
 import { usePlotter } from './usePlotter.js'
 import { loadBundledGFont, loadGFont } from '../plotter/gfont.js'
 import {
@@ -76,7 +77,17 @@ function buildSheets(pageTexts, pageBlocks, settings, metrics) {
   }))
 }
 
-export function useIntegratedPlotter({ enabled, fontId, customFont, pageTexts, pageBlocks = [], settings, metrics, activeSheetIndex }) {
+export function useIntegratedPlotter({
+  enabled,
+  fontId,
+  customFont,
+  pageTexts,
+  pageBlocks = [],
+  settings,
+  metrics,
+  activeSheetIndex,
+  pending = false,
+}) {
   const [config, setConfig] = useState(() => ({ ...loadConfig(), fontId: fontId || DEFAULT_PLOTTER_CONFIG.fontId }))
   const [font, setFont] = useState(null)
   const [fontStatus, setFontStatus] = useState('Выберите однолинейный GFont')
@@ -85,6 +96,7 @@ export function useIntegratedPlotter({ enabled, fontId, customFont, pageTexts, p
   const [error, setError] = useState('')
   const [armed, setArmed] = useState(false)
   const plotter = usePlotter()
+  const previewConfig = useDebouncedValue(config)
   const sheets = useMemo(() => buildSheets(pageTexts, pageBlocks, settings, metrics), [
     pageTexts,
     pageBlocks,
@@ -141,7 +153,7 @@ export function useIntegratedPlotter({ enabled, fontId, customFont, pageTexts, p
     let cancelled = false
     setBusy(true)
     setError('')
-    Promise.all(sheets.map(async (sheet) => {
+    const layoutSheet = async (sheet) => {
       const layoutConfig = {
         ...config,
         seed: settings.seed,
@@ -163,8 +175,29 @@ export function useIntegratedPlotter({ enabled, fontId, customFont, pageTexts, p
         clipped: parts.some((part) => part.clipped),
         clippedItems: [...new Set(parts.flatMap((part) => part.clippedItems || []))],
       }
-    }))
-      .then((nextLayouts) => !cancelled && setLayouts(nextLayouts))
+    }
+    const calculate = async () => {
+      const preferredIndex = Math.min(
+        Math.max(0, activeSheetIndex || 0),
+        Math.max(0, sheets.length - 1),
+      )
+      const order = [
+        preferredIndex,
+        ...sheets.map((_, index) => index).filter((index) => index !== preferredIndex),
+      ]
+      for (const index of order) {
+        if (cancelled || !sheets[index]) return
+        const nextLayout = await layoutSheet(sheets[index])
+        if (cancelled) return
+        setLayouts((current) => {
+          const next = current.slice(0, sheets.length)
+          next[index] = nextLayout
+          return next
+        })
+        await new Promise((resolve) => window.setTimeout(resolve, 0))
+      }
+    }
+    calculate()
       .catch((reason) => !cancelled && setError(reason.message))
       .finally(() => !cancelled && setBusy(false))
     return () => { cancelled = true }
@@ -183,8 +216,18 @@ export function useIntegratedPlotter({ enabled, fontId, customFont, pageTexts, p
 
   const activeIndex = Math.min(Math.max(0, activeSheetIndex || 0), Math.max(0, layouts.length - 1))
   const activeLayout = layouts[activeIndex] || { strokes: [], missing: [], clipped: false, clippedItems: [], page: sheets[activeIndex]?.page }
-  const job = useMemo(() => compilePlotJob(activeLayout.strokes, config), [activeLayout.strokes, config])
-  const jobs = useMemo(() => layouts.map((layout) => compilePlotJob(layout.strokes, config)), [layouts, config])
+  const job = useMemo(
+    () => compilePlotJob(activeLayout.strokes, previewConfig),
+    [activeLayout.strokes, previewConfig],
+  )
+  const createJob = useCallback((index = activeIndex) => {
+    const layout = layouts[index]
+    return compilePlotJob(layout?.strokes || [], config)
+  }, [activeIndex, config, layouts])
+  const createJobs = useCallback(
+    () => layouts.map((layout) => compilePlotJob(layout?.strokes || [], config)),
+    [config, layouts],
+  )
   const connected = plotter.status !== 'disconnected' && plotter.status !== 'connecting'
   const running = plotter.status === 'running' || plotter.status === 'paused'
   const progressPercent = plotter.progress.total ? plotter.progress.current / plotter.progress.total * 100 : 0
@@ -242,8 +285,9 @@ export function useIntegratedPlotter({ enabled, fontId, customFont, pageTexts, p
     activeIndex,
     activeLayout,
     job,
-    jobs,
-    busy,
+    createJob,
+    createJobs,
+    busy: busy || pending,
     error,
     armed,
     setArmed,
@@ -256,9 +300,9 @@ export function useIntegratedPlotter({ enabled, fontId, customFont, pageTexts, p
     jog: (dx, dy) => safeAction(() => plotter.sendCommands(createJogCommands(dx, dy, config))),
     pen: (up) => safeAction(() => plotter.sendCommands(createPenCommand(up, config))),
     setOrigin: () => safeAction(() => plotter.sendCommands(createOriginCommands(config))),
-    run: () => safeAction(() => plotter.run(job.commands)),
+    run: () => safeAction(() => plotter.run(createJob().commands)),
     runSheets: (indices) => safeAction(() => {
-      const commands = indices.flatMap((index) => jobs[index]?.commands || [])
+      const commands = indices.flatMap((index) => createJob(index).commands)
       return plotter.run(commands)
     }),
     pause: () => safeAction(plotter.pause),

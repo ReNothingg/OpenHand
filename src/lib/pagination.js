@@ -37,56 +37,91 @@ function makeMeasurePage(host, settings) {
   return { page, content }
 }
 
-function splitOversizedElement(element, content, createPage) {
+function getSplitUnits(element) {
+  const words = [...element.querySelectorAll('.hw-word')]
+  return words.length > 1 ? words : [...element.querySelectorAll('.hw-letter')]
+}
+
+function cloneThroughUnit(element, unit) {
+  const range = document.createRange()
+  range.selectNodeContents(element)
+  range.setEndAfter(unit)
+  const fragment = element.cloneNode(false)
+  fragment.append(range.cloneContents())
+  return fragment
+}
+
+function cloneAfterUnit(element, unit) {
+  const range = document.createRange()
+  range.selectNodeContents(element)
+  range.setStartAfter(unit)
+  const fragment = element.cloneNode(false)
+  fragment.append(range.cloneContents())
+  return fragment
+}
+
+function fitsOnPage(content, element) {
+  content.append(element)
+  const fits = content.scrollHeight <= content.clientHeight + 1
+  element.remove()
+  return fits
+}
+
+function splitElementAcrossPages(element, content, createPage) {
   let working = element.cloneNode(true)
   let guard = 0
   while (working && guard < 100) {
     guard += 1
-    const words = [...working.querySelectorAll('.hw-word')]
-    const units = words.length <= 1 ? [...working.querySelectorAll('.hw-letter')] : words
+    const units = getSplitUnits(working)
     if (!units.length) {
+      if (content.childElementCount && !fitsOnPage(content, working)) content = createPage()
       content.append(working)
       return content
     }
+
     let low = 1
     let high = units.length
     let best = 0
     while (low <= high) {
       const middle = Math.floor((low + high) / 2)
-      const range = document.createRange()
-      range.selectNodeContents(working)
-      range.setEndAfter(units[middle - 1])
-      const candidate = working.cloneNode(false)
-      candidate.append(range.cloneContents())
-      content.replaceChildren(candidate)
-      if (content.scrollHeight <= content.clientHeight + 1) {
+      const candidate = cloneThroughUnit(working, units[middle - 1])
+      if (fitsOnPage(content, candidate)) {
         best = middle
         low = middle + 1
       } else {
         high = middle - 1
       }
     }
-    content.replaceChildren()
+
     if (!best) {
+      if (content.childElementCount) {
+        content = createPage()
+        continue
+      }
       content.append(working)
       return content
     }
-    const currentWords = [...working.querySelectorAll('.hw-word')]
-    const currentUnits = currentWords.length <= 1 ? [...working.querySelectorAll('.hw-letter')] : currentWords
-    const headRange = document.createRange()
-    headRange.selectNodeContents(working)
-    headRange.setEndAfter(currentUnits[best - 1])
-    const head = working.cloneNode(false)
-    head.append(headRange.cloneContents())
-    content.append(head)
-    if (best >= currentUnits.length) return content
-    const tailRange = document.createRange()
-    tailRange.selectNodeContents(working)
-    tailRange.setStartAfter(currentUnits[best - 1])
-    const tail = working.cloneNode(false)
-    tail.append(tailRange.cloneContents())
+
+    if (best >= units.length) {
+      content.append(working)
+      return content
+    }
+
+    const usesWords = working.querySelectorAll('.hw-word').length > 1
+    const minimumFragment = usesWords ? Math.min(3, units.length) : 1
+    if (content.childElementCount && best < minimumFragment) {
+      content = createPage()
+      continue
+    }
+
+    const remaining = units.length - best
+    if (usesWords && remaining < minimumFragment && best > minimumFragment) {
+      best -= minimumFragment - remaining
+    }
+
+    content.append(cloneThroughUnit(working, units[best - 1]))
+    working = cloneAfterUnit(working, units[best - 1])
     content = createPage()
-    working = tail
   }
   return content
 }
@@ -112,12 +147,7 @@ export function paginateHtml(html, settings, host) {
     content.append(node)
     if (content.scrollHeight <= content.clientHeight + 1) return
     node.remove()
-    if (content.childElementCount) content = createPage()
-    content.append(node)
-    if (content.scrollHeight > content.clientHeight + 1) {
-      node.remove()
-      content = splitOversizedElement(node, content, createPage)
-    }
+    content = splitElementAcrossPages(node, content, createPage)
   })
   const result = pages.map(({ content: pageContent }) => pageContent.innerHTML)
   host.replaceChildren()
