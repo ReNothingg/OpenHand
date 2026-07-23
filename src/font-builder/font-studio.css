@@ -1,0 +1,591 @@
+:root {
+  --font-ink: #18211c;
+  --font-muted: #68736c;
+  --font-line: #dfe4e1;
+  --font-soft: #f4f6f4;
+  --font-accent: #245a43;
+}
+
+body:has(.font-studio) {
+  overflow: auto;
+  background: #eef1ee;
+}
+
+.font-studio {
+  min-height: 100vh;
+  color: var(--font-ink);
+  background: #eef1ee;
+}
+
+.font-studio button,
+.font-studio input {
+  font: inherit;
+}
+
+.font-studio-header {
+  height: 68px;
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) auto minmax(190px, 1fr);
+  align-items: center;
+  gap: 24px;
+  padding: 0 30px;
+  border-bottom: 1px solid var(--font-line);
+  background: #fff;
+}
+
+.font-studio-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  color: inherit;
+  text-decoration: none;
+}
+
+.font-studio-brand > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: #fff;
+  background: var(--font-ink);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.font-studio-brand strong {
+  font-size: 14px;
+  letter-spacing: -0.02em;
+}
+
+.font-studio-header-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.font-studio-header-copy span {
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.font-studio-header-copy small {
+  color: var(--font-muted);
+  font-size: 9px;
+}
+
+.font-studio-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.font-studio-header-actions button,
+.font-canvas-toolbar button {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--font-line);
+  border-radius: 6px;
+  color: #3e4943;
+  background: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.font-studio-header-actions button:hover,
+.font-canvas-toolbar button:hover:not(:disabled) {
+  border-color: #a8b2ac;
+  background: #f7f8f7;
+}
+
+.font-studio-header-actions .font-primary-action {
+  border-color: var(--font-ink);
+  color: #fff;
+  background: var(--font-ink);
+}
+
+.font-studio-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px 170px;
+  align-items: end;
+  gap: 44px;
+  padding: 36px max(30px, calc((100vw - 1380px) / 2)) 30px;
+  border-bottom: 1px solid var(--font-line);
+  background: #fff;
+}
+
+.font-studio-intro p {
+  margin: 0 0 8px;
+  color: var(--font-accent);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.13em;
+}
+
+.font-studio-intro h1 {
+  margin: 0 0 8px;
+  font: 700 clamp(27px, 3vw, 42px)/1.05 Georgia, serif;
+  letter-spacing: -0.04em;
+}
+
+.font-studio-intro > div:first-child > span {
+  max-width: 600px;
+  display: block;
+  color: var(--font-muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.font-studio-intro label {
+  display: grid;
+  gap: 7px;
+}
+
+.font-studio-intro label span,
+.font-live-preview > div > span {
+  color: var(--font-muted);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.font-studio-intro label input {
+  height: 38px;
+  border: 0;
+  border-bottom: 1px solid #aeb7b1;
+  padding: 0;
+  outline: 0;
+  color: var(--font-ink);
+  background: transparent;
+  font: 650 17px/1 Georgia, serif;
+}
+
+.font-studio-intro label input:focus {
+  border-color: var(--font-accent);
+}
+
+.font-studio-progress {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0 8px;
+}
+
+.font-studio-progress strong {
+  font: 700 28px/1 Georgia, serif;
+}
+
+.font-studio-progress strong small {
+  color: #9aa39d;
+  font-size: 13px;
+}
+
+.font-studio-progress > span {
+  color: var(--font-muted);
+  font-size: 9px;
+}
+
+.font-studio-progress > i {
+  grid-column: 1 / -1;
+  height: 3px;
+  margin-top: 10px;
+  overflow: hidden;
+  background: #dde2df;
+}
+
+.font-studio-progress > i b {
+  height: 100%;
+  display: block;
+  background: var(--font-accent);
+}
+
+.font-language-tabs {
+  display: flex;
+  align-items: stretch;
+  padding: 0 max(30px, calc((100vw - 1380px) / 2));
+  border-bottom: 1px solid var(--font-line);
+  background: #fff;
+}
+
+.font-language-tabs button {
+  min-width: 132px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 16px;
+  color: #78827c;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.font-language-tabs button:hover {
+  color: var(--font-ink);
+}
+
+.font-language-tabs button.active {
+  border-bottom-color: var(--font-accent);
+  color: var(--font-ink);
+}
+
+.font-language-tabs button small {
+  color: #a3aaa6;
+  font-size: 8px;
+}
+
+.font-studio-workspace {
+  max-width: 1380px;
+  display: grid;
+  grid-template-columns: 232px minmax(480px, 1fr) 220px;
+  gap: 14px;
+  margin: 20px auto 14px;
+  padding: 0 30px;
+}
+
+.font-character-panel,
+.font-canvas-panel,
+.font-help-panel,
+.font-live-preview {
+  border: 1px solid var(--font-line);
+  background: #fff;
+}
+
+.font-character-panel {
+  min-height: 620px;
+}
+
+.font-character-panel-title {
+  height: 58px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--font-line);
+}
+
+.font-character-panel-title strong {
+  font-size: 11px;
+}
+
+.font-character-panel-title span {
+  color: var(--font-muted);
+  font-size: 8px;
+}
+
+.font-character-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+  max-height: 560px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.font-character-grid button {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid #e5e9e6;
+  border-radius: 4px;
+  color: #6f7872;
+  background: #fafbfa;
+  cursor: pointer;
+  font: 16px/1 Georgia, serif;
+}
+
+.font-character-grid button:hover {
+  border-color: #b9c2bc;
+  color: var(--font-ink);
+}
+
+.font-character-grid button.active {
+  border-color: var(--font-accent);
+  color: #fff;
+  background: var(--font-accent);
+}
+
+.font-character-grid button i {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.font-character-grid button.complete i {
+  background: #4f8c6b;
+}
+
+.font-character-grid button.active i {
+  background: #cfe8db;
+}
+
+.font-canvas-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.font-canvas-toolbar {
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--font-line);
+}
+
+.font-canvas-toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.font-canvas-toolbar > div:first-child button {
+  width: 30px;
+  padding: 0;
+}
+
+.font-canvas-toolbar strong {
+  width: 40px;
+  text-align: center;
+  font: 25px/1 Georgia, serif;
+}
+
+.font-canvas-toolbar span {
+  margin-left: 5px;
+  color: var(--font-muted);
+  font-size: 9px;
+}
+
+.font-canvas-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.font-drawing-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.font-canvas-hint {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  border-top: 1px solid var(--font-line);
+  color: var(--font-muted);
+  font-size: 8px;
+}
+
+.font-canvas-hint span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.font-canvas-hint i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--font-accent);
+}
+
+.font-help-panel {
+  padding: 17px;
+}
+
+.font-help-panel > div {
+  padding: 0 0 17px;
+  margin-bottom: 17px;
+  border-bottom: 1px solid var(--font-line);
+}
+
+.font-step-number {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--font-accent);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.font-help-panel strong {
+  display: block;
+  font-size: 10px;
+}
+
+.font-help-panel p {
+  margin: 5px 0 0;
+  color: var(--font-muted);
+  font-size: 8.5px;
+  line-height: 1.55;
+}
+
+.font-help-panel > button {
+  width: 100%;
+  height: 39px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 12px;
+  color: #fff;
+  background: var(--font-ink);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.font-help-panel > button:hover {
+  background: #27332c;
+}
+
+.font-help-panel .font-studio-notice {
+  margin-top: 10px;
+  padding: 8px;
+  color: #335340;
+  background: #edf5f0;
+  line-height: 1.4;
+}
+
+.font-live-preview {
+  max-width: 1320px;
+  margin: 0 auto 30px;
+}
+
+.font-live-preview > div {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: center;
+  min-height: 45px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--font-line);
+}
+
+.font-live-preview input {
+  height: 32px;
+  border: 0;
+  outline: 0;
+  color: var(--font-ink);
+  background: transparent;
+  font-size: 11px;
+}
+
+.font-preview-svg {
+  width: 100%;
+  height: 140px;
+  display: block;
+}
+
+.font-preview-svg > line {
+  stroke: #e5e8e6;
+  stroke-dasharray: 4 6;
+}
+
+.font-preview-svg path {
+  fill: none;
+  stroke: var(--font-ink);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 1040px) {
+  .font-studio-header {
+    grid-template-columns: 1fr auto;
+  }
+  .font-studio-header-copy {
+    display: none;
+  }
+  .font-studio-intro {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+  .font-studio-progress {
+    grid-column: 1 / -1;
+  }
+  .font-studio-workspace {
+    grid-template-columns: 210px minmax(430px, 1fr);
+  }
+  .font-help-panel {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) 180px;
+    gap: 16px;
+    align-items: start;
+  }
+  .font-help-panel > div {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .font-studio-header {
+    height: auto;
+    min-height: 64px;
+    padding: 12px 16px;
+  }
+  .font-studio-brand strong {
+    display: none;
+  }
+  .font-studio-header-actions button:first-child {
+    display: none;
+  }
+  .font-studio-intro {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    padding: 28px 18px 24px;
+  }
+  .font-language-tabs {
+    overflow-x: auto;
+    padding: 0 10px;
+  }
+  .font-language-tabs button {
+    min-width: 112px;
+  }
+  .font-studio-workspace {
+    grid-template-columns: 1fr;
+    padding: 0 12px;
+  }
+  .font-character-panel {
+    min-height: auto;
+  }
+  .font-character-grid {
+    grid-template-columns: repeat(9, 1fr);
+    max-height: 172px;
+  }
+  .font-help-panel {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+  .font-help-panel > div {
+    display: none;
+  }
+  .font-live-preview {
+    margin: 0 12px 20px;
+  }
+  .font-live-preview > div {
+    grid-template-columns: 1fr;
+    padding: 8px 12px;
+  }
+}

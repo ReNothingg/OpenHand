@@ -11,6 +11,8 @@ export default function SettingsPanel({
   metrics,
   updateSetting,
   updateFontSelection,
+  customPlotterFont,
+  uploadCustomFont,
   updatePageSize,
   resetSettings,
   togglePoolFont,
@@ -45,6 +47,8 @@ export default function SettingsPanel({
           value={settings.fontFamily}
           plotterFontId={settings.plotterFontId}
           onChange={updateFontSelection}
+          customFontName={customPlotterFont?.name}
+          onUpload={uploadCustomFont}
         />
         {settings.fontType !== "plotter" && (
           <div className="font-compat-warning" role="note">

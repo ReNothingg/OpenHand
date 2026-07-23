@@ -76,7 +76,7 @@ function buildSheets(pageTexts, pageBlocks, settings, metrics) {
   }))
 }
 
-export function useIntegratedPlotter({ enabled, fontId, pageTexts, pageBlocks = [], settings, metrics, activeSheetIndex }) {
+export function useIntegratedPlotter({ enabled, fontId, customFont, pageTexts, pageBlocks = [], settings, metrics, activeSheetIndex }) {
   const [config, setConfig] = useState(() => ({ ...loadConfig(), fontId: fontId || DEFAULT_PLOTTER_CONFIG.fontId }))
   const [font, setFont] = useState(null)
   const [fontStatus, setFontStatus] = useState('Выберите однолинейный GFont')
@@ -114,22 +114,27 @@ export function useIntegratedPlotter({ enabled, fontId, pageTexts, pageBlocks = 
     setBusy(true)
     setError('')
     setConfig((current) => ({ ...current, fontId }))
-    setFontStatus('Загрузка встроенного шрифта…')
-    loadBundledGFont(fontId)
+    setFontStatus(fontId === 'custom' ? 'Загрузка своего шрифта…' : 'Загрузка встроенного шрифта…')
+    const pendingFont = fontId === 'custom'
+      ? customFont?.font
+        ? Promise.resolve(customFont.font)
+        : Promise.reject(new Error('Загрузите файл .gfont рядом с выбором шрифта.'))
+      : loadBundledGFont(fontId)
+    pendingFont
       .then((loaded) => {
         if (cancelled) return
         setFont(loaded)
-        setFontStatus(`${loaded.name} · ${loaded.entries.size.toLocaleString('ru-RU')} символов`)
+        setFontStatus(`${customFont?.name || loaded.name} · ${loaded.entries.size.toLocaleString('ru-RU')} символов`)
       })
       .catch((reason) => {
         if (!cancelled) {
-          setFontStatus('Встроенный шрифт не загрузился')
+          setFontStatus(fontId === 'custom' ? 'Свой шрифт не загружен' : 'Встроенный шрифт не загрузился')
           setError(reason.message)
         }
       })
       .finally(() => !cancelled && setBusy(false))
     return () => { cancelled = true }
-  }, [enabled, fontId])
+  }, [enabled, fontId, customFont])
 
   useEffect(() => {
     if (!enabled || !font) return undefined

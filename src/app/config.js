@@ -61,6 +61,10 @@ export function normalizeSettings(incoming = {}) {
   }
 
   if (settings.fontType !== 'plotter') settings.fontType = 'screen'
+  if (settings.plotterFontId === 'custom') {
+    settings.fontType = 'screen'
+    settings.plotterFontId = DEFAULT_SETTINGS.plotterFontId
+  }
 
   if (!Object.hasOwn(incoming, 'directionChance') && Object.hasOwn(incoming, 'randomDirection')) {
     settings.directionChance = incoming.randomDirection ? 50 : 0

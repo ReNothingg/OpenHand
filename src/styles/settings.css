@@ -311,6 +311,44 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.font-picker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 82px;
+  gap: 6px;
+}
+.font-upload-button {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  color: #334155;
+  background: #fff;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 750;
+}
+.font-upload-button:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+.font-upload-button span {
+  font-size: 12px;
+  line-height: 1;
+}
+.font-studio-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+  color: #2563eb;
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.font-studio-link:hover { text-decoration: underline; }
 .font-picker-trigger span.plotter-font-name,
 .font-picker-group button span.plotter-font-name {
   font: 650 12px/1.25 ui-sans-serif, system-ui, sans-serif;

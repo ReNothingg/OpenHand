@@ -13,6 +13,7 @@ import { getPageMetrics } from './lib/pagination.js'
 import { arrangeManualPages, createManualPages, updatePlacementDirective } from './lib/manualLayout.js'
 import { loadStoredObject, loadStoredText } from './lib/storage.js'
 import { renderMarkdown } from './markdown.js'
+import { loadGFont } from './plotter/gfont.js'
 import { htmlToPlotterText } from './plotter/richText.js'
 import { renderTex } from './tex.js'
 
@@ -28,6 +29,7 @@ export default function App() {
   const [activeSheetIndex, setActiveSheetIndex] = useState(0)
   const [manualEditing, setManualEditing] = useState(false)
   const [manualLayouts, setManualLayouts] = useState(() => loadStoredObject(STORAGE_KEYS.manualLayout, {}))
+  const [customPlotterFont, setCustomPlotterFont] = useState(null)
 
   const textareaRef = useRef(null)
   const previewRef = useRef(null)
@@ -46,6 +48,16 @@ export default function App() {
     setSettings((current) => type === 'plotter'
       ? { ...current, fontType: 'plotter', plotterFontId: value }
       : { ...current, fontType: 'screen', fontFamily: value })
+  }, [])
+  const uploadCustomFont = useCallback(async (file) => {
+    if (!file) return
+    try {
+      const font = await loadGFont(file)
+      setCustomPlotterFont({ font, name: file.name })
+      setSettings((current) => ({ ...current, fontType: 'plotter', plotterFontId: 'custom' }))
+    } catch (reason) {
+      window.alert(reason instanceof Error ? reason.message : 'Не удалось открыть шрифт.')
+    }
   }, [])
 
   const metrics = useMemo(() => getPageMetrics(settings), [
@@ -260,6 +272,7 @@ export default function App() {
   const plotterWorkspace = useIntegratedPlotter({
     enabled: settings.fontType === 'plotter',
     fontId: settings.plotterFontId,
+    customFont: customPlotterFont,
     pageTexts: renderedPageTexts.length ? renderedPageTexts : [activeSource],
     pageBlocks: plotterPageBlocks,
     settings,
@@ -350,6 +363,8 @@ export default function App() {
             metrics={metrics}
             updateSetting={updateSetting}
             updateFontSelection={updateFontSelection}
+            customPlotterFont={customPlotterFont}
+            uploadCustomFont={uploadCustomFont}
             updatePageSize={updatePageSize}
             resetSettings={() => setSettings({ ...DEFAULT_SETTINGS })}
             togglePoolFont={togglePoolFont}

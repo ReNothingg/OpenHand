@@ -11,15 +11,16 @@ function pluralize(count, one, few, many) {
   return many
 }
 
-export default function FontPicker({ fontType, value, plotterFontId, onChange }) {
+export default function FontPicker({ fontType, value, plotterFontId, onChange, customFontName, onUpload }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const rootRef = useRef(null)
+  const uploadRef = useRef(null)
   const selectedScreen = fonts.find((font) => font.family === value) || fonts[0]
   const selectedPlotter = BUILTIN_GFONT_OPTIONS.find((font) => font.id === plotterFontId) || BUILTIN_GFONT_OPTIONS[0]
   const [activeFamilyId, setActiveFamilyId] = useState(selectedPlotter.familyId)
   const selected = fontType === 'plotter'
-    ? { name: selectedPlotter.label, kind: 'plotter' }
+    ? { name: plotterFontId === 'custom' ? (customFontName || 'Свой шрифт') : selectedPlotter.label, kind: 'plotter' }
     : { ...selectedScreen, kind: 'screen' }
   const normalizedQuery = query.trim().toLocaleLowerCase('ru')
   const filtered = useMemo(() => fonts.filter((font) => (
@@ -59,11 +60,22 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange })
 
   return (
     <div className="font-picker" ref={rootRef}>
-      <button className="font-picker-trigger" type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
-        <span className={selected.kind === 'plotter' ? 'plotter-font-name' : ''} style={selected.kind === 'screen' ? { fontFamily: `'${selected.family}'` } : undefined}>{selected.name}</span>
-        <em className={`font-kind-badge ${selected.kind}`}>{selected.kind === 'plotter' ? 'GFont' : 'Экранный'}</em>
-        <b>⌄</b>
-      </button>
+      <div className="font-picker-row">
+        <button className="font-picker-trigger" type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+          <span className={selected.kind === 'plotter' ? 'plotter-font-name' : ''} style={selected.kind === 'screen' ? { fontFamily: `'${selected.family}'` } : undefined}>{selected.name}</span>
+          <em className={`font-kind-badge ${selected.kind}`}>{selected.kind === 'plotter' ? 'GFont' : 'Экранный'}</em>
+          <b>⌄</b>
+        </button>
+        <button className="font-upload-button" type="button" title="Загрузить свой .gfont" onClick={() => uploadRef.current?.click()}>
+          <span aria-hidden="true">↑</span>
+          Загрузить
+        </button>
+      </div>
+      <a className="font-studio-link" href="/font">Создать свой шрифт в мастерской <span>→</span></a>
+      <input ref={uploadRef} type="file" accept=".gfont,application/octet-stream" hidden onChange={(event) => {
+        onUpload(event.target.files?.[0])
+        event.target.value = ''
+      }} />
       {open && (
         <div className="font-picker-menu">
           <input autoFocus type="search" value={query} placeholder="Найти шрифт…" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false) }} />
