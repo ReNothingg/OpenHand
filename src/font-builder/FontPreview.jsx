@@ -6,20 +6,21 @@ function glyphWidth(strokes) {
   return { minX, width: Math.max(90, Math.max(...xs) - minX + 32) }
 }
 
-function strokePath(stroke, offsetX, minX, scale) {
+function strokePath(stroke, offsetX, minX, scale, baseline) {
   return stroke.map((point, index) => (
-    `${index === 0 ? 'M' : 'L'} ${offsetX + (point.x - minX) * scale} ${92 + point.y * scale}`
+    `${index === 0 ? 'M' : 'L'} ${offsetX + (point.x - minX) * scale} ${baseline + point.y * scale}`
   )).join(' ')
 }
 
-export default function FontPreview({ text, glyphs }) {
-  const scale = 0.19
+export default function FontPreview({ text, glyphs, size = 32 }) {
+  const scale = size / 168
+  const baseline = 118
   let cursor = 18
   const paths = []
 
   Array.from(text).forEach((character, characterIndex) => {
     if (/\s/u.test(character)) {
-      cursor += 28
+      cursor += size * 0.86
       return
     }
     const strokes = glyphs[character] || []
@@ -27,7 +28,7 @@ export default function FontPreview({ text, glyphs }) {
     strokes.forEach((stroke, strokeIndex) => {
       paths.push(
         <path
-          d={strokePath(stroke, cursor, metrics.minX, scale)}
+          d={strokePath(stroke, cursor, metrics.minX, scale, baseline)}
           key={`${characterIndex}-${strokeIndex}`}
         />,
       )
@@ -35,10 +36,14 @@ export default function FontPreview({ text, glyphs }) {
     cursor += metrics.width * scale
   })
 
+  const width = Math.max(720, cursor + 18)
+
   return (
-    <svg className="font-preview-svg" viewBox={`0 0 ${Math.max(720, cursor + 18)} 124`} role="img" aria-label="Предпросмотр шрифта">
-      <line x1="18" x2={Math.max(702, cursor)} y1="92" y2="92" />
-      <g>{paths}</g>
-    </svg>
+    <div className="font-preview-canvas">
+      <svg className="font-preview-svg" style={{ width }} viewBox={`0 0 ${width} 156`} role="img" aria-label="Предпросмотр шрифта">
+        <line x1="18" x2={width - 18} y1={baseline} y2={baseline} />
+        <g>{paths}</g>
+      </svg>
+    </div>
   )
 }

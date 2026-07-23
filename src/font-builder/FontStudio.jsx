@@ -46,15 +46,14 @@ export default function FontStudio() {
   const initial = useMemo(readDraft, [])
   const [name, setName] = useState(initial.name)
   const [glyphs, setGlyphs] = useState(initial.glyphs)
-  const [activeGroup, setActiveGroup] = useState('ru')
   const [activeCharacter, setActiveCharacter] = useState('А')
   const [history, setHistory] = useState([])
   const [previewText, setPreviewText] = useState(PREVIEW_TEXT.ru)
+  const [previewSize, setPreviewSize] = useState(32)
   const [notice, setNotice] = useState('')
   const importRef = useRef(null)
-  const group = CHARACTER_GROUPS.find((item) => item.id === activeGroup) || CHARACTER_GROUPS[0]
   const completedCount = ALL_CHARACTERS.filter((character) => glyphs[character]?.some((stroke) => stroke.length > 1)).length
-  const currentIndex = group.characters.indexOf(activeCharacter)
+  const currentIndex = ALL_CHARACTERS.indexOf(activeCharacter)
   const currentStrokes = glyphs[activeCharacter] || []
 
   useEffect(() => {
@@ -63,14 +62,6 @@ export default function FontStudio() {
     }, 300)
     return () => window.clearTimeout(timer)
   }, [name, glyphs])
-
-  const switchGroup = (id) => {
-    const next = CHARACTER_GROUPS.find((item) => item.id === id)
-    setActiveGroup(id)
-    setActiveCharacter(next.characters[0])
-    setPreviewText(PREVIEW_TEXT[id])
-    setHistory([])
-  }
 
   const updateGlyph = (strokes, options = {}) => {
     if (!options.transient) setHistory((current) => [...current.slice(-29), options.previous || currentStrokes])
@@ -91,8 +82,8 @@ export default function FontStudio() {
   }
 
   const moveCharacter = (direction) => {
-    const index = (currentIndex + direction + group.characters.length) % group.characters.length
-    setActiveCharacter(group.characters[index])
+    const index = (currentIndex + direction + ALL_CHARACTERS.length) % ALL_CHARACTERS.length
+    setActiveCharacter(ALL_CHARACTERS[index])
     setHistory([])
   }
 
@@ -127,123 +118,101 @@ export default function FontStudio() {
 
   return (
     <main className="font-studio">
-      <header className="font-studio-header">
-        <a className="font-studio-brand" href="/">
-          <span>OH</span>
-          <strong>OpenHand</strong>
-        </a>
-        <div className="font-studio-header-copy">
-          <span>Мастерская шрифта</span>
-          <small>Черновик сохраняется на этом устройстве</small>
-        </div>
-        <div className="font-studio-header-actions">
-          <button type="button" onClick={() => importRef.current?.click()}>Открыть .gfont</button>
-          <button className="font-primary-action" type="button" onClick={exportFont}>Скачать шрифт</button>
-        </div>
-      </header>
-
-      <section className="font-studio-intro">
-        <div>
-          <p>ОДНОЛИНЕЙНЫЙ ШРИФТ</p>
-          <h1>Сделайте почерк своим</h1>
-          <span>Нарисуйте буквы одним или несколькими штрихами. Файл сразу готов для OpenHand и плоттера.</span>
-        </div>
-        <label>
-          <span>Название шрифта</span>
-          <input value={name} maxLength={48} onChange={(event) => setName(event.target.value)} />
+      <header className="font-studio-toolbar">
+        <a href="/">← В редактор</a>
+        <label className="font-name-field">
+          <span>Название</span>
+          <input value={name} maxLength={48} onChange={(event) => setName(event.target.value)} aria-label="Название шрифта" />
         </label>
         <div className="font-studio-progress">
-          <strong>{completedCount}<small> / {ALL_CHARACTERS.length}</small></strong>
-          <span>готово символов</span>
-          <i><b style={{ width: `${completedCount / ALL_CHARACTERS.length * 100}%` }} /></i>
+          <span>Готово</span>
+          <strong>{completedCount} / {ALL_CHARACTERS.length}</strong>
         </div>
-      </section>
-
-      <nav className="font-language-tabs" aria-label="Наборы символов">
-        {CHARACTER_GROUPS.map((item) => {
-          const ready = item.characters.filter((character) => glyphs[character]?.length).length
-          return (
-            <button className={activeGroup === item.id ? 'active' : ''} type="button" key={item.id} onClick={() => switchGroup(item.id)}>
-              <span>{item.label}</span>
-              <small>{ready}/{item.characters.length}</small>
-            </button>
-          )
-        })}
-      </nav>
+        <div className="font-studio-actions">
+          <button type="button" onClick={() => importRef.current?.click()}>Открыть .gfont</button>
+          <button className="primary" type="button" onClick={exportFont}>Скачать .gfont</button>
+        </div>
+      </header>
+      {notice && <p className="font-studio-notice" role="status">{notice}</p>}
 
       <div className="font-studio-workspace">
         <aside className="font-character-panel">
           <div className="font-character-panel-title">
-            <strong>{group.label}</strong>
-            <span>Выберите символ</span>
+            <strong>Символы</strong>
+            <span>{completedCount} из {ALL_CHARACTERS.length}</span>
           </div>
-          <div className="font-character-grid">
-            {group.characters.map((character) => (
-              <button
-                className={[
-                  activeCharacter === character ? 'active' : '',
-                  glyphs[character]?.length ? 'complete' : '',
-                ].filter(Boolean).join(' ')}
-                type="button"
-                key={character}
-                onClick={() => { setActiveCharacter(character); setHistory([]) }}
-                aria-label={`Редактировать символ ${character}`}
-              >
-                {character}
-                <i />
-              </button>
-            ))}
+          <div className="font-character-list">
+            {CHARACTER_GROUPS.map((item) => {
+              const ready = item.characters.filter((character) => glyphs[character]?.length).length
+              return (
+                <section className="font-character-group" key={item.id}>
+                  <div>
+                    <strong>{item.label}</strong>
+                    <small>{ready}/{item.characters.length}</small>
+                  </div>
+                  <div className="font-character-grid">
+                    {item.characters.map((character) => (
+                      <button
+                        className={[
+                          activeCharacter === character ? 'active' : '',
+                          glyphs[character]?.length ? 'complete' : '',
+                        ].filter(Boolean).join(' ')}
+                        type="button"
+                        key={character}
+                        onClick={() => { setActiveCharacter(character); setHistory([]) }}
+                        aria-label={`Редактировать символ ${character}`}
+                      >
+                        {character}
+                        <i />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
           </div>
         </aside>
 
-        <section className="font-canvas-panel">
-          <div className="font-canvas-toolbar">
-            <div>
-              <button type="button" aria-label="Предыдущий символ" onClick={() => moveCharacter(-1)}>←</button>
-              <strong>{activeCharacter}</strong>
-              <button type="button" aria-label="Следующий символ" onClick={() => moveCharacter(1)}>→</button>
-              <span>{currentIndex + 1} из {group.characters.length}</span>
+        <div className="font-studio-main">
+          <section className="font-canvas-panel">
+            <div className="font-canvas-toolbar">
+              <div>
+                <button type="button" aria-label="Предыдущий символ" onClick={() => moveCharacter(-1)}>←</button>
+                <strong>{activeCharacter}</strong>
+                <button type="button" aria-label="Следующий символ" onClick={() => moveCharacter(1)}>→</button>
+                <span>{currentIndex + 1} из {ALL_CHARACTERS.length}</span>
+              </div>
+              <div>
+                <button type="button" disabled={!history.length} onClick={undo}>Отменить</button>
+                <button type="button" disabled={!currentStrokes.length} onClick={clear}>Очистить</button>
+              </div>
             </div>
-            <div>
-              <button type="button" disabled={!history.length} onClick={undo}>Отменить</button>
-              <button type="button" disabled={!currentStrokes.length} onClick={clear}>Очистить</button>
+            <FontCanvas character={activeCharacter} strokes={currentStrokes} onChange={updateGlyph} />
+          </section>
+
+          <section className="font-live-preview">
+            <div className="font-preview-toolbar">
+              <label>
+                <span>Предпросмотр</span>
+                <input value={previewText} onChange={(event) => setPreviewText(event.target.value)} aria-label="Текст предпросмотра" />
+              </label>
+              <label className="font-preview-size">
+                <span>Размер</span>
+                <input
+                  type="range"
+                  min="14"
+                  max="56"
+                  value={previewSize}
+                  onChange={(event) => setPreviewSize(Number(event.target.value))}
+                  aria-label="Размер шрифта в предпросмотре"
+                />
+                <output>{previewSize} px</output>
+              </label>
             </div>
-          </div>
-          <FontCanvas character={activeCharacter} strokes={currentStrokes} onChange={updateGlyph} />
-          <div className="font-canvas-hint">
-            <span><i /> Рисуйте мышью, пером или пальцем</span>
-            <span>Отпустите указатель, чтобы закончить штрих</span>
-          </div>
-        </section>
-
-        <aside className="font-help-panel">
-          <div>
-            <span className="font-step-number">01</span>
-            <strong>Нарисуйте знак</strong>
-            <p>Серый символ — ориентир. Начинайте новый штрих после отрыва пера.</p>
-          </div>
-          <div>
-            <span className="font-step-number">02</span>
-            <strong>Заполните алфавит</strong>
-            <p>Можно скачать и неполный шрифт. Пропущенные знаки будут отмечены в редакторе.</p>
-          </div>
-          <div>
-            <span className="font-step-number">03</span>
-            <strong>Загрузите в OpenHand</strong>
-            <p>В основном редакторе нажмите «Загрузить» рядом с выбором шрифта.</p>
-          </div>
-          <button type="button" onClick={exportFont}>Скачать .gfont <span>↓</span></button>
-          {notice && <p className="font-studio-notice" role="status">{notice}</p>}
-        </aside>
-      </div>
-
-      <section className="font-live-preview">
-        <div>
-          <span>Живой предпросмотр</span>
-          <input value={previewText} onChange={(event) => setPreviewText(event.target.value)} aria-label="Текст предпросмотра" />
+            <FontPreview text={previewText} glyphs={glyphs} size={previewSize} />
+          </section>
         </div>
-        <FontPreview text={previewText} glyphs={glyphs} />
-      </section>
+      </div>
 
       <input ref={importRef} type="file" accept=".gfont,application/octet-stream" hidden onChange={importFont} />
     </main>
