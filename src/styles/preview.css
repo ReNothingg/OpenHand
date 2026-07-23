@@ -71,6 +71,15 @@
   cursor: grabbing;
   user-select: none;
 }
+.pages-viewport.is-panning .pages-canvas {
+  will-change: transform;
+}
+.pages-viewport.is-panning .paper {
+  pointer-events: none;
+}
+.pages-viewport.is-panning .hw-glyph-variant {
+  text-shadow: none;
+}
 .pages-canvas {
   width: max-content;
   min-width: calc(100% + 640px);
@@ -90,6 +99,8 @@
 .page-shell {
   flex: 0 0 auto;
   position: relative;
+  contain: layout paint style;
+  content-visibility: auto;
 }
 .paper {
   position: absolute;

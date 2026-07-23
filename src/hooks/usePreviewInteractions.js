@@ -14,6 +14,20 @@ export function usePreviewInteractions({
   const zoomAnchorRef = useRef(null);
   zoomRef.current = zoom;
 
+  const applyPanPosition = useCallback((pan, clientX, clientY) => {
+    const nextLeft = Math.min(
+      pan.maxLeft,
+      Math.max(0, pan.left - (clientX - pan.x)),
+    );
+    const nextTop = Math.min(
+      pan.maxTop,
+      Math.max(0, pan.top - (clientY - pan.y)),
+    );
+    pan.nextLeft = nextLeft;
+    pan.nextTop = nextTop;
+    pan.canvas.style.transform = `translate3d(${pan.left - nextLeft}px, ${pan.top - nextTop}px, 0)`;
+  }, []);
+
   useEffect(() => {
     const viewport = previewRef.current;
     if (!viewport) return undefined;
@@ -113,12 +127,23 @@ export function usePreviewInteractions({
       if (event.target.closest("a, button, input, textarea, select, label, summary"))
         return;
       const viewport = previewRef.current;
+      const canvas = viewport?.querySelector(".pages-canvas");
+      if (!viewport || !canvas) return;
       panRef.current = {
         x: event.clientX,
         y: event.clientY,
         left: viewport.scrollLeft,
         top: viewport.scrollTop,
+        nextLeft: viewport.scrollLeft,
+        nextTop: viewport.scrollTop,
+        maxLeft: Math.max(0, viewport.scrollWidth - viewport.clientWidth),
+        maxTop: Math.max(0, viewport.scrollHeight - viewport.clientHeight),
+        clientX: event.clientX,
+        clientY: event.clientY,
+        frame: 0,
+        canvas,
       };
+      canvas.style.transform = "translate3d(0, 0, 0)";
       viewport.setPointerCapture(event.pointerId);
       viewport.classList.add("is-panning");
     },
@@ -127,25 +152,37 @@ export function usePreviewInteractions({
 
   const movePan = useCallback(
     (event) => {
-      if (!panRef.current) return;
-      const viewport = previewRef.current;
-      viewport.scrollLeft =
-        panRef.current.left - (event.clientX - panRef.current.x);
-      viewport.scrollTop =
-        panRef.current.top - (event.clientY - panRef.current.y);
+      const pan = panRef.current;
+      if (!pan) return;
+      pan.clientX = event.clientX;
+      pan.clientY = event.clientY;
+      if (pan.frame) return;
+      pan.frame = requestAnimationFrame(() => {
+        pan.frame = 0;
+        if (panRef.current === pan) {
+          applyPanPosition(pan, pan.clientX, pan.clientY);
+        }
+      });
     },
-    [previewRef],
+    [applyPanPosition],
   );
 
   const endPan = useCallback(
     (event) => {
       const viewport = previewRef.current;
+      const pan = panRef.current;
+      if (!pan) return;
+      if (pan.frame) cancelAnimationFrame(pan.frame);
+      applyPanPosition(pan, event.clientX, event.clientY);
+      viewport.scrollLeft = pan.nextLeft;
+      viewport.scrollTop = pan.nextTop;
+      pan.canvas.style.transform = "";
       panRef.current = null;
       if (viewport?.hasPointerCapture(event.pointerId))
         viewport.releasePointerCapture(event.pointerId);
       viewport?.classList.remove("is-panning");
     },
-    [previewRef],
+    [applyPanPosition, previewRef],
   );
 
   return { beginPan, movePan, endPan };

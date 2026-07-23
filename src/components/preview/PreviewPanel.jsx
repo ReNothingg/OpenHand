@@ -1,6 +1,6 @@
 import PlotterFooter from '../plotter/PlotterFooter.jsx'
 import PlotterPaper from '../plotter/PlotterPaper.jsx'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import BlockInspector from './BlockInspector.jsx'
 import ManualPageContent from './ManualPageContent.jsx'
 
@@ -28,6 +28,7 @@ export default function PreviewPanel({
   onActiveSheetChange,
 }) {
   const [selectedBlock, setSelectedBlock] = useState(null)
+  const activeSheetFrameRef = useRef(0)
   const isNotebookSpread = settings.pageSize === 'NotebookSpread'
   const displayedPages = isNotebookSpread
     ? Array.from({ length: Math.ceil(pages.length / 2) }, (_, index) => pages.slice(index * 2, index * 2 + 2))
@@ -46,6 +47,7 @@ export default function PreviewPanel({
       }
     }
   }, [manualPages, selectedBlock])
+  useEffect(() => () => cancelAnimationFrame(activeSheetFrameRef.current), [])
   const sheetCount = displayedPages.length
   const plotterStatusLabel = {
     disconnected: 'Не подключён',
@@ -57,17 +59,22 @@ export default function PreviewPanel({
 
   const detectActiveSheet = (event) => {
     const viewport = event.currentTarget
-    const bounds = viewport.getBoundingClientRect()
-    const centerX = bounds.left + bounds.width / 2
-    const centerY = bounds.top + bounds.height / 2
-    const shells = Array.from(viewport.querySelectorAll('.page-shell'))
-    if (!shells.length) return
-    const closest = shells.reduce((best, shell, index) => {
-      const shellBounds = shell.getBoundingClientRect()
-      const distance = Math.hypot(shellBounds.left + shellBounds.width / 2 - centerX, shellBounds.top + shellBounds.height / 2 - centerY)
-      return distance < best.distance ? { index, distance } : best
-    }, { index: 0, distance: Infinity })
-    if (closest.index !== activeSheetIndex) onActiveSheetChange(closest.index)
+    if (activeSheetFrameRef.current) return
+    activeSheetFrameRef.current = requestAnimationFrame(() => {
+      activeSheetFrameRef.current = 0
+      const centerX = viewport.scrollLeft + viewport.clientWidth / 2
+      const centerY = viewport.scrollTop + viewport.clientHeight / 2
+      const shells = Array.from(viewport.querySelectorAll('.page-shell'))
+      if (!shells.length) return
+      const closest = shells.reduce((best, shell, index) => {
+        const distance = Math.hypot(
+          shell.offsetLeft + shell.offsetWidth / 2 - centerX,
+          shell.offsetTop + shell.offsetHeight / 2 - centerY,
+        )
+        return distance < best.distance ? { index, distance } : best
+      }, { index: 0, distance: Infinity })
+      if (closest.index !== activeSheetIndex) onActiveSheetChange(closest.index)
+    })
   }
 
   return (
