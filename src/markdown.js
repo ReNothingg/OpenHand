@@ -33,8 +33,44 @@ function signed(settings, value, key) {
     : value;
 }
 
+function preserveExtraBlankLines(markdown) {
+  const lines = String(markdown).replace(/\r\n?/g, '\n').split('\n')
+  const output = []
+  let fence = null
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/)
+    if (fenceMatch) {
+      const marker = fenceMatch[1]
+      if (!fence) fence = { character: marker[0], length: marker.length }
+      else if (marker[0] === fence.character && marker.length >= fence.length) fence = null
+      output.push(line)
+      continue
+    }
+    if (fence || line.trim()) {
+      output.push(line)
+      continue
+    }
+
+    let end = index
+    while (end + 1 < lines.length && !lines[end + 1].trim()) end += 1
+    const count = end - index + 1
+    if (count <= 1 || index === 0 || end === lines.length - 1) {
+      output.push(...Array(count).fill(''))
+    } else {
+      output.push('')
+      output.push(...Array(count - 1).fill('<div data-preserved-blank="true"></div>'))
+      output.push('')
+    }
+    index = end
+  }
+
+  return output.join('\n')
+}
+
 export function renderMarkdown(markdown, settings, fontPool) {
-  const source = markdown
+  const source = preserveExtraBlankLines(markdown)
     .replace(/^\s*:::pagebreak\s*$/gm, '<div data-page-break="true"></div>')
     .replace(/\+\+\+([^\n]+?)\+\+\+/g, '<span class="underline-double">$1</span>')
     .replace(/\+\+([^\n]+?)\+\+/g, '<u>$1</u>')
@@ -44,7 +80,7 @@ export function renderMarkdown(markdown, settings, fontPool) {
 
 export function renderHandwrittenHtml(html, settings, fontPool) {
   const clean = DOMPurify.sanitize(html, {
-    ADD_ATTR: ["target", "data-page-break"],
+    ADD_ATTR: ["target", "data-page-break", "data-preserved-blank"],
     USE_PROFILES: { html: true, mathMl: true, svg: true },
   });
   const parser = new DOMParser();

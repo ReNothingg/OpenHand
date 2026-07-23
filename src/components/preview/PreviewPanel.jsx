@@ -50,7 +50,9 @@ export default function PreviewPanel({
       <div className="pages-viewport" ref={previewRef} {...panHandlers} onScroll={detectActiveSheet}>
         <div className={`pages-canvas ${viewMode}`}>
           {displayedPages.map((spreadPages, index) => {
-            const left = index % 2 === 1 ? settings.marginLeftEven : settings.marginLeft
+            const left = isNotebookSpread
+              ? settings.marginLeft
+              : (index % 2 === 1 ? settings.marginLeftEven : settings.marginLeft)
             const firstPageIndex = isNotebookSpread ? index * 2 : index
             return (
               <div className="page-shell" data-page-index={firstPageIndex} data-sheet-index={index} key={`${index}-${settings.seed}`} style={{ width: metrics.width * settings.zoom / 100, height: metrics.height * settings.zoom / 100 }}>
@@ -90,7 +92,7 @@ export default function PreviewPanel({
                         className="page-content markdown-body spread-right-content"
                         style={{
                           top: settings.marginTop,
-                          left: metrics.width / 2 + metrics.spreadInnerMargin,
+                          left: metrics.width / 2 + settings.marginLeftEven,
                           width: metrics.contentWidth,
                           height: metrics.contentHeight,
                           transform: `rotate(${settings.textRotation}deg)`,

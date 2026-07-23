@@ -10,6 +10,10 @@
 .markdown-body p {
   margin: 0.2em 0 0.72em;
 }
+.markdown-body [data-preserved-blank] {
+  height: 1em;
+  height: 1lh;
+}
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,

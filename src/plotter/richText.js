@@ -64,6 +64,25 @@ function replaceFormulaNodes(container) {
   })
 }
 
+function listMarker(item) {
+  const list = item.parentElement
+  if (list?.tagName !== 'OL') return '- '
+  if (item.hasAttribute('value')) return `${item.value}. `
+  const start = Number(list.getAttribute('start')) || 1
+  const index = Array.from(list.children).filter((child) => child.tagName === 'LI').indexOf(item)
+  return `${start + Math.max(0, index)}. `
+}
+
+function listDepth(item) {
+  let depth = 0
+  let parent = item.parentElement
+  while (parent) {
+    if (parent.matches('ul, ol')) depth += 1
+    parent = parent.parentElement
+  }
+  return Math.max(0, depth - 1)
+}
+
 export function htmlToPlotterText(html) {
   const container = document.createElement('div')
   container.innerHTML = html
@@ -90,6 +109,26 @@ export function htmlToPlotterText(html) {
       appendBreak(1)
       return
     }
+    if (element.matches('input[type="checkbox"]')) {
+      output += element.checked ? '[x] ' : '[ ] '
+      return
+    }
+    if (element.hasAttribute('data-preserved-blank')) {
+      output = output.replace(/[ \t]+$/g, '')
+      output += '\n'
+      return
+    }
+    if (element.matches('ul, ol')) {
+      const nested = element.parentElement?.tagName === 'LI'
+      appendBreak(nested ? 1 : 2)
+      Array.from(element.childNodes).forEach(walk)
+      appendBreak(nested ? 1 : 2)
+      return
+    }
+    if (element.tagName === 'LI') {
+      appendBreak(1)
+      output += `${'  '.repeat(listDepth(element))}${listMarker(element)}`
+    }
 
     const styles = elementStyles(element)
     styles.forEach((style) => { output += STYLE_MARKS[style][0] })
@@ -103,6 +142,5 @@ export function htmlToPlotterText(html) {
   Array.from(container.childNodes).forEach(walk)
   return output
     .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
     .trim()
 }

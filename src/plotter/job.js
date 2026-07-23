@@ -24,9 +24,10 @@ export const DEFAULT_PLOTTER_CONFIG = {
 }
 
 export function pageSettingsToMillimeters(settings, metrics, evenPage = false, spreadSide = null) {
+  const pageMargin = evenPage ? settings.marginLeftEven : settings.marginLeft
   const leftPixels = spreadSide === 'right'
-    ? metrics.width / 2 + metrics.spreadInnerMargin
-    : (evenPage ? settings.marginLeftEven : settings.marginLeft)
+    ? metrics.width / 2 + pageMargin
+    : pageMargin
   return {
     pageWidth: metrics.width * PX_TO_MM,
     pageHeight: metrics.height * PX_TO_MM,
