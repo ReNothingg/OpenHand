@@ -9,16 +9,36 @@ export const PLOTTER_MARKS = Object.freeze({
   strikeEnd: '\uE007',
 })
 
-export const PLOTTER_CONTROL_MARKS = new Set(Object.values(PLOTTER_MARKS))
+export const PLOTTER_ALIGN_MARKS = Object.freeze({
+  leftStart: '\uE110',
+  leftEnd: '\uE111',
+  centerStart: '\uE112',
+  centerEnd: '\uE113',
+  rightStart: '\uE114',
+  rightEnd: '\uE115',
+})
+
+export const PLOTTER_CALLOUT_MARKS = Object.freeze({
+  start: '\uE120',
+  end: '\uE121',
+})
+
+export const PLOTTER_CONTROL_MARKS = new Set([
+  ...Object.values(PLOTTER_MARKS),
+  ...Object.values(PLOTTER_ALIGN_MARKS),
+  ...Object.values(PLOTTER_CALLOUT_MARKS),
+])
 
 export const PLOTTER_FORMULA_START = '\uE100'
 export const PLOTTER_FORMULA_END = '\uE101'
+export const PLOTTER_SVG_START = '\uE130'
+export const PLOTTER_SVG_END = '\uE131'
 
 const BLOCK_TAGS = new Set([
   'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DIV', 'DL', 'DT', 'DD',
   'FIGCAPTION', 'FIGURE', 'FOOTER', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
   'HEADER', 'HR', 'LI', 'MAIN', 'NAV', 'OL', 'P', 'PRE', 'SECTION', 'TABLE',
-  'TBODY', 'TD', 'TFOOT', 'TH', 'THEAD', 'TR', 'UL',
+  'TBODY', 'TD', 'TFOOT', 'TH', 'THEAD', 'TR', 'UL', 'DETAILS', 'SUMMARY',
 ])
 
 const STYLE_MARKS = {
@@ -35,6 +55,12 @@ function elementStyles(element) {
   else if (element.classList.contains('underline-wavy')) styles.push('wavy')
   else if (element.matches('u, .underline')) styles.push('underline')
   return styles
+}
+
+function elementAlignment(element) {
+  if (element.tagName === 'CENTER') return 'center'
+  const alignment = (element.getAttribute('align') || element.style.textAlign || '').trim().toLowerCase()
+  return ['left', 'center', 'right'].includes(alignment) ? alignment : null
 }
 
 function formulaSource(formula) {
@@ -64,6 +90,184 @@ function replaceFormulaNodes(container) {
   })
 }
 
+function splitDashedStroke(points, pattern) {
+  if (points.length < 2 || !pattern.length) return points.length > 1 ? [points] : []
+  const normalized = pattern.length % 2 ? [...pattern, ...pattern] : pattern
+  const strokes = []
+  let patternIndex = 0
+  let remaining = normalized[0]
+  let drawing = true
+  let stroke = []
+
+  for (let index = 1; index < points.length; index += 1) {
+    let start = points[index - 1]
+    const target = points[index]
+    let segmentLength = Math.hypot(target.x - start.x, target.y - start.y)
+    if (segmentLength <= 0) continue
+
+    while (segmentLength > 0.001) {
+      const distance = Math.min(segmentLength, remaining)
+      const ratio = distance / segmentLength
+      const end = {
+        x: start.x + (target.x - start.x) * ratio,
+        y: start.y + (target.y - start.y) * ratio,
+      }
+      if (drawing) {
+        if (!stroke.length) stroke.push(start)
+        stroke.push(end)
+      }
+      start = end
+      segmentLength -= distance
+      remaining -= distance
+      if (remaining <= 0.001) {
+        if (drawing && stroke.length > 1) strokes.push(stroke)
+        stroke = []
+        patternIndex = (patternIndex + 1) % normalized.length
+        remaining = normalized[patternIndex]
+        drawing = patternIndex % 2 === 0
+      }
+    }
+  }
+  if (drawing && stroke.length > 1) strokes.push(stroke)
+  return strokes
+}
+
+function arrowStroke(tip, neighbor, size) {
+  const distance = Math.hypot(neighbor.x - tip.x, neighbor.y - tip.y)
+  if (distance <= 0) return null
+  const dx = (neighbor.x - tip.x) / distance
+  const dy = (neighbor.y - tip.y) / distance
+  const perpendicularX = -dy
+  const perpendicularY = dx
+  return [
+    {
+      x: tip.x + dx * size + perpendicularX * size * 0.42,
+      y: tip.y + dy * size + perpendicularY * size * 0.42,
+    },
+    tip,
+    {
+      x: tip.x + dx * size - perpendicularX * size * 0.42,
+      y: tip.y + dy * size - perpendicularY * size * 0.42,
+    },
+  ]
+}
+
+function svgTextDrawing(text, bounds) {
+  const value = (text.textContent || '')
+    .replace(/\u2300/g, 'Ø')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const matrix = text.getScreenCTM()
+  if (!value || !matrix) return null
+  const style = getComputedStyle(text)
+  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return null
+  const x = text.x?.baseVal?.numberOfItems ? text.x.baseVal.getItem(0).value : Number(text.getAttribute('x')) || 0
+  const y = text.y?.baseVal?.numberOfItems ? text.y.baseVal.getItem(0).value : Number(text.getAttribute('y')) || 0
+  const origin = new DOMPoint(x, y).matrixTransform(matrix)
+  return {
+    value,
+    x: origin.x - bounds.left,
+    y: origin.y - bounds.top,
+    size: (Number.parseFloat(style.fontSize) || 16) * Math.hypot(matrix.a, matrix.b),
+    angle: Math.atan2(matrix.b, matrix.a),
+    anchor: style.textAnchor || text.getAttribute('text-anchor') || 'start',
+  }
+}
+
+function svgDrawing(svg) {
+  const host = document.createElement('div')
+  host.style.cssText = 'position:fixed;left:-100000px;top:0;width:800px;height:auto;opacity:0;pointer-events:none'
+  const clone = svg.cloneNode(true)
+  clone.style.maxWidth = 'none'
+  if (!clone.getAttribute('width')) clone.style.width = '600px'
+  if (!clone.getAttribute('height')) clone.style.height = 'auto'
+  host.append(clone)
+  document.body.append(host)
+
+  try {
+    const bounds = clone.getBoundingClientRect()
+    if (bounds.width <= 0 || bounds.height <= 0) return null
+    const strokes = []
+    const texts = []
+    clone.querySelectorAll('path, line, polyline, polygon, rect, circle, ellipse').forEach((geometry) => {
+      if (geometry.closest('defs, clipPath, mask, pattern, marker')) return
+      const style = getComputedStyle(geometry)
+      if (style.display === 'none' || style.visibility === 'hidden') return
+      const strokeVisible = style.stroke !== 'none' && Number(style.strokeOpacity) !== 0 && Number.parseFloat(style.strokeWidth) > 0
+      const fillVisible = style.fill !== 'none' && Number(style.fillOpacity) !== 0
+      if (!strokeVisible && !fillVisible) return
+      const geometryBounds = geometry.getBoundingClientRect()
+      const isBackground = geometry.tagName.toLowerCase() === 'rect'
+        && !strokeVisible
+        && geometryBounds.width >= bounds.width * 0.96
+        && geometryBounds.height >= bounds.height * 0.96
+      if (isBackground) return
+      let length
+      try {
+        length = geometry.getTotalLength()
+      } catch {
+        return
+      }
+      if (!Number.isFinite(length) || length <= 0) return
+      const matrix = geometry.getScreenCTM()
+      if (!matrix) return
+      const matrixScale = Math.max(0.001, Math.hypot(matrix.a, matrix.b))
+      const steps = Math.min(1200, Math.max(2, Math.ceil(length / 2)))
+      const stepLength = length / steps
+      const geometryStrokes = []
+      let stroke = []
+      let previous = null
+      for (let index = 0; index <= steps; index += 1) {
+        const source = geometry.getPointAtLength(stepLength * index)
+        const screen = new DOMPoint(source.x, source.y).matrixTransform(matrix)
+        const point = { x: screen.x - bounds.left, y: screen.y - bounds.top }
+        if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) > stepLength * matrixScale * 4.5) {
+          if (stroke.length > 1) geometryStrokes.push(stroke)
+          stroke = []
+        }
+        stroke.push(point)
+        previous = point
+      }
+      if (stroke.length > 1) geometryStrokes.push(stroke)
+
+      const dashPattern = strokeVisible && style.strokeDasharray !== 'none'
+        ? style.strokeDasharray.split(/[,\s]+/).map(Number.parseFloat).filter((value) => value > 0).map((value) => value * matrixScale)
+        : []
+      geometryStrokes.forEach((item) => strokes.push(...splitDashedStroke(item, dashPattern)))
+
+      const firstStroke = geometryStrokes[0]
+      const lastStroke = geometryStrokes.at(-1)
+      const arrowSize = Math.max(5, Math.min(18, (Number.parseFloat(style.strokeWidth) || 1) * matrixScale * 5))
+      if (strokeVisible && style.markerStart !== 'none' && firstStroke?.length > 1) {
+        const arrow = arrowStroke(firstStroke[0], firstStroke[1], arrowSize)
+        if (arrow) strokes.push(arrow)
+      }
+      if (strokeVisible && style.markerEnd !== 'none' && lastStroke?.length > 1) {
+        const end = lastStroke.length - 1
+        const arrow = arrowStroke(lastStroke[end], lastStroke[end - 1], arrowSize)
+        if (arrow) strokes.push(arrow)
+      }
+    })
+    clone.querySelectorAll('text').forEach((text) => {
+      if (text.closest('defs, clipPath, mask, pattern, marker')) return
+      const drawing = svgTextDrawing(text, bounds)
+      if (drawing) texts.push(drawing)
+    })
+    return strokes.length || texts.length ? { width: bounds.width, height: bounds.height, strokes, texts } : null
+  } finally {
+    host.remove()
+  }
+}
+
+function replaceSvgNodes(container) {
+  container.querySelectorAll('svg').forEach((svg) => {
+    const drawing = svgDrawing(svg)
+    svg.replaceWith(document.createTextNode(
+      drawing ? `${PLOTTER_SVG_START}${encodeURIComponent(JSON.stringify(drawing))}${PLOTTER_SVG_END}` : '',
+    ))
+  })
+}
+
 function listMarker(item) {
   const list = item.parentElement
   if (list?.tagName !== 'OL') return '- '
@@ -87,6 +291,7 @@ export function htmlToPlotterText(html) {
   const container = document.createElement('div')
   container.innerHTML = html
   replaceFormulaNodes(container)
+  replaceSvgNodes(container)
 
   let output = ''
   const appendBreak = (count = 1) => {
@@ -94,10 +299,21 @@ export function htmlToPlotterText(html) {
     const existing = output.match(/\n+$/)?.[0].length || 0
     output += '\n'.repeat(Math.max(0, count - existing))
   }
+  const appendBeforeTrailingBreaks = (value) => {
+    const trailing = output.match(/\n+$/)?.[0] || ''
+    if (trailing) output = `${output.slice(0, -trailing.length)}${value}${trailing}`
+    else output += value
+  }
 
   const walk = (node) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      output += (node.textContent || '')
+      const text = node.textContent || ''
+      if (
+        /^[\t\r\n ]+$/u.test(text)
+        && /[\r\n]/u.test(text)
+        && !node.parentElement?.matches('pre, code')
+      ) return
+      output += text
         .replace(/[\u200B-\u200D\uFEFF]/g, '')
         .replace(/\u00A0/g, ' ')
       return
@@ -105,12 +321,23 @@ export function htmlToPlotterText(html) {
     if (node.nodeType !== Node.ELEMENT_NODE) return
     const element = node
     if (element.matches('script, style, [aria-hidden="true"]')) return
+    if (element.hasAttribute('data-plotter-whitespace')) {
+      output += (element.textContent || '')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/\u00A0/g, ' ')
+      return
+    }
     if (element.tagName === 'BR') {
       appendBreak(1)
       return
     }
     if (element.matches('input[type="checkbox"]')) {
       output += element.checked ? '[x] ' : '[ ] '
+      return
+    }
+    if (element.classList.contains('callout-label')) {
+      output += '! '
+      appendBreak(1)
       return
     }
     if (element.hasAttribute('data-preserved-blank')) {
@@ -130,10 +357,16 @@ export function htmlToPlotterText(html) {
       output += `${'  '.repeat(listDepth(element))}${listMarker(element)}`
     }
 
+    const callout = element.matches('blockquote.callout')
+    if (callout) output += PLOTTER_CALLOUT_MARKS.start
+    const alignment = elementAlignment(element)
+    if (alignment) output += PLOTTER_ALIGN_MARKS[`${alignment}Start`]
     const styles = elementStyles(element)
     styles.forEach((style) => { output += STYLE_MARKS[style][0] })
     Array.from(element.childNodes).forEach(walk)
     styles.slice().reverse().forEach((style) => { output += STYLE_MARKS[style][1] })
+    if (alignment) appendBeforeTrailingBreaks(PLOTTER_ALIGN_MARKS[`${alignment}End`])
+    if (callout) appendBeforeTrailingBreaks(PLOTTER_CALLOUT_MARKS.end)
 
     if (element.tagName === 'LI') appendBreak(1)
     else if (BLOCK_TAGS.has(element.tagName)) appendBreak(2)

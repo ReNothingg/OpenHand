@@ -12,10 +12,6 @@ export default function PlotterFooter({ workspace }) {
 
   return (
     <section className="integrated-plotter-footer" aria-label="Статистика и запуск плоттера">
-      <div className="plotter-footer-head">
-        <div><strong>Лист {workspace.activeIndex + 1}</strong><span>{workspace.fontStatus}</span></div>
-        <span className={`plotter-status ${plotter.status}`}><i />{{ disconnected: 'Не подключён', connecting: 'Подключение…', connected: 'Подключён', running: 'Печать', paused: 'Пауза' }[plotter.status]}</span>
-      </div>
       <div className="job-stats">
         <span><strong>{layout.strokes.length.toLocaleString('ru-RU')}</strong> штрихов</span>
         <span><strong>{job.commands.length.toLocaleString('ru-RU')}</strong> команд</span>

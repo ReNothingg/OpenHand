@@ -17,11 +17,6 @@ export default function PlotterSettings({ workspace }) {
 
   return (
     <div className={`integrated-plotter-settings ${enabled ? 'enabled' : 'disabled'}`}>
-      <div className="plotter-settings-heading">
-        <strong>Плоттер</strong>
-        <span className={`plotter-status ${plotter.status}`}><i />{{ disconnected: 'Не подключён', connecting: 'Подключение…', connected: 'Подключён', running: 'Печать', paused: 'Пауза' }[plotter.status]}</span>
-      </div>
-
       <fieldset disabled={!enabled}>
         <SettingSection title="Контроллер">
           <div className="plotter-row two">

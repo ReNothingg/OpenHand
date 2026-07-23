@@ -110,6 +110,8 @@ export function usePreviewInteractions({
   const beginPan = useCallback(
     (event) => {
       if (event.button !== 0) return;
+      if (event.target.closest("a, button, input, textarea, select, label, summary"))
+        return;
       const viewport = previewRef.current;
       panRef.current = {
         x: event.clientX,

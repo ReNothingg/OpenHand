@@ -15,6 +15,13 @@
   font-size: 14px;
 }
 .editor-expand-button:hover { border-color: #7c93ad; background: #f8fafc; }
+.editor-svg-button {
+  width: auto;
+  min-width: 38px;
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 750;
+}
 .source-tabs {
   display: flex;
   align-items: center;

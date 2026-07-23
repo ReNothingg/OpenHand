@@ -60,6 +60,25 @@
     grid-template-columns: minmax(310px, 360px) 1fr 310px;
   }
 }
+@media (min-width: 901px) and (max-width: 1180px) {
+  .preview-toolbar {
+    flex-wrap: wrap;
+    align-content: center;
+    padding: 6px 10px;
+  }
+  .preview-context {
+    flex: 1 0 100%;
+    width: 100%;
+  }
+  .preview-font-status {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+  .preview-context .plotter-status {
+    gap: 0;
+    font-size: 0;
+  }
+}
 @media (max-width: 900px) {
   body {
     overflow: auto;
@@ -87,6 +106,14 @@
   .preview-toolbar {
     flex-wrap: wrap;
     padding: 8px 10px;
+  }
+  .preview-context {
+    flex: 1 0 100%;
+    width: 100%;
+  }
+  .preview-font-status {
+    flex: 1 1 auto;
+    max-width: none;
   }
   .pages-canvas {
     padding: 140px 220px;

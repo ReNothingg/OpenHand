@@ -1,4 +1,3 @@
-import { PAGE_SIZES } from '../../app/config.js'
 import PlotterFooter from '../plotter/PlotterFooter.jsx'
 import PlotterPaper from '../plotter/PlotterPaper.jsx'
 
@@ -23,6 +22,14 @@ export default function PreviewPanel({
     ? Array.from({ length: Math.ceil(pages.length / 2) }, (_, index) => pages.slice(index * 2, index * 2 + 2))
     : pages.map((page) => [page])
   const plotterMode = plotterWorkspace.enabled
+  const sheetCount = displayedPages.length
+  const plotterStatusLabel = {
+    disconnected: 'Не подключён',
+    connecting: 'Подключение…',
+    connected: 'Подключён',
+    running: 'Печать',
+    paused: 'Пауза',
+  }[plotterWorkspace.plotter.status]
 
   const detectActiveSheet = (event) => {
     const viewport = event.currentTarget
@@ -42,9 +49,22 @@ export default function PreviewPanel({
   return (
     <main className="preview-panel">
       <div className="preview-toolbar">
-        <div className="preview-heading"><strong>{plotterMode ? 'Однолинейный предпросмотр' : 'Предпросмотр'}</strong><span>{PAGE_SIZES[settings.pageSize].label} · {metrics.orientation.toLowerCase()} · {Math.round(settings.zoom)}% · {isNotebookSpread ? `${displayedPages.length} разв.` : `${pages.length} стр.`}</span></div>
+        <div className="preview-context">
+          {plotterMode && <strong className="preview-font-status">{plotterWorkspace.fontStatus}</strong>}
+          <span className="preview-sheet-status">
+            Лист {Math.min(activeSheetIndex + 1, sheetCount)} из {sheetCount}
+            <i aria-hidden="true" />
+            {Math.round(settings.zoom)}%
+          </span>
+          {plotterMode && (
+            <span className={`plotter-status ${plotterWorkspace.plotter.status}`}>
+              <i />
+              {plotterStatusLabel}
+            </span>
+          )}
+        </div>
         <select className="layout-select" value={viewMode} onChange={(event) => setViewMode(event.target.value)} aria-label="Раскладка страниц"><option value="single">По 1 листу</option><option value="spread">По 2 листа</option></select>
-        <button className="button ghost compact" type="button" onClick={reshuffle}>Перемешать</button>
+        {!plotterMode && <button className="button ghost compact" type="button" onClick={reshuffle}>Перемешать</button>}
         <button className="button ghost compact" type="button" onClick={() => setPreviewOnly((value) => !value)}>{previewOnly ? 'Вернуть панели' : 'Только листы'}</button>
       </div>
       <div className="pages-viewport" ref={previewRef} {...panHandlers} onScroll={detectActiveSheet}>

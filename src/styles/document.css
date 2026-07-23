@@ -105,6 +105,52 @@
 .markdown-body blockquote p {
   margin: 0.15em 0;
 }
+.markdown-body [align="left"] {
+  text-align: left;
+}
+.markdown-body [align="center"],
+.markdown-body center {
+  text-align: center;
+}
+.markdown-body [align="right"] {
+  text-align: right;
+}
+.markdown-body blockquote.callout {
+  padding: 0.48em 0.68em 0.52em;
+  border-left-width: 3px;
+  border-radius: 0 6px 6px 0;
+  background: rgba(219, 234, 254, 0.38);
+  opacity: 1;
+}
+.markdown-body .callout-label {
+  display: block;
+  margin-bottom: 0.12em;
+  font-size: 0.82em;
+  letter-spacing: 0.02em;
+}
+.markdown-body .callout-tip {
+  border-left-color: #15803d;
+  background: rgba(220, 252, 231, 0.38);
+}
+.markdown-body .callout-important {
+  border-left-color: #7c3aed;
+  background: rgba(237, 233, 254, 0.42);
+}
+.markdown-body .callout-warning,
+.markdown-body .callout-caution {
+  border-left-color: #c2410c;
+  background: rgba(255, 237, 213, 0.44);
+}
+.markdown-body details {
+  margin: 0.48em 0 0.75em;
+  padding: 0.38em 0.55em;
+  border: 1px solid rgba(31, 41, 55, 0.18);
+  border-radius: 6px;
+}
+.markdown-body summary {
+  cursor: pointer;
+  font-weight: 650;
+}
 .markdown-body a {
   color: inherit;
   text-decoration-thickness: 1px;
@@ -167,6 +213,19 @@
   max-width: 100%;
   height: auto;
 }
+.markdown-body .imported-svg {
+  width: 100%;
+  margin: 0.7em 0 0.9em;
+}
+.markdown-body .imported-svg svg {
+  display: block;
+  width: min(100%, 28em);
+  height: auto;
+  max-height: 24em;
+  margin: 0 auto;
+  overflow: visible;
+  color: inherit;
+}
 .markdown-body li.task-list-item {
   padding-left: 0.12em;
 }
@@ -220,6 +279,9 @@
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-all;
+}
+.hw-space {
+  white-space: pre-wrap;
 }
 .hw-letter {
   display: inline;

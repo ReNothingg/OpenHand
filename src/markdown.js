@@ -69,18 +69,60 @@ function preserveExtraBlankLines(markdown) {
   return output.join('\n')
 }
 
+function renderAlignmentBlocks(markdown) {
+  return String(markdown).replace(
+    /^:::(left|center|right)[ \t]*\n([\s\S]*?)\n:::[ \t]*$/gm,
+    (_, alignment, contents) => (
+      `<div class="text-align-${alignment}" align="${alignment}">\n`
+      + `${marked.parse(contents.trim())}\n`
+      + '</div>'
+    ),
+  )
+}
+
+function protectSvgBlocks(markdown) {
+  const blocks = []
+  const store = (block) => {
+    const token = `OPENHANDSVGBLOCK${blocks.length}TOKEN`
+    blocks.push({ token, block })
+    return token
+  }
+  const protectedSource = String(markdown)
+    .replace(/<figure\b[^>]*>[\s\S]*?<svg\b[\s\S]*?<\/svg>[\s\S]*?<\/figure>/gi, store)
+    .replace(/<svg\b[\s\S]*?<\/svg>/gi, store)
+
+  return {
+    source: protectedSource,
+    restore(html) {
+      return blocks.reduce((output, { token, block }) => (
+        output
+          .replace(new RegExp(`<p>\\s*${token}\\s*</p>`, 'g'), block)
+          .replaceAll(token, block)
+      ), html)
+    },
+  }
+}
+
 export function renderMarkdown(markdown, settings, fontPool) {
-  const source = preserveExtraBlankLines(markdown)
+  const protectedSvg = protectSvgBlocks(markdown)
+  const source = renderAlignmentBlocks(preserveExtraBlankLines(protectedSvg.source)
     .replace(/^\s*:::pagebreak\s*$/gm, '<div data-page-break="true"></div>')
     .replace(/\+\+\+([^\n]+?)\+\+\+/g, '<span class="underline-double">$1</span>')
     .replace(/\+\+([^\n]+?)\+\+/g, '<u>$1</u>')
-    .replace(/==([^\n]+?)==/g, '<mark>$1</mark>');
-  return renderHandwrittenHtml(marked.parse(source), settings, fontPool);
+    .replace(/==([^\n]+?)==/g, '<mark>$1</mark>'));
+  return renderHandwrittenHtml(protectedSvg.restore(marked.parse(source)), settings, fontPool);
 }
 
 export function renderHandwrittenHtml(html, settings, fontPool) {
   const clean = DOMPurify.sanitize(html, {
-    ADD_ATTR: ["target", "data-page-break", "data-preserved-blank"],
+    ADD_ATTR: [
+      "target",
+      "align",
+      "viewBox",
+      "preserveAspectRatio",
+      "data-page-break",
+      "data-preserved-blank",
+    ],
     USE_PROFILES: { html: true, mathMl: true, svg: true },
   });
   const parser = new DOMParser();
@@ -93,6 +135,37 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
     const item = checkbox.closest("li");
     item?.classList.add("task-list-item");
     item?.parentElement?.classList.add("contains-task-list");
+  });
+  const calloutLabels = {
+    NOTE: "Заметка",
+    TIP: "Совет",
+    IMPORTANT: "Важно",
+    WARNING: "Предупреждение",
+    CAUTION: "Осторожно",
+  };
+  root.querySelectorAll("blockquote").forEach((quote) => {
+    const firstParagraph = quote.querySelector(":scope > p");
+    if (!firstParagraph) return;
+    const markerWalker = documentNode.createTreeWalker(
+      firstParagraph,
+      NodeFilter.SHOW_TEXT,
+    );
+    let markerNode;
+    let match;
+    while ((markerNode = markerWalker.nextNode())) {
+      match = markerNode.nodeValue.match(
+        /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i,
+      );
+      if (match) break;
+    }
+    if (!match) return;
+    const type = match[1].toUpperCase();
+    markerNode.nodeValue = markerNode.nodeValue.slice(match[0].length);
+    quote.classList.add("callout", `callout-${type.toLowerCase()}`);
+    const label = documentNode.createElement("strong");
+    label.className = "callout-label";
+    label.textContent = calloutLabels[type];
+    quote.prepend(label);
   });
   const walker = documentNode.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const textNodes = [];
@@ -115,7 +188,11 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
     node.nodeValue.split(/(\s+)/u).forEach((part) => {
       if (!part) return;
       if (/^\s+$/u.test(part)) {
-        fragment.append(documentNode.createTextNode(part));
+        const whitespace = documentNode.createElement("span");
+        whitespace.className = "hw-space";
+        whitespace.dataset.plotterWhitespace = "true";
+        whitespace.textContent = part;
+        fragment.append(whitespace);
         return;
       }
 

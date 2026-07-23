@@ -6,7 +6,7 @@
   overflow: hidden;
 }
 .preview-toolbar {
-  min-height: 59px;
+  min-height: 49px;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -16,18 +16,33 @@
   background: #ffffff;
   z-index: 4;
 }
-.preview-heading {
+.preview-context {
+  min-width: 0;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 9px;
   margin-right: auto;
 }
-.preview-heading strong {
-  font-size: 13px;
+.preview-font-status {
+  max-width: min(360px, 35vw);
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.preview-heading span {
+.preview-sheet-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   color: var(--muted);
-  font-size: 10px;
-  margin-top: 2px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.preview-sheet-status > i {
+  width: 1px;
+  height: 12px;
+  background: #d8dee6;
 }
 .layout-select {
   height: 31px;
