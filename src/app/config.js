@@ -17,7 +17,7 @@ export const DEFAULT_SETTINGS = {
   marginTop: 74,
   marginLeft: 76,
   marginLeftEven: 94,
-  marginBottom: 68,
+  marginBottom: 0,
   textRotation: 0,
   inkColor: '#1f2937',
   pageColor: '#ffffff',
@@ -58,6 +58,12 @@ export function normalizeSettings(incoming = {}) {
     settings.pageSize = 'NotebookSpread'
     settings.pageOrientation = 'landscape'
     settings.ruledPaper = true
+  }
+  if (
+    settings.pageSize === 'NotebookSpread' &&
+    [44, 68].includes(Number(incoming.marginBottom))
+  ) {
+    settings.marginBottom = 0
   }
 
   if (settings.fontType !== 'plotter') settings.fontType = 'screen'

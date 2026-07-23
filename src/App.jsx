@@ -240,7 +240,7 @@ export default function App() {
         marginTop: 56,
         marginLeft: 72,
         marginLeftEven: 72,
-        marginBottom: 44,
+        marginBottom: 0,
         textWidth: Math.min(current.textWidth, Math.max(PAGE_SIZES[pageSize].width, PAGE_SIZES[pageSize].height) - 144),
         fontSize: Math.min(current.fontSize, 24),
         lineHeight: 1.25,

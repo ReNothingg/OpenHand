@@ -155,7 +155,7 @@ export function useIntegratedPlotter({
     setError('')
     const layoutSheet = async (sheet) => {
       const layoutConfig = {
-        ...config,
+        ...previewConfig,
         seed: settings.seed,
         trueHandwriting: settings.trueHandwriting,
         glyphVariation: settings.glyphVariation,
@@ -205,7 +205,7 @@ export function useIntegratedPlotter({
     enabled,
     font,
     sheets,
-    config.letterSpacing,
+    previewConfig.letterSpacing,
     settings.seed,
     settings.trueHandwriting,
     settings.glyphVariation,

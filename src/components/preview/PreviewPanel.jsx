@@ -163,10 +163,6 @@ export default function PreviewPanel({
                       />
                     )}
                   </>}
-                  {isNotebookSpread ? <>
-                    <span className="page-number spread-page-number left">{firstPageIndex + 1}</span>
-                    <span className="page-number spread-page-number right">{firstPageIndex + 2}</span>
-                  </> : <span className="page-number">{index + 1}</span>}
                 </article>
               </div>
             )

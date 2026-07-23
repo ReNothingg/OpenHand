@@ -78,7 +78,7 @@
   display: grid;
   align-content: start;
   justify-content: center;
-  gap: 28px;
+  gap: 10px;
   padding: 200px 320px;
 }
 .pages-canvas.single {
@@ -161,18 +161,6 @@
   transform-origin: top left;
   overflow: hidden;
 }
-.page-number {
-  position: absolute;
-  bottom: 22px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: rgba(55, 57, 52, 0.38);
-  font:
-    11px/1 ui-sans-serif,
-    sans-serif;
-}
-.spread-page-number.left { left: 25%; }
-.spread-page-number.right { left: 75%; }
 .measure-host {
   position: fixed;
   left: -100000px;

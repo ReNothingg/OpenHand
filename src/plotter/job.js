@@ -155,8 +155,37 @@ export function findCursiveAnchor(strokes, side, baseline, fontSize) {
     ))
     .sort((left, right) => left.score - right.score)
 
-  const anchor = candidates[0]
-  if (!anchor) return null
+  let anchor = candidates[0]
+  if (!anchor) {
+    const fallbackInset = Math.max(fontSize * 0.018, width * 0.045)
+    anchor = strokes
+      .flatMap((stroke, strokeIndex) => stroke.map((point, pointIndex) => ({
+        point,
+        strokeIndex,
+        pointIndex,
+        edgeInset: Math.abs(point.x - edgeX),
+        baselineDistance: Math.abs(point.y - targetY),
+      })))
+      .filter((candidate) => (
+        candidate.edgeInset <= fallbackInset &&
+        candidate.baselineDistance <= fontSize * 0.36
+      ))
+      .sort((left, right) => (
+        left.edgeInset * 5.5 + left.baselineDistance
+        - (right.edgeInset * 5.5 + right.baselineDistance)
+      ))[0]
+    if (!anchor) return null
+    return {
+      ...anchor,
+      outwardness: 0,
+      verticality: 1,
+      synthetic: true,
+      quality: Math.max(0.24, 0.68 - (
+        anchor.edgeInset / fallbackInset * 0.22
+        + anchor.baselineDistance / (fontSize * 0.36) * 0.3
+      )),
+    }
+  }
   return {
     ...anchor,
     quality: Math.max(0, 1 - (
@@ -535,7 +564,8 @@ export async function layoutText(text, font, page, config) {
             entryAnchor &&
             seededRandom(config.seed, `join:${glyphOccurrence}`) * 100 < connectionChance &&
             previousJoin.charIsLetter &&
-            isLetter
+            isLetter &&
+            Math.min(previousJoin.anchor.quality, entryAnchor.quality) >= 0.22
           ) {
             const connector = createCursiveConnector(
               previousJoin.anchor.point,
@@ -545,7 +575,12 @@ export async function layoutText(text, font, page, config) {
             )
             if (connector) strokes.push(connector)
           }
-          if (config.trueHandwriting && charIndex === 0 && entryAnchor && seededRandom(config.seed, `lead:${glyphOccurrence}`) < 0.34) {
+          if (
+            config.trueHandwriting &&
+            charIndex === 0 &&
+            entryAnchor?.quality >= 0.35 &&
+            seededRandom(config.seed, `lead:${glyphOccurrence}`) < 0.34
+          ) {
             const start = entryAnchor.point
             const lead = [
               { x: start.x - page.fontSize * (0.08 + seededRandom(config.seed, `lead-width:${glyphOccurrence}`) * 0.08), y: start.y + page.fontSize * 0.05 },
@@ -566,6 +601,7 @@ export async function layoutText(text, font, page, config) {
       if (
         config.trueHandwriting &&
         previousJoin &&
+        previousJoin.anchor.quality >= 0.35 &&
         seededRandom(config.seed, `tail:${glyphOccurrence}`) < 0.3
       ) {
         const tailStart = previousJoin.anchor.point
