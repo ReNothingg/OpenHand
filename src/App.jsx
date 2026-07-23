@@ -10,6 +10,7 @@ import { useIntegratedPlotter } from './hooks/useIntegratedPlotter.js'
 import { usePreviewInteractions } from './hooks/usePreviewInteractions.js'
 import { useLineEffects, useRenderedPages } from './hooks/useRenderedPages.js'
 import { downloadFile } from './lib/files.js'
+import { loadStoredGFonts, saveStoredGFont } from './lib/customGFonts.js'
 import { getPageMetrics } from './lib/pagination.js'
 import { arrangeManualPages, createManualPages, updatePlacementDirective } from './lib/manualLayout.js'
 import { loadStoredObject, loadStoredText } from './lib/storage.js'
@@ -30,7 +31,8 @@ export default function App() {
   const [activeSheetIndex, setActiveSheetIndex] = useState(0)
   const [manualEditing, setManualEditing] = useState(false)
   const [manualLayouts, setManualLayouts] = useState(() => loadStoredObject(STORAGE_KEYS.manualLayout, {}))
-  const [customPlotterFont, setCustomPlotterFont] = useState(null)
+  const [customPlotterFonts, setCustomPlotterFonts] = useState([])
+  const [customFontsReady, setCustomFontsReady] = useState(false)
 
   const textareaRef = useRef(null)
   const previewRef = useRef(null)
@@ -53,13 +55,73 @@ export default function App() {
   const uploadCustomFont = useCallback(async (file) => {
     if (!file) return
     try {
-      const font = await loadGFont(file)
-      setCustomPlotterFont({ font, name: file.name })
-      setSettings((current) => ({ ...current, fontType: 'plotter', plotterFontId: 'custom' }))
+      const buffer = await file.arrayBuffer()
+      const font = await loadGFont(buffer, file.name)
+      const record = await saveStoredGFont(file.name, buffer)
+      const savedFont = { ...record, font, plotterFontId: `custom:${record.id}` }
+      setCustomPlotterFonts((current) => [
+        savedFont,
+        ...current.filter((item) => item.id !== record.id),
+      ])
+      setSettings((current) => ({
+        ...current,
+        fontType: 'plotter',
+        plotterFontId: savedFont.plotterFontId,
+      }))
     } catch (reason) {
       window.alert(reason instanceof Error ? reason.message : 'Не удалось открыть шрифт.')
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    loadStoredGFonts()
+      .then(async (records) => {
+        const loaded = (await Promise.all(records.map(async (record) => {
+          try {
+            return {
+              ...record,
+              font: await loadGFont(record.buffer, record.name),
+              plotterFontId: `custom:${record.id}`,
+            }
+          } catch {
+            return null
+          }
+        }))).filter(Boolean)
+        if (!cancelled) {
+          setCustomPlotterFonts((current) => [
+            ...current,
+            ...loaded.filter((font) => !current.some((item) => item.id === font.id)),
+          ].sort((left, right) => right.updatedAt - left.updatedAt))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCustomPlotterFonts([])
+      })
+      .finally(() => {
+        if (!cancelled) setCustomFontsReady(true)
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  const customPlotterFont = useMemo(
+    () => customPlotterFonts.find((item) => item.plotterFontId === settings.plotterFontId) || null,
+    [customPlotterFonts, settings.plotterFontId],
+  )
+
+  useEffect(() => {
+    if (
+      customFontsReady &&
+      settings.plotterFontId.startsWith('custom:') &&
+      !customPlotterFont
+    ) {
+      setSettings((current) => ({
+        ...current,
+        fontType: 'plotter',
+        plotterFontId: DEFAULT_SETTINGS.plotterFontId,
+      }))
+    }
+  }, [customFontsReady, customPlotterFont, settings.plotterFontId])
 
   const metrics = useMemo(() => getPageMetrics(settings), [
     settings.pageSize,
@@ -410,7 +472,7 @@ export default function App() {
             metrics={metrics}
             updateSetting={updateSetting}
             updateFontSelection={updateFontSelection}
-            customPlotterFont={customPlotterFont}
+            customPlotterFonts={customPlotterFonts}
             uploadCustomFont={uploadCustomFont}
             updatePageSize={updatePageSize}
             resetSettings={() => setSettings({ ...DEFAULT_SETTINGS })}

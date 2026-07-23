@@ -11,16 +11,18 @@ function pluralize(count, one, few, many) {
   return many
 }
 
-export default function FontPicker({ fontType, value, plotterFontId, onChange, customFontName, onUpload }) {
+export default function FontPicker({ fontType, value, plotterFontId, onChange, customFonts = [], onUpload }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const rootRef = useRef(null)
   const uploadRef = useRef(null)
   const selectedScreen = fonts.find((font) => font.family === value) || fonts[0]
+  const selectedCustom = customFonts.find((font) => font.plotterFontId === plotterFontId)
+  const customSelected = fontType === 'plotter' && Boolean(selectedCustom)
   const selectedPlotter = BUILTIN_GFONT_OPTIONS.find((font) => font.id === plotterFontId) || BUILTIN_GFONT_OPTIONS[0]
   const [activeFamilyId, setActiveFamilyId] = useState(selectedPlotter.familyId)
   const selected = fontType === 'plotter'
-    ? { name: plotterFontId === 'custom' ? (customFontName || 'Свой шрифт') : selectedPlotter.label, kind: 'plotter' }
+    ? { name: selectedCustom?.name || selectedPlotter.label, kind: 'plotter' }
     : { ...selectedScreen, kind: 'screen' }
   const normalizedQuery = query.trim().toLocaleLowerCase('ru')
   const filtered = useMemo(() => fonts.filter((font) => (
@@ -31,13 +33,16 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange, c
       .toLocaleLowerCase('ru')
       .includes(normalizedQuery)
   )), [normalizedQuery])
+  const filteredCustomFonts = useMemo(() => customFonts.filter((font) => (
+    font.name.toLocaleLowerCase('ru').includes(normalizedQuery)
+  )), [customFonts, normalizedQuery])
   const activeFamily = BUILTIN_GFONT_FAMILIES.find((family) => family.id === activeFamilyId)
     || BUILTIN_GFONT_FAMILIES[0]
   const activeVariantIndex = Math.max(0, activeFamily.variants.findIndex((variant) => variant.id === plotterFontId))
 
   useEffect(() => {
-    if (fontType === 'plotter') setActiveFamilyId(selectedPlotter.familyId)
-  }, [fontType, selectedPlotter.familyId])
+    if (fontType === 'plotter' && !customSelected) setActiveFamilyId(selectedPlotter.familyId)
+  }, [customSelected, fontType, selectedPlotter.familyId])
 
   useEffect(() => {
     const close = (event) => {
@@ -80,6 +85,33 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange, c
         <div className="font-picker-menu">
           <input autoFocus type="search" value={query} placeholder="Найти шрифт…" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false) }} />
           <div className="font-picker-list">
+            {filteredCustomFonts.length > 0 && (
+              <div className="custom-gfont-section">
+                <div className="font-section-heading">
+                  <span>Мои GFont</span>
+                  <em>сохранены в браузере</em>
+                </div>
+                <div className="custom-gfont-grid" role="listbox" aria-label="Мои шрифты">
+                  {filteredCustomFonts.map((font) => (
+                    <button
+                      className={font.plotterFontId === plotterFontId && fontType === 'plotter' ? 'selected' : ''}
+                      type="button"
+                      role="option"
+                      aria-selected={font.plotterFontId === plotterFontId && fontType === 'plotter'}
+                      key={font.id}
+                      onClick={() => {
+                        onChange({ type: 'plotter', value: font.plotterFontId })
+                        setOpen(false)
+                        setQuery('')
+                      }}
+                    >
+                      <span>{font.name}</span>
+                      <small>{Math.max(1, Math.round(font.size / 1024))} КБ</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {(filteredFamilies.length > 0 || filtered.length > 0) && (
               <div className="unified-font-section">
                 {filteredFamilies.length > 0 && (
@@ -89,11 +121,11 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange, c
                       <button
                         className={[
                           activeFamily.id === family.id ? 'active' : '',
-                          fontType === 'plotter' && selectedPlotter.familyId === family.id ? 'selected' : '',
+                          fontType === 'plotter' && !customSelected && selectedPlotter.familyId === family.id ? 'selected' : '',
                         ].filter(Boolean).join(' ')}
                         type="button"
                         role="option"
-                        aria-selected={fontType === 'plotter' && selectedPlotter.familyId === family.id}
+                        aria-selected={fontType === 'plotter' && !customSelected && selectedPlotter.familyId === family.id}
                         key={family.id}
                         onClick={() => chooseFamily(family)}
                       >
@@ -119,7 +151,7 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange, c
                     <div className="font-variant-labels" style={{ '--variant-count': activeFamily.variants.length }}>
                       {activeFamily.variants.map((variant, index) => (
                         <button
-                          className={index === activeVariantIndex && fontType === 'plotter' ? 'selected' : ''}
+                          className={index === activeVariantIndex && fontType === 'plotter' && !customSelected ? 'selected' : ''}
                           type="button"
                           key={variant.id}
                           onClick={() => chooseVariant(variant)}
@@ -155,7 +187,7 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange, c
                 )}
               </div>
             )}
-            {!filtered.length && !filteredFamilies.length && <div className="font-picker-empty">Ничего не найдено</div>}
+            {!filtered.length && !filteredFamilies.length && !filteredCustomFonts.length && <div className="font-picker-empty">Ничего не найдено</div>}
           </div>
         </div>
       )}

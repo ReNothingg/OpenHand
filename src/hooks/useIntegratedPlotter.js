@@ -126,8 +126,9 @@ export function useIntegratedPlotter({
     setBusy(true)
     setError('')
     setConfig((current) => ({ ...current, fontId }))
-    setFontStatus(fontId === 'custom' ? 'Загрузка своего шрифта…' : 'Загрузка встроенного шрифта…')
-    const pendingFont = fontId === 'custom'
+    const isCustomFont = fontId === 'custom' || fontId.startsWith('custom:')
+    setFontStatus(isCustomFont ? 'Загрузка своего шрифта…' : 'Загрузка встроенного шрифта…')
+    const pendingFont = isCustomFont
       ? customFont?.font
         ? Promise.resolve(customFont.font)
         : Promise.reject(new Error('Загрузите файл .gfont рядом с выбором шрифта.'))
@@ -140,7 +141,7 @@ export function useIntegratedPlotter({
       })
       .catch((reason) => {
         if (!cancelled) {
-          setFontStatus(fontId === 'custom' ? 'Свой шрифт не загружен' : 'Встроенный шрифт не загрузился')
+          setFontStatus(isCustomFont ? 'Свой шрифт не загружен' : 'Встроенный шрифт не загрузился')
           setError(reason.message)
         }
       })

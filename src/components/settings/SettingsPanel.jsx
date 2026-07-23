@@ -11,7 +11,7 @@ export default function SettingsPanel({
   metrics,
   updateSetting,
   updateFontSelection,
-  customPlotterFont,
+  customPlotterFonts,
   uploadCustomFont,
   updatePageSize,
   resetSettings,
@@ -47,7 +47,7 @@ export default function SettingsPanel({
           value={settings.fontFamily}
           plotterFontId={settings.plotterFontId}
           onChange={updateFontSelection}
-          customFontName={customPlotterFont?.name}
+          customFonts={customPlotterFonts}
           onUpload={uploadCustomFont}
         />
         {settings.fontType !== "plotter" && (
