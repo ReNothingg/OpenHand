@@ -230,6 +230,10 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
 
   let wordIndex = 0;
   let letterIndex = 0;
+  const totalLetters = Math.max(
+    1,
+    textNodes.reduce((sum, node) => sum + Array.from(node.nodeValue).filter((character) => !/\s/u.test(character)).length, 0),
+  );
   textNodes.forEach((node) => {
     const fragment = documentNode.createDocumentFragment();
     node.nodeValue.split(/(\s+)/u).forEach((part) => {
@@ -250,6 +254,10 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
       if (settings.trueHandwriting) word.classList.add("hw-natural");
       if (Array.from(part).length > 18) word.classList.add("hw-breakable");
       word.dataset.wordIndex = String(wordIndex);
+      const fatigueProgress = Math.max(0, Math.min(1, letterIndex / totalLetters));
+      const fatigue = settings.fatigueEnabled
+        ? Math.pow(fatigueProgress, 1.65) * Math.max(0, Math.min(100, Number(settings.fatigueStrength) || 0)) / 100
+        : 0;
       const tilt =
         active && settings.maxWordTilt > 0
           ? signed(
@@ -268,8 +276,10 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
               `word:${wordIndex}:lift`,
             )
           : 0;
-      word.style.setProperty("--word-rotation", `${tilt.toFixed(2)}deg`);
-      word.style.setProperty("--word-lift", `${lift.toFixed(2)}px`);
+      const authorBaseline = Math.max(0, Math.min(100, Number(settings.authorBaseline) || 0));
+      const fatigueTilt = fatigue * (0.8 + Number(settings.authorRhythm || 0) * 0.012);
+      word.style.setProperty("--word-rotation", `${(tilt + fatigueTilt).toFixed(2)}deg`);
+      word.style.setProperty("--word-lift", `${(lift + fatigue * authorBaseline * 0.026).toFixed(2)}px`);
       if (
         settings.trueHandwriting &&
         randomFor(settings.seed, `word:${wordIndex}:correction`) * 100 <
@@ -304,14 +314,18 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
           const variant = randomFor(settings.seed, `letter:${letterIndex}:variant-active`) * 100 < variation
             ? Math.floor(randomFor(settings.seed, `letter:${letterIndex}:variant`) * 4)
             : 0;
-          const slant = (randomFor(settings.seed, `letter:${letterIndex}:slant`) - 0.5) * variation * 0.05;
+          const authorSlant = Number(settings.authorSlant || 0);
+          const rhythm = Math.max(0, Math.min(100, Number(settings.authorRhythm) || 0));
+          const slant = authorSlant + (randomFor(settings.seed, `letter:${letterIndex}:slant`) - 0.5) * (variation * 0.05 + rhythm * 0.025) + fatigue * 3.2;
           const scaleY = 1 + (randomFor(settings.seed, `letter:${letterIndex}:height`) - 0.5) * variation * 0.0024;
+          const scaleX = Math.max(0.78, Math.min(1.22, Number(settings.authorWidth || 100) / 100 + fatigue * 0.025));
           const pressure = 1 + (randomFor(settings.seed, `letter:${letterIndex}:pressure`) - 0.5) * Number(settings.pressureVariation || 0) * 0.012;
           letter.classList.add("hw-glyph-variant", `variant-${variant}`);
           if (characterIndex === 0) letter.classList.add("word-start");
           if (characterIndex === wordCharacters.length - 1) letter.classList.add("word-end");
           letter.style.setProperty("--glyph-slant", `${slant.toFixed(2)}deg`);
           letter.style.setProperty("--glyph-height", scaleY.toFixed(3));
+          letter.style.setProperty("--glyph-width", scaleX.toFixed(3));
           letter.style.setProperty("--glyph-pressure", pressure.toFixed(3));
           letter.style.setProperty("--glyph-join", `${Math.max(0, Number(settings.connectionStrength || 0)) * -0.006}em`);
           letter.style.fontFeatureSettings = `"calt" 1, "liga" 1, "salt" ${variant ? 1 : 0}, "ss0${variant + 1}" 1`;
@@ -328,7 +342,11 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
               `letter:${letterIndex}:spacing`,
             )
           : 0;
-        letter.style.marginRight = `${spacing.toFixed(2)}px`;
+        const widthSpacing = (Number(settings.authorWidth || 100) - 100) * 0.012;
+        const rhythmSpacing = settings.trueHandwriting
+          ? (randomFor(settings.seed, `letter:${letterIndex}:rhythm`) - 0.5) * Number(settings.authorRhythm || 0) * 0.014
+          : 0;
+        letter.style.marginRight = `${(spacing + widthSpacing + rhythmSpacing + fatigue * 0.12).toFixed(2)}px`;
         word.append(letter);
         letterIndex += 1;
       });

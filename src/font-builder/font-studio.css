@@ -425,6 +425,150 @@ body:has(.font-studio) {
   stroke-linejoin: round;
 }
 
+.photo-import-backdrop {
+  position: fixed;
+  z-index: 300;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 0.5);
+  backdrop-filter: blur(3px);
+}
+
+.photo-import-dialog {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border: 1px solid #d7dee8;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgb(15 23 42 / 0.28);
+}
+
+.photo-import-dialog > header,
+.photo-import-dialog > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+}
+
+.photo-import-dialog > header {
+  align-items: flex-start;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.photo-import-dialog > header span {
+  color: #2563eb;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.photo-import-dialog h2 {
+  margin: 4px 0 0;
+  font-size: 19px;
+}
+
+.photo-import-dialog > header > button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 7px;
+  color: #64748b;
+  background: #f1f5f9;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.photo-import-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 18px 20px;
+}
+
+.photo-import-options article {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.photo-import-options article > b {
+  color: #1e293b;
+  font-size: 13px;
+}
+
+.photo-import-options p {
+  min-height: 58px;
+  margin: 0;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.photo-import-options article > div {
+  display: flex;
+  gap: 7px;
+}
+
+.photo-import-options button,
+.photo-import-dialog > footer button {
+  min-height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 0 11px;
+  color: #334155;
+  background: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.photo-import-options button.primary {
+  border-color: #2563eb;
+  color: #fff;
+  background: #2563eb;
+}
+
+.photo-import-options label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #475569;
+  font-size: 9px;
+}
+
+.photo-import-status {
+  display: grid;
+  gap: 7px;
+  margin: 0 20px 18px;
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1e40af;
+  background: #eff6ff;
+  font-size: 10px;
+}
+
+.photo-import-status progress {
+  width: 100%;
+  height: 6px;
+}
+
+.photo-import-dialog > footer {
+  border-top: 1px solid #e5e7eb;
+  color: #64748b;
+  font-size: 9px;
+}
+
 @media (max-width: 780px) {
   body:has(.font-studio) {
     overflow: auto;
@@ -479,4 +623,8 @@ body:has(.font-studio) {
     gap: 7px;
     padding: 8px 10px;
   }
+
+  .photo-import-backdrop { padding: 8px; }
+  .photo-import-options { grid-template-columns: 1fr; padding: 12px; }
+  .photo-import-options p { min-height: 0; }
 }

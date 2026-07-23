@@ -1,6 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const encoder = new TextEncoder()
+const RECOVERY_KEY = 'openhand.plotter.recovery.v1'
+
+function loadRecovery() {
+  try {
+    const value = JSON.parse(localStorage.getItem(RECOVERY_KEY) || 'null')
+    if (
+      !value ||
+      typeof value.jobId !== 'string' ||
+      !Number.isInteger(value.current) ||
+      !Number.isInteger(value.total)
+    ) return null
+    return value
+  } catch {
+    return null
+  }
+}
 
 function lineEnding(profile) {
   return profile === 'marlin' ? '\n' : '\r\n'
@@ -11,6 +27,7 @@ export function usePlotter() {
   const [status, setStatus] = useState('disconnected')
   const [logs, setLogs] = useState([])
   const [progress, setProgress] = useState({ current: 0, total: 0 })
+  const [recovery, setRecovery] = useState(loadRecovery)
   const portRef = useRef(null)
   const readerRef = useRef(null)
   const writerRef = useRef(null)
@@ -19,6 +36,17 @@ export function usePlotter() {
   const abortRef = useRef(false)
   const pausedRef = useRef(false)
   const pauseWaitersRef = useRef([])
+
+  const saveRecovery = useCallback((value) => {
+    if (!value) {
+      localStorage.removeItem(RECOVERY_KEY)
+      setRecovery(null)
+      return
+    }
+    const next = { ...value, updatedAt: Date.now() }
+    try { localStorage.setItem(RECOVERY_KEY, JSON.stringify(next)) } catch { /* storage may be full */ }
+    setRecovery(next)
+  }, [])
 
   const log = useCallback((direction, message) => {
     const time = new Date().toLocaleTimeString('ru-RU', { hour12: false })
@@ -130,21 +158,48 @@ export function usePlotter() {
     return new Promise((resolve) => pauseWaitersRef.current.push(resolve))
   }, [])
 
-  const run = useCallback(async (commands) => {
+  const run = useCallback(async (jobOrCommands, options = {}) => {
+    const job = Array.isArray(jobOrCommands)
+      ? { id: `legacy-${jobOrCommands.length}`, commands: jobOrCommands, resumePoints: [], resumePrefix: [], recoverable: false }
+      : jobOrCommands
+    const commands = job?.commands || []
+    const recoverable = job?.recoverable !== false
+    const startIndex = Math.max(0, Math.min(commands.length, Number(options.startIndex) || 0))
+    const checkpoints = new Set(job?.resumePoints || [])
+    let safeCheckpoint = startIndex
     abortRef.current = false
     pausedRef.current = false
     setStatus('running')
-    setProgress({ current: 0, total: commands.length })
+    setProgress({ current: startIndex, total: commands.length })
+    if (recoverable) {
+      saveRecovery({
+        jobId: job.id,
+        current: safeCheckpoint,
+        total: commands.length,
+        profile: profileRef.current,
+      })
+    }
     try {
-      for (let index = 0; index < commands.length; index += 1) {
+      for (const command of options.prefix || []) await sendCommand(command)
+      for (let index = startIndex; index < commands.length; index += 1) {
         if (abortRef.current) throw new DOMException('Задание остановлено.', 'AbortError')
         await waitWhilePaused()
         if (abortRef.current) throw new DOMException('Задание остановлено.', 'AbortError')
         await sendCommand(commands[index])
         setProgress({ current: index + 1, total: commands.length })
+        if (recoverable && checkpoints.has(index + 1)) {
+          safeCheckpoint = index + 1
+          saveRecovery({
+            jobId: job.id,
+            current: safeCheckpoint,
+            total: commands.length,
+            profile: profileRef.current,
+          })
+        }
       }
       setStatus('connected')
       log('system', 'Задание завершено')
+      saveRecovery(null)
     } catch (error) {
       setStatus(writerRef.current ? 'connected' : 'disconnected')
       if (error.name !== 'AbortError') {
@@ -152,7 +207,25 @@ export function usePlotter() {
         throw error
       }
     }
-  }, [log, sendCommand, waitWhilePaused])
+  }, [log, saveRecovery, sendCommand, waitWhilePaused])
+
+  const recover = useCallback(async (job) => {
+    if (!recovery) throw new Error('Нет сохранённого задания для продолжения.')
+    if (job?.recoverable === false) {
+      throw new Error('Эта прошивка использует относительные координаты: безопасное продолжение после сбоя недоступно.')
+    }
+    if (!job || job.id !== recovery.jobId || job.commands.length !== recovery.total) {
+      throw new Error('Текст или настройки изменились. Продолжение старой траектории небезопасно.')
+    }
+    if (recovery.profile !== profileRef.current) {
+      throw new Error('Профиль контроллера изменился. Верните прежнюю прошивку перед продолжением.')
+    }
+    log('system', `Продолжение с безопасного штриха: ${recovery.current} / ${recovery.total}`)
+    return run(job, {
+      startIndex: recovery.current,
+      prefix: job.resumePrefix || [],
+    })
+  }, [log, recovery, run])
 
   const pause = useCallback(async () => {
     if (status !== 'running') return
@@ -177,13 +250,14 @@ export function usePlotter() {
       clearTimeout(pending.timeout)
       pending.reject(new DOMException('Задание остановлено.', 'AbortError'))
     }
+    saveRecovery(null)
     if (!writerRef.current) return
     if (profileRef.current === 'grbl') await writeRaw(new Uint8Array([33, 24]))
     else if (profileRef.current === 'marlin') await writeRaw('M410\n')
     else await writeRaw('R\r\n')
     setStatus('connected')
     log('system', 'Отправлена аварийная остановка')
-  }, [log, writeRaw])
+  }, [log, saveRecovery, writeRaw])
 
   const sendCommands = useCallback(async (commands) => {
     for (const command of commands) await sendCommand(command)
@@ -200,13 +274,16 @@ export function usePlotter() {
     status,
     logs,
     progress,
+    recovery,
     connect,
     disconnect,
     run,
+    recover,
     pause,
     resume,
     stop,
     sendCommands,
     clearLogs: () => setLogs([]),
+    discardRecovery: () => saveRecovery(null),
   }
 }

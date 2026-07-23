@@ -3,6 +3,7 @@ import { loadGFont } from '../plotter/gfont.js'
 import { ALL_CHARACTERS, CHARACTER_GROUPS, PREVIEW_TEXT } from './characters.js'
 import FontCanvas from './FontCanvas.jsx'
 import FontPreview from './FontPreview.jsx'
+import PhotoFontImporter from './PhotoFontImporter.jsx'
 import { createGFontBlob, safeFontFilename } from './gfontExport.js'
 import './font-studio.css'
 
@@ -51,6 +52,7 @@ export default function FontStudio() {
   const [previewText, setPreviewText] = useState(PREVIEW_TEXT.ru)
   const [previewSize, setPreviewSize] = useState(32)
   const [notice, setNotice] = useState('')
+  const [photoOpen, setPhotoOpen] = useState(false)
   const importRef = useRef(null)
   const completedCount = ALL_CHARACTERS.filter((character) => glyphs[character]?.some((stroke) => stroke.length > 1)).length
   const currentIndex = ALL_CHARACTERS.indexOf(activeCharacter)
@@ -116,6 +118,22 @@ export default function FontStudio() {
     event.target.value = ''
   }
 
+  const importPhotoCharacter = (strokes) => {
+    setHistory((current) => [...current.slice(-29), currentStrokes])
+    setGlyphs((current) => ({ ...current, [activeCharacter]: strokes }))
+  }
+
+  const importPhotoSheet = (imported, { replaceExisting = false } = {}) => {
+    setGlyphs((current) => {
+      if (replaceExisting) return { ...current, ...imported }
+      return Object.fromEntries([
+        ...Object.entries(current),
+        ...Object.entries(imported).filter(([character]) => !current[character]?.length),
+      ])
+    })
+    setHistory([])
+  }
+
   return (
     <main className="font-studio">
       <header className="font-studio-toolbar">
@@ -129,6 +147,7 @@ export default function FontStudio() {
           <strong>{completedCount} / {ALL_CHARACTERS.length}</strong>
         </div>
         <div className="font-studio-actions">
+          <button type="button" onClick={() => setPhotoOpen(true)}>По фотографии</button>
           <button type="button" onClick={() => importRef.current?.click()}>Открыть .gfont</button>
           <button className="primary" type="button" onClick={exportFont}>Скачать .gfont</button>
         </div>
@@ -215,6 +234,15 @@ export default function FontStudio() {
       </div>
 
       <input ref={importRef} type="file" accept=".gfont,application/octet-stream" hidden onChange={importFont} />
+      {photoOpen && (
+        <PhotoFontImporter
+          activeCharacter={activeCharacter}
+          characters={ALL_CHARACTERS}
+          onImportCharacter={importPhotoCharacter}
+          onImportSheet={importPhotoSheet}
+          onClose={() => setPhotoOpen(false)}
+        />
+      )}
     </main>
   )
 }

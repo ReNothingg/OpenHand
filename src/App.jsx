@@ -18,6 +18,11 @@ import { renderMarkdown } from './markdown.js'
 import { loadGFont } from './plotter/gfont.js'
 import { htmlToPlotterText } from './plotter/richText.js'
 import { renderTex } from './tex.js'
+import {
+  analyzeNaturalness,
+  naturalnessAutofix,
+  profilePatch,
+} from './handwriting/profiles.js'
 
 export default function App() {
   const [markdown, setMarkdown] = useState(() => loadStoredText(STORAGE_KEYS.markdown, SAMPLE_MARKDOWN))
@@ -46,6 +51,9 @@ export default function App() {
   }, [sourceMode])
   const updateSetting = useCallback((key, value) => {
     setSettings((current) => ({ ...current, [key]: value }))
+  }, [])
+  const updateSettings = useCallback((patch) => {
+    setSettings((current) => ({ ...current, ...patch }))
   }, [])
   const updateFontSelection = useCallback(({ type, value }) => {
     setSettings((current) => type === 'plotter'
@@ -162,6 +170,13 @@ export default function App() {
     connectionStrength: settings.connectionStrength,
     correctionChance: settings.correctionChance,
     pressureVariation: settings.pressureVariation,
+    handwritingProfile: settings.handwritingProfile,
+    authorSlant: settings.authorSlant,
+    authorWidth: settings.authorWidth,
+    authorRhythm: settings.authorRhythm,
+    authorBaseline: settings.authorBaseline,
+    fatigueEnabled: settings.fatigueEnabled,
+    fatigueStrength: settings.fatigueStrength,
   }), [
     settings.fontFamily,
     settings.fontSize,
@@ -188,6 +203,13 @@ export default function App() {
     settings.connectionStrength,
     settings.correctionChance,
     settings.pressureVariation,
+    settings.handwritingProfile,
+    settings.authorSlant,
+    settings.authorWidth,
+    settings.authorRhythm,
+    settings.authorBaseline,
+    settings.fatigueEnabled,
+    settings.fatigueStrength,
   ])
   const deferredSettings = useDebouncedValue(calculationSettings)
   const deferredMarkdown = useDebouncedValue(markdown, 90)
@@ -215,6 +237,13 @@ export default function App() {
     connectionStrength: deferredSettings.connectionStrength,
     correctionChance: deferredSettings.correctionChance,
     pressureVariation: deferredSettings.pressureVariation,
+    handwritingProfile: deferredSettings.handwritingProfile,
+    authorSlant: deferredSettings.authorSlant,
+    authorWidth: deferredSettings.authorWidth,
+    authorRhythm: deferredSettings.authorRhythm,
+    authorBaseline: deferredSettings.authorBaseline,
+    fatigueEnabled: deferredSettings.fatigueEnabled,
+    fatigueStrength: deferredSettings.fatigueStrength,
   }), [deferredSettings])
   const renderedHtml = useMemo(
     () => sourceMode === 'tex'
@@ -366,6 +395,17 @@ export default function App() {
   }
 
   const wordCount = activeSource.trim() ? activeSource.trim().split(/\s+/u).length : 0
+  const naturalnessReport = useMemo(
+    () => analyzeNaturalness(activeSource, settings),
+    [
+      activeSource,
+      settings.glyphVariation,
+      settings.pressureVariation,
+      settings.authorRhythm,
+      settings.connectionStrength,
+      settings.fatigueEnabled,
+    ],
+  )
   const renderedPageTexts = useMemo(
     () => displayPages.map((html) => htmlToPlotterText(html)),
     [displayPages],
@@ -488,6 +528,9 @@ export default function App() {
             exportSettings={() => downloadFile('handwriting-settings.json', JSON.stringify(settings, null, 2), 'application/json')}
             importSettings={() => settingsImportRef.current?.click()}
             plotterWorkspace={plotterWorkspace}
+            naturalnessReport={naturalnessReport}
+            applyNaturalnessFix={() => updateSettings(naturalnessAutofix(settings))}
+            applyHandwritingProfile={(profileId) => updateSettings(profilePatch(profileId))}
           />
       </div>
 

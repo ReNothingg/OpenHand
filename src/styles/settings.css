@@ -700,3 +700,97 @@
   font-size: 10px;
 }
 .font-compat-warning b { background: #dc2626; }
+.handwriting-profile-field > small {
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.naturalness-report {
+  display: grid;
+  gap: 9px;
+  margin: 10px 0 4px;
+  padding: 11px;
+  border: 1px solid #dbe4ee;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.naturalness-score {
+  display: grid;
+  grid-template-columns: auto minmax(70px, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.naturalness-score > span {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.naturalness-score small {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.naturalness-score strong {
+  color: #047857;
+  font-size: 17px;
+}
+
+.naturalness-report.medium .naturalness-score strong { color: #a16207; }
+.naturalness-report.risk .naturalness-score strong { color: #b91c1c; }
+.naturalness-score strong i { font-size: 8px; font-style: normal; font-weight: 600; }
+.naturalness-score meter { width: 100%; height: 7px; }
+
+.naturalness-repeats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.naturalness-repeats > span {
+  position: relative;
+  min-width: 29px;
+  height: 29px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid rgb(239 68 68 / calc(0.15 + var(--repeat-risk) * 0.34));
+  border-radius: 6px;
+  color: #334155;
+  background: rgb(254 226 226 / calc(0.12 + var(--repeat-risk) * 0.54));
+  font-family: var(--document-font, cursive);
+  font-size: 14px;
+}
+
+.naturalness-repeats > span small {
+  color: #64748b;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 7px;
+}
+
+.naturalness-repeats > span i {
+  position: absolute;
+  left: 0;
+  bottom: -8px;
+  color: #94a3b8;
+  font: 6px/1 ui-sans-serif, system-ui, sans-serif;
+  white-space: nowrap;
+}
+
+.naturalness-report > p {
+  margin: 0;
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.naturalness-report > .text-button {
+  width: max-content;
+  padding: 0;
+  font-size: 9px;
+}

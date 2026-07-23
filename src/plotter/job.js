@@ -43,6 +43,7 @@ export const DEFAULT_PLOTTER_CONFIG = {
   mmToSteps: 100,
   penDelay: 0.2,
   letterSpacing: 0.5,
+  optimizePath: false,
 }
 
 export function pageSettingsToMillimeters(settings, metrics, evenPage = false, spreadSide = null) {
@@ -69,17 +70,27 @@ function splitGlyphStrokes(glyph, cursorX, baseline, scale, handwriting = null) 
   const variant = variation > 0 && seededRandom(handwriting.seed, `${handwriting.key}:active`) * 100 < variation
     ? Math.floor(seededRandom(handwriting.seed, `${handwriting.key}:variant`) * 4)
     : 0
-  const slant = (seededRandom(handwriting?.seed, `${handwriting?.key}:slant`) - 0.5) * variation * 0.0017
-  const scaleX = 1 + (variant === 1 ? -0.025 : variant === 2 ? 0.035 : variant === 3 ? 0.012 : 0)
+  const rhythm = handwriting?.enabled ? Math.max(0, Math.min(100, Number(handwriting.rhythm) || 0)) : 0
+  const fatigueProgress = Math.max(0, Math.min(1, Number(handwriting?.progress) || 0))
+  const fatigue = handwriting?.fatigueEnabled
+    ? Math.pow(fatigueProgress, 1.65) * Math.max(0, Math.min(100, Number(handwriting.fatigueStrength) || 0)) / 100
+    : 0
+  const authorSlant = Math.max(-18, Math.min(22, Number(handwriting?.authorSlant) || 0))
+  const randomSlant = (seededRandom(handwriting?.seed, `${handwriting?.key}:slant`) - 0.5) * (variation * 0.0017 + rhythm * 0.0008)
+  const slant = Math.tan((authorSlant + fatigue * 3.2) * Math.PI / 180) + randomSlant
+  const authorWidth = Math.max(0.78, Math.min(1.22, Number(handwriting?.authorWidth || 100) / 100))
+  const scaleX = authorWidth * (1 + (variant === 1 ? -0.025 : variant === 2 ? 0.035 : variant === 3 ? 0.012 : 0) + fatigue * 0.025)
   const scaleY = 1 + (seededRandom(handwriting?.seed, `${handwriting?.key}:height`) - 0.5) * variation * 0.0022
-  const pressure = 1 + (seededRandom(handwriting?.seed, `${handwriting?.key}:pressure`) - 0.5) * Number(handwriting?.pressure || 0) * 0.012
+  const pressure = 1 + (seededRandom(handwriting?.seed, `${handwriting?.key}:pressure`) - 0.5) * Number(handwriting?.pressure || 0) * 0.012 - fatigue * 0.035
+  const baselineDrift = fatigue * Math.max(0, Math.min(100, Number(handwriting?.authorBaseline) || 0)) * scale * 0.75
+  const rhythmDrift = (seededRandom(handwriting?.seed, `${handwriting?.key}:rhythm-y`) - 0.5) * rhythm * scale * 0.22
   for (let index = 0; index < glyph.points.length; index += 1) {
     const source = glyph.points[index]
     const localY = source.y * scale * scaleY
     const localX = (source.x - glyph.bounds.minX) * scale * scaleX + localY * slant
     const point = {
       x: cursorX + localX,
-      y: baseline + localY,
+      y: baseline + localY + baselineDrift + rhythmDrift,
     }
     if (glyph.flags[index] === 0 || !stroke) {
       stroke = [point]
@@ -244,12 +255,13 @@ export async function layoutText(text, font, page, config) {
   const svgPattern = new RegExp(`${PLOTTER_SVG_START}([\\s\\S]*?)${PLOTTER_SVG_END}`, 'g')
   const svgSources = [...text.matchAll(svgPattern)].map((match) => match[1])
   const plainText = text.replace(formulaPattern, '').replace(svgPattern, '')
+  const plainCharacterCount = Math.max(1, Array.from(plainText).filter((char) => !/\s/u.test(char) && !PLOTTER_CONTROL_MARKS.has(char)).length)
 
-  const getGlyph = async (char) => {
+  const getGlyph = async (char, recordMissing = true) => {
     if (glyphs.has(char)) return glyphs.get(char)
     const glyph = await font.getGlyph(char.codePointAt(0))
     if (glyph) glyphs.set(char, glyph)
-    else missing.add(char)
+    else if (recordMissing) missing.add(char)
     return glyph || null
   }
 
@@ -261,7 +273,20 @@ export async function layoutText(text, font, page, config) {
   const formulaLayouts = new Map()
   for (const source of formulaSources) {
     if (formulaLayouts.has(source)) continue
-    const layout = await layoutFormula(source, { fontSize: page.fontSize, letterSpacing, getGlyph })
+    const layout = await layoutFormula(source, {
+      fontSize: page.fontSize,
+      letterSpacing,
+      getGlyph: (char) => getGlyph(char, false),
+      handwriting: {
+        enabled: Boolean(config.trueHandwriting),
+        variation: config.glyphVariation,
+        pressure: config.pressureVariation,
+        seed: config.seed,
+        authorSlant: config.authorSlant,
+        authorWidth: config.authorWidth,
+        rhythm: config.authorRhythm,
+      },
+    })
     layout.missing.forEach((char) => missing.add(char))
     formulaLayouts.set(source, layout)
   }
@@ -288,7 +313,8 @@ export async function layoutText(text, font, page, config) {
   const advanceFor = (char) => {
     if (char === ' ' || char === '\t') return spaceWidth * (char === '\t' ? 4 : 1)
     const glyph = glyphs.get(char)
-    return glyph ? Math.max((glyph.bounds.maxX - glyph.bounds.minX) * scale + letterSpacing, page.fontSize * 0.24) : spaceWidth
+    const widthScale = Math.max(0.78, Math.min(1.22, Number(config.authorWidth || 100) / 100))
+    return glyph ? Math.max((glyph.bounds.maxX - glyph.bounds.minX) * scale * widthScale + letterSpacing, page.fontSize * 0.24) : spaceWidth
   }
 
   const strokes = []
@@ -299,6 +325,7 @@ export async function layoutText(text, font, page, config) {
   const maxX = page.pageWidth - Math.max(0, page.right)
   const maxY = page.pageHeight - page.bottom
   let clipped = false
+  let overflowText = ''
   let activeCallout = null
   let glyphOccurrence = 0
 
@@ -422,15 +449,39 @@ export async function layoutText(text, font, page, config) {
     }
     activeDecorations.forEach((style) => decorationStarts.set(style, x))
     const tokens = line.split(new RegExp(`(${PLOTTER_FORMULA_START}.*?${PLOTTER_FORMULA_END}|${PLOTTER_SVG_START}.*?${PLOTTER_SVG_END}|\\s+)`, 'u')).filter(Boolean)
-    for (const token of tokens) {
+    const preserveOverflow = (tokenIndex, charIndex = 0) => {
+      if (overflowText) return
+      const tokenChars = Array.from(tokens[tokenIndex] || '')
+      const currentLine = [
+        tokenChars.slice(charIndex).join(''),
+        ...tokens.slice(tokenIndex + 1),
+      ].join('')
+      overflowText = [currentLine, ...rawLines.slice(rawLineIndex + 1)].join('\n')
+    }
+    for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex += 1) {
+      const token = tokens[tokenIndex]
       if (clipped) break
       if (token.startsWith(PLOTTER_FORMULA_START) && token.endsWith(PLOTTER_FORMULA_END)) {
         const source = token.slice(PLOTTER_FORMULA_START.length, -PLOTTER_FORMULA_END.length)
         const formula = formulaLayouts.get(source)
         if (!formula) continue
-        if (x > page.left && x + formula.width > maxX) nextLine()
-        if (baseline + formula.descent > maxY) { clipped = true; break }
-        strokes.push(...formula.strokes.map((stroke) => stroke.map((point) => ({ x: x + point.x, y: baseline + point.y }))))
+        if (x > page.left && x + formula.width > maxX) {
+          nextLine()
+          if (clipped) {
+            preserveOverflow(tokenIndex)
+            break
+          }
+        }
+        if (baseline + formula.descent > maxY) {
+          clipped = true
+          preserveOverflow(tokenIndex)
+          break
+        }
+        strokes.push(...formula.strokes.map((stroke) => {
+          const placed = stroke.map((point) => ({ x: x + point.x, y: baseline + point.y }))
+          if (stroke.pressure) placed.pressure = stroke.pressure
+          return placed
+        }))
         x += formula.width
         markCalloutContent()
         continue
@@ -503,7 +554,13 @@ export async function layoutText(text, font, page, config) {
         continue
       }
       const tokenWidth = Array.from(token).reduce((total, char) => total + (PLOTTER_CONTROL_MARKS.has(char) ? 0 : advanceFor(char)), 0)
-      if (x > page.left && x + tokenWidth > maxX) nextLine()
+      if (x > page.left && x + tokenWidth > maxX) {
+        nextLine()
+        if (clipped) {
+          preserveOverflow(tokenIndex)
+          break
+        }
+      }
       const tokenChars = Array.from(token)
       const tokenStartX = x
       let previousJoin = null
@@ -539,6 +596,10 @@ export async function layoutText(text, font, page, config) {
         if (x > page.left && x + advance > maxX) {
           nextLine()
           previousJoin = null
+          if (clipped) {
+            preserveOverflow(tokenIndex, charIndex)
+            break
+          }
         }
         if (clipped) break
         const glyph = glyphs.get(char)
@@ -549,6 +610,13 @@ export async function layoutText(text, font, page, config) {
             pressure: config.pressureVariation,
             seed: config.seed,
             key: `${glyphOccurrence}:${char}`,
+            authorSlant: config.authorSlant,
+            authorWidth: config.authorWidth,
+            rhythm: config.authorRhythm,
+            authorBaseline: config.authorBaseline,
+            fatigueEnabled: config.fatigueEnabled,
+            fatigueStrength: config.fatigueStrength,
+            progress: glyphOccurrence / plainCharacterCount,
           })
           const isLetter = LETTER_PATTERN.test(char)
           const entryAnchor = isLetter
@@ -625,14 +693,19 @@ export async function layoutText(text, font, page, config) {
         strokes.push(correction)
       }
     }
-    if (rawLineIndex < rawLines.length - 1) nextLine()
+    if (rawLineIndex < rawLines.length - 1) {
+      nextLine()
+      if (clipped && !overflowText) {
+        overflowText = rawLines.slice(rawLineIndex + 1).join('\n')
+      }
+    }
     else closeLineDecorations()
     if (endsAlignment) activeAlignment = 'left'
     if (clipped) break
   }
   closeCallout()
 
-  return { strokes, missing: [...missing], clipped }
+  return { strokes, missing: [...missing], clipped, overflowText }
 }
 
 export async function layoutBlocks(blocks, font, page, config) {
@@ -738,8 +811,83 @@ function buildEbbMove(from, to, speedMmMin, config, residue) {
   return `XM,${duration},${stepsX},${stepsY}`
 }
 
+function strokeTravelDistance(strokes) {
+  let current = { x: 0, y: 0 }
+  let distance = 0
+  for (const stroke of strokes) {
+    if (stroke.length < 2) continue
+    distance += Math.hypot(stroke[0].x - current.x, stroke[0].y - current.y)
+    current = stroke.at(-1)
+  }
+  return distance
+}
+
+function reversedStroke(stroke) {
+  const reversed = [...stroke].reverse()
+  if (stroke.pressure) reversed.pressure = stroke.pressure
+  return reversed
+}
+
+export function optimizeStrokeOrder(strokes, { lookahead = 36, lineTolerance = 8 } = {}) {
+  const pending = strokes.filter((stroke) => stroke.length > 1)
+  if (pending.length < 3) return pending
+  const output = []
+  let current = { x: 0, y: 0 }
+  while (pending.length) {
+    const limit = Math.min(lookahead, pending.length)
+    let selectedIndex = 0
+    let reverse = false
+    let bestScore = Infinity
+    const referenceY = pending[0].reduce((sum, point) => sum + point.y, 0) / pending[0].length
+    for (let index = 0; index < limit; index += 1) {
+      const stroke = pending[index]
+      const centerY = stroke.reduce((sum, point) => sum + point.y, 0) / stroke.length
+      const linePenalty = Math.max(0, Math.abs(centerY - referenceY) - lineTolerance) * 12
+      const orderPenalty = index * 0.055
+      const forward = Math.hypot(stroke[0].x - current.x, stroke[0].y - current.y) + linePenalty + orderPenalty
+      const backward = Math.hypot(stroke.at(-1).x - current.x, stroke.at(-1).y - current.y) + linePenalty + orderPenalty + 0.08
+      if (forward < bestScore) {
+        bestScore = forward
+        selectedIndex = index
+        reverse = false
+      }
+      if (backward < bestScore) {
+        bestScore = backward
+        selectedIndex = index
+        reverse = true
+      }
+    }
+    const [selected] = pending.splice(selectedIndex, 1)
+    const prepared = reverse ? reversedStroke(selected) : selected
+    output.push(prepared)
+    current = prepared.at(-1)
+  }
+  return output
+}
+
+function fingerprintCommands(commands) {
+  let hash = 2166136261
+  for (const command of commands) {
+    for (let index = 0; index < command.length; index += 1) {
+      hash ^= command.charCodeAt(index)
+      hash = Math.imul(hash, 16777619)
+    }
+  }
+  return `${commands.length}-${(hash >>> 0).toString(36)}`
+}
+
 export function compilePlotJob(strokes, config) {
+  // EBB jobs are emitted as relative step deltas. After a controller reset we
+  // cannot safely infer the physical origin, so resuming in the middle of such
+  // a stream would be unsafe. GRBL/Marlin use absolute millimetre coordinates.
+  const recoverable = config.profile !== 'ebb'
+  const sourceStrokes = strokes.filter((stroke) => stroke.length > 1)
+  const originalTravelDistance = strokeTravelDistance(sourceStrokes)
+  const preparedStrokes = config.optimizePath
+    ? optimizeStrokeOrder(sourceStrokes)
+    : sourceStrokes
   const commands = []
+  const resumePoints = []
   const addPen = (up, pressure = 1) => {
     commands.push(penCommand(up, config, pressure))
     if (config.profile !== 'ebb' && Number(config.penDelay) > 0) commands.push(`G4P${number(Number(config.penDelay))}`)
@@ -755,8 +903,9 @@ export function compilePlotJob(strokes, config) {
   if (config.profile !== 'ebb') commands.push('G21', 'G90')
   addPen(true)
   penChanges += 1
-  for (const stroke of strokes) {
+  for (const stroke of preparedStrokes) {
     if (stroke.length < 2) continue
+    if (recoverable) resumePoints.push(commands.length)
     const start = stroke[0]
     const travel = Math.hypot(start.x - current.x, start.y - current.y)
     distance += travel
@@ -782,7 +931,25 @@ export function compilePlotJob(strokes, config) {
   const estimatedSeconds = drawDistance / Math.max(1, Number(config.feedRate)) * 60
     + travelDistance / Math.max(1, Number(config.jogSpeed)) * 60
     + penChanges * Number(config.penDelay)
-  return { commands, distance, drawDistance, travelDistance, penLifts, penChanges, estimatedSeconds }
+  const resumePrefix = config.profile === 'ebb'
+    ? [penCommand(true, config)]
+    : ['G21', 'G90', penCommand(true, config)]
+  return {
+    id: fingerprintCommands(commands),
+    commands,
+    strokes: preparedStrokes,
+    resumePoints,
+    resumePrefix,
+    recoverable,
+    distance,
+    drawDistance,
+    travelDistance,
+    originalTravelDistance,
+    optimizationSaved: Math.max(0, originalTravelDistance - travelDistance),
+    penLifts,
+    penChanges,
+    estimatedSeconds,
+  }
 }
 
 export function createJogCommands(dx, dy, config) {

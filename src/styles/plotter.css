@@ -54,6 +54,18 @@
 .integrated-plotter-paper .plotter-margin-line { stroke: #fb7185; stroke-width: 0.4; }
 .integrated-plotter-paper .plotter-binding-line { stroke: #94a3b8; stroke-width: 0.65; }
 .integrated-plotter-paper .plotter-strokes { fill: none; stroke-width: 0.22; stroke-linecap: round; stroke-linejoin: round; }
+.integrated-plotter-paper .plotter-playback-stroke {
+  fill: none;
+  stroke-width: 0.26;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.plotter-playback-head > circle:first-child {
+  fill: rgb(37 99 235 / 0.16);
+  stroke: #2563eb;
+  stroke-width: 0.22;
+}
+.plotter-playback-head > circle:last-child { fill: #2563eb; }
 
 .integrated-plotter-loading {
   position: absolute;
@@ -83,6 +95,39 @@
 
 .plotter-footer-actions { justify-content: space-between; gap: 14px; }
 .plotter-footer-actions .plotter-arm { margin: 5px 0; }
+
+.plotter-playback-controls {
+  display: grid;
+  grid-template-columns: auto auto minmax(90px, 1fr) 62px 40px;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 0 6px;
+  padding: 8px;
+  border: 1px solid #dbe4ee;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.plotter-playback-controls input { min-width: 70px; }
+.plotter-playback-controls select {
+  height: 30px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 10px;
+}
+.plotter-playback-controls output {
+  color: #475569;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .plotter-playback-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+  .plotter-playback-controls input { grid-column: 1 / -1; }
+}
 
 .integrated-plotter-settings {
   margin-top: 8px;

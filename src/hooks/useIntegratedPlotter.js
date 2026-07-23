@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDebouncedValue } from './useDebouncedValue.js'
 import { usePlotter } from './usePlotter.js'
+import { usePlotterPlayback } from './usePlotterPlayback.js'
 import { loadBundledGFont, loadGFont } from '../plotter/gfont.js'
 import {
   compilePlotJob,
@@ -61,20 +62,26 @@ export function mechanicsDefaults(profile) {
   }
 }
 
-function buildSheets(pageTexts, pageBlocks, settings, metrics) {
+function pageForLogicalIndex(settings, metrics, index) {
   if (settings.pageSize === 'NotebookSpread') {
-    return Array.from({ length: Math.ceil(pageTexts.length / 2) }, (_, index) => ({
-      page: pageSettingsToMillimeters(settings, metrics, false, 'left'),
-      parts: [
-        { text: pageTexts[index * 2] || '', blocks: pageBlocks[index * 2] || [], page: pageSettingsToMillimeters(settings, metrics, false, 'left') },
-        { text: pageTexts[index * 2 + 1] || '', blocks: pageBlocks[index * 2 + 1] || [], page: pageSettingsToMillimeters(settings, metrics, true, 'right') },
-      ],
-    }))
+    const right = index % 2 === 1
+    return pageSettingsToMillimeters(settings, metrics, right, right ? 'right' : 'left')
   }
-  return pageTexts.map((text, index) => ({
-    page: pageSettingsToMillimeters(settings, metrics, index % 2 === 1),
-    parts: [{ text, blocks: pageBlocks[index] || [], page: pageSettingsToMillimeters(settings, metrics, index % 2 === 1) }],
-  }))
+  return pageSettingsToMillimeters(settings, metrics, index % 2 === 1)
+}
+
+function combineLogicalLayouts(logicalLayouts, settings, metrics) {
+  if (settings.pageSize !== 'NotebookSpread') return logicalLayouts
+  return Array.from({ length: Math.ceil(logicalLayouts.length / 2) }, (_, index) => {
+    const parts = logicalLayouts.slice(index * 2, index * 2 + 2)
+    return {
+      page: pageSettingsToMillimeters(settings, metrics, false, 'left'),
+      strokes: parts.flatMap((part) => part.strokes),
+      missing: [...new Set(parts.flatMap((part) => part.missing))],
+      clipped: parts.some((part) => part.clipped),
+      clippedItems: [...new Set(parts.flatMap((part) => part.clippedItems || []))],
+    }
+  })
 }
 
 export function useIntegratedPlotter({
@@ -97,19 +104,6 @@ export function useIntegratedPlotter({
   const [armed, setArmed] = useState(false)
   const plotter = usePlotter()
   const previewConfig = useDebouncedValue(config)
-  const sheets = useMemo(() => buildSheets(pageTexts, pageBlocks, settings, metrics), [
-    pageTexts,
-    pageBlocks,
-    metrics,
-    settings.pageSize,
-    settings.marginTop,
-    settings.marginLeft,
-    settings.marginLeftEven,
-    settings.marginBottom,
-    settings.fontSize,
-    settings.lineHeight,
-  ])
-
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
   }, [config])
@@ -154,7 +148,7 @@ export function useIntegratedPlotter({
     let cancelled = false
     setBusy(true)
     setError('')
-    const layoutSheet = async (sheet) => {
+    const calculate = async () => {
       const layoutConfig = {
         ...previewConfig,
         seed: settings.seed,
@@ -163,38 +157,47 @@ export function useIntegratedPlotter({
         connectionStrength: settings.connectionStrength,
         correctionChance: settings.correctionChance,
         pressureVariation: settings.pressureVariation,
+        handwritingProfile: settings.handwritingProfile,
+        authorSlant: settings.authorSlant,
+        authorWidth: settings.authorWidth,
+        authorRhythm: settings.authorRhythm,
+        authorBaseline: settings.authorBaseline,
+        fatigueEnabled: settings.fatigueEnabled,
+        fatigueStrength: settings.fatigueStrength,
       }
-      const parts = await Promise.all(sheet.parts.map((part) => (
-        part.blocks.some((block) => block.layout)
-          ? layoutBlocks(part.blocks, font, part.page, layoutConfig)
-          : layoutText(part.text, font, part.page, layoutConfig)
-      )))
-      return {
-        page: sheet.page,
-        strokes: parts.flatMap((part) => part.strokes),
-        missing: [...new Set(parts.flatMap((part) => part.missing))],
-        clipped: parts.some((part) => part.clipped),
-        clippedItems: [...new Set(parts.flatMap((part) => part.clippedItems || []))],
-      }
-    }
-    const calculate = async () => {
-      const preferredIndex = Math.min(
-        Math.max(0, activeSheetIndex || 0),
-        Math.max(0, sheets.length - 1),
-      )
-      const order = [
-        preferredIndex,
-        ...sheets.map((_, index) => index).filter((index) => index !== preferredIndex),
-      ]
-      for (const index of order) {
-        if (cancelled || !sheets[index]) return
-        const nextLayout = await layoutSheet(sheets[index])
+      const logicalLayouts = []
+      for (let sourceIndex = 0; sourceIndex < pageTexts.length; sourceIndex += 1) {
         if (cancelled) return
-        setLayouts((current) => {
-          const next = current.slice(0, sheets.length)
-          next[index] = nextLayout
-          return next
-        })
+        const blocks = pageBlocks[sourceIndex] || []
+        const hasIntentionalPlacement = blocks.some((block) => (
+          block.defaultLayout || block.layout?.dirty
+        ))
+        if (hasIntentionalPlacement) {
+          const page = pageForLogicalIndex(settings, metrics, logicalLayouts.length)
+          logicalLayouts.push({
+            page,
+            ...await layoutBlocks(blocks, font, page, layoutConfig),
+          })
+        } else {
+          let remaining = pageTexts[sourceIndex] || ''
+          let guard = 0
+          do {
+            const page = pageForLogicalIndex(settings, metrics, logicalLayouts.length)
+            const result = await layoutText(remaining, font, page, layoutConfig)
+            const nextText = result.overflowText || ''
+            const stalled = Boolean(nextText) && nextText === remaining
+            logicalLayouts.push({
+              page,
+              ...result,
+              clipped: result.clipped && (!nextText || stalled || guard >= 99),
+            })
+            guard += 1
+            if (!nextText || stalled || guard >= 100) break
+            remaining = nextText
+          } while (!cancelled)
+        }
+        if (cancelled) return
+        setLayouts(combineLogicalLayouts(logicalLayouts, settings, metrics))
         await new Promise((resolve) => window.setTimeout(resolve, 0))
       }
     }
@@ -205,7 +208,16 @@ export function useIntegratedPlotter({
   }, [
     enabled,
     font,
-    sheets,
+    pageTexts,
+    pageBlocks,
+    metrics,
+    settings.pageSize,
+    settings.marginTop,
+    settings.marginLeft,
+    settings.marginLeftEven,
+    settings.marginBottom,
+    settings.fontSize,
+    settings.lineHeight,
     previewConfig.letterSpacing,
     settings.seed,
     settings.trueHandwriting,
@@ -213,10 +225,23 @@ export function useIntegratedPlotter({
     settings.connectionStrength,
     settings.correctionChance,
     settings.pressureVariation,
+    settings.handwritingProfile,
+    settings.authorSlant,
+    settings.authorWidth,
+    settings.authorRhythm,
+    settings.authorBaseline,
+    settings.fatigueEnabled,
+    settings.fatigueStrength,
   ])
 
   const activeIndex = Math.min(Math.max(0, activeSheetIndex || 0), Math.max(0, layouts.length - 1))
-  const activeLayout = layouts[activeIndex] || { strokes: [], missing: [], clipped: false, clippedItems: [], page: sheets[activeIndex]?.page }
+  const activeLayout = layouts[activeIndex] || {
+    strokes: [],
+    missing: [],
+    clipped: false,
+    clippedItems: [],
+    page: pageForLogicalIndex(settings, metrics, activeIndex),
+  }
   const job = useMemo(
     () => compilePlotJob(activeLayout.strokes, previewConfig),
     [activeLayout.strokes, previewConfig],
@@ -232,6 +257,17 @@ export function useIntegratedPlotter({
   const connected = plotter.status !== 'disconnected' && plotter.status !== 'connecting'
   const running = plotter.status === 'running' || plotter.status === 'paused'
   const progressPercent = plotter.progress.total ? plotter.progress.current / plotter.progress.total * 100 : 0
+  const recoveryAvailable = Boolean(
+    job.recoverable &&
+    plotter.recovery &&
+    plotter.recovery.jobId === job.id &&
+    plotter.recovery.total === job.commands.length &&
+    plotter.recovery.current < plotter.recovery.total,
+  )
+  const playback = usePlotterPlayback(job.strokes || activeLayout.strokes, job.estimatedSeconds, {
+    status: plotter.status,
+    progress: plotter.progress,
+  })
 
   const updateConfig = useCallback((key, value) => {
     setConfig((current) => ({ ...current, [key]: value }))
@@ -296,16 +332,27 @@ export function useIntegratedPlotter({
     connected,
     running,
     progressPercent,
+    recoveryAvailable,
+    playback,
     connect: () => safeAction(() => plotter.connect(config.profile, config.baudRate)),
     disconnect: () => safeAction(plotter.disconnect),
     jog: (dx, dy) => safeAction(() => plotter.sendCommands(createJogCommands(dx, dy, config))),
     pen: (up) => safeAction(() => plotter.sendCommands(createPenCommand(up, config))),
     setOrigin: () => safeAction(() => plotter.sendCommands(createOriginCommands(config))),
-    run: () => safeAction(() => plotter.run(createJob().commands)),
+    run: () => safeAction(() => plotter.run(createJob())),
     runSheets: (indices) => safeAction(() => {
-      const commands = indices.flatMap((index) => createJob(index).commands)
-      return plotter.run(commands)
+      const jobs = indices.map((index) => createJob(index))
+      const commands = jobs.flatMap((item) => item.commands)
+      return plotter.run({
+        id: jobs.map((item) => item.id).join(':'),
+        commands,
+        resumePoints: [],
+        resumePrefix: jobs[0]?.resumePrefix || [],
+        recoverable: false,
+      })
     }),
+    recover: () => safeAction(() => plotter.recover(createJob())),
+    discardRecovery: plotter.discardRecovery,
     pause: () => safeAction(plotter.pause),
     resume: () => safeAction(plotter.resume),
     stop: () => safeAction(plotter.stop),

@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import SettingSection from '../settings/controls/SettingSection.jsx'
+import Toggle from '../settings/controls/Toggle.jsx'
 
 function Help({ children }) {
   return <span className="plotter-help" tabIndex="0" aria-label={children}>!<span role="tooltip">{children}</span></span>
@@ -40,6 +41,11 @@ export default function PlotterSettings({ workspace }) {
                 ? <label className="field"><Caption help="Мощность PWM. Не проверяйте со включённым лазером без очков и закрытого корпуса.">Мощность S</Caption><input type="number" min="0" max="1000" value={config.laserPower} onChange={number('laserPower', 0, 1000)} /></label>
                 : <div className="plotter-row two"><label className="field"><Caption help="Координата Z/E при поднятом пере. Ошибка направления может увести ось в концевик.">Перо поднято, мм</Caption><input type="number" min="-50" max="50" step="0.1" value={config.zUp} onChange={number('zUp', -50, 50)} /></label><label className="field"><Caption help="Координата касания листа. Не задавайте большое заглубление.">Перо опущено, мм</Caption><input type="number" min="-50" max="50" step="0.1" value={config.zDown} onChange={number('zDown', -50, 50)} /></label></div>}
           <div className="plotter-row two"><label className="field"><Caption help="Начните с 500–1500 мм/мин. Высокая скорость вызывает пропуски шагов и рваные линии.">Рисование, мм/мин</Caption><input type="number" min="1" max="10000" value={config.feedRate} onChange={number('feedRate', 1, 10000)} /></label><label className="field"><Caption help="Скорость движения с поднятым пером. Слишком большое значение может привести к удару о раму.">Холостой ход</Caption><input type="number" min="1" max="10000" value={config.jogSpeed} onChange={number('jogSpeed', 1, 10000)} /></label></div>
+          <Toggle
+            checked={Boolean(config.optimizePath)}
+            onChange={(value) => workspace.updateConfig('optimizePath', value)}
+            label="Оптимизировать траекторию"
+          ><small>Сокращает холостой путь в пределах соседних штрихов и строк. Геометрия текста не меняется; направление отдельных штрихов может быть развёрнуто.</small></Toggle>
           <div className="plotter-row two"><label className="field"><Caption help="Пауза после движения пера. Слишком мало — линия начнётся до касания; слишком много — печать замедлится.">Задержка, сек.</Caption><input type="number" min="0" max="10" step="0.05" value={config.penDelay} onChange={number('penDelay', 0, 10)} /></label><label className="field"><Caption help="Дополнительное расстояние между символами. Большое значение вытеснит текст за границы листа.">Межбуквенно, мм</Caption><input type="number" min="0" max="20" step="0.1" value={config.letterSpacing} onChange={number('letterSpacing', 0, 20)} /></label></div>
           <button className="button ghost settings-wide-button" type="button" disabled={!enabled || running} onClick={() => fontInputRef.current?.click()}>Загрузить свой .gfont</button>
           <input ref={fontInputRef} type="file" accept=".gfont,application/octet-stream" hidden onChange={(event) => { workspace.importFont(event.target.files?.[0]); event.target.value = '' }} />

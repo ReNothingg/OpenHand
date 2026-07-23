@@ -2,12 +2,12 @@ const FONT_EM = 400
 
 const SYMBOLS = Object.freeze({
   alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', theta: 'θ',
-  lambda: 'λ', mu: 'μ', pi: 'π', rho: 'ρ', sigma: 'σ', phi: 'φ', omega: 'ω',
-  Gamma: 'Γ', Delta: 'Δ', Theta: 'Θ', Lambda: 'Λ', Pi: 'Π', Sigma: 'Σ', Phi: 'Φ', Omega: 'Ω',
+  lambda: 'λ', mu: 'μ', pi: 'π', rho: 'ρ', sigma: 'σ', phi: 'φ', psi: 'ψ', omega: 'ω',
+  Gamma: 'Γ', Delta: 'Δ', Theta: 'Θ', Lambda: 'Λ', Pi: 'Π', Sigma: 'Σ', Phi: 'Φ', Psi: 'Ψ', Omega: 'Ω',
   int: '∫', oint: '∮', sum: 'Σ', prod: 'Π', infty: '∞', pm: '±', mp: '∓',
   times: '×', cdot: '·', div: '÷', le: '≤', leq: '≤', ge: '≥', geq: '≥',
   ne: '≠', neq: '≠', approx: '≈', sim: '∼', to: '→', rightarrow: '→', leftarrow: '←',
-  partial: '∂', nabla: '∇', degree: '°', circ: '°', ldots: '…', dots: '…',
+  partial: '∂', nabla: '∇', hbar: 'ℏ', degree: '°', circ: '°', ldots: '…', dots: '…',
 })
 
 const GROUP_COMMANDS = new Set(['text', 'textrm', 'textit', 'textbf', 'mathrm', 'mathbf', 'mathit', 'mathsf', 'mathtt', 'operatorname', 'mathbb', 'mathcal'])
@@ -48,6 +48,7 @@ function parser(source) {
       }
       return { type: 'sqrt', body: argument() }
     }
+    if (name === 'hat' || name === 'widehat') return { type: 'accent', body: argument(), accent: 'hat' }
     if (GROUP_COMMANDS.has(name)) return argument()
     if (IGNORED_COMMANDS.has(name)) return sequence()
     if ([',', ';', ':', '!', 'quad', 'qquad', ' '].includes(name)) return { type: 'space', wide: name === 'qquad' ? 2 : name === 'quad' ? 1 : .35 }
@@ -77,7 +78,11 @@ function parser(source) {
 }
 
 function shift(strokes, dx, dy) {
-  return strokes.map((stroke) => stroke.map((point) => ({ x: point.x + dx, y: point.y + dy })))
+  return strokes.map((stroke) => {
+    const shifted = stroke.map((point) => ({ x: point.x + dx, y: point.y + dy }))
+    if (stroke.pressure) shifted.pressure = stroke.pressure
+    return shifted
+  })
 }
 
 function glyphStrokes(glyph, x, baseline, scale) {
@@ -94,6 +99,45 @@ function emptyBox(width = 0) { return { width, ascent: 0, descent: 0, strokes: [
 
 function constructedSymbol(char, size) {
   const line = (...points) => points.map(([x, y]) => ({ x: x * size, y: y * size }))
+  if (char === 'ℏ') {
+    return {
+      width: size * .62,
+      ascent: size * .88,
+      descent: size * .10,
+      strokes: [
+        line([.13, .08], [.24, -.88]),
+        line([.08, -.46], [.54, -.46]),
+        line([.12, -.32], [.58, -.32]),
+        line([.23, -.36], [.36, -.52], [.50, -.48], [.52, -.28], [.47, .06]),
+      ],
+    }
+  }
+  if (char === '∂') {
+    return {
+      width: size * .62,
+      ascent: size * .84,
+      descent: size * .10,
+      strokes: [
+        line(
+          [.18, -.78], [.32, -.88], [.48, -.78], [.54, -.58],
+          [.50, -.30], [.39, -.06], [.23, .08], [.10, .02],
+          [.07, -.16], [.14, -.34], [.30, -.42], [.49, -.36],
+        ),
+      ],
+    }
+  }
+  if (char === 'Ψ') {
+    return {
+      width: size * .78,
+      ascent: size * .86,
+      descent: size * .10,
+      strokes: [
+        line([.08, -.78], [.10, -.48], [.21, -.22], [.39, -.12], [.57, -.22], [.68, -.48], [.70, -.78]),
+        line([.39, -.86], [.39, .08]),
+        line([.18, .08], [.60, .08]),
+      ],
+    }
+  }
   if (char === '∫' || char === '∮') {
     const integral = line([.42, -.88], [.28, -.92], [.18, -.78], [.22, -.48], [.16, -.18], [.05, .08], [.12, .18], [.29, .14])
     const strokes = [integral]
@@ -115,7 +159,41 @@ export function parseFormula(source) {
   return parser(source.replace(/\s+/g, ' ').trim())
 }
 
-export async function layoutFormula(source, { fontSize, letterSpacing = 0, getGlyph }) {
+function seededRandom(seed, key) {
+  let value = 2166136261
+  const input = `${seed}:${key}`
+  for (let index = 0; index < input.length; index += 1) {
+    value ^= input.charCodeAt(index)
+    value = Math.imul(value, 16777619)
+  }
+  value += 0x6d2b79f5
+  value = Math.imul(value ^ (value >>> 15), value | 1)
+  value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
+  return ((value ^ (value >>> 14)) >>> 0) / 4294967296
+}
+
+function humanizeFormula(strokes, handwriting, fontSize) {
+  if (!handwriting?.enabled) return strokes
+  const variation = Math.max(0, Math.min(100, Number(handwriting.variation) || 0))
+  const rhythm = Math.max(0, Math.min(100, Number(handwriting.rhythm) || 0))
+  const width = Math.max(0.82, Math.min(1.18, Number(handwriting.authorWidth || 100) / 100))
+  const slant = Math.tan(Math.max(-16, Math.min(20, Number(handwriting.authorSlant) || 0)) * Math.PI / 180)
+  const jitter = fontSize * (variation * 0.00012 + rhythm * 0.00008)
+  return strokes.map((stroke, strokeIndex) => {
+    const pressure = 1 + (seededRandom(handwriting.seed, `formula:${strokeIndex}:pressure`) - 0.5) * Number(handwriting.pressure || 0) * 0.009
+    const transformed = stroke.map((point, pointIndex) => {
+      const localJitter = (seededRandom(handwriting.seed, `formula:${strokeIndex}:${pointIndex}`) - 0.5) * jitter
+      return {
+        x: point.x * width + point.y * slant + localJitter,
+        y: point.y + localJitter * 0.65,
+      }
+    })
+    transformed.pressure = pressure
+    return transformed
+  })
+}
+
+export async function layoutFormula(source, { fontSize, letterSpacing = 0, getGlyph, handwriting = null }) {
   const missing = new Set()
   const render = async (node, size) => {
     if (!node) return emptyBox()
@@ -182,6 +260,25 @@ export async function layoutFormula(source, { fontSize, letterSpacing = 0, getGl
         strokes: [...radical, ...shift(body.strokes, lead, 0)],
       }
     }
+    if (node.type === 'accent') {
+      const body = await render(node.body, size)
+      const top = -body.ascent - size * .08
+      const inset = Math.min(body.width * .18, size * .14)
+      const middle = body.width / 2
+      return {
+        width: body.width,
+        ascent: Math.max(body.ascent, -top + size * .16),
+        descent: body.descent,
+        strokes: [
+          ...body.strokes,
+          [
+            { x: inset, y: top + size * .12 },
+            { x: middle, y: top },
+            { x: Math.max(middle, body.width - inset), y: top + size * .12 },
+          ],
+        ],
+      }
+    }
     if (node.type === 'frac') {
       const numerator = await render(node.numerator, size * .72)
       const denominator = await render(node.denominator, size * .72)
@@ -220,5 +317,12 @@ export async function layoutFormula(source, { fontSize, letterSpacing = 0, getGl
   }
 
   const box = await render(parseFormula(source), fontSize)
-  return { ...box, missing: [...missing] }
+  return {
+    ...box,
+    width: handwriting?.enabled
+      ? box.width * Math.max(0.82, Math.min(1.18, Number(handwriting.authorWidth || 100) / 100))
+      : box.width,
+    strokes: humanizeFormula(box.strokes, handwriting, fontSize),
+    missing: [...missing],
+  }
 }

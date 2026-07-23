@@ -5,6 +5,8 @@ import FontPicker from "./controls/FontPicker.jsx";
 import RangeControl from "./controls/RangeControl.jsx";
 import SettingSection from "./controls/SettingSection.jsx";
 import Toggle from "./controls/Toggle.jsx";
+import NaturalnessReport from "./NaturalnessReport.jsx";
+import { HANDWRITING_PROFILES } from "../../handwriting/profiles.js";
 
 export default function SettingsPanel({
   settings,
@@ -27,6 +29,9 @@ export default function SettingsPanel({
   exportSettings,
   importSettings,
   plotterWorkspace,
+  naturalnessReport,
+  applyNaturalnessFix,
+  applyHandwritingProfile,
 }) {
   const maxTextWidth = Math.max(
     260,
@@ -151,12 +156,64 @@ export default function SettingsPanel({
       </SettingSection>
       <PlotterSettings workspace={plotterWorkspace} />
       <SettingSection title="Живой почерк">
+        <label className="field handwriting-profile-field">
+          <span>Профиль автора</span>
+          <select
+            value={settings.handwritingProfile}
+            onChange={(event) => applyHandwritingProfile(event.target.value)}
+          >
+            {Object.entries(HANDWRITING_PROFILES).map(([id, profile]) => (
+              <option value={id} key={id}>{profile.label}</option>
+            ))}
+          </select>
+          <small>{HANDWRITING_PROFILES[settings.handwritingProfile]?.description || HANDWRITING_PROFILES.personal.description}</small>
+        </label>
         <Toggle
           checked={settings.trueHandwriting}
           onChange={(value) => updateSetting("trueHandwriting", value)}
           label="Настоящий почерк"
         ><small>Варианты глифов, контекстные соединения, начала и окончания слов, давление и редкие исправления.</small></Toggle>
         {settings.trueHandwriting && <>
+          <Toggle
+            checked={settings.fatigueEnabled}
+            onChange={(value) => updateSetting("fatigueEnabled", value)}
+            label="Усталость почерка"
+          ><small>К концу длинного текста ритм, наклон и линия постепенно становятся свободнее, но автор остаётся узнаваемым.</small></Toggle>
+          {settings.fatigueEnabled && (
+            <RangeControl
+              label="Сила усталости"
+              value={settings.fatigueStrength}
+              min={5}
+              max={100}
+              suffix="%"
+              onChange={(value) => updateSetting("fatigueStrength", value)}
+            />
+          )}
+          <RangeControl
+            label="Наклон автора"
+            value={settings.authorSlant}
+            min={-12}
+            max={16}
+            step={0.5}
+            suffix="°"
+            onChange={(value) => updateSetting("authorSlant", value)}
+          />
+          <RangeControl
+            label="Ширина букв автора"
+            value={settings.authorWidth}
+            min={82}
+            max={118}
+            suffix="%"
+            onChange={(value) => updateSetting("authorWidth", value)}
+          />
+          <RangeControl
+            label="Живой ритм"
+            value={settings.authorRhythm}
+            min={0}
+            max={100}
+            suffix="%"
+            onChange={(value) => updateSetting("authorRhythm", value)}
+          />
           <RangeControl
             label="Вариативность букв"
             value={settings.glyphVariation}
@@ -194,6 +251,7 @@ export default function SettingsPanel({
             onChange={(value) => updateSetting("pressureVariation", value)}
             hint="Слегка меняет толщину предпросмотра и усилие пера между штрихами."
           />
+          <NaturalnessReport report={naturalnessReport} onAutofix={applyNaturalnessFix} />
         </>}
         <RangeControl
           label="Случайное направление"

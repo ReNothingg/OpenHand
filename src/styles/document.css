@@ -290,13 +290,13 @@
   position: relative;
   display: inline-block;
   margin-right: var(--glyph-join, 0);
-  transform: skewX(var(--glyph-slant, 0deg)) scaleY(var(--glyph-height, 1));
+  transform: skewX(var(--glyph-slant, 0deg)) scale(var(--glyph-width, 1), var(--glyph-height, 1));
   transform-origin: 50% 78%;
   text-shadow: 0 0 calc((var(--glyph-pressure, 1) - 0.84) * 1px) currentColor;
 }
-.hw-natural .hw-glyph-variant.variant-1 { transform: translateY(-0.015em) skewX(var(--glyph-slant, 0deg)) scale(0.985, var(--glyph-height, 1)); }
-.hw-natural .hw-glyph-variant.variant-2 { transform: translateY(0.018em) skewX(calc(var(--glyph-slant, 0deg) + 1deg)) scale(1.018, var(--glyph-height, 1)); }
-.hw-natural .hw-glyph-variant.variant-3 { transform: translateX(0.012em) skewX(calc(var(--glyph-slant, 0deg) - 0.8deg)) scale(0.995, var(--glyph-height, 1)); }
+.hw-natural .hw-glyph-variant.variant-1 { transform: translateY(-0.015em) skewX(var(--glyph-slant, 0deg)) scale(calc(var(--glyph-width, 1) * 0.985), var(--glyph-height, 1)); }
+.hw-natural .hw-glyph-variant.variant-2 { transform: translateY(0.018em) skewX(calc(var(--glyph-slant, 0deg) + 1deg)) scale(calc(var(--glyph-width, 1) * 1.018), var(--glyph-height, 1)); }
+.hw-natural .hw-glyph-variant.variant-3 { transform: translateX(0.012em) skewX(calc(var(--glyph-slant, 0deg) - 0.8deg)) scale(calc(var(--glyph-width, 1) * 0.995), var(--glyph-height, 1)); }
 .hw-natural .hw-glyph-variant.word-start { transform-origin: left 78%; }
 .hw-natural .hw-glyph-variant.word-end { transform-origin: right 78%; }
 .hw-word.hw-correction::after {

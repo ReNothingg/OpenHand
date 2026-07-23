@@ -30,10 +30,12 @@ export default function PreviewPanel({
   const [selectedBlock, setSelectedBlock] = useState(null)
   const activeSheetFrameRef = useRef(0)
   const isNotebookSpread = settings.pageSize === 'NotebookSpread'
-  const displayedPages = isNotebookSpread
-    ? Array.from({ length: Math.ceil(pages.length / 2) }, (_, index) => pages.slice(index * 2, index * 2 + 2))
-    : pages.map((page) => [page])
   const plotterMode = plotterWorkspace.enabled
+  const displayedPages = plotterMode
+    ? Array.from({ length: Math.max(1, plotterWorkspace.layouts.length) }, () => [])
+    : isNotebookSpread
+      ? Array.from({ length: Math.ceil(pages.length / 2) }, (_, index) => pages.slice(index * 2, index * 2 + 2))
+      : pages.map((page) => [page])
   useEffect(() => {
     if (!manualEditing) setSelectedBlock(null)
   }, [manualEditing])
@@ -127,7 +129,13 @@ export default function PreviewPanel({
                 >
                   {plotterMode && !manualEditing ? (
                     <>
-                      <PlotterPaper layout={plotterWorkspace.layouts[index]} settings={settings} metrics={metrics} pageIndex={index} />
+                      <PlotterPaper
+                        layout={plotterWorkspace.layouts[index]}
+                        settings={settings}
+                        metrics={metrics}
+                        pageIndex={index}
+                        playback={index === plotterWorkspace.activeIndex ? plotterWorkspace.playback : null}
+                      />
                       {plotterWorkspace.busy && <div className="integrated-plotter-loading">Строю траекторию…</div>}
                     </>
                   ) : <>
