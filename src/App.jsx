@@ -8,7 +8,7 @@ import { useDocumentPersistence } from './hooks/useDocumentPersistence.js'
 import { useDebouncedValue } from './hooks/useDebouncedValue.js'
 import { useIntegratedPlotter } from './hooks/useIntegratedPlotter.js'
 import { usePreviewInteractions } from './hooks/usePreviewInteractions.js'
-import { useLineEffects, useRenderedPages } from './hooks/useRenderedPages.js'
+import { useRenderedPages } from './hooks/useRenderedPages.js'
 import { downloadFile } from './lib/files.js'
 import { loadStoredGFonts, saveStoredGFont } from './lib/customGFonts.js'
 import { getPageMetrics } from './lib/pagination.js'
@@ -17,7 +17,6 @@ import { loadStoredObject, loadStoredText } from './lib/storage.js'
 import { renderMarkdown } from './markdown.js'
 import { loadGFont } from './plotter/gfont.js'
 import { htmlToPlotterText } from './plotter/richText.js'
-import { renderTex } from './tex.js'
 import {
   analyzeNaturalness,
   naturalnessAutofix,
@@ -38,6 +37,7 @@ export default function App() {
   const [manualLayouts, setManualLayouts] = useState(() => loadStoredObject(STORAGE_KEYS.manualLayout, {}))
   const [customPlotterFonts, setCustomPlotterFonts] = useState([])
   const [customFontsReady, setCustomFontsReady] = useState(false)
+  const [texRenderer, setTexRenderer] = useState(null)
 
   const textareaRef = useRef(null)
   const previewRef = useRef(null)
@@ -45,6 +45,7 @@ export default function App() {
   const settingsImportRef = useRef(null)
 
   const activeSource = sourceMode === 'tex' ? texSource : markdown
+  const plotterEnabled = settings.fontType === 'plotter'
   const setActiveSource = useCallback((value) => {
     if (sourceMode === 'tex') setTexSource(value)
     else setMarkdown(value)
@@ -111,6 +112,15 @@ export default function App() {
       })
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => {
+    if (sourceMode !== 'tex' || texRenderer) return undefined
+    let cancelled = false
+    import('./tex.js').then(({ renderTex }) => {
+      if (!cancelled) setTexRenderer(() => renderTex)
+    })
+    return () => { cancelled = true }
+  }, [sourceMode, texRenderer])
 
   const customPlotterFont = useMemo(
     () => customPlotterFonts.find((item) => item.plotterFontId === settings.plotterFontId) || null,
@@ -218,6 +228,7 @@ export default function App() {
   const calculationPending = (
     deferredSettings !== calculationSettings ||
     deferredPool !== selectedPool ||
+    (sourceMode === 'tex' && !texRenderer) ||
     (sourceMode === 'tex' ? deferredTexSource !== texSource : deferredMarkdown !== markdown)
   )
   const layoutMetrics = useMemo(() => getPageMetrics(deferredSettings), [deferredSettings])
@@ -247,12 +258,15 @@ export default function App() {
   }), [deferredSettings])
   const renderedHtml = useMemo(
     () => sourceMode === 'tex'
-      ? renderTex(deferredTexSource, renderSettings, deferredPool)
+      ? (texRenderer?.(deferredTexSource, renderSettings, deferredPool) || '')
       : renderMarkdown(deferredMarkdown, renderSettings, deferredPool),
-    [sourceMode, deferredTexSource, deferredMarkdown, renderSettings, deferredPool],
+    [sourceMode, deferredTexSource, deferredMarkdown, renderSettings, deferredPool, texRenderer],
   )
   const { pages, measureRef } = useRenderedPages(renderedHtml, deferredSettings)
-  const manualPages = useMemo(() => createManualPages(pages), [pages])
+  const manualPages = useMemo(
+    () => createManualPages(pages, plotterEnabled),
+    [pages, plotterEnabled],
+  )
   useEffect(() => {
     setManualLayouts((current) => {
       const next = { ...current }
@@ -292,7 +306,6 @@ export default function App() {
     }, 250)
     return () => window.clearTimeout(timer)
   }, [manualLayouts])
-  useLineEffects(previewRef, pages, deferredSettings)
   const panHandlers = usePreviewInteractions({
     previewRef,
     zoom: settings.zoom,
@@ -407,12 +420,14 @@ export default function App() {
     ],
   )
   const renderedPageTexts = useMemo(
-    () => displayPages.map((html) => htmlToPlotterText(html)),
-    [displayPages],
+    () => plotterEnabled
+      ? displayPages.map((html) => htmlToPlotterText(html))
+      : [],
+    [displayPages, plotterEnabled],
   )
   const renderedDocumentText = useMemo(
-    () => htmlToPlotterText(renderedHtml),
-    [renderedHtml],
+    () => plotterEnabled ? htmlToPlotterText(renderedHtml) : '',
+    [plotterEnabled, renderedHtml],
   )
   const plotterPageBlocks = useMemo(
     () => arrangedManualPages.map((blocks) => blocks.map((block) => ({
@@ -443,7 +458,7 @@ export default function App() {
     [hasIntentionalPlacement, plotterPageBlocks],
   )
   const plotterWorkspace = useIntegratedPlotter({
-    enabled: settings.fontType === 'plotter',
+    enabled: plotterEnabled,
     fontId: settings.plotterFontId,
     customFont: customPlotterFont,
     pageTexts: plotterPageTexts,

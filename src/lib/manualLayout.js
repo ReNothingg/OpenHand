@@ -9,7 +9,7 @@ function hash(value) {
   return (result >>> 0).toString(36)
 }
 
-export function htmlToManualBlocks(html, pageIndex) {
+export function htmlToManualBlocks(html, pageIndex, includePlotterText = true) {
   const host = document.createElement('div')
   host.innerHTML = html
   const nodes = Array.from(host.children)
@@ -20,7 +20,7 @@ export function htmlToManualBlocks(html, pageIndex) {
   }
   return nodes.map((node, index) => {
     const blockHtml = node.outerHTML
-    const text = htmlToPlotterText(blockHtml)
+    const text = includePlotterText ? htmlToPlotterText(blockHtml) : ''
     const kind = node.querySelector('svg') || node.matches('svg, figure.imported-svg, .tex-tikz')
       ? 'svg'
       : node.querySelector('.katex, math') || node.matches('.katex-display, math')
@@ -55,8 +55,10 @@ export function htmlToManualBlocks(html, pageIndex) {
   })
 }
 
-export function createManualPages(pages) {
-  return pages.map((html, pageIndex) => htmlToManualBlocks(html, pageIndex))
+export function createManualPages(pages, includePlotterText = true) {
+  return pages.map((html, pageIndex) => (
+    htmlToManualBlocks(html, pageIndex, includePlotterText)
+  ))
 }
 
 export function arrangeManualPages(sourcePages, layouts) {

@@ -87,21 +87,12 @@ export const BUILTIN_GFONT_OPTIONS = BUILTIN_GFONT_FAMILIES.flatMap((family) => 
 const bundledSourceCache = new Map()
 
 const BUNDLED_GFONT_LOADERS = {
-  'ifdream-unicode.gfont': () => import('../../font/plotter/ifdream-unicode.gfont?base64').then((module) => module.default),
-  'iso-3098-cyrillic.gfont': () => import('../../font/plotter/iso-3098-cyrillic.gfont?base64').then((module) => module.default),
-  'opengost-a.gfont': () => import('../../font/plotter/opengost-a.gfont?base64').then((module) => module.default),
-  'opengost-b.gfont': () => import('../../font/plotter/opengost-b.gfont?base64').then((module) => module.default),
-  'unicode-stroke.gfont': () => import('../../font/plotter/unicode-stroke.gfont?base64').then((module) => module.default),
-  'hershey-cyrillic.gfont': () => import('../../font/plotter/hershey-cyrillic.gfont?base64').then((module) => module.default),
-}
-
-function decodeBase64(encoded) {
-  const binary = globalThis.atob(encoded)
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index)
-  }
-  return bytes.buffer
+  'ifdream-unicode.gfont': () => import('../../font/plotter/ifdream-unicode.gfont?url').then((module) => module.default),
+  'iso-3098-cyrillic.gfont': () => import('../../font/plotter/iso-3098-cyrillic.gfont?url').then((module) => module.default),
+  'opengost-a.gfont': () => import('../../font/plotter/opengost-a.gfont?url').then((module) => module.default),
+  'opengost-b.gfont': () => import('../../font/plotter/opengost-b.gfont?url').then((module) => module.default),
+  'unicode-stroke.gfont': () => import('../../font/plotter/unicode-stroke.gfont?url').then((module) => module.default),
+  'hershey-cyrillic.gfont': () => import('../../font/plotter/hershey-cyrillic.gfont?url').then((module) => module.default),
 }
 
 function findEndOfCentralDirectory(view) {
@@ -282,7 +273,16 @@ async function loadBundledSource(filename) {
   if (bundledSourceCache.has(filename)) return bundledSourceCache.get(filename)
   const loader = BUNDLED_GFONT_LOADERS[filename]
   if (!loader) throw new Error(`Встроенный шрифт «${filename}» не найден в сборке.`)
-  const pending = loader().then((encoded) => loadGFont(decodeBase64(encoded), filename))
+  const pending = loader()
+    .then((url) => fetch(url))
+    .then((response) => {
+      // WKURLSchemeHandler returns a non-HTTP response with status 0.
+      if (!response.ok && response.status !== 0) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      return response.arrayBuffer()
+    })
+    .then((buffer) => loadGFont(buffer, filename))
   bundledSourceCache.set(filename, pending)
   return pending
 }

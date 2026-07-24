@@ -14,7 +14,12 @@ export function useRenderedPages(renderedHtml, settings) {
       if (cancelled || !measureRef.current) return
       frame = requestAnimationFrame(() => {
         if (!cancelled && measureRef.current) {
-          setPages(paginateHtml(renderedHtml, settings, measureRef.current))
+          setPages(paginateHtml(
+            renderedHtml,
+            settings,
+            measureRef.current,
+            applyLineEffects,
+          ))
         }
       })
     }
@@ -35,27 +40,11 @@ export function useRenderedPages(renderedHtml, settings) {
     settings.marginBottom,
     settings.pageSize,
     settings.pageOrientation,
-  ])
-
-  return { pages, measureRef }
-}
-
-export function useLineEffects(previewRef, pages, settings) {
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => applyLineEffects(previewRef.current, settings))
-    return () => cancelAnimationFrame(frame)
-  }, [
-    previewRef,
-    pages,
     settings.seed,
     settings.directionChance,
-    settings.wordFrequency,
-    settings.maxWordTilt,
-    settings.maxLift,
-    settings.fontRandomization,
-    settings.maxLetterSpacing,
-    settings.letterFrequency,
     settings.maxLineDrift,
     settings.maxLineIndent,
   ])
+
+  return { pages, measureRef }
 }

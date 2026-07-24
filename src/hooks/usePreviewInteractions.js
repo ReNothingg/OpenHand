@@ -89,7 +89,7 @@ export function usePreviewInteractions({
       viewport.removeEventListener("gesturechange", changeGestureZoom);
       viewport.removeEventListener("gestureend", endGestureZoom);
     };
-  });
+  }, [previewRef, setZoom]);
 
   useLayoutEffect(() => {
     const viewport = previewRef.current;

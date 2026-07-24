@@ -1,6 +1,6 @@
 import PlotterFooter from '../plotter/PlotterFooter.jsx'
 import PlotterPaper from '../plotter/PlotterPaper.jsx'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import BlockInspector from './BlockInspector.jsx'
 import ManualPageContent from './ManualPageContent.jsx'
 
@@ -31,11 +31,13 @@ export default function PreviewPanel({
   const activeSheetFrameRef = useRef(0)
   const isNotebookSpread = settings.pageSize === 'NotebookSpread'
   const plotterMode = plotterWorkspace.enabled
-  const displayedPages = plotterMode
-    ? Array.from({ length: Math.max(1, plotterWorkspace.layouts.length) }, () => [])
-    : isNotebookSpread
-      ? Array.from({ length: Math.ceil(pages.length / 2) }, (_, index) => pages.slice(index * 2, index * 2 + 2))
-      : pages.map((page) => [page])
+  const displayedPages = useMemo(() => (
+    plotterMode
+      ? Array.from({ length: Math.max(1, plotterWorkspace.layouts.length) }, () => [])
+      : isNotebookSpread
+        ? Array.from({ length: Math.ceil(pages.length / 2) }, (_, index) => pages.slice(index * 2, index * 2 + 2))
+        : pages.map((page) => [page])
+  ), [isNotebookSpread, pages, plotterMode, plotterWorkspace.layouts.length])
   useEffect(() => {
     if (!manualEditing) setSelectedBlock(null)
   }, [manualEditing])

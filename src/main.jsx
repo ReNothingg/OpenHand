@@ -1,10 +1,11 @@
-import { StrictMode, useEffect, useState } from 'react'
+import { lazy, StrictMode, Suspense, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App.jsx'
-import FontStudio from './font-builder/FontStudio.jsx'
-import GCodeViewer from './gcode/GCodeViewer.jsx'
 import 'katex/dist/katex.min.css'
 import './styles/index.css'
+
+const App = lazy(() => import('./App.jsx'))
+const FontStudio = lazy(() => import('./font-builder/FontStudio.jsx'))
+const GCodeViewer = lazy(() => import('./gcode/GCodeViewer.jsx'))
 
 const path = window.location.pathname.replace(/\/+$/, '') || '/'
 const searchParams = new URLSearchParams(window.location.search)
@@ -34,19 +35,31 @@ function Root() {
     return () => window.removeEventListener('openhand:open-file', openFile)
   }, [])
 
-  if (activeView === 'font') return <FontStudio />
+  if (activeView === 'font') return (
+    <Suspense fallback={<div className="view-loading">Загрузка редактора шрифта…</div>}>
+      <FontStudio />
+    </Suspense>
+  )
   if (activeView === 'gcode') {
-    return <GCodeViewer payload={filePayload} onClose={() => {
-      const url = new URL(window.location.href)
-      if (url.pathname.replace(/\/+$/, '') === '/gcode') url.pathname = '/'
-      url.searchParams.delete('view')
-      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
-      setActiveView('document')
-      setFilePayload(null)
-      window.__openhandPendingFile = null
-    }} />
+    return (
+      <Suspense fallback={<div className="view-loading">Загрузка просмотра G-code…</div>}>
+        <GCodeViewer payload={filePayload} onClose={() => {
+          const url = new URL(window.location.href)
+          if (url.pathname.replace(/\/+$/, '') === '/gcode') url.pathname = '/'
+          url.searchParams.delete('view')
+          window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+          setActiveView('document')
+          setFilePayload(null)
+          window.__openhandPendingFile = null
+        }} />
+      </Suspense>
+    )
   }
-  return <App />
+  return (
+    <Suspense fallback={<div className="view-loading">Загрузка OpenHand…</div>}>
+      <App />
+    </Suspense>
+  )
 }
 
 createRoot(document.getElementById('root')).render(

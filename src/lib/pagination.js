@@ -197,7 +197,7 @@ function splitElementAcrossPages(element, content, createPage) {
   return content
 }
 
-export function paginateHtml(html, settings, host) {
+export function paginateHtml(html, settings, host, finalizePages) {
   host.replaceChildren()
   const template = document.createElement('template')
   template.innerHTML = html
@@ -220,6 +220,7 @@ export function paginateHtml(html, settings, host) {
     node.remove()
     content = splitElementAcrossPages(node, content, createPage)
   })
+  finalizePages?.(host, settings)
   const result = pages.map(({ content: pageContent }) => pageContent.innerHTML)
   host.replaceChildren()
   return result.length ? result : ['']
