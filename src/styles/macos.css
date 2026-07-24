@@ -1,41 +1,40 @@
 .macos-native {
   color-scheme: light dark;
-  --mac-accent: #0a84ff;
-  --mac-accent-hover: #0077ed;
+  --mac-bg: #eceef1;
+  --mac-panel: #f7f7f8;
+  --mac-panel-muted: #eff1f3;
+  --mac-surface: #ffffff;
+  --mac-surface-hover: #f2f3f5;
+  --mac-surface-active: #e7e9ec;
+  --mac-canvas: #d9dde2;
   --mac-text: #1d1d1f;
-  --mac-secondary: #6e6e73;
-  --mac-tertiary: #8e8e93;
-  --mac-separator: rgb(60 60 67 / 0.18);
-  --mac-strong-separator: rgb(60 60 67 / 0.28);
-  --mac-window: rgb(236 236 238 / 0.82);
-  --mac-sidebar: rgb(246 246 248 / 0.72);
-  --mac-content: rgb(250 250 252 / 0.82);
-  --mac-glass: rgb(255 255 255 / 0.62);
-  --mac-glass-strong: rgb(255 255 255 / 0.78);
-  --mac-control: rgb(255 255 255 / 0.58);
-  --mac-control-hover: rgb(255 255 255 / 0.84);
-  --mac-control-active: rgb(209 209 214 / 0.62);
-  --mac-selected: rgb(10 132 255 / 0.14);
-  --mac-deep-shadow: 0 24px 72px rgb(0 0 0 / 0.22);
-  --line: var(--mac-separator);
+  --mac-secondary: #68686d;
+  --mac-tertiary: #929298;
+  --mac-line: #d1d3d7;
+  --mac-line-strong: #b9bcc1;
+  --mac-accent: #0a72d8;
+  --mac-accent-hover: #0866c2;
+  --mac-accent-soft: #e2f0ff;
+  --mac-danger: #d92d28;
+  --mac-danger-soft: #fff0ef;
+  --mac-warning: #8a5200;
+  --mac-warning-soft: #fff4d6;
+  --line: var(--mac-line);
   --muted: var(--mac-secondary);
   --green: var(--mac-accent);
   --green-dark: var(--mac-accent-hover);
-  --panel: transparent;
+  --panel: var(--mac-panel);
+  color: var(--mac-text);
+  background: var(--mac-bg);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-  background: transparent;
 }
 
 .macos-native,
 .macos-native body,
 .macos-native #root,
 .macos-native .app {
-  background: transparent;
-}
-
-.macos-native body {
   color: var(--mac-text);
-  -webkit-font-smoothing: antialiased;
+  background: var(--mac-bg);
 }
 
 .macos-native button,
@@ -45,12 +44,8 @@
   font-family: inherit;
 }
 
-.macos-native button {
-  -webkit-tap-highlight-color: transparent;
-}
-
 .macos-native :focus-visible {
-  outline: 3px solid rgb(10 132 255 / 0.34);
+  outline: 2px solid var(--mac-accent);
   outline-offset: 1px;
 }
 
@@ -66,46 +61,38 @@
 .macos-native ::-webkit-scrollbar-thumb {
   min-height: 38px;
   border: 3px solid transparent;
-  border-radius: 999px;
-  background: rgb(60 60 67 / 0.28);
+  border-radius: 8px;
+  background: var(--mac-line-strong);
   background-clip: padding-box;
 }
 
-.macos-native ::-webkit-scrollbar-thumb:hover {
-  background: rgb(60 60 67 / 0.42);
-  background-clip: padding-box;
-}
-
-/* Window structure */
+/* Main window */
 .macos-native .workspace {
-  background: var(--mac-window);
+  background: var(--mac-bg);
 }
 
-.macos-native .panel {
-  background: transparent;
-}
-
+.macos-native .panel,
 .macos-native .editor-panel,
 .macos-native .settings-panel {
-  border-color: var(--mac-separator);
-  background: var(--mac-sidebar);
-  -webkit-backdrop-filter: blur(36px) saturate(1.35);
-  backdrop-filter: blur(36px) saturate(1.35);
+  border-color: var(--mac-line);
+  background: var(--mac-panel);
 }
 
 .macos-native .preview-panel {
-  background: rgb(218 218 222 / 0.82);
+  background: var(--mac-canvas);
 }
 
 .macos-native .panel-title,
+.macos-native .settings-panel > .panel-title,
 .macos-native .preview-toolbar,
 .macos-native .plotter-header,
 .macos-native .font-studio-toolbar {
-  border-color: var(--mac-separator);
-  background: var(--mac-glass);
-  -webkit-backdrop-filter: blur(28px) saturate(1.45);
-  backdrop-filter: blur(28px) saturate(1.45);
-  box-shadow: 0 1px 0 rgb(255 255 255 / 0.28);
+  border-color: var(--mac-line);
+  color: var(--mac-text);
+  background: var(--mac-surface);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .macos-native .panel-title {
@@ -117,26 +104,18 @@
 .macos-native .plotter-header strong {
   color: var(--mac-text);
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 650;
 }
 
-.macos-native .panel-title small {
+.macos-native .panel-title small,
+.macos-native .preview-context,
+.macos-native .preview-font-status {
   color: var(--mac-secondary);
-  font-size: 10px;
-}
-
-.macos-native .settings-panel > .panel-title {
-  background: var(--mac-glass-strong);
-  box-shadow: 0 1px 0 var(--mac-separator);
-  -webkit-backdrop-filter: blur(32px) saturate(1.45);
-  backdrop-filter: blur(32px) saturate(1.45);
 }
 
 .macos-native .markdown-editor {
-  padding: 22px 18px 36px;
   color: var(--mac-text);
-  background: rgb(255 255 255 / 0.46);
+  background: var(--mac-surface);
   font-family: "SF Mono", SFMono-Regular, Menlo, monospace;
   font-size: 13px;
   line-height: 1.62;
@@ -144,10 +123,10 @@
 }
 
 .macos-native .markdown-editor::selection {
-  background: rgb(10 132 255 / 0.22);
+  background: var(--mac-accent-soft);
 }
 
-/* System controls and Liquid Glass action layer */
+/* Flat controls */
 .macos-native .button,
 .macos-native .editor-expand-button,
 .macos-native .orientation-toggle,
@@ -158,21 +137,15 @@
 .macos-native .photo-import-options button,
 .macos-native .photo-import-dialog > footer button,
 .macos-native .jog-control button {
-  border: 1px solid var(--mac-separator);
-  border-radius: 9px;
+  border: 1px solid var(--mac-line-strong);
+  border-radius: 6px;
   color: var(--mac-text);
-  background: var(--mac-control);
-  -webkit-backdrop-filter: blur(18px) saturate(1.35);
-  backdrop-filter: blur(18px) saturate(1.35);
-  box-shadow:
-    inset 0 0.5px 0 rgb(255 255 255 / 0.62),
-    0 1px 2px rgb(0 0 0 / 0.06);
+  background: var(--mac-surface);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   font-size: 11px;
-  font-weight: 550;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    transform 90ms ease;
+  font-weight: 600;
 }
 
 .macos-native .button:hover,
@@ -185,8 +158,8 @@
 .macos-native .photo-import-options button:hover,
 .macos-native .photo-import-dialog > footer button:hover,
 .macos-native .jog-control button:hover:not(:disabled) {
-  border-color: var(--mac-strong-separator);
-  background: var(--mac-control-hover);
+  border-color: var(--mac-line-strong);
+  background: var(--mac-surface-hover);
 }
 
 .macos-native .button:active,
@@ -199,85 +172,72 @@
 .macos-native .photo-import-options button:active,
 .macos-native .photo-import-dialog > footer button:active,
 .macos-native .jog-control button:active:not(:disabled) {
-  background: var(--mac-control-active);
-  transform: scale(0.98);
+  background: var(--mac-surface-active);
+  transform: none;
 }
 
 .macos-native .button.primary,
 .macos-native .font-studio-actions button.primary,
 .macos-native .photo-import-options button.primary {
-  border-color: rgb(0 0 0 / 0.08);
+  border-color: var(--mac-accent);
   color: #fff;
   background: var(--mac-accent);
-  box-shadow:
-    inset 0 0.5px 0 rgb(255 255 255 / 0.32),
-    0 1px 3px rgb(0 80 170 / 0.25);
+  box-shadow: none;
 }
 
 .macos-native .button.primary:hover,
 .macos-native .font-studio-actions button.primary:hover,
 .macos-native .photo-import-options button.primary:hover {
-  border-color: rgb(0 0 0 / 0.08);
+  border-color: var(--mac-accent-hover);
   background: var(--mac-accent-hover);
 }
 
 .macos-native .button.danger {
-  border-color: rgb(0 0 0 / 0.08);
-  background: #ff453a;
+  border-color: var(--mac-danger);
+  color: #fff;
+  background: var(--mac-danger);
 }
 
 .macos-native .button.compact {
   min-height: 30px;
-  border-radius: 999px;
-}
-
-.macos-native .button {
-  border-radius: 999px;
-}
-
-.macos-native .editor-expand-button,
-.macos-native .orientation-toggle {
-  border-radius: 10px;
+  border-radius: 6px;
 }
 
 .macos-native .button:disabled,
 .macos-native .editor-expand-button:disabled,
 .macos-native .orientation-toggle:disabled,
 .macos-native .jog-control button:disabled {
-  border-color: transparent;
-  background: rgb(118 118 128 / 0.09);
+  border-color: var(--mac-line);
+  color: var(--mac-tertiary);
+  background: var(--mac-panel-muted);
   box-shadow: none;
-  opacity: 0.48;
-}
-
-.macos-native .source-tabs {
-  padding: 2px;
-  border-color: var(--mac-separator);
-  border-radius: 9px;
-  background: rgb(118 118 128 / 0.12);
-  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.34);
-}
-
-.macos-native .source-tabs button {
-  height: 25px;
-  border-radius: 7px;
-  color: var(--mac-secondary);
-  font-size: 10px;
-  font-weight: 550;
-}
-
-.macos-native .source-tabs button.active {
-  color: var(--mac-text);
-  background: var(--mac-glass-strong);
-  box-shadow:
-    0 1px 3px rgb(0 0 0 / 0.12),
-    inset 0 0.5px 0 rgb(255 255 255 / 0.64);
+  opacity: 0.72;
 }
 
 .macos-native .text-button,
 .macos-native .font-studio-link {
   color: var(--mac-accent);
-  font-weight: 550;
+  font-weight: 600;
+}
+
+.macos-native .source-tabs {
+  padding: 2px;
+  border: 1px solid var(--mac-line);
+  border-radius: 7px;
+  background: var(--mac-panel-muted);
+  box-shadow: none;
+}
+
+.macos-native .source-tabs button {
+  height: 25px;
+  border-radius: 5px;
+  color: var(--mac-secondary);
+}
+
+.macos-native .source-tabs button.active {
+  color: var(--mac-text);
+  background: var(--mac-surface);
+  box-shadow: none;
 }
 
 /* Forms */
@@ -302,13 +262,13 @@
 .macos-native .plotter-job-toolbar select,
 .macos-native .plotter-playback-controls select,
 .macos-native .block-inspector input[type="number"] {
-  border: 1px solid var(--mac-separator);
-  border-radius: 8px;
+  border: 1px solid var(--mac-line-strong);
+  border-radius: 6px;
   color: var(--mac-text);
-  background: var(--mac-control);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.035);
+  background-color: var(--mac-surface);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .macos-native .field select:focus,
@@ -317,165 +277,40 @@
 .macos-native .layout-select:focus,
 .macos-native .font-name-field:focus-within,
 .macos-native .font-picker-menu > input:focus,
-.macos-native .font-preview-toolbar label > input:not([type="range"]):focus,
 .macos-native .plotter-card input:focus,
 .macos-native .plotter-card select:focus,
 .macos-native .plotter-job-toolbar select:focus {
-  border-color: rgb(10 132 255 / 0.7);
+  border-color: var(--mac-accent);
   outline: 0;
-  box-shadow: 0 0 0 3px rgb(10 132 255 / 0.2);
-}
-
-.macos-native select {
-  -webkit-appearance: none;
-  appearance: none;
-  padding-right: 30px !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m2 2 4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: right 10px center !important;
-  background-size: 10px 7px !important;
-}
-
-.macos-native select:disabled,
-.macos-native input:disabled {
-  opacity: 0.48;
-}
-
-/* Every range uses a real layered glass track instead of WebKit's default slider. */
-.macos-native .liquid-range {
-  position: relative;
-  min-width: 44px;
-  height: 22px;
-  display: block;
-  isolation: isolate;
+  box-shadow: 0 0 0 2px var(--mac-accent-soft);
 }
 
 .macos-native .liquid-range::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  left: 0;
-  right: 0;
-  top: 8px;
-  height: 6px;
-  border: 0.5px solid var(--mac-separator);
-  border-radius: 999px;
-  background: rgb(118 118 128 / 0.16);
-  box-shadow:
-    inset 0 1px 2px rgb(0 0 0 / 0.12),
-    0 0.5px 0 rgb(255 255 255 / 0.42);
+  border: 0;
+  background: var(--mac-line);
+  box-shadow: none;
 }
 
 .macos-native .liquid-range > i {
-  position: absolute;
-  z-index: 1;
-  left: 1px;
-  top: 9px;
-  width: var(--liquid-range-progress);
-  max-width: calc(100% - 2px);
-  height: 4px;
-  display: block;
-  border-radius: 999px;
   background: var(--mac-accent);
-  box-shadow: 0 0 5px rgb(10 132 255 / 0.3);
-  pointer-events: none;
-}
-
-.macos-native .liquid-range > input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  width: 100%;
-  height: 22px;
-  margin: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.macos-native .liquid-range > input[type="range"]::-webkit-slider-runnable-track {
-  height: 6px;
-  border: 0;
-  background: transparent;
+  box-shadow: none;
 }
 
 .macos-native .liquid-range > input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  margin-top: -6px;
-  border: 0.5px solid rgb(60 60 67 / 0.3);
-  border-radius: 50%;
-  background: var(--mac-glass-strong);
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
-  backdrop-filter: blur(16px) saturate(1.5);
-  box-shadow:
-    inset 0 0.5px 0 rgb(255 255 255 / 0.82),
-    0 1px 2px rgb(0 0 0 / 0.18),
-    0 3px 8px rgb(0 0 0 / 0.14);
-  transition:
-    width 100ms ease,
-    height 100ms ease,
-    margin 100ms ease,
-    background-color 100ms ease;
+  border: 1px solid var(--mac-line-strong);
+  background: var(--mac-surface);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
-.macos-native .liquid-range > input[type="range"]:hover::-webkit-slider-thumb {
-  border-color: rgb(10 132 255 / 0.42);
-  background: var(--mac-control-hover);
-}
-
-.macos-native .liquid-range > input[type="range"]:active::-webkit-slider-thumb {
-  width: 20px;
-  height: 20px;
-  margin-top: -7px;
-  background: var(--mac-glass-strong);
-  box-shadow:
-    inset 0 0.5px 0 rgb(255 255 255 / 0.78),
-    0 1px 2px rgb(0 0 0 / 0.2),
-    0 2px 10px rgb(10 132 255 / 0.24);
-}
-
-.macos-native .liquid-range > input[type="range"]:focus-visible {
-  outline: 0;
-}
-
-.macos-native .liquid-range:has(input:focus-visible) {
-  border-radius: 999px;
-  box-shadow: 0 0 0 3px rgb(10 132 255 / 0.22);
-}
-
-.macos-native .liquid-range:has(input:disabled) {
-  opacity: 0.42;
-}
-
-/* Standalone checks match the glass switches instead of browser checkboxes. */
 .macos-native input[type="checkbox"]:not(.toggle-row input):not(.markdown-body input) {
-  -webkit-appearance: none;
-  appearance: none;
-  position: relative;
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  margin: 0;
-  border: 0.5px solid var(--mac-strong-separator);
-  border-radius: 5px;
-  background: var(--mac-control);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  backdrop-filter: blur(14px) saturate(1.4);
-  box-shadow:
-    inset 0 0.5px 0 rgb(255 255 255 / 0.62),
-    0 1px 2px rgb(0 0 0 / 0.09);
-  cursor: pointer;
-}
-
-.macos-native input[type="checkbox"]:not(.toggle-row input):not(.markdown-body input):hover {
-  border-color: rgb(10 132 255 / 0.44);
-  background: var(--mac-control-hover);
+  border: 1px solid var(--mac-line-strong);
+  border-radius: 4px;
+  background: var(--mac-surface);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .macos-native input[type="checkbox"]:not(.toggle-row input):not(.markdown-body input):checked {
@@ -483,142 +318,90 @@
   background: var(--mac-accent);
 }
 
-.macos-native input[type="checkbox"]:not(.toggle-row input):not(.markdown-body input):checked::after {
-  content: "✓";
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font: 700 11px/1 -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.macos-native .setting-help,
-.macos-native .plotter-help {
-  border-color: var(--mac-separator);
-  color: var(--mac-secondary);
-  background: var(--mac-control);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.5);
-}
-
-.macos-native .plotter-help > [role="tooltip"] {
-  border: 1px solid var(--mac-separator);
-  border-radius: 11px;
-  color: var(--mac-text);
-  background: var(--mac-glass-strong);
-  -webkit-backdrop-filter: blur(30px) saturate(1.4);
-  backdrop-filter: blur(30px) saturate(1.4);
-  box-shadow: var(--mac-deep-shadow);
-}
-
 .macos-native .toggle-row i {
-  width: 32px;
-  height: 19px;
-  border: 0.5px solid rgb(60 60 67 / 0.18);
-  background: rgb(120 120 128 / 0.3);
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.09);
+  border: 1px solid var(--mac-line-strong);
+  background: var(--mac-line-strong);
+  box-shadow: none;
 }
 
 .macos-native .toggle-row i::after {
-  width: 15px;
-  height: 15px;
   background: #fff;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.28);
+  box-shadow: none;
 }
 
 .macos-native .toggle-row input:checked + i {
+  border-color: var(--mac-accent);
   background: var(--mac-accent);
 }
 
-.macos-native .toggle-row input:checked + i::after {
-  transform: translateX(13px);
-}
-
-/* Sidebar content stays in the content layer */
-.macos-native .settings-section {
-  margin: 8px 9px 0;
-  border-color: var(--mac-separator);
-  border-radius: 12px;
-  background: rgb(255 255 255 / 0.5);
-  box-shadow:
-    inset 0 0.5px 0 rgb(255 255 255 / 0.5),
-    0 1px 2px rgb(0 0 0 / 0.035);
+/* Settings, dialogs and cards */
+.macos-native .settings-section,
+.macos-native .plotter-card,
+.macos-native .toggle-block,
+.macos-native .plotter-playback-controls,
+.macos-native .photo-import-options article {
+  border-color: var(--mac-line);
+  border-radius: 8px;
+  background: var(--mac-surface);
+  box-shadow: none;
 }
 
 .macos-native .settings-section > summary {
-  height: 44px;
-  padding: 0 12px 0 14px;
   color: var(--mac-text);
-  font-size: 11px;
-  font-weight: 600;
 }
 
 .macos-native .settings-section > summary:hover,
 .macos-native .settings-section[open] > summary {
-  border-radius: 12px;
   color: var(--mac-text);
-  background: rgb(255 255 255 / 0.42);
-}
-
-.macos-native .settings-section[open] > summary {
-  border-radius: 12px 12px 0 0;
-}
-
-.macos-native .settings-section[open] > summary::before {
-  left: 4px;
-  top: 12px;
-  width: 3px;
-  height: 20px;
-  border-radius: 999px;
-  background: var(--mac-accent);
-}
-
-.macos-native .settings-section > summary::after {
-  color: var(--mac-tertiary);
-  font-size: 13px;
+  background: var(--mac-surface-hover);
 }
 
 .macos-native .settings-content {
-  border-color: var(--mac-separator);
-}
-
-.macos-native .toggle-block {
-  border-color: transparent;
-  border-radius: 10px;
-  background: rgb(118 118 128 / 0.08);
+  border-color: var(--mac-line);
 }
 
 .macos-native .toggle-block.is-on {
-  border-color: rgb(10 132 255 / 0.2);
-  background: var(--mac-selected);
+  border-color: var(--mac-accent);
+  background: var(--mac-accent-soft);
 }
 
 .macos-native .notebook-note,
 .macos-native .photo-import-status {
-  border-color: rgb(10 132 255 / 0.24);
-  border-radius: 10px;
-  color: #075985;
-  background: rgb(10 132 255 / 0.1);
+  border-color: var(--mac-accent);
+  color: var(--mac-accent);
+  background: var(--mac-accent-soft);
 }
 
-/* Menus, popovers and dialogs */
 .macos-native .font-picker-menu,
 .macos-native .expanded-editor,
 .macos-native .photo-import-dialog,
 .macos-native .plotter-view-controls {
-  border-color: var(--mac-separator);
-  background: var(--mac-glass-strong);
-  -webkit-backdrop-filter: blur(38px) saturate(1.45);
-  backdrop-filter: blur(38px) saturate(1.45);
-  box-shadow:
-    inset 0 0.5px 0 rgb(255 255 255 / 0.62),
-    var(--mac-deep-shadow);
+  border-color: var(--mac-line-strong);
+  border-radius: 8px;
+  color: var(--mac-text);
+  background: var(--mac-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
-.macos-native .font-picker-menu {
-  border-radius: 14px;
+.macos-native .expanded-editor-backdrop,
+.macos-native .photo-import-backdrop {
+  background: rgb(0 0 0 / 0.38);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.macos-native .expanded-editor > header,
+.macos-native .expanded-editor > footer,
+.macos-native .photo-import-dialog > header,
+.macos-native .photo-import-dialog > footer,
+.macos-native .expanded-editor-body textarea,
+.macos-native .expanded-editor-body aside,
+.macos-native .expanded-editor-body aside code {
+  border-color: var(--mac-line);
+  color: var(--mac-text);
+  background: var(--mac-surface);
 }
 
 .macos-native .font-picker-group button,
@@ -626,7 +409,7 @@
 .macos-native .plotter-family-tabs > button,
 .macos-native .font-variant-labels button {
   border-color: transparent;
-  border-radius: 8px;
+  border-radius: 5px;
   color: var(--mac-text);
   background: transparent;
 }
@@ -635,329 +418,206 @@
 .macos-native .custom-gfont-grid button:hover,
 .macos-native .plotter-family-tabs > button:hover,
 .macos-native .font-variant-labels button:hover {
-  border-color: transparent;
-  background: rgb(118 118 128 / 0.12);
+  background: var(--mac-surface-hover);
 }
 
 .macos-native .font-picker-group button.selected,
 .macos-native .custom-gfont-grid button.selected,
 .macos-native .plotter-family-tabs > button.selected,
 .macos-native .font-variant-labels button.selected {
-  border-color: transparent;
   color: var(--mac-text);
-  background: var(--mac-selected);
+  background: var(--mac-accent-soft);
   box-shadow: none;
 }
 
-.macos-native .font-variant-panel {
-  border-color: rgb(10 132 255 / 0.18);
-  background: rgb(10 132 255 / 0.07);
-}
-
-.macos-native .expanded-editor-backdrop,
-.macos-native .photo-import-backdrop {
-  background: rgb(28 28 30 / 0.34);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-
-.macos-native .expanded-editor {
-  border-radius: 18px;
-}
-
-.macos-native .expanded-editor > header,
-.macos-native .expanded-editor > footer,
-.macos-native .photo-import-dialog > header,
-.macos-native .photo-import-dialog > footer {
-  border-color: var(--mac-separator);
-  background: rgb(255 255 255 / 0.42);
-}
-
-.macos-native .expanded-editor-body textarea {
-  border-color: var(--mac-separator);
-  color: var(--mac-text);
-  background: rgb(255 255 255 / 0.58);
-}
-
-.macos-native .expanded-editor-body aside {
-  color: var(--mac-secondary);
-  background: rgb(246 246 248 / 0.6);
-}
-
-.macos-native .expanded-editor-body aside code {
-  border-color: var(--mac-separator);
-  color: var(--mac-text);
-  background: rgb(255 255 255 / 0.5);
-}
-
 /* Preview and plotter */
-.macos-native .preview-toolbar {
-  min-height: 48px;
-}
-
-.macos-native .preview-font-status {
-  color: var(--mac-text);
-}
-
 .macos-native .paper {
-  outline-color: rgb(60 60 67 / 0.2);
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.08),
-    0 12px 34px rgb(0 0 0 / 0.12);
+  outline-color: var(--mac-line-strong);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.14);
 }
 
-.macos-native .block-inspector {
-  border-color: var(--mac-separator);
-  background: var(--mac-glass);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
-}
-
-.macos-native .alignment-control {
-  border-color: var(--mac-separator);
-  border-radius: 8px;
-}
-
-.macos-native .alignment-control button {
-  border-color: var(--mac-separator);
-  color: var(--mac-secondary);
-  background: var(--mac-control);
-}
-
-.macos-native .alignment-control button.active {
-  color: var(--mac-text);
-  background: var(--mac-selected);
-}
-
+.macos-native .block-inspector,
 .macos-native .integrated-plotter-footer,
-.macos-native .plotter-controls,
-.macos-native .plotter-card,
-.macos-native .plotter-playback-controls {
-  border-color: var(--mac-separator);
-}
-
-.macos-native .integrated-plotter-footer {
-  background: var(--mac-glass-strong);
-  -webkit-backdrop-filter: blur(30px) saturate(1.4);
-  backdrop-filter: blur(30px) saturate(1.4);
-  box-shadow: 0 -1px 0 rgb(255 255 255 / 0.24);
-}
-
 .macos-native .plotter-controls {
-  background: var(--mac-sidebar);
-  -webkit-backdrop-filter: blur(30px);
-  backdrop-filter: blur(30px);
+  border-color: var(--mac-line);
+  color: var(--mac-text);
+  background: var(--mac-panel);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
-.macos-native .plotter-card {
-  border-radius: 12px;
-  background: rgb(255 255 255 / 0.5);
-  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.45);
-}
-
-.macos-native .plotter-playback-controls {
-  border-radius: 10px;
-  background: rgb(118 118 128 / 0.08);
+.macos-native .plotter-card h3,
+.macos-native .plotter-caption,
+.macos-native .job-stats strong {
+  color: var(--mac-text);
 }
 
 .macos-native .plotter-preview {
-  border-color: var(--mac-separator);
-  border-radius: 12px;
-  background: rgb(174 174 178 / 0.34);
+  border-color: var(--mac-line);
+  background: var(--mac-canvas);
 }
 
-.macos-native .plotter-view-controls {
-  border-radius: 9px;
-}
-
-.macos-native .job-stats span {
-  border-color: var(--mac-separator);
-  border-radius: 9px;
-  background: rgb(255 255 255 / 0.36);
-}
-
+.macos-native .job-stats span,
 .macos-native .plotter-note {
-  background: rgb(118 118 128 / 0.1);
+  border-color: var(--mac-line);
+  color: var(--mac-secondary);
+  background: var(--mac-panel-muted);
 }
 
 .macos-native .plotter-warning {
-  color: #8a4b00;
-  background: rgb(255 159 10 / 0.16);
+  color: var(--mac-warning);
+  background: var(--mac-warning-soft);
 }
 
 .macos-native .plotter-error {
-  color: #a51b16;
-  background: rgb(255 69 58 / 0.14);
+  color: var(--mac-danger);
+  background: var(--mac-danger-soft);
 }
 
 /* Font studio */
 .macos-native body:has(.font-studio),
 .macos-native .font-studio {
   color: var(--mac-text);
-  background: transparent;
-}
-
-.macos-native .font-studio-toolbar {
-  height: 56px;
-}
-
-.macos-native .font-studio-workspace {
-  height: calc(100vh - 56px);
-  gap: 12px;
-  padding: 12px;
+  background: var(--mac-bg);
 }
 
 .macos-native .font-character-panel,
 .macos-native .font-canvas-panel,
 .macos-native .font-live-preview {
-  border-color: var(--mac-separator);
-  border-radius: 14px;
-  background: var(--mac-content);
-  box-shadow:
-    inset 0 0.5px 0 rgb(255 255 255 / 0.48),
-    0 4px 18px rgb(0 0 0 / 0.06);
+  border-color: var(--mac-line);
+  border-radius: 8px;
+  background: var(--mac-surface);
+  box-shadow: none;
 }
 
 .macos-native .font-character-panel-title,
 .macos-native .font-canvas-toolbar,
 .macos-native .font-preview-toolbar {
-  border-color: var(--mac-separator);
-  background: rgb(246 246 248 / 0.66);
+  border-color: var(--mac-line);
+  background: var(--mac-panel-muted);
 }
 
 .macos-native .font-character-grid button {
   border-color: transparent;
-  border-radius: 7px;
+  border-radius: 5px;
   color: var(--mac-text);
   background: transparent;
 }
 
 .macos-native .font-character-grid button:hover {
-  border-color: transparent;
-  background: rgb(118 118 128 / 0.12);
+  background: var(--mac-surface-hover);
 }
 
 .macos-native .font-character-grid button.active {
-  border-color: transparent;
   color: #fff;
   background: var(--mac-accent);
   box-shadow: none;
 }
 
 .macos-native .font-preview-canvas {
-  background: rgb(255 255 255 / 0.5);
+  color: var(--mac-text);
+  background: var(--mac-surface);
 }
 
-.macos-native .photo-import-options article {
-  border-color: var(--mac-separator);
-  border-radius: 12px;
-  background: rgb(118 118 128 / 0.07);
+/* G-code viewer */
+.macos-native body:has(.gcode-viewer),
+.macos-native .gcode-viewer {
+  color: var(--mac-text);
+  background: var(--mac-bg);
 }
 
-/* Accessibility fallbacks */
-@media (prefers-reduced-transparency: reduce) {
-  .macos-native {
-    --mac-sidebar: #f2f2f4;
-    --mac-content: #fafafc;
-    --mac-glass: #f7f7f8;
-    --mac-glass-strong: #fff;
-    --mac-control: #fff;
-    --mac-control-hover: #f2f2f4;
-  }
+.macos-native .gcode-viewer-header,
+.macos-native .gcode-preview-toolbar,
+.macos-native .gcode-source-panel > header {
+  border-color: var(--mac-line);
+  color: var(--mac-text);
+  background: var(--mac-surface);
+}
 
-  .macos-native .editor-panel,
-  .macos-native .settings-panel,
-  .macos-native .panel-title,
-  .macos-native .preview-toolbar,
-  .macos-native .plotter-header,
-  .macos-native .font-studio-toolbar,
-  .macos-native .font-picker-menu,
-  .macos-native .expanded-editor,
-  .macos-native .photo-import-dialog,
-  .macos-native .integrated-plotter-footer,
-  .macos-native .plotter-controls {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
+.macos-native .gcode-viewer-title strong,
+.macos-native .gcode-viewer-stats strong,
+.macos-native .gcode-source-panel > header strong,
+.macos-native .gcode-empty-preview strong {
+  color: var(--mac-text);
+}
+
+.macos-native .gcode-viewer-title span,
+.macos-native .gcode-viewer-stats,
+.macos-native .gcode-preview-toolbar label,
+.macos-native .gcode-source-panel > header span,
+.macos-native .gcode-empty-preview span,
+.macos-native .gcode-dropzone span,
+.macos-native .gcode-dropzone small {
+  color: var(--mac-secondary);
+}
+
+.macos-native .gcode-dropzone {
+  border-color: var(--mac-line-strong);
+  color: var(--mac-text);
+  background: var(--mac-surface);
+}
+
+.macos-native .gcode-dropzone:hover {
+  border-color: var(--mac-accent);
+  background: var(--mac-accent-soft);
+}
+
+.macos-native .gcode-viewer-warning {
+  border-color: var(--mac-warning);
+  color: var(--mac-warning);
+  background: var(--mac-warning-soft);
+}
+
+.macos-native .gcode-preview-panel {
+  background: var(--mac-canvas);
+}
+
+.macos-native .gcode-source-panel,
+.macos-native .gcode-source-panel pre {
+  border-color: var(--mac-line);
+  color: var(--mac-text);
+  background: var(--mac-surface);
+}
+
+.macos-native .gcode-source-panel code:hover {
+  background: var(--mac-surface-hover);
+}
+
+.macos-native .gcode-source-panel code i {
+  color: var(--mac-tertiary);
 }
 
 @media (prefers-color-scheme: dark) {
   .macos-native {
-    --mac-text: #f5f5f7;
+    --mac-bg: #171719;
+    --mac-panel: #232326;
+    --mac-panel-muted: #2b2b2f;
+    --mac-surface: #303034;
+    --mac-surface-hover: #3a3a3f;
+    --mac-surface-active: #44444a;
+    --mac-canvas: #111113;
+    --mac-text: #f2f2f4;
     --mac-secondary: #b0b0b5;
-    --mac-tertiary: #8e8e93;
-    --mac-separator: rgb(255 255 255 / 0.14);
-    --mac-strong-separator: rgb(255 255 255 / 0.24);
-    --mac-window: rgb(28 28 30 / 0.86);
-    --mac-sidebar: rgb(38 38 40 / 0.76);
-    --mac-content: rgb(44 44 46 / 0.82);
-    --mac-glass: rgb(58 58 60 / 0.62);
-    --mac-glass-strong: rgb(64 64 66 / 0.78);
-    --mac-control: rgb(118 118 128 / 0.22);
-    --mac-control-hover: rgb(142 142 147 / 0.3);
-    --mac-control-active: rgb(174 174 178 / 0.24);
-    --mac-selected: rgb(10 132 255 / 0.26);
+    --mac-tertiary: #85858b;
+    --mac-line: #414146;
+    --mac-line-strong: #57575d;
+    --mac-accent: #2f91f2;
+    --mac-accent-hover: #57a7f6;
+    --mac-accent-soft: #173b60;
+    --mac-danger: #ff6961;
+    --mac-danger-soft: #4a2423;
+    --mac-warning: #ffc56d;
+    --mac-warning-soft: #49391f;
   }
+}
 
-  .macos-native .preview-panel {
-    background: rgb(20 20 22 / 0.9);
-  }
-
-  .macos-native .markdown-editor {
-    color: var(--mac-text);
-    background: rgb(28 28 30 / 0.5);
-  }
-
-  .macos-native .settings-section,
-  .macos-native .plotter-card,
-  .macos-native .job-stats span {
-    background: rgb(255 255 255 / 0.055);
-  }
-
-  .macos-native .settings-section > summary:hover,
-  .macos-native .settings-section[open] > summary {
-    background: rgb(255 255 255 / 0.06);
-  }
-
-  .macos-native .toggle-block,
-  .macos-native .plotter-playback-controls,
-  .macos-native .photo-import-options article {
-    background: rgb(255 255 255 / 0.045);
-  }
-
-  .macos-native .source-tabs {
-    background: rgb(0 0 0 / 0.22);
-  }
-
-  .macos-native .source-tabs button.active {
-    background: rgb(118 118 128 / 0.34);
-  }
-
-  .macos-native .expanded-editor-body textarea,
-  .macos-native .font-preview-canvas {
-    color: var(--mac-text);
-    background: rgb(28 28 30 / 0.58);
-  }
-
-  .macos-native .expanded-editor-body aside {
-    background: rgb(44 44 46 / 0.66);
-  }
-
-  .macos-native .expanded-editor-body aside code {
-    color: var(--mac-text);
-    background: rgb(255 255 255 / 0.06);
-  }
-
-  .macos-native .notebook-note,
-  .macos-native .photo-import-status {
-    color: #8dd5ff;
-  }
-
-  .macos-native .plotter-warning {
-    color: #ffd08a;
-  }
-
-  .macos-native .plotter-error {
-    color: #ffaaa4;
+@media (prefers-reduced-motion: reduce) {
+  .macos-native *,
+  .macos-native *::before,
+  .macos-native *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
   }
 }

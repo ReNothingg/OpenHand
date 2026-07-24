@@ -255,7 +255,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = openhand/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Чернильник";
 				INFOPLIST_KEY_CFBundleName = "Чернильник";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
@@ -290,7 +291,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = openhand/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Чернильник";
 				INFOPLIST_KEY_CFBundleName = "Чернильник";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";

@@ -3,6 +3,11 @@ import SwiftUI
 import UniformTypeIdentifiers
 import WebKit
 
+struct OpenDocumentRequest: Equatable {
+    let id = UUID()
+    let url: URL
+}
+
 private let serialShim = #"""
 (() => {
   if (navigator.serial || window.__openhandSerialBridge) return;
@@ -162,6 +167,8 @@ private let serialShim = #"""
 """#
 
 struct OpenHandWebView: NSViewRepresentable {
+    let documentRequest: OpenDocumentRequest?
+
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
@@ -185,7 +192,7 @@ struct OpenHandWebView: NSViewRepresentable {
         )
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.underPageBackgroundColor = .clear
+        webView.underPageBackgroundColor = .windowBackgroundColor
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         if #available(macOS 13.3, *) {
@@ -198,7 +205,11 @@ struct OpenHandWebView: NSViewRepresentable {
         return webView
     }
 
-    func updateNSView(_ webView: WKWebView, context: Context) { }
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        if let documentRequest {
+            context.coordinator.openDocument(documentRequest)
+        }
+    }
 
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
         let controller = webView.configuration.userContentController
@@ -211,6 +222,8 @@ struct OpenHandWebView: NSViewRepresentable {
         let bridge = NativeBridge()
         let assetHandler = LocalAssetSchemeHandler()
         weak var webView: WKWebView?
+        private var lastDocumentRequestID: UUID?
+        private var pendingDocument: [String: Any]?
 
         func loadApplication() {
             guard let webView,
@@ -224,6 +237,55 @@ struct OpenHandWebView: NSViewRepresentable {
                 return
             }
             webView.load(URLRequest(url: applicationURL))
+        }
+
+        func openDocument(_ request: OpenDocumentRequest) {
+            guard request.id != lastDocumentRequestID else { return }
+            lastDocumentRequestID = request.id
+
+            let allowedExtensions = Set(["gcode", "nc", "tap"])
+            guard allowedExtensions.contains(request.url.pathExtension.lowercased()) else {
+                showDocumentError("Поддерживаются файлы .gcode, .nc и .tap.")
+                return
+            }
+
+            let hasAccess = request.url.startAccessingSecurityScopedResource()
+            defer {
+                if hasAccess {
+                    request.url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            do {
+                let data = try Data(contentsOf: request.url, options: .mappedIfSafe)
+                pendingDocument = [
+                    "name": request.url.lastPathComponent,
+                    "type": "text/plain;charset=utf-8",
+                    "data": data.base64EncodedString()
+                ]
+                deliverPendingDocument()
+            } catch {
+                showDocumentError("Не удалось прочитать файл: \(error.localizedDescription)")
+            }
+        }
+
+        private func deliverPendingDocument() {
+            guard let webView,
+                  let pendingDocument,
+                  JSONSerialization.isValidJSONObject(pendingDocument),
+                  let data = try? JSONSerialization.data(withJSONObject: pendingDocument),
+                  let json = String(data: data, encoding: .utf8) else {
+                return
+            }
+            let script = """
+            window.__openhandReceiveFile
+              ? (window.__openhandReceiveFile(\(json)), true)
+              : false
+            """
+            webView.evaluateJavaScript(script) { [weak self] result, error in
+                guard error == nil, (result as? NSNumber)?.boolValue == true else { return }
+                self?.pendingDocument = nil
+            }
         }
 
         func webView(
@@ -338,6 +400,7 @@ struct OpenHandWebView: NSViewRepresentable {
                 let serialReady = (state?["serialReady"] as? NSNumber)?.boolValue == true
                 if rootReady, serialReady {
                     NSLog("OpenHand runtime ready")
+                    self?.deliverPendingDocument()
                     return
                 }
                 if attemptsRemaining > 0 {
@@ -380,6 +443,14 @@ struct OpenHandWebView: NSViewRepresentable {
             let alert = NSAlert()
             alert.alertStyle = .critical
             alert.messageText = "Не удалось загрузить OpenHand"
+            alert.informativeText = reason
+            alert.runModal()
+        }
+
+        private func showDocumentError(_ reason: String) {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Не удалось открыть G-code"
             alert.informativeText = reason
             alert.runModal()
         }

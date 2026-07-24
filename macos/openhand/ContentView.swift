@@ -1,15 +1,11 @@
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        ZStack {
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .ignoresSafeArea()
+    let documentRequest: OpenDocumentRequest?
 
-            OpenHandWebView()
-                .frame(minWidth: 980, minHeight: 680)
-        }
-        .ignoresSafeArea(.container, edges: .bottom)
+    var body: some View {
+        OpenHandWebView(documentRequest: documentRequest)
+            .frame(minWidth: 980, minHeight: 680)
+            .ignoresSafeArea(.container, edges: .bottom)
     }
 }
