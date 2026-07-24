@@ -1,10 +1,3 @@
-//
-//  openhandApp.swift
-//  openhand
-//
-//  Created by Павел on 7/24/26.
-//
-
 import SwiftUI
 
 @main
