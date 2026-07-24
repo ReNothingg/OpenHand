@@ -1,0 +1,16 @@
+{
+  "source": "/Users/pavel/Documents/fonts-handwrite/macos/openhand/openhandApp.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Чернильник",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 13
+        }
+      }
+    ]
+  },
+  "version": 1
+}

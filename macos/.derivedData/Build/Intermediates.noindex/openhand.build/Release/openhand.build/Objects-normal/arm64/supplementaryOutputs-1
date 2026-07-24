@@ -1,0 +1,12 @@
+{
+  "/Users/pavel/Documents/fonts-handwrite/macos/openhand/ContentView.swift" : {
+    "abi-baseline-json" : "/Users/pavel/Documents/fonts-handwrite/macos/.derivedData/Build/Intermediates.noindex/openhand.build/Release/openhand.build/Objects-normal/arm64/OpenHand.abi.json",
+    "const-values" : "/Users/pavel/Documents/fonts-handwrite/macos/.derivedData/Build/Intermediates.noindex/openhand.build/Release/openhand.build/Objects-normal/arm64/openhand-primary.swiftconstvalues",
+    "dependencies" : "/Users/pavel/Documents/fonts-handwrite/macos/.derivedData/Build/Intermediates.noindex/openhand.build/Release/openhand.build/Objects-normal/arm64/openhand-primary.d",
+    "diagnostics" : "/Users/pavel/Documents/fonts-handwrite/macos/.derivedData/Build/Intermediates.noindex/openhand.build/Release/openhand.build/Objects-normal/arm64/openhand-primary.dia",
+    "objc-header" : "/Users/pavel/Documents/fonts-handwrite/macos/.derivedData/Build/Intermediates.noindex/openhand.build/Release/openhand.build/Objects-normal/arm64/OpenHand-Swift.h",
+    "swiftdoc" : "/Users/pavel/Documents/fonts-handwrite/macos/.derivedData/Build/Intermediates.noindex/openhand.build/Release/openhand.build/Objects-normal/arm64/OpenHand.swiftdoc",
+    "swiftmodule" : "/Users/pavel/Documents/fonts-handwrite/macos/.derivedData/Build/Intermediates.noindex/openhand.build/Release/openhand.build/Objects-normal/arm64/OpenHand.swiftmodule",
+    "swiftsourceinfo" : "/Users/pavel/Documents/fonts-handwrite/macos/.derivedData/Build/Intermediates.noindex/openhand.build/Release/openhand.build/Objects-normal/arm64/OpenHand.swiftsourceinfo"
+  }
+}

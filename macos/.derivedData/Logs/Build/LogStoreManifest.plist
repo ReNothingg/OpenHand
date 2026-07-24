@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>logFormatVersion</key>
+	<integer>13</integer>
+	<key>logs</key>
+	<dict>
+		<key>105F8686-B309-4FB6-A56A-21ABBF86C0EB</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>105F8686-B309-4FB6-A56A-21ABBF86C0EB.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>E</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>1</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>openhand project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>openhand</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project openhand with scheme openhand and configuration Release</string>
+			<key>timeStartedRecording</key>
+			<real>806574600.17923796</real>
+			<key>timeStoppedRecording</key>
+			<real>806574601.33506</real>
+			<key>title</key>
+			<string>Building project openhand with scheme openhand and configuration Release</string>
+			<key>uniqueIdentifier</key>
+			<string>105F8686-B309-4FB6-A56A-21ABBF86C0EB</string>
+		</dict>
+		<key>7D73BE15-27D4-4A00-A2CF-F923E0BC0819</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>7D73BE15-27D4-4A00-A2CF-F923E0BC0819.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>openhand project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>openhand</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project openhand with scheme openhand and configuration Release</string>
+			<key>timeStartedRecording</key>
+			<real>806574787.29449701</real>
+			<key>timeStoppedRecording</key>
+			<real>806574792.60042405</real>
+			<key>title</key>
+			<string>Building project openhand with scheme openhand and configuration Release</string>
+			<key>uniqueIdentifier</key>
+			<string>7D73BE15-27D4-4A00-A2CF-F923E0BC0819</string>
+		</dict>
+		<key>A1D4CBDE-3B67-4DC4-B4D6-5C41E84D7F45</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>A1D4CBDE-3B67-4DC4-B4D6-5C41E84D7F45.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>openhand project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>openhand</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project openhand with scheme openhand and configuration Release</string>
+			<key>timeStartedRecording</key>
+			<real>806574631.11511505</real>
+			<key>timeStoppedRecording</key>
+			<real>806574637.40277398</real>
+			<key>title</key>
+			<string>Building project openhand with scheme openhand and configuration Release</string>
+			<key>uniqueIdentifier</key>
+			<string>A1D4CBDE-3B67-4DC4-B4D6-5C41E84D7F45</string>
+		</dict>
+	</dict>
+</dict>
+</plist>
