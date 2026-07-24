@@ -56,11 +56,11 @@ function preserveExtraBlankLines(markdown) {
     let end = index
     while (end + 1 < lines.length && !lines[end + 1].trim()) end += 1
     const count = end - index + 1
-    if (count <= 1 || index === 0 || end === lines.length - 1) {
+    if (index === 0 || end === lines.length - 1) {
       output.push(...Array(count).fill(''))
     } else {
       output.push('')
-      output.push(...Array(count - 1).fill('<div data-preserved-blank="true"></div>'))
+      output.push(...Array(count).fill('<div data-preserved-blank="true"></div>'))
       output.push('')
     }
     index = end

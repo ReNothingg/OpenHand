@@ -67,7 +67,78 @@ function fitsOnPage(content, element) {
   return fits
 }
 
+function createTableFragment(table, includeFooter = false) {
+  const fragment = table.cloneNode(false)
+  table.querySelectorAll(':scope > caption, :scope > colgroup, :scope > thead').forEach((section) => {
+    fragment.append(section.cloneNode(true))
+  })
+  const body = document.createElement('tbody')
+  fragment.append(body)
+  if (includeFooter) {
+    table.querySelectorAll(':scope > tfoot').forEach((footer) => {
+      fragment.append(footer.cloneNode(true))
+    })
+  }
+  return { fragment, body }
+}
+
+function splitTableAcrossPages(table, content, createPage) {
+  const intactTable = table.cloneNode(true)
+  if (fitsOnPage(content, intactTable)) {
+    content.append(table)
+    return content
+  }
+
+  const rows = [...table.querySelectorAll(':scope > tbody > tr')]
+  if (!rows.length) {
+    if (content.childElementCount) content = createPage()
+    content.append(table)
+    return content
+  }
+
+  let { fragment, body } = createTableFragment(table)
+  content.append(fragment)
+
+  rows.forEach((sourceRow) => {
+    const row = sourceRow.cloneNode(true)
+    body.append(row)
+    if (content.scrollHeight <= content.clientHeight + 1) return
+
+    row.remove()
+    if (!body.rows.length) fragment.remove()
+    content = createPage()
+    const nextTable = createTableFragment(table)
+    fragment = nextTable.fragment
+    body = nextTable.body
+    content.append(fragment)
+    body.append(row)
+  })
+
+  const footer = table.querySelector(':scope > tfoot')
+  if (footer) {
+    const footerClone = footer.cloneNode(true)
+    fragment.append(footerClone)
+    if (content.scrollHeight > content.clientHeight + 1 && body.rows.length > 1) {
+      footerClone.remove()
+      const lastRow = body.rows[body.rows.length - 1]
+      lastRow.remove()
+      content = createPage()
+      const nextTable = createTableFragment(table, true)
+      fragment = nextTable.fragment
+      body = nextTable.body
+      content.append(fragment)
+      body.append(lastRow)
+    }
+  }
+
+  return content
+}
+
 function splitElementAcrossPages(element, content, createPage) {
+  if (element.matches('table')) {
+    return splitTableAcrossPages(element, content, createPage)
+  }
+
   let working = element.cloneNode(true)
   let guard = 0
   while (working && guard < 100) {

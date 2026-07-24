@@ -13,6 +13,7 @@ import {
   layoutText,
   pageSettingsToMillimeters,
 } from '../plotter/job.js'
+import { PLOTTER_PAGE_BREAK } from '../plotter/richText.js'
 
 const STORAGE_KEY = 'openhand.plotter.settings.v1'
 
@@ -178,27 +179,34 @@ export function useIntegratedPlotter({
             page,
             ...await layoutBlocks(blocks, font, page, layoutConfig),
           })
+          setLayouts(combineLogicalLayouts(logicalLayouts, settings, metrics))
+          await new Promise((resolve) => window.setTimeout(resolve, 0))
         } else {
-          let remaining = pageTexts[sourceIndex] || ''
-          let guard = 0
-          do {
-            const page = pageForLogicalIndex(settings, metrics, logicalLayouts.length)
-            const result = await layoutText(remaining, font, page, layoutConfig)
-            const nextText = result.overflowText || ''
-            const stalled = Boolean(nextText) && nextText === remaining
-            logicalLayouts.push({
-              page,
-              ...result,
-              clipped: result.clipped && (!nextText || stalled || guard >= 99),
-            })
-            guard += 1
-            if (!nextText || stalled || guard >= 100) break
-            remaining = nextText
-          } while (!cancelled)
+          const sections = (pageTexts[sourceIndex] || '').split(PLOTTER_PAGE_BREAK)
+          for (const section of sections) {
+            let remaining = section.replace(/^\n+|\n+$/g, '')
+            let guard = 0
+            do {
+              const page = pageForLogicalIndex(settings, metrics, logicalLayouts.length)
+              const result = await layoutText(remaining, font, page, layoutConfig)
+              const nextText = result.overflowText || ''
+              const stalled = Boolean(nextText) && nextText === remaining
+              logicalLayouts.push({
+                page,
+                ...result,
+                clipped: result.clipped && (!nextText || stalled || guard >= 99),
+              })
+              setLayouts(combineLogicalLayouts(logicalLayouts, settings, metrics))
+              await new Promise((resolve) => window.setTimeout(resolve, 0))
+              if (cancelled) return
+              guard += 1
+              if (!nextText || stalled || guard >= 100) break
+              remaining = nextText
+            } while (!cancelled)
+            if (cancelled) return
+          }
         }
         if (cancelled) return
-        setLayouts(combineLogicalLayouts(logicalLayouts, settings, metrics))
-        await new Promise((resolve) => window.setTimeout(resolve, 0))
       }
     }
     calculate()
@@ -264,7 +272,7 @@ export function useIntegratedPlotter({
     plotter.recovery.total === job.commands.length &&
     plotter.recovery.current < plotter.recovery.total,
   )
-  const playback = usePlotterPlayback(job.strokes || activeLayout.strokes, job.estimatedSeconds, {
+  const playback = usePlotterPlayback(job, {
     status: plotter.status,
     progress: plotter.progress,
   })

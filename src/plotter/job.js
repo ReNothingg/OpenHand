@@ -492,9 +492,18 @@ export async function layoutText(text, font, page, config) {
         if (!drawing) continue
         if (x > page.left) nextLine()
         const top = baseline - page.fontSize * 0.78
-        const availableHeight = Math.min(70, maxY - top - page.lineHeight)
+        const availableHeight = drawing.kind === 'table'
+          ? maxY - top - page.lineHeight
+          : Math.min(70, maxY - top - page.lineHeight)
         const availableWidth = (maxX - page.left) * 0.86
-        const drawingScale = Math.min(availableWidth / drawing.width, availableHeight / drawing.height)
+        const preferredScale = drawing.kind === 'table'
+          ? page.fontSize * 0.8 / 22
+          : Infinity
+        const drawingScale = Math.min(
+          availableWidth / drawing.width,
+          availableHeight / drawing.height,
+          preferredScale,
+        )
         if (!Number.isFinite(drawingScale) || drawingScale <= 0) {
           clipped = true
           break
@@ -888,6 +897,7 @@ export function compilePlotJob(strokes, config) {
     : sourceStrokes
   const commands = []
   const resumePoints = []
+  const strokeCommandRanges = []
   const addPen = (up, pressure = 1) => {
     commands.push(penCommand(up, config, pressure))
     if (config.profile !== 'ebb' && Number(config.penDelay) > 0) commands.push(`G4P${number(Number(config.penDelay))}`)
@@ -914,6 +924,7 @@ export function compilePlotJob(strokes, config) {
     else commands.push(`G0X${number(start.x)}Y${number(start.y)}F${config.jogSpeed}`)
     current = start
     addPen(false, stroke.pressure || 1)
+    const drawStart = commands.length
     penChanges += 1
     for (const point of stroke.slice(1)) {
       const drawn = Math.hypot(point.x - current.x, point.y - current.y)
@@ -923,7 +934,9 @@ export function compilePlotJob(strokes, config) {
       else commands.push(`G1X${number(point.x)}Y${number(point.y)}F${config.feedRate}`)
       current = point
     }
+    const drawEnd = commands.length
     addPen(true)
+    strokeCommandRanges.push({ start: drawStart, end: drawEnd })
     penChanges += 1
     penLifts += 1
   }
@@ -938,6 +951,7 @@ export function compilePlotJob(strokes, config) {
     id: fingerprintCommands(commands),
     commands,
     strokes: preparedStrokes,
+    strokeCommandRanges,
     resumePoints,
     resumePrefix,
     recoverable,

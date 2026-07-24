@@ -410,6 +410,10 @@ export default function App() {
     () => displayPages.map((html) => htmlToPlotterText(html)),
     [displayPages],
   )
+  const renderedDocumentText = useMemo(
+    () => htmlToPlotterText(renderedHtml),
+    [renderedHtml],
+  )
   const plotterPageBlocks = useMemo(
     () => arrangedManualPages.map((blocks) => blocks.map((block) => ({
       ...block,
@@ -417,12 +421,33 @@ export default function App() {
     }))),
     [arrangedManualPages],
   )
+  const hasIntentionalPlacement = useMemo(
+    () => plotterPageBlocks.some((blocks) => blocks.some((block) => (
+      block.defaultLayout || block.layout?.dirty
+    ))),
+    [plotterPageBlocks],
+  )
+  const plotterPageTexts = useMemo(
+    () => (hasIntentionalPlacement
+      ? (renderedPageTexts.length ? renderedPageTexts : [activeSource])
+      : [renderedDocumentText || activeSource]),
+    [
+      activeSource,
+      hasIntentionalPlacement,
+      renderedDocumentText,
+      renderedPageTexts,
+    ],
+  )
+  const plotterLayoutBlocks = useMemo(
+    () => (hasIntentionalPlacement ? plotterPageBlocks : [[]]),
+    [hasIntentionalPlacement, plotterPageBlocks],
+  )
   const plotterWorkspace = useIntegratedPlotter({
     enabled: settings.fontType === 'plotter',
     fontId: settings.plotterFontId,
     customFont: customPlotterFont,
-    pageTexts: renderedPageTexts.length ? renderedPageTexts : [activeSource],
-    pageBlocks: plotterPageBlocks,
+    pageTexts: plotterPageTexts,
+    pageBlocks: plotterLayoutBlocks,
     settings: deferredSettings,
     metrics: layoutMetrics,
     activeSheetIndex,

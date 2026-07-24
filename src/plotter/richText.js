@@ -33,6 +33,7 @@ export const PLOTTER_FORMULA_START = '\uE100'
 export const PLOTTER_FORMULA_END = '\uE101'
 export const PLOTTER_SVG_START = '\uE130'
 export const PLOTTER_SVG_END = '\uE131'
+export const PLOTTER_PAGE_BREAK = '\uE140'
 
 const BLOCK_TAGS = new Set([
   'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DIV', 'DL', 'DT', 'DD',
@@ -87,6 +88,105 @@ function replaceFormulaNodes(container) {
     const source = formulaSource(formula)
     const normalized = source.replace(/\s+/g, ' ').trim()
     formula.replaceWith(document.createTextNode(normalized ? `${PLOTTER_FORMULA_START}${normalized}${PLOTTER_FORMULA_END}` : ''))
+  })
+}
+
+function handwrittenTableLine(x1, y1, x2, y2, seed) {
+  const points = []
+  const horizontal = Math.abs(x2 - x1) >= Math.abs(y2 - y1)
+  const segments = horizontal ? 10 : 7
+  for (let index = 0; index <= segments; index += 1) {
+    const progress = index / segments
+    const wave = index === 0 || index === segments
+      ? 0
+      : Math.sin(seed * 1.71 + index * 1.43) * 1.25
+        + Math.sin(seed * 0.63 + index * 0.77) * 0.55
+    points.push({
+      x: x1 + (x2 - x1) * progress + (horizontal ? 0 : wave),
+      y: y1 + (y2 - y1) * progress + (horizontal ? wave : 0),
+    })
+  }
+  return points
+}
+
+function estimateTableTextWidth(value) {
+  return Array.from(value).reduce((width, character) => {
+    if (/\s/u.test(character)) return width + 7
+    if (/[\p{P}\p{S}]/u.test(character)) return width + 7
+    if (/[ijlI1]/u.test(character)) return width + 7
+    return width + 12
+  }, 0)
+}
+
+function tableDrawing(table) {
+  const rows = [...table.rows]
+  const columnCount = Math.max(1, ...rows.map((row) => row.cells.length))
+  if (!rows.length || !columnCount) return null
+
+  const tableValues = rows.map((row) =>
+    [...row.cells].map((cell) => (cell.textContent || '').replace(/\s+/g, ' ').trim()))
+  const columnWidths = Array.from({ length: columnCount }, (_, columnIndex) => {
+    const contentWidth = Math.max(
+      0,
+      ...tableValues.map((values) => estimateTableTextWidth(values[columnIndex] || '')),
+    )
+    return Math.max(76, Math.min(300, contentWidth + 28))
+  })
+  const columnOffsets = [0]
+  columnWidths.forEach((columnWidth) => {
+    columnOffsets.push(columnOffsets[columnOffsets.length - 1] + columnWidth)
+  })
+  const width = columnOffsets[columnOffsets.length - 1]
+  const rowHeight = 44
+  const height = rows.length * rowHeight
+  const strokes = []
+  const texts = []
+
+  for (let rowIndex = 0; rowIndex <= rows.length; rowIndex += 1) {
+    const y = rowIndex * rowHeight
+    strokes.push(handwrittenTableLine(0, y, width, y, rowIndex + 1))
+  }
+  for (let columnIndex = 0; columnIndex <= columnCount; columnIndex += 1) {
+    const x = columnOffsets[columnIndex]
+    strokes.push(handwrittenTableLine(x, 0, x, height, columnIndex + rows.length + 1))
+  }
+
+  rows.forEach((row, rowIndex) => {
+    const cells = [...row.cells]
+    cells.forEach((cell, columnIndex) => {
+      const value = tableValues[rowIndex][columnIndex]
+      if (!value) return
+      const alignment = (cell.getAttribute('align') || '').toLowerCase()
+      const anchor = alignment === 'right' ? 'end' : alignment === 'center' ? 'middle' : 'start'
+      const inset = 14
+      const columnStart = columnOffsets[columnIndex]
+      const columnEnd = columnOffsets[columnIndex + 1]
+      texts.push({
+        value,
+        x: anchor === 'end'
+          ? columnEnd - inset
+          : anchor === 'middle'
+            ? (columnStart + columnEnd) / 2
+            : columnStart + inset,
+        y: rowIndex * rowHeight + rowHeight * 0.68,
+        size: 22,
+        angle: Math.sin((rowIndex + 1) * 1.9 + columnIndex) * 0.008,
+        anchor,
+      })
+    })
+  })
+
+  return { kind: 'table', width, height, strokes, texts }
+}
+
+function replaceTableNodes(container) {
+  container.querySelectorAll('table').forEach((table) => {
+    const drawing = tableDrawing(table)
+    const placeholder = document.createElement('div')
+    placeholder.textContent = drawing
+      ? `${PLOTTER_SVG_START}${encodeURIComponent(JSON.stringify(drawing))}${PLOTTER_SVG_END}`
+      : ''
+    table.replaceWith(placeholder)
   })
 }
 
@@ -291,6 +391,7 @@ export function htmlToPlotterText(html) {
   const container = document.createElement('div')
   container.innerHTML = html
   replaceFormulaNodes(container)
+  replaceTableNodes(container)
   replaceSvgNodes(container)
 
   let output = ''
@@ -340,16 +441,21 @@ export function htmlToPlotterText(html) {
       appendBreak(1)
       return
     }
+    if (element.hasAttribute('data-page-break')) {
+      appendBreak(1)
+      output += PLOTTER_PAGE_BREAK
+      appendBreak(1)
+      return
+    }
     if (element.hasAttribute('data-preserved-blank')) {
       output = output.replace(/[ \t]+$/g, '')
       output += '\n'
       return
     }
     if (element.matches('ul, ol')) {
-      const nested = element.parentElement?.tagName === 'LI'
-      appendBreak(nested ? 1 : 2)
+      appendBreak(1)
       Array.from(element.childNodes).forEach(walk)
-      appendBreak(nested ? 1 : 2)
+      appendBreak(1)
       return
     }
     if (element.tagName === 'LI') {
@@ -369,7 +475,7 @@ export function htmlToPlotterText(html) {
     if (callout) appendBeforeTrailingBreaks(PLOTTER_CALLOUT_MARKS.end)
 
     if (element.tagName === 'LI') appendBreak(1)
-    else if (BLOCK_TAGS.has(element.tagName)) appendBreak(2)
+    else if (BLOCK_TAGS.has(element.tagName)) appendBreak(1)
   }
 
   Array.from(container.childNodes).forEach(walk)
