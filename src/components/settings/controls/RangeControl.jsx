@@ -1,3 +1,5 @@
+import LiquidRange from '../../controls/LiquidRange.jsx'
+
 export default function RangeControl({ label, value, min, max, step = 1, suffix = '', onChange, hint }) {
   return (
     <label className="range-control">
@@ -8,7 +10,7 @@ export default function RangeControl({ label, value, min, max, step = 1, suffix 
         </span>
         <output>{value}{suffix}</output>
       </span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <LiquidRange min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </label>
   )
 }

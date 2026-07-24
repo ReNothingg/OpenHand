@@ -1,4 +1,5 @@
 import { downloadFile } from '../../lib/files.js'
+import LiquidRange from '../controls/LiquidRange.jsx'
 
 function formatDuration(seconds) {
   if (!Number.isFinite(seconds)) return '—'
@@ -43,8 +44,7 @@ export default function PlotterFooter({ workspace }) {
           {playback.playing ? 'Пауза анимации' : playback.progress < 0.999 ? 'Продолжить анимацию' : '▶ Воспроизвести'}
         </button>
         <button className="button ghost compact" type="button" disabled={!job.strokes?.length} onClick={playback.reset}>Сначала</button>
-        <input
-          type="range"
+        <LiquidRange
           min="0"
           max="1"
           step="0.001"

@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import LiquidRange from '../controls/LiquidRange.jsx'
 import SettingSection from '../settings/controls/SettingSection.jsx'
 import Toggle from '../settings/controls/Toggle.jsx'
 
@@ -59,7 +60,7 @@ export default function PlotterSettings({ workspace }) {
             <button type="button" disabled={!connected || running} onClick={() => workspace.jog(config.jogDistance, 0)}>→</button>
             <button type="button" disabled={!connected || running} onClick={() => workspace.jog(0, config.jogDistance)}>↓</button>
           </div>
-          <label className="range-control"><span className="control-heading"><Caption help="Для первого теста выберите 0,1–1 мм, чтобы не ударить каретку о край.">Шаг ручного движения</Caption><output>{config.jogDistance} мм</output></span><input type="range" min="0.1" max="50" step="0.1" value={config.jogDistance} onChange={number('jogDistance', 0.1, 50)} /></label>
+          <label className="range-control"><span className="control-heading"><Caption help="Для первого теста выберите 0,1–1 мм, чтобы не ударить каретку о край.">Шаг ручного движения</Caption><output>{config.jogDistance} мм</output></span><LiquidRange min="0.1" max="50" step="0.1" value={config.jogDistance} onChange={number('jogDistance', 0.1, 50)} /></label>
           <div className="plotter-actions compact-actions">
             <button className="button compact" type="button" disabled={!connected || running} onClick={() => workspace.pen(true)}>Перо ↑</button>
             <button className="button compact" type="button" disabled={!connected || running} onClick={() => workspace.pen(false)}>Перо ↓</button>

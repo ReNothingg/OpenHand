@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import LiquidRange from '../../controls/LiquidRange.jsx'
 import { fonts } from '../../../fonts.js'
 import { BUILTIN_GFONT_FAMILIES, BUILTIN_GFONT_OPTIONS } from '../../../plotter/gfont.js'
 
@@ -138,9 +139,8 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange, c
                   </div>
                 {filteredFamilies.some((family) => family.id === activeFamily.id) && (
                   <div className="font-variant-panel">
-                    <input
+                    <LiquidRange
                       className="font-variant-range"
-                      type="range"
                       min="0"
                       max={activeFamily.variants.length - 1}
                       step="1"

@@ -159,6 +159,16 @@
   height: 4px;
   margin: 2px 0;
 }
+.liquid-range {
+  display: block;
+  width: 100%;
+}
+.liquid-range > i {
+  display: none;
+}
+.liquid-range > input[type="range"] {
+  width: 100%;
+}
 .range-control small,
 .toggle-block small {
   color: var(--muted);

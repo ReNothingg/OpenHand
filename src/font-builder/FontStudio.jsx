@@ -6,6 +6,7 @@ import FontPreview from './FontPreview.jsx'
 import PhotoFontImporter from './PhotoFontImporter.jsx'
 import { createGFontBlob, safeFontFilename } from './gfontExport.js'
 import { downloadBlob } from '../lib/files.js'
+import LiquidRange from '../components/controls/LiquidRange.jsx'
 import './font-studio.css'
 
 const DRAFT_KEY = 'openhand.font-studio.draft.v1'
@@ -209,8 +210,7 @@ export default function FontStudio() {
               </label>
               <label className="font-preview-size">
                 <span>Размер</span>
-                <input
-                  type="range"
+                <LiquidRange
                   min="14"
                   max="56"
                   value={previewSize}

@@ -228,7 +228,26 @@
 
 .macos-native .button.compact {
   min-height: 30px;
-  border-radius: 8px;
+  border-radius: 999px;
+}
+
+.macos-native .button {
+  border-radius: 999px;
+}
+
+.macos-native .editor-expand-button,
+.macos-native .orientation-toggle {
+  border-radius: 10px;
+}
+
+.macos-native .button:disabled,
+.macos-native .editor-expand-button:disabled,
+.macos-native .orientation-toggle:disabled,
+.macos-native .jog-control button:disabled {
+  border-color: transparent;
+  background: rgb(118 118 128 / 0.09);
+  box-shadow: none;
+  opacity: 0.48;
 }
 
 .macos-native .source-tabs {
@@ -307,9 +326,191 @@
   box-shadow: 0 0 0 3px rgb(10 132 255 / 0.2);
 }
 
-.macos-native input[type="range"],
-.macos-native input[type="checkbox"] {
-  accent-color: var(--mac-accent);
+.macos-native select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 30px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m2 2 4 4 4-4' fill='none' stroke='%236e6e73' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 10px 7px !important;
+}
+
+.macos-native select:disabled,
+.macos-native input:disabled {
+  opacity: 0.48;
+}
+
+/* Every range uses a real layered glass track instead of WebKit's default slider. */
+.macos-native .liquid-range {
+  position: relative;
+  min-width: 44px;
+  height: 22px;
+  display: block;
+  isolation: isolate;
+}
+
+.macos-native .liquid-range::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  top: 8px;
+  height: 6px;
+  border: 0.5px solid var(--mac-separator);
+  border-radius: 999px;
+  background: rgb(118 118 128 / 0.16);
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.12),
+    0 0.5px 0 rgb(255 255 255 / 0.42);
+}
+
+.macos-native .liquid-range > i {
+  position: absolute;
+  z-index: 1;
+  left: 1px;
+  top: 9px;
+  width: var(--liquid-range-progress);
+  max-width: calc(100% - 2px);
+  height: 4px;
+  display: block;
+  border-radius: 999px;
+  background: var(--mac-accent);
+  box-shadow: 0 0 5px rgb(10 132 255 / 0.3);
+  pointer-events: none;
+}
+
+.macos-native .liquid-range > input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.macos-native .liquid-range > input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 0;
+  background: transparent;
+}
+
+.macos-native .liquid-range > input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border: 0.5px solid rgb(60 60 67 / 0.3);
+  border-radius: 50%;
+  background: var(--mac-glass-strong);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
+  box-shadow:
+    inset 0 0.5px 0 rgb(255 255 255 / 0.82),
+    0 1px 2px rgb(0 0 0 / 0.18),
+    0 3px 8px rgb(0 0 0 / 0.14);
+  transition:
+    width 100ms ease,
+    height 100ms ease,
+    margin 100ms ease,
+    background-color 100ms ease;
+}
+
+.macos-native .liquid-range > input[type="range"]:hover::-webkit-slider-thumb {
+  border-color: rgb(10 132 255 / 0.42);
+  background: var(--mac-control-hover);
+}
+
+.macos-native .liquid-range > input[type="range"]:active::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  background: var(--mac-glass-strong);
+  box-shadow:
+    inset 0 0.5px 0 rgb(255 255 255 / 0.78),
+    0 1px 2px rgb(0 0 0 / 0.2),
+    0 2px 10px rgb(10 132 255 / 0.24);
+}
+
+.macos-native .liquid-range > input[type="range"]:focus-visible {
+  outline: 0;
+}
+
+.macos-native .liquid-range:has(input:focus-visible) {
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgb(10 132 255 / 0.22);
+}
+
+.macos-native .liquid-range:has(input:disabled) {
+  opacity: 0.42;
+}
+
+/* Standalone checks match the glass switches instead of browser checkboxes. */
+.macos-native input[type="checkbox"]:not(.toggle-row input):not(.markdown-body input) {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin: 0;
+  border: 0.5px solid var(--mac-strong-separator);
+  border-radius: 5px;
+  background: var(--mac-control);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow:
+    inset 0 0.5px 0 rgb(255 255 255 / 0.62),
+    0 1px 2px rgb(0 0 0 / 0.09);
+  cursor: pointer;
+}
+
+.macos-native input[type="checkbox"]:not(.toggle-row input):not(.markdown-body input):hover {
+  border-color: rgb(10 132 255 / 0.44);
+  background: var(--mac-control-hover);
+}
+
+.macos-native input[type="checkbox"]:not(.toggle-row input):not(.markdown-body input):checked {
+  border-color: var(--mac-accent);
+  background: var(--mac-accent);
+}
+
+.macos-native input[type="checkbox"]:not(.toggle-row input):not(.markdown-body input):checked::after {
+  content: "✓";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font: 700 11px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.macos-native .setting-help,
+.macos-native .plotter-help {
+  border-color: var(--mac-separator);
+  color: var(--mac-secondary);
+  background: var(--mac-control);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.5);
+}
+
+.macos-native .plotter-help > [role="tooltip"] {
+  border: 1px solid var(--mac-separator);
+  border-radius: 11px;
+  color: var(--mac-text);
+  background: var(--mac-glass-strong);
+  -webkit-backdrop-filter: blur(30px) saturate(1.4);
+  backdrop-filter: blur(30px) saturate(1.4);
+  box-shadow: var(--mac-deep-shadow);
 }
 
 .macos-native .toggle-row i {
