@@ -25,6 +25,7 @@ function embeddedGFontPlugin() {
 }
 
 export default defineConfig({
+  base: './',
   plugins: [embeddedGFontPlugin(), react()],
   optimizeDeps: {
     exclude: ['latex.js'],

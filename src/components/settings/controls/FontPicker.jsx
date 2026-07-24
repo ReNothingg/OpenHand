@@ -76,7 +76,7 @@ export default function FontPicker({ fontType, value, plotterFontId, onChange, c
           Загрузить
         </button>
       </div>
-      <a className="font-studio-link" href="/font">Создать свой шрифт в мастерской <span>→</span></a>
+      <a className="font-studio-link" href="?view=font">Создать свой шрифт в мастерской <span>→</span></a>
       <input ref={uploadRef} type="file" accept=".gfont,application/octet-stream" hidden onChange={(event) => {
         onUpload(event.target.files?.[0])
         event.target.value = ''

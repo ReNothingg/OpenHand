@@ -153,6 +153,28 @@ export function usePlotter() {
     log('system', 'Соединение закрыто')
   }, [log])
 
+  useEffect(() => {
+    if (!supported || typeof navigator.serial.addEventListener !== 'function') return undefined
+    const handleDeviceDisconnect = () => {
+      abortRef.current = true
+      pausedRef.current = false
+      pauseWaitersRef.current.splice(0).forEach((resume) => resume())
+      for (const pending of pendingRef.current.splice(0)) {
+        clearTimeout(pending.timeout)
+        pending.reject(new Error('Устройство отключено.'))
+      }
+      try { void readerRef.current?.cancel() } catch { /* already closed */ }
+      try { writerRef.current?.releaseLock() } catch { /* already released */ }
+      readerRef.current = null
+      writerRef.current = null
+      portRef.current = null
+      setStatus('disconnected')
+      log('error', 'Устройство отключено')
+    }
+    navigator.serial.addEventListener('disconnect', handleDeviceDisconnect)
+    return () => navigator.serial.removeEventListener('disconnect', handleDeviceDisconnect)
+  }, [log, supported])
+
   const waitWhilePaused = useCallback(() => {
     if (!pausedRef.current) return Promise.resolve()
     return new Promise((resolve) => pauseWaitersRef.current.push(resolve))

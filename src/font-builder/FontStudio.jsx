@@ -5,6 +5,7 @@ import FontCanvas from './FontCanvas.jsx'
 import FontPreview from './FontPreview.jsx'
 import PhotoFontImporter from './PhotoFontImporter.jsx'
 import { createGFontBlob, safeFontFilename } from './gfontExport.js'
+import { downloadBlob } from '../lib/files.js'
 import './font-studio.css'
 
 const DRAFT_KEY = 'openhand.font-studio.draft.v1'
@@ -19,15 +20,6 @@ function readDraft() {
   } catch {
     return { name: 'Мой почерк', glyphs: {} }
   }
-}
-
-function downloadBlob(blob, name) {
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = name
-  anchor.click()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function splitGlyph(glyph) {
@@ -137,7 +129,7 @@ export default function FontStudio() {
   return (
     <main className="font-studio">
       <header className="font-studio-toolbar">
-        <a href="/">← В редактор</a>
+        <a href="?">← В редактор</a>
         <label className="font-name-field">
           <span>Название</span>
           <input value={name} maxLength={48} onChange={(event) => setName(event.target.value)} aria-label="Название шрифта" />
