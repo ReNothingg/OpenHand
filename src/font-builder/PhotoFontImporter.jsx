@@ -87,13 +87,9 @@ export default function PhotoFontImporter({
       if (event.target === event.currentTarget && !busy) onClose()
     }}>
       <section className="photo-import-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-import-title">
-        <header>
-          <div>
-            <span>Фото → GFont</span>
-            <h2 id="photo-import-title">Перенести настоящий почерк</h2>
-          </div>
+        {/* <header>
           <button type="button" aria-label="Закрыть" disabled={busy} onClick={onClose}>×</button>
-        </header>
+        </header> */}
 
         <div className="photo-import-options">
           <article>
@@ -124,9 +120,9 @@ export default function PhotoFontImporter({
           </div>
         )}
         <footer>
-          <small>Распознавание выполняется локально: фотография не отправляется на сервер.</small>
           <button type="button" disabled={busy} onClick={onClose}>Готово</button>
         </footer>
+        
         <input ref={singleRef} type="file" accept="image/*" capture="environment" hidden onChange={importSingle} />
         <input ref={sheetRef} type="file" accept="image/*" capture="environment" hidden onChange={importSheet} />
       </section>
