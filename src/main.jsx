@@ -6,7 +6,12 @@ import 'katex/dist/katex.min.css'
 import './styles/index.css'
 
 const path = window.location.pathname.replace(/\/+$/, '') || '/'
-const view = new URLSearchParams(window.location.search).get('view')
+const searchParams = new URLSearchParams(window.location.search)
+const isMacOSNative = Boolean(window.webkit?.messageHandlers?.serialBridge)
+  || searchParams.get('platform') === 'macos'
+const view = searchParams.get('view')
+
+document.documentElement.classList.toggle('macos-native', isMacOSNative)
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

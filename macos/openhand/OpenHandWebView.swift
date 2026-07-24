@@ -185,6 +185,7 @@ struct OpenHandWebView: NSViewRepresentable {
         )
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.underPageBackgroundColor = .clear
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         if #available(macOS 13.3, *) {
