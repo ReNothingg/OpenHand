@@ -26,8 +26,6 @@ function repairIncompleteFormula(formula, context = '') {
       `\\sqrt{${f1}^2 + ${f2}^2 + 2\\cdot ${f1}\\cdot ${f2}\\cdot\\cos ${alpha}^\\circ}`,
     )
   }
-  // Keep an unfinished formula printable instead of letting KaTeX dump its
-  // source in red. Empty indices and powers become honest blank boxes.
   repaired = repaired.replace(
     /([_^])(?=\s*(?:[_^+=}&]|\\(?:cos|sin|tan|cot|cdot|times|div)\b|\\\\|$))/g,
     '$1{\\square}',

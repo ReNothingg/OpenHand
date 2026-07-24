@@ -32,3 +32,5 @@ Package.resolved
 *.tmp
 *.log
 *~
+
+person/

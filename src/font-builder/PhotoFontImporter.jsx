@@ -1,17 +1,17 @@
 import { useRef, useState } from 'react'
 import {
-  createPhotoTemplateSvg,
   vectorizePhotoSheet,
   vectorizeSinglePhoto,
 } from './photoVectorization.js'
 
-function downloadBlob(blob, name) {
-  const url = URL.createObjectURL(blob)
+const TEMPLATE_FILENAME = 'openhand-handwriting-sheet.svg'
+const TEMPLATE_URL = `${import.meta.env.BASE_URL}templates/${TEMPLATE_FILENAME}`
+
+function downloadTemplateFile() {
   const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = name
+  anchor.href = TEMPLATE_URL
+  anchor.download = TEMPLATE_FILENAME
   anchor.click()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 export default function PhotoFontImporter({
@@ -75,13 +75,6 @@ export default function PhotoFontImporter({
     }
   }
 
-  const downloadTemplate = () => {
-    downloadBlob(
-      new Blob([createPhotoTemplateSvg(characters)], { type: 'image/svg+xml;charset=utf-8' }),
-      'openhand-handwriting-sheet.svg',
-    )
-  }
-
   return (
     <div className="photo-import-backdrop" role="presentation" onPointerDown={(event) => {
       if (event.target === event.currentTarget && !busy) onClose()
@@ -103,7 +96,7 @@ export default function PhotoFontImporter({
             <b>Весь алфавит по бланку</b>
             <p>Скачайте бланк, заполните тёмной ручкой и сфотографируйте целиком. Четыре метки исправят наклон камеры.</p>
             <div>
-              <button type="button" disabled={busy} onClick={downloadTemplate}>Скачать бланк</button>
+              <button type="button" disabled={busy} onClick={downloadTemplateFile}>Скачать бланк</button>
               <button className="primary" type="button" disabled={busy} onClick={() => sheetRef.current?.click()}>Распознать бланк</button>
             </div>
             <label>
