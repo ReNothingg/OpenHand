@@ -3,7 +3,6 @@
   align-items: center;
   gap: 10px;
 }
-.editor-panel.has-expanded-editor { z-index: 210; }
 .editor-expand-button {
   width: 29px;
   height: 29px;
@@ -115,7 +114,7 @@
   background: transparent;
   cursor: pointer;
 }
-.expanded-editor-close svg { width: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.7; }
+.expanded-editor-close .svg-icon { width: 18px; height: 18px; }
 .expanded-editor-close:hover { color: #111827; border-color: #d7dce2; background: #f4f5f6; }
 .expanded-editor-toolbar {
   min-height: 48px;
@@ -156,7 +155,7 @@
 .editor-toolbar-actions button:first-child { margin-right: 5px; }
 .editor-format-tools button:nth-child(2),
 .editor-toolbar-actions button:first-child { border-right-color: #d9dee5; border-radius: 6px 0 0 6px; }
-.editor-toolbar-actions svg { width: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+.editor-toolbar-actions .svg-icon { width: 16px; height: 16px; }
 .expanded-editor-body {
   position: relative;
   min-height: 0;

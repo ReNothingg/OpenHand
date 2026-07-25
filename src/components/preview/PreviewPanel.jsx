@@ -1,6 +1,7 @@
 import PlotterFooter, { formatDuration } from '../plotter/PlotterFooter.jsx'
 import PlotterPaper from '../plotter/PlotterPaper.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Icon from '../Icon.jsx'
 import BlockInspector from './BlockInspector.jsx'
 import ManualPageContent from './ManualPageContent.jsx'
 
@@ -96,11 +97,7 @@ export default function PreviewPanel({
             aria-pressed={!editorCollapsed}
             onClick={() => setEditorCollapsed((value) => !value)}
           >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <rect x="3.25" y="3.25" width="13.5" height="13.5" rx="2.5" />
-              <path d="M7.5 3.8v12.4" />
-              <path d={editorCollapsed ? 'm11.2 7.2-2.8 2.8 2.8 2.8' : 'm9.2 7.2 2.8 2.8-2.8 2.8'} />
-            </svg>
+            <Icon name={editorCollapsed ? 'panel-left-expand' : 'panel-left-collapse'} />
           </button>
           <button
             className="preview-icon-button"
@@ -109,10 +106,7 @@ export default function PreviewPanel({
             title="Открыть большой редактор"
             onClick={openExpandedEditor}
           >
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M8 4H5.8A1.8 1.8 0 0 0 4 5.8v8.4A1.8 1.8 0 0 0 5.8 16h8.4a1.8 1.8 0 0 0 1.8-1.8V12" />
-              <path d="M10.5 4H16v5.5M15.6 4.4 9.2 10.8" />
-            </svg>
+            <Icon name="window-expand" />
           </button>
         </div>
         <div className="preview-context">
@@ -149,11 +143,7 @@ export default function PreviewPanel({
           aria-pressed={!settingsCollapsed}
           onClick={() => setSettingsCollapsed((value) => !value)}
         >
-          <svg viewBox="0 0 20 20" aria-hidden="true">
-            <rect x="3.25" y="3.25" width="13.5" height="13.5" rx="2.5" />
-            <path d="M12.5 3.8v12.4" />
-            <path d={settingsCollapsed ? 'm8.8 7.2 2.8 2.8-2.8 2.8' : 'm10.8 7.2-2.8 2.8 2.8 2.8'} />
-          </svg>
+          <Icon name={settingsCollapsed ? 'panel-right-expand' : 'panel-right-collapse'} />
         </button>
       </div>
       {manualEditing && <BlockInspector selected={selectedBlock} onUpdate={onUpdateManualBlock} onCommit={onCommitManualBlock} onReset={(originPage, blockId) => { onResetManualBlock(originPage, blockId); setSelectedBlock(null) }} />}

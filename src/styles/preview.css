@@ -185,15 +185,10 @@
 }
 .settings-toolbar-toggle:active,
 .preview-icon-button:active { transform: scale(0.94); }
-.settings-toolbar-toggle svg,
-.preview-icon-button svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.45;
+.settings-toolbar-toggle .svg-icon,
+.preview-icon-button .svg-icon {
+  width: 20px;
+  height: 20px;
 }
 .pages-viewport {
   flex: 1;

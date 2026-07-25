@@ -141,6 +141,62 @@ function protectSvgBlocks(markdown) {
   }
 }
 
+function enhanceDocumentTables(root, documentNode) {
+  root.querySelectorAll("table").forEach((table) => {
+    const rows = [...table.rows];
+    const columnCount = Math.max(0, ...rows.map((row) => row.cells.length));
+    if (!table.tHead || columnCount < 2) return;
+
+    table.classList.add("document-table");
+    if (columnCount >= 6) table.classList.add("document-table-wide");
+    if (columnCount >= 8) table.classList.add("document-table-ultrawide");
+    if ((table.tBodies[0]?.rows.length || 0) >= 18) {
+      table.classList.add("document-table-long");
+    }
+
+    const headers = [...(table.tHead.rows[0]?.cells || [])];
+    const bodyRows = [...(table.tBodies[0]?.rows || [])];
+    bodyRows.forEach((row) => {
+      [...row.cells].forEach((cell, columnIndex) => {
+        cell.dataset.label = (headers[columnIndex]?.textContent || "").trim();
+        const value = documentNode.createElement("div");
+        value.className = "table-cell-value";
+        value.append(...cell.childNodes);
+        cell.append(value);
+      });
+    });
+    const weights = Array.from({ length: columnCount }, (_, columnIndex) => {
+      const header = (headers[columnIndex]?.textContent || "").trim().toLowerCase();
+      const values = bodyRows
+        .map((row) => (row.cells[columnIndex]?.textContent || "").trim())
+        .filter(Boolean);
+      const longest = Math.max(header.length, 0, ...values.map((value) => value.length));
+      const numeric = values.length > 0 && values.every((value) =>
+        /^[-+]?\d+(?:[.,]\d+)?%?$/u.test(value),
+      );
+      const dateTime = values.length > 0 && values.every((value) =>
+        /^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/u.test(value),
+      );
+
+      if (/^(id|№|#)$/iu.test(header)) return 0.42;
+      if (numeric) return 0.62;
+      if (dateTime) return 1.45;
+      if (/коммент|описан|примеч|замет/u.test(header)) return 2.15;
+      if (/статус|рейтинг|возраст/u.test(header)) return 0.82;
+      return Math.max(0.9, Math.min(1.45, 0.72 + longest / 18));
+    });
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    const colgroup = documentNode.createElement("colgroup");
+    weights.forEach((weight) => {
+      const column = documentNode.createElement("col");
+      column.style.width = `${((weight / totalWeight) * 100).toFixed(2)}%`;
+      colgroup.append(column);
+    });
+    table.querySelector(":scope > colgroup")?.remove();
+    table.prepend(colgroup);
+  });
+}
+
 export function renderMarkdown(markdown, settings, fontPool) {
   const protectedSvg = protectSvgBlocks(markdown)
   const source = renderAlignmentBlocks(preserveExtraBlankLines(renderPlacementBlocks(protectedSvg.source))
@@ -214,6 +270,7 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
     label.textContent = calloutLabels[type];
     quote.prepend(label);
   });
+  enhanceDocumentTables(root, documentNode);
   const walker = documentNode.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const textNodes = [];
   let current;
@@ -252,7 +309,12 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
       const word = documentNode.createElement("span");
       word.className = "hw-word";
       if (settings.trueHandwriting) word.classList.add("hw-natural");
-      if (Array.from(part).length > 18) word.classList.add("hw-breakable");
+      if (
+        Array.from(part).length > 18 ||
+        node.parentElement.closest("table.document-table-wide")
+      ) {
+        word.classList.add("hw-breakable");
+      }
       word.dataset.wordIndex = String(wordIndex);
       const fatigueProgress = Math.max(0, Math.min(1, letterIndex / totalLetters));
       const fatigue = settings.fatigueEnabled

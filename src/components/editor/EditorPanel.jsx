@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import Icon from '../Icon.jsx'
 
 const MARKDOWN_TOOLS = [
   { label: 'H1', title: 'Заголовок 1', kind: 'line', before: '# ' },
@@ -231,7 +232,7 @@ export default function EditorPanel({
   }
 
   return (
-    <section className={`editor-panel panel ${expanded ? 'has-expanded-editor' : ''}`}>
+    <section className="editor-panel panel">
       <div className="panel-title editor-title">
         <div className="source-tabs" role="tablist" aria-label="Формат исходника">
           <button type="button" role="tab" aria-selected={sourceMode === 'markdown'} className={sourceMode === 'markdown' ? 'active' : ''} onClick={() => setSourceMode('markdown')}>MD</button>
@@ -265,7 +266,7 @@ export default function EditorPanel({
                   <button type="button" role="tab" aria-selected={sourceMode === 'tex'} className={sourceMode === 'tex' ? 'active' : ''} onClick={() => setSourceMode('tex')}>TeX</button>
                 </div>
                 <button className="expanded-editor-close" type="button" onClick={() => setExpanded(false)} aria-label="Закрыть большой редактор" title="Закрыть · Esc">
-                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>
+                  <Icon name="close" />
                 </button>
               </div>
             </header>
@@ -287,12 +288,12 @@ export default function EditorPanel({
               <div className="editor-toolbar-actions">
                 {sourceMode === 'markdown' && (
                   <button type="button" onClick={() => svgInputRef.current?.click()} title="Вставить SVG">
-                    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 15.5V5.8A1.8 1.8 0 0 1 5.8 4h8.4A1.8 1.8 0 0 1 16 5.8v8.4a1.8 1.8 0 0 1-1.8 1.8H5.8A1.8 1.8 0 0 1 4 14.2Z" /><path d="m5 13 3.2-3.2 2.2 2.1 1.5-1.4L16 14.4M13.5 7.1h.01" /></svg>
+                    <Icon name="image" />
                     <span>SVG</span>
                   </button>
                 )}
                 <button type="button" className={helpOpen ? 'active' : ''} onClick={() => setHelpOpen((value) => !value)} aria-expanded={helpOpen} aria-controls="editor-help" title="Синтаксис">
-                  <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5" /><path d="M7.9 7.7a2.3 2.3 0 0 1 4.4.9c0 1.7-2.3 1.8-2.3 3.3M10 14.4h.01" /></svg>
+                  <Icon name="help" />
                   <span>Синтаксис</span>
                 </button>
               </div>

@@ -1,5 +1,7 @@
 .markdown-body {
   overflow-wrap: break-word;
+  container-type: inline-size;
+  container-name: document-page;
 }
 .markdown-body > :first-child {
   margin-top: 0 !important;
@@ -195,33 +197,91 @@
   font: inherit;
 }
 .markdown-body table {
-  width: auto;
+  width: 100%;
   max-width: 100%;
-  table-layout: auto;
-  border-collapse: separate;
+  table-layout: fixed;
+  border-collapse: collapse;
   border-spacing: 0;
   margin: 0.65em 0 1em;
   font-size: 0.8em;
   position: relative;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='5' viewBox='0 0 120 5'%3E%3Cpath d='M0 2.7 C18 1.3 31 3.8 48 2.4 S82 1.2 120 2.8' fill='none' stroke='%231f2937' stroke-opacity='.72' stroke-width='1.35'/%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='120' viewBox='0 0 5 120'%3E%3Cpath d='M2.5 0 C1.2 18 3.8 31 2.3 48 S1.1 82 2.7 120' fill='none' stroke='%231f2937' stroke-opacity='.72' stroke-width='1.35'/%3E%3C/svg%3E");
-  background-repeat: repeat-x, repeat-y;
-  background-position: left top, left top;
-  background-size: 120px 5px, 5px 120px;
+  border-top: 1.4px solid rgb(31 41 55 / 0.78);
+  border-bottom: 1.4px solid rgb(31 41 55 / 0.78);
 }
 .markdown-body th,
 .markdown-body td {
   border: 0;
-  padding: 0.3em 0.45em;
+  border-bottom: 1px solid rgb(31 41 55 / 0.28);
+  padding: 0.42em 0.55em;
   text-align: left;
+  vertical-align: top;
   position: relative;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='5' viewBox='0 0 120 5'%3E%3Cpath d='M0 2.7 C18 1.3 31 3.8 48 2.4 S82 1.2 120 2.8' fill='none' stroke='%231f2937' stroke-opacity='.72' stroke-width='1.35'/%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='120' viewBox='0 0 5 120'%3E%3Cpath d='M2.5 0 C1.2 18 3.8 31 2.3 48 S1.1 82 2.7 120' fill='none' stroke='%231f2937' stroke-opacity='.72' stroke-width='1.35'/%3E%3C/svg%3E");
-  background-repeat: repeat-x, repeat-y;
-  background-position: left bottom, right top;
-  background-size: 120px 5px, 5px 120px;
+  overflow-wrap: anywhere;
+}
+.markdown-body thead th {
+  border-bottom-color: rgb(31 41 55 / 0.72);
+  background: rgb(31 41 55 / 0.055);
+  font-weight: 700;
+}
+.markdown-body tbody tr:last-child td {
+  border-bottom: 0;
+}
+.markdown-body .document-table-wide {
+  font-size: 0.66em;
+  line-height: 1.25;
+}
+.markdown-body .document-table-wide th,
+.markdown-body .document-table-wide td {
+  padding: 0.38em 0.42em;
+}
+.markdown-body .document-table-long tbody tr {
+  break-inside: avoid;
+}
+@container document-page (max-width: 700px) {
+  .markdown-body .document-table-ultrawide {
+    display: block;
+    border: 0;
+    font-size: 0.72em;
+  }
+  .markdown-body .document-table-ultrawide colgroup,
+  .markdown-body .document-table-ultrawide thead {
+    display: none;
+  }
+  .markdown-body .document-table-ultrawide tbody {
+    display: grid;
+    gap: 0.72em;
+  }
+  .markdown-body .document-table-ultrawide tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.16em 0.8em;
+    padding: 0.48em 0.62em;
+    border: 1px solid rgb(31 41 55 / 0.36);
+    border-radius: 0.2em;
+    break-inside: avoid;
+  }
+  .markdown-body .document-table-ultrawide td {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(4.6em, 0.85fr) minmax(0, 1.15fr);
+    gap: 0.45em;
+    padding: 0.24em 0;
+    border: 0;
+  }
+  .markdown-body .document-table-ultrawide td::before {
+    content: attr(data-label);
+    min-width: 0;
+    font-weight: 700;
+    opacity: 0.62;
+    overflow-wrap: anywhere;
+  }
+  .markdown-body .document-table-ultrawide .table-cell-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .markdown-body .document-table-ultrawide td:last-child {
+    grid-column: 1 / -1;
+  }
 }
 .markdown-body td > p {
   margin: 0;
