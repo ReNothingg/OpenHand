@@ -4,7 +4,7 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
-SOURCE_DIR="$PROJECT_DIR/dist"
+SOURCE_DIR="$PROJECT_DIR/docs"
 TARGET_DIR="$PROJECT_DIR/macos/Web"
 
 if [ ! -f "$SOURCE_DIR/index.html" ]; then

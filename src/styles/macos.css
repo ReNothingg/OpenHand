@@ -375,6 +375,7 @@
 .macos-native .plotter-card,
 .macos-native .toggle-block,
 .macos-native .plotter-playback-controls,
+.macos-native .naturalness-report,
 .macos-native .photo-import-options article {
   border-color: var(--mac-line);
   border-radius: 8px;
@@ -417,6 +418,36 @@
 
 .macos-native .settings-subgroup h3 {
   color: var(--mac-secondary);
+}
+
+.macos-native .control-heading output,
+.macos-native .handwriting-profile-field > small,
+.macos-native .naturalness-score small,
+.macos-native .naturalness-repeats > span small,
+.macos-native .naturalness-report > p,
+.macos-native .plotter-arm,
+.macos-native .plotter-playback-controls output,
+.macos-native .plotter-console summary {
+  color: var(--mac-secondary);
+}
+
+.macos-native .naturalness-repeats > span {
+  border-color: color-mix(in srgb, var(--mac-danger) 42%, var(--mac-line));
+  color: var(--mac-text);
+  background: color-mix(in srgb, var(--mac-danger-soft) 58%, var(--mac-surface));
+}
+
+.macos-native .naturalness-repeats > span i {
+  color: var(--mac-tertiary);
+}
+
+.macos-native .naturalness-score meter::-webkit-meter-bar {
+  border: 0;
+  background: var(--mac-line);
+}
+
+.macos-native .naturalness-report > .text-button {
+  color: var(--mac-accent);
 }
 
 .macos-native .toggle-block.is-on {
@@ -541,6 +572,10 @@
 .macos-native .integrated-plotter-footer {
   border-radius: 18px;
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
+}
+
+.macos-native .plotter-console {
+  border-color: var(--mac-line);
 }
 
 .macos-native .plotter-card h3,
