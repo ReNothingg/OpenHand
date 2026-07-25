@@ -111,6 +111,21 @@ body:has(.font-studio) {
   background: #f8fafc;
 }
 
+.font-studio-actions button.danger {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.font-studio-actions button.danger:hover:not(:disabled) {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.font-studio-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .font-studio-actions button.primary {
   border-color: var(--green);
   color: #fff;

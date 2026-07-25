@@ -76,6 +76,13 @@ export default function FontStudio() {
     setGlyphs((current) => ({ ...current, [activeCharacter]: [] }))
   }
 
+  const clearAll = () => {
+    if (!completedCount || !window.confirm('Очистить все заполненные символы и начать заново?')) return
+    setGlyphs({})
+    setHistory([])
+    setNotice('Все символы очищены. Можно создавать новый шрифт.')
+  }
+
   const moveCharacter = (direction) => {
     const index = (currentIndex + direction + ALL_CHARACTERS.length) % ALL_CHARACTERS.length
     setActiveCharacter(ALL_CHARACTERS[index])
@@ -140,6 +147,7 @@ export default function FontStudio() {
           <strong>{completedCount} / {ALL_CHARACTERS.length}</strong>
         </div>
         <div className="font-studio-actions">
+          <button className="danger" type="button" disabled={!completedCount} onClick={clearAll}>Начать заново</button>
           <button type="button" onClick={() => setPhotoOpen(true)}>По фотографии</button>
           <button type="button" onClick={() => importRef.current?.click()}>Открыть .gfont</button>
           <button className="primary" type="button" onClick={exportFont}>Скачать .gfont</button>
