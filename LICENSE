@@ -1,0 +1,124 @@
+OpenHand Proprietary License
+All Rights Reserved
+
+Copyright (c) 2026 ReNothingg
+
+This software, including its source code, object code, documentation,
+design, user interface, assets, and associated materials (collectively,
+the "Software"), is proprietary intellectual property of ReNothingg
+(the "Copyright Holder").
+
+Public availability of the source code is provided solely for reference,
+evaluation, and transparency. It does not constitute an open-source
+license and does not waive any rights of the Copyright Holder.
+
+1. LIMITED PERMISSION
+
+You may:
+
+  a. view the source code on the repository hosting service for personal
+     evaluation and educational reference; and
+
+  b. use an unmodified official instance of the Software made available
+     by the Copyright Holder, solely through the interface and under the
+     conditions provided by the Copyright Holder.
+
+The repository hosting service and its users may additionally exercise
+only those limited rights that the Copyright Holder is required to grant
+under the hosting service's applicable terms, solely through functionality
+provided by that service. No off-platform rights are granted by this
+paragraph.
+
+No other rights are granted, whether expressly, by implication, estoppel,
+or otherwise.
+
+2. PROHIBITED ACTIONS
+
+Without prior explicit written permission from the Copyright Holder, you
+may not, in whole or in part:
+
+  a. copy, reproduce, redistribute, publish, sublicense, sell, rent,
+     lease, monetize, or otherwise transfer the Software;
+
+  b. modify, adapt, translate, refactor, reverse engineer, decompile,
+     disassemble, or create derivative works based on the Software;
+
+  c. compile, build, install, execute, self-host, deploy, mirror, or make
+     the Software available as a service;
+
+  d. use the Software or any part of it for any commercial, business,
+     revenue-generating, competitive, or production purpose;
+
+  e. incorporate the Software or any part of it into another product,
+     project, library, service, dataset, training corpus, or source-code
+     collection;
+
+  f. remove, conceal, or alter copyright, attribution, trademark, or
+     proprietary notices;
+
+  g. use the names, logos, trademarks, trade dress, or branding of
+     OpenHand or the Copyright Holder; or
+
+  h. authorize, assist, or enable any third party to perform any of the
+     actions prohibited by this License.
+
+3. CONTRIBUTIONS
+
+No right to submit, incorporate, or distribute modifications is granted.
+Any contribution is governed only by a separate written agreement
+explicitly accepted by the Copyright Holder. Opening an issue or pull
+request, or sending source code, does not by itself create an agreement
+or grant any rights.
+
+4. THIRD-PARTY MATERIALS
+
+The Software may contain fonts, libraries, source materials, or other
+components governed by separate licenses. Those components remain
+subject to their respective terms. This License applies only to rights
+held by the Copyright Holder and does not restrict rights granted
+directly by third-party licensors.
+
+5. NO TRADEMARK LICENSE
+
+No right to use any trademark, service mark, logo, product name, or other
+brand identifier of the Copyright Holder is granted.
+
+6. TERMINATION
+
+Permission under Section 1 terminates automatically and immediately upon
+breach of this License. You must then cease all use of the Software and
+permanently delete all copies in your possession or control, except where
+retention is required by applicable law.
+
+7. DISCLAIMER OF WARRANTY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS
+PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR
+A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, ACCURACY, RELIABILITY, OR
+SAFETY.
+
+USE WITH PLOTTERS, CNC MACHINES, LASERS, SERVOS, MOTORS, OR OTHER
+PHYSICAL HARDWARE IS ENTIRELY AT YOUR OWN RISK. THE COPYRIGHT HOLDER IS
+NOT RESPONSIBLE FOR DAMAGE TO EQUIPMENT, MATERIALS, PROPERTY, DATA, OR
+PERSONS.
+
+8. LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE COPYRIGHT HOLDER
+SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF USE,
+DATA, PROFITS, BUSINESS, OR GOODWILL, ARISING FROM OR RELATED TO THE
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+9. SEPARATE LICENSING
+
+Commercial use, modification, redistribution, self-hosting, integration,
+or any other use not expressly permitted by Section 1 may be available
+under a separate written license from the Copyright Holder. No such
+permission exists unless it is explicitly granted in writing.
+
+10. RESERVATION OF RIGHTS
+
+All rights not expressly granted in Section 1 are reserved by the
+Copyright Holder. The Software is not open-source or free software.

@@ -7,4 +7,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['latex.js'],
   },
+  build: {
+    outDir: 'docs'
+  }
 })

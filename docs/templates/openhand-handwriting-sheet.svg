@@ -1,0 +1,609 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 1400 1900">
+    <rect width="100%" height="100%" fill="#fff"/>
+    <text x="140" y="43" fill="#111" font-family="Arial, sans-serif" font-size="22" font-weight="700">Бланк сканирования почерка</text>
+    <text x="140" y="64" fill="#555" font-family="Arial, sans-serif" font-size="12.5">Пишите чёрной ручкой своим обычным почерком. Не закрашивайте четыре чёрные метки.</text>
+    <rect x="78" y="78" width="44" height="44" fill="#000"/><rect x="1278" y="78" width="44" height="44" fill="#000"/><rect x="1278" y="1778" width="44" height="44" fill="#000"/><rect x="78" y="1778" width="44" height="44" fill="#000"/>
+    
+      <rect x="140" y="180" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="240.70526315789473" x2="272" y2="240.70526315789473" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="195" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">А</text>
+    
+      <rect x="280" y="180" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="240.70526315789473" x2="412" y2="240.70526315789473" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="195" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Б</text>
+    
+      <rect x="420" y="180" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="240.70526315789473" x2="552" y2="240.70526315789473" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="195" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">В</text>
+    
+      <rect x="560" y="180" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="240.70526315789473" x2="692" y2="240.70526315789473" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="195" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Г</text>
+    
+      <rect x="700" y="180" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="240.70526315789473" x2="832" y2="240.70526315789473" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="195" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Д</text>
+    
+      <rect x="840" y="180" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="240.70526315789473" x2="972" y2="240.70526315789473" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="195" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Е</text>
+    
+      <rect x="980" y="180" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="240.70526315789473" x2="1112" y2="240.70526315789473" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="195" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Ё</text>
+    
+      <rect x="1120" y="180" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="240.70526315789473" x2="1252" y2="240.70526315789473" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="195" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Ж</text>
+    
+      <rect x="140" y="263.1578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="323.86315789473684" x2="272" y2="323.86315789473684" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="278.1578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">З</text>
+    
+      <rect x="280" y="263.1578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="323.86315789473684" x2="412" y2="323.86315789473684" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="278.1578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">И</text>
+    
+      <rect x="420" y="263.1578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="323.86315789473684" x2="552" y2="323.86315789473684" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="278.1578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Й</text>
+    
+      <rect x="560" y="263.1578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="323.86315789473684" x2="692" y2="323.86315789473684" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="278.1578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">К</text>
+    
+      <rect x="700" y="263.1578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="323.86315789473684" x2="832" y2="323.86315789473684" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="278.1578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Л</text>
+    
+      <rect x="840" y="263.1578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="323.86315789473684" x2="972" y2="323.86315789473684" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="278.1578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">М</text>
+    
+      <rect x="980" y="263.1578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="323.86315789473684" x2="1112" y2="323.86315789473684" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="278.1578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Н</text>
+    
+      <rect x="1120" y="263.1578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="323.86315789473684" x2="1252" y2="323.86315789473684" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="278.1578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">О</text>
+    
+      <rect x="140" y="346.3157894736842" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="407.021052631579" x2="272" y2="407.021052631579" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="361.3157894736842" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">П</text>
+    
+      <rect x="280" y="346.3157894736842" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="407.021052631579" x2="412" y2="407.021052631579" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="361.3157894736842" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Р</text>
+    
+      <rect x="420" y="346.3157894736842" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="407.021052631579" x2="552" y2="407.021052631579" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="361.3157894736842" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">С</text>
+    
+      <rect x="560" y="346.3157894736842" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="407.021052631579" x2="692" y2="407.021052631579" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="361.3157894736842" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Т</text>
+    
+      <rect x="700" y="346.3157894736842" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="407.021052631579" x2="832" y2="407.021052631579" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="361.3157894736842" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">У</text>
+    
+      <rect x="840" y="346.3157894736842" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="407.021052631579" x2="972" y2="407.021052631579" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="361.3157894736842" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Ф</text>
+    
+      <rect x="980" y="346.3157894736842" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="407.021052631579" x2="1112" y2="407.021052631579" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="361.3157894736842" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Х</text>
+    
+      <rect x="1120" y="346.3157894736842" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="407.021052631579" x2="1252" y2="407.021052631579" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="361.3157894736842" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Ц</text>
+    
+      <rect x="140" y="429.47368421052636" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="490.1789473684211" x2="272" y2="490.1789473684211" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="444.47368421052636" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Ч</text>
+    
+      <rect x="280" y="429.47368421052636" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="490.1789473684211" x2="412" y2="490.1789473684211" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="444.47368421052636" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Ш</text>
+    
+      <rect x="420" y="429.47368421052636" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="490.1789473684211" x2="552" y2="490.1789473684211" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="444.47368421052636" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Щ</text>
+    
+      <rect x="560" y="429.47368421052636" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="490.1789473684211" x2="692" y2="490.1789473684211" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="444.47368421052636" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Ъ</text>
+    
+      <rect x="700" y="429.47368421052636" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="490.1789473684211" x2="832" y2="490.1789473684211" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="444.47368421052636" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Ы</text>
+    
+      <rect x="840" y="429.47368421052636" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="490.1789473684211" x2="972" y2="490.1789473684211" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="444.47368421052636" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Ь</text>
+    
+      <rect x="980" y="429.47368421052636" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="490.1789473684211" x2="1112" y2="490.1789473684211" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="444.47368421052636" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Э</text>
+    
+      <rect x="1120" y="429.47368421052636" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="490.1789473684211" x2="1252" y2="490.1789473684211" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="444.47368421052636" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Ю</text>
+    
+      <rect x="140" y="512.6315789473684" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="573.3368421052631" x2="272" y2="573.3368421052631" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="527.6315789473684" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Я</text>
+    
+      <rect x="280" y="512.6315789473684" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="573.3368421052631" x2="412" y2="573.3368421052631" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="527.6315789473684" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">а</text>
+    
+      <rect x="420" y="512.6315789473684" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="573.3368421052631" x2="552" y2="573.3368421052631" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="527.6315789473684" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">б</text>
+    
+      <rect x="560" y="512.6315789473684" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="573.3368421052631" x2="692" y2="573.3368421052631" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="527.6315789473684" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">в</text>
+    
+      <rect x="700" y="512.6315789473684" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="573.3368421052631" x2="832" y2="573.3368421052631" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="527.6315789473684" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">г</text>
+    
+      <rect x="840" y="512.6315789473684" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="573.3368421052631" x2="972" y2="573.3368421052631" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="527.6315789473684" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">д</text>
+    
+      <rect x="980" y="512.6315789473684" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="573.3368421052631" x2="1112" y2="573.3368421052631" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="527.6315789473684" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">е</text>
+    
+      <rect x="1120" y="512.6315789473684" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="573.3368421052631" x2="1252" y2="573.3368421052631" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="527.6315789473684" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">ё</text>
+    
+      <rect x="140" y="595.7894736842105" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="656.4947368421052" x2="272" y2="656.4947368421052" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="610.7894736842105" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">ж</text>
+    
+      <rect x="280" y="595.7894736842105" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="656.4947368421052" x2="412" y2="656.4947368421052" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="610.7894736842105" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">з</text>
+    
+      <rect x="420" y="595.7894736842105" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="656.4947368421052" x2="552" y2="656.4947368421052" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="610.7894736842105" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">и</text>
+    
+      <rect x="560" y="595.7894736842105" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="656.4947368421052" x2="692" y2="656.4947368421052" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="610.7894736842105" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">й</text>
+    
+      <rect x="700" y="595.7894736842105" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="656.4947368421052" x2="832" y2="656.4947368421052" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="610.7894736842105" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">к</text>
+    
+      <rect x="840" y="595.7894736842105" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="656.4947368421052" x2="972" y2="656.4947368421052" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="610.7894736842105" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">л</text>
+    
+      <rect x="980" y="595.7894736842105" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="656.4947368421052" x2="1112" y2="656.4947368421052" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="610.7894736842105" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">м</text>
+    
+      <rect x="1120" y="595.7894736842105" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="656.4947368421052" x2="1252" y2="656.4947368421052" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="610.7894736842105" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">н</text>
+    
+      <rect x="140" y="678.9473684210527" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="739.6526315789474" x2="272" y2="739.6526315789474" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="693.9473684210527" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">о</text>
+    
+      <rect x="280" y="678.9473684210527" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="739.6526315789474" x2="412" y2="739.6526315789474" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="693.9473684210527" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">п</text>
+    
+      <rect x="420" y="678.9473684210527" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="739.6526315789474" x2="552" y2="739.6526315789474" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="693.9473684210527" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">р</text>
+    
+      <rect x="560" y="678.9473684210527" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="739.6526315789474" x2="692" y2="739.6526315789474" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="693.9473684210527" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">с</text>
+    
+      <rect x="700" y="678.9473684210527" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="739.6526315789474" x2="832" y2="739.6526315789474" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="693.9473684210527" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">т</text>
+    
+      <rect x="840" y="678.9473684210527" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="739.6526315789474" x2="972" y2="739.6526315789474" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="693.9473684210527" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">у</text>
+    
+      <rect x="980" y="678.9473684210527" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="739.6526315789474" x2="1112" y2="739.6526315789474" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="693.9473684210527" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">ф</text>
+    
+      <rect x="1120" y="678.9473684210527" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="739.6526315789474" x2="1252" y2="739.6526315789474" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="693.9473684210527" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">х</text>
+    
+      <rect x="140" y="762.1052631578948" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="822.8105263157895" x2="272" y2="822.8105263157895" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="777.1052631578948" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">ц</text>
+    
+      <rect x="280" y="762.1052631578948" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="822.8105263157895" x2="412" y2="822.8105263157895" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="777.1052631578948" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">ч</text>
+    
+      <rect x="420" y="762.1052631578948" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="822.8105263157895" x2="552" y2="822.8105263157895" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="777.1052631578948" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">ш</text>
+    
+      <rect x="560" y="762.1052631578948" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="822.8105263157895" x2="692" y2="822.8105263157895" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="777.1052631578948" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">щ</text>
+    
+      <rect x="700" y="762.1052631578948" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="822.8105263157895" x2="832" y2="822.8105263157895" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="777.1052631578948" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">ъ</text>
+    
+      <rect x="840" y="762.1052631578948" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="822.8105263157895" x2="972" y2="822.8105263157895" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="777.1052631578948" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">ы</text>
+    
+      <rect x="980" y="762.1052631578948" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="822.8105263157895" x2="1112" y2="822.8105263157895" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="777.1052631578948" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">ь</text>
+    
+      <rect x="1120" y="762.1052631578948" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="822.8105263157895" x2="1252" y2="822.8105263157895" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="777.1052631578948" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">э</text>
+    
+      <rect x="140" y="845.2631578947369" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="905.9684210526316" x2="272" y2="905.9684210526316" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="860.2631578947369" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">ю</text>
+    
+      <rect x="280" y="845.2631578947369" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="905.9684210526316" x2="412" y2="905.9684210526316" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="860.2631578947369" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">я</text>
+    
+      <rect x="420" y="845.2631578947369" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="905.9684210526316" x2="552" y2="905.9684210526316" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="860.2631578947369" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">A</text>
+    
+      <rect x="560" y="845.2631578947369" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="905.9684210526316" x2="692" y2="905.9684210526316" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="860.2631578947369" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">B</text>
+    
+      <rect x="700" y="845.2631578947369" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="905.9684210526316" x2="832" y2="905.9684210526316" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="860.2631578947369" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">C</text>
+    
+      <rect x="840" y="845.2631578947369" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="905.9684210526316" x2="972" y2="905.9684210526316" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="860.2631578947369" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">D</text>
+    
+      <rect x="980" y="845.2631578947369" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="905.9684210526316" x2="1112" y2="905.9684210526316" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="860.2631578947369" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">E</text>
+    
+      <rect x="1120" y="845.2631578947369" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="905.9684210526316" x2="1252" y2="905.9684210526316" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="860.2631578947369" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">F</text>
+    
+      <rect x="140" y="928.421052631579" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="989.1263157894737" x2="272" y2="989.1263157894737" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="943.421052631579" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">G</text>
+    
+      <rect x="280" y="928.421052631579" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="989.1263157894737" x2="412" y2="989.1263157894737" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="943.421052631579" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">H</text>
+    
+      <rect x="420" y="928.421052631579" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="989.1263157894737" x2="552" y2="989.1263157894737" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="943.421052631579" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">I</text>
+    
+      <rect x="560" y="928.421052631579" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="989.1263157894737" x2="692" y2="989.1263157894737" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="943.421052631579" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">J</text>
+    
+      <rect x="700" y="928.421052631579" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="989.1263157894737" x2="832" y2="989.1263157894737" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="943.421052631579" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">K</text>
+    
+      <rect x="840" y="928.421052631579" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="989.1263157894737" x2="972" y2="989.1263157894737" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="943.421052631579" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">L</text>
+    
+      <rect x="980" y="928.421052631579" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="989.1263157894737" x2="1112" y2="989.1263157894737" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="943.421052631579" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">M</text>
+    
+      <rect x="1120" y="928.421052631579" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="989.1263157894737" x2="1252" y2="989.1263157894737" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="943.421052631579" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">N</text>
+    
+      <rect x="140" y="1011.578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="1072.2842105263157" x2="272" y2="1072.2842105263157" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="1026.578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">O</text>
+    
+      <rect x="280" y="1011.578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="1072.2842105263157" x2="412" y2="1072.2842105263157" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="1026.578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">P</text>
+    
+      <rect x="420" y="1011.578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="1072.2842105263157" x2="552" y2="1072.2842105263157" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="1026.578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Q</text>
+    
+      <rect x="560" y="1011.578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="1072.2842105263157" x2="692" y2="1072.2842105263157" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="1026.578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">R</text>
+    
+      <rect x="700" y="1011.578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="1072.2842105263157" x2="832" y2="1072.2842105263157" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="1026.578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">S</text>
+    
+      <rect x="840" y="1011.578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="1072.2842105263157" x2="972" y2="1072.2842105263157" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="1026.578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">T</text>
+    
+      <rect x="980" y="1011.578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="1072.2842105263157" x2="1112" y2="1072.2842105263157" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="1026.578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">U</text>
+    
+      <rect x="1120" y="1011.578947368421" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="1072.2842105263157" x2="1252" y2="1072.2842105263157" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="1026.578947368421" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">V</text>
+    
+      <rect x="140" y="1094.7368421052633" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="1155.442105263158" x2="272" y2="1155.442105263158" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="1109.7368421052633" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">W</text>
+    
+      <rect x="280" y="1094.7368421052633" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="1155.442105263158" x2="412" y2="1155.442105263158" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="1109.7368421052633" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">X</text>
+    
+      <rect x="420" y="1094.7368421052633" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="1155.442105263158" x2="552" y2="1155.442105263158" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="1109.7368421052633" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Y</text>
+    
+      <rect x="560" y="1094.7368421052633" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="1155.442105263158" x2="692" y2="1155.442105263158" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="1109.7368421052633" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">Z</text>
+    
+      <rect x="700" y="1094.7368421052633" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="1155.442105263158" x2="832" y2="1155.442105263158" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="1109.7368421052633" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">a</text>
+    
+      <rect x="840" y="1094.7368421052633" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="1155.442105263158" x2="972" y2="1155.442105263158" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="1109.7368421052633" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">b</text>
+    
+      <rect x="980" y="1094.7368421052633" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="1155.442105263158" x2="1112" y2="1155.442105263158" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="1109.7368421052633" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">c</text>
+    
+      <rect x="1120" y="1094.7368421052633" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="1155.442105263158" x2="1252" y2="1155.442105263158" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="1109.7368421052633" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">d</text>
+    
+      <rect x="140" y="1177.8947368421054" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="1238.6000000000001" x2="272" y2="1238.6000000000001" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="1192.8947368421054" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">e</text>
+    
+      <rect x="280" y="1177.8947368421054" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="1238.6000000000001" x2="412" y2="1238.6000000000001" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="1192.8947368421054" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">f</text>
+    
+      <rect x="420" y="1177.8947368421054" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="1238.6000000000001" x2="552" y2="1238.6000000000001" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="1192.8947368421054" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">g</text>
+    
+      <rect x="560" y="1177.8947368421054" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="1238.6000000000001" x2="692" y2="1238.6000000000001" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="1192.8947368421054" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">h</text>
+    
+      <rect x="700" y="1177.8947368421054" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="1238.6000000000001" x2="832" y2="1238.6000000000001" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="1192.8947368421054" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">i</text>
+    
+      <rect x="840" y="1177.8947368421054" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="1238.6000000000001" x2="972" y2="1238.6000000000001" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="1192.8947368421054" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">j</text>
+    
+      <rect x="980" y="1177.8947368421054" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="1238.6000000000001" x2="1112" y2="1238.6000000000001" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="1192.8947368421054" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">k</text>
+    
+      <rect x="1120" y="1177.8947368421054" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="1238.6000000000001" x2="1252" y2="1238.6000000000001" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="1192.8947368421054" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">l</text>
+    
+      <rect x="140" y="1261.0526315789475" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="1321.7578947368422" x2="272" y2="1321.7578947368422" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="1276.0526315789475" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">m</text>
+    
+      <rect x="280" y="1261.0526315789475" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="1321.7578947368422" x2="412" y2="1321.7578947368422" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="1276.0526315789475" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">n</text>
+    
+      <rect x="420" y="1261.0526315789475" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="1321.7578947368422" x2="552" y2="1321.7578947368422" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="1276.0526315789475" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">o</text>
+    
+      <rect x="560" y="1261.0526315789475" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="1321.7578947368422" x2="692" y2="1321.7578947368422" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="1276.0526315789475" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">p</text>
+    
+      <rect x="700" y="1261.0526315789475" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="1321.7578947368422" x2="832" y2="1321.7578947368422" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="1276.0526315789475" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">q</text>
+    
+      <rect x="840" y="1261.0526315789475" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="1321.7578947368422" x2="972" y2="1321.7578947368422" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="1276.0526315789475" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">r</text>
+    
+      <rect x="980" y="1261.0526315789475" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="1321.7578947368422" x2="1112" y2="1321.7578947368422" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="1276.0526315789475" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">s</text>
+    
+      <rect x="1120" y="1261.0526315789475" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="1321.7578947368422" x2="1252" y2="1321.7578947368422" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="1276.0526315789475" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">t</text>
+    
+      <rect x="140" y="1344.2105263157896" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="1404.9157894736843" x2="272" y2="1404.9157894736843" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="1359.2105263157896" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">u</text>
+    
+      <rect x="280" y="1344.2105263157896" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="1404.9157894736843" x2="412" y2="1404.9157894736843" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="1359.2105263157896" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">v</text>
+    
+      <rect x="420" y="1344.2105263157896" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="1404.9157894736843" x2="552" y2="1404.9157894736843" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="1359.2105263157896" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">w</text>
+    
+      <rect x="560" y="1344.2105263157896" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="1404.9157894736843" x2="692" y2="1404.9157894736843" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="1359.2105263157896" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">x</text>
+    
+      <rect x="700" y="1344.2105263157896" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="1404.9157894736843" x2="832" y2="1404.9157894736843" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="1359.2105263157896" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">y</text>
+    
+      <rect x="840" y="1344.2105263157896" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="1404.9157894736843" x2="972" y2="1404.9157894736843" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="1359.2105263157896" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">z</text>
+    
+      <rect x="980" y="1344.2105263157896" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="1404.9157894736843" x2="1112" y2="1404.9157894736843" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="1359.2105263157896" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">0</text>
+    
+      <rect x="1120" y="1344.2105263157896" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="1404.9157894736843" x2="1252" y2="1404.9157894736843" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="1359.2105263157896" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">1</text>
+    
+      <rect x="140" y="1427.3684210526317" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="1488.0736842105264" x2="272" y2="1488.0736842105264" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="1442.3684210526317" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">2</text>
+    
+      <rect x="280" y="1427.3684210526317" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="1488.0736842105264" x2="412" y2="1488.0736842105264" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="1442.3684210526317" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">3</text>
+    
+      <rect x="420" y="1427.3684210526317" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="1488.0736842105264" x2="552" y2="1488.0736842105264" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="1442.3684210526317" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">4</text>
+    
+      <rect x="560" y="1427.3684210526317" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="1488.0736842105264" x2="692" y2="1488.0736842105264" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="1442.3684210526317" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">5</text>
+    
+      <rect x="700" y="1427.3684210526317" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="1488.0736842105264" x2="832" y2="1488.0736842105264" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="1442.3684210526317" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">6</text>
+    
+      <rect x="840" y="1427.3684210526317" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="1488.0736842105264" x2="972" y2="1488.0736842105264" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="1442.3684210526317" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">7</text>
+    
+      <rect x="980" y="1427.3684210526317" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="1488.0736842105264" x2="1112" y2="1488.0736842105264" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="1442.3684210526317" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">8</text>
+    
+      <rect x="1120" y="1427.3684210526317" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="1488.0736842105264" x2="1252" y2="1488.0736842105264" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="1442.3684210526317" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">9</text>
+    
+      <rect x="140" y="1510.5263157894738" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="1571.2315789473685" x2="272" y2="1571.2315789473685" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="1525.5263157894738" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">.</text>
+    
+      <rect x="280" y="1510.5263157894738" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="1571.2315789473685" x2="412" y2="1571.2315789473685" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="1525.5263157894738" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">,</text>
+    
+      <rect x="420" y="1510.5263157894738" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="1571.2315789473685" x2="552" y2="1571.2315789473685" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="1525.5263157894738" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">!</text>
+    
+      <rect x="560" y="1510.5263157894738" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="1571.2315789473685" x2="692" y2="1571.2315789473685" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="1525.5263157894738" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">?</text>
+    
+      <rect x="700" y="1510.5263157894738" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="1571.2315789473685" x2="832" y2="1571.2315789473685" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="1525.5263157894738" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">;</text>
+    
+      <rect x="840" y="1510.5263157894738" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="1571.2315789473685" x2="972" y2="1571.2315789473685" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="1525.5263157894738" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">:</text>
+    
+      <rect x="980" y="1510.5263157894738" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="1571.2315789473685" x2="1112" y2="1571.2315789473685" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="1525.5263157894738" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">—</text>
+    
+      <rect x="1120" y="1510.5263157894738" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="1571.2315789473685" x2="1252" y2="1571.2315789473685" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="1525.5263157894738" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">-</text>
+    
+      <rect x="140" y="1593.6842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="1654.3894736842105" x2="272" y2="1654.3894736842105" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="1608.6842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">(</text>
+    
+      <rect x="280" y="1593.6842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="1654.3894736842105" x2="412" y2="1654.3894736842105" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="1608.6842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">)</text>
+    
+      <rect x="420" y="1593.6842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="1654.3894736842105" x2="552" y2="1654.3894736842105" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="1608.6842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">[</text>
+    
+      <rect x="560" y="1593.6842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="1654.3894736842105" x2="692" y2="1654.3894736842105" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="1608.6842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">]</text>
+    
+      <rect x="700" y="1593.6842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="1654.3894736842105" x2="832" y2="1654.3894736842105" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="1608.6842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">«</text>
+    
+      <rect x="840" y="1593.6842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="1654.3894736842105" x2="972" y2="1654.3894736842105" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="1608.6842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">»</text>
+    
+      <rect x="980" y="1593.6842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="988" y1="1654.3894736842105" x2="1112" y2="1654.3894736842105" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="987" y="1608.6842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">"</text>
+    
+      <rect x="1120" y="1593.6842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="1128" y1="1654.3894736842105" x2="1252" y2="1654.3894736842105" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="1127" y="1608.6842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">'</text>
+    
+      <rect x="140" y="1676.842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="148" y1="1737.5473684210526" x2="272" y2="1737.5473684210526" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="147" y="1691.842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">№</text>
+    
+      <rect x="280" y="1676.842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="288" y1="1737.5473684210526" x2="412" y2="1737.5473684210526" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="287" y="1691.842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">@</text>
+    
+      <rect x="420" y="1676.842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="428" y1="1737.5473684210526" x2="552" y2="1737.5473684210526" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="427" y="1691.842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">#</text>
+    
+      <rect x="560" y="1676.842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="568" y1="1737.5473684210526" x2="692" y2="1737.5473684210526" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="567" y="1691.842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">+</text>
+    
+      <rect x="700" y="1676.842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="708" y1="1737.5473684210526" x2="832" y2="1737.5473684210526" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="707" y="1691.842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">=</text>
+    
+      <rect x="840" y="1676.842105263158" width="140" height="83.15789473684211" fill="none" stroke="#d3d3d3" stroke-width="1"/>
+      <line x1="848" y1="1737.5473684210526" x2="972" y2="1737.5473684210526" stroke="#c4c4c4" stroke-width="1"/>
+      <text x="847" y="1691.842105263158" fill="#b8b8b8" font-family="Arial, sans-serif" font-size="12">/</text>
+    <circle cx="149" cy="1855" r="9" fill="#e5e5e5"/>
+    <text x="149" y="1859" fill="#444" font-family="Arial, sans-serif" font-size="11" font-weight="700" text-anchor="middle">i</text>
+    <text x="169" y="1859" fill="#555" font-family="Arial, sans-serif" font-size="12.5">Сфотографируйте весь лист в режиме «Документы» и отправьте файл без сжатия в Telegram: @daich</text>
+  </svg>
