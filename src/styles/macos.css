@@ -87,15 +87,15 @@
   background: var(--mac-surface);
 }
 
-.macos-native .settings-panel-collapse,
-.macos-native .settings-panel-reopen {
+.macos-native .settings-toolbar-toggle,
+.macos-native .preview-icon-button {
   border-color: var(--mac-line);
   color: var(--mac-secondary);
   background: var(--mac-surface);
 }
 
-.macos-native .settings-panel-collapse:hover,
-.macos-native .settings-panel-reopen:hover {
+.macos-native .settings-toolbar-toggle:hover,
+.macos-native .preview-icon-button:hover {
   color: var(--mac-text);
   background: var(--mac-surface-hover);
 }
@@ -111,6 +111,25 @@
   box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+
+.macos-native .preview-toolbar {
+  border-radius: 15px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+
+.macos-native .preview-job-stats {
+  border-color: var(--mac-line);
+}
+
+.macos-native .preview-job-stats > span {
+  border-color: var(--mac-line);
+  color: var(--mac-secondary);
+  background: var(--mac-panel-muted);
+}
+
+.macos-native .preview-job-stats strong {
+  color: var(--mac-text);
 }
 
 .macos-native .panel-title {
@@ -512,6 +531,16 @@
   box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+
+.macos-native .block-inspector {
+  border-radius: 13px;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.11);
+}
+
+.macos-native .integrated-plotter-footer {
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
 }
 
 .macos-native .plotter-card h3,

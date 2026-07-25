@@ -1,7 +1,7 @@
 import { downloadFile } from '../../lib/files.js'
 import LiquidRange from '../controls/LiquidRange.jsx'
 
-function formatDuration(seconds) {
+export function formatDuration(seconds) {
   if (!Number.isFinite(seconds)) return '—'
   const rounded = Math.ceil(seconds)
   if (rounded < 60) return `${rounded} сек.`
@@ -26,13 +26,7 @@ export default function PlotterFooter({ workspace }) {
   } = workspace
 
   return (
-    <section className="integrated-plotter-footer" aria-label="Статистика и запуск плоттера">
-      <div className="job-stats">
-        <span><strong>{layout.strokes.length.toLocaleString('ru-RU')}</strong> штрихов</span>
-        <span><strong>{job.commands.length.toLocaleString('ru-RU')}</strong> команд</span>
-        <span><strong>{(job.drawDistance / 1000).toFixed(2)}</strong> м пером</span>
-        <span><strong>{formatDuration(job.estimatedSeconds)}</strong> расчётно</span>
-      </div>
+    <section className="integrated-plotter-footer" aria-label="Управление и запуск плоттера">
       {layout.missing.length > 0 && <p className="plotter-note">Нет глифов: {layout.missing.slice(0, 24).join(' ')}{layout.missing.length > 24 ? ` и ещё ${layout.missing.length - 24}` : ''}</p>}
       {layout.clipped && <p className="plotter-warning">Текст не поместился на выбранный лист. Остаток не будет отправлен.</p>}
       {config.optimizePath && job.optimizationSaved > 0.01 && (

@@ -14,14 +14,21 @@
 }
 
 .block-inspector {
+  position: absolute;
+  z-index: 7;
+  top: calc(var(--preview-float-gap) + var(--preview-toolbar-height) + 8px);
+  left: var(--preview-float-gap);
+  right: calc(var(--settings-panel-width) + var(--preview-float-gap));
   min-height: 54px;
-  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 7px 12px;
-  border-bottom: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 13px;
   background: #fbfcfd;
+  box-shadow: 0 8px 22px rgb(15 23 42 / 0.08);
+  transition: right 320ms cubic-bezier(0.22, 1, 0.36, 1);
   animation: inspector-in 0.18s ease-out;
 }
 .block-inspector.empty {

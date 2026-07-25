@@ -1,4 +1,4 @@
-import PlotterFooter from '../plotter/PlotterFooter.jsx'
+import PlotterFooter, { formatDuration } from '../plotter/PlotterFooter.jsx'
 import PlotterPaper from '../plotter/PlotterPaper.jsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import BlockInspector from './BlockInspector.jsx'
@@ -17,8 +17,11 @@ export default function PreviewPanel({
   metrics,
   viewMode,
   setViewMode,
-  previewOnly,
-  setPreviewOnly,
+  editorCollapsed,
+  setEditorCollapsed,
+  openExpandedEditor,
+  settingsCollapsed,
+  setSettingsCollapsed,
   reshuffle,
   previewRef,
   measureRef,
@@ -84,6 +87,34 @@ export default function PreviewPanel({
   return (
     <main className="preview-panel">
       <div className="preview-toolbar">
+        <div className="preview-leading-actions" role="group" aria-label="Управление редактором">
+          <button
+            className="preview-icon-button"
+            type="button"
+            aria-label={editorCollapsed ? 'Показать поле ввода' : 'Свернуть поле ввода'}
+            title={editorCollapsed ? 'Показать поле ввода' : 'Свернуть поле ввода'}
+            aria-pressed={!editorCollapsed}
+            onClick={() => setEditorCollapsed((value) => !value)}
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <rect x="3.25" y="3.25" width="13.5" height="13.5" rx="2.5" />
+              <path d="M7.5 3.8v12.4" />
+              <path d={editorCollapsed ? 'm11.2 7.2-2.8 2.8 2.8 2.8' : 'm9.2 7.2 2.8 2.8-2.8 2.8'} />
+            </svg>
+          </button>
+          <button
+            className="preview-icon-button"
+            type="button"
+            aria-label="Открыть большой редактор"
+            title="Открыть большой редактор"
+            onClick={openExpandedEditor}
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M8 4H5.8A1.8 1.8 0 0 0 4 5.8v8.4A1.8 1.8 0 0 0 5.8 16h8.4a1.8 1.8 0 0 0 1.8-1.8V12" />
+              <path d="M10.5 4H16v5.5M15.6 4.4 9.2 10.8" />
+            </svg>
+          </button>
+        </div>
         <div className="preview-context">
           <span className="preview-sheet-status">
             Лист {Math.min(activeSheetIndex + 1, sheetCount)} из {sheetCount}
@@ -97,12 +128,33 @@ export default function PreviewPanel({
             </span>
           )}
         </div>
+        {plotterMode && (
+          <div className="preview-job-stats" aria-label="Статистика задания плоттера">
+            <span title="Количество штрихов"><strong>{plotterWorkspace.activeLayout.strokes.length.toLocaleString('ru-RU')}</strong><small>штрихов</small></span>
+            <span title="Количество команд"><strong>{plotterWorkspace.job.commands.length.toLocaleString('ru-RU')}</strong><small>команд</small></span>
+            <span title="Длина линий пером"><strong>{(plotterWorkspace.job.drawDistance / 1000).toFixed(2)}</strong><small>м пером</small></span>
+            <span title="Расчётное время"><strong>{formatDuration(plotterWorkspace.job.estimatedSeconds)}</strong><small>расчётно</small></span>
+          </div>
+        )}
         <button className={`button compact placement-toggle ${manualEditing ? 'active' : ''}`} type="button" aria-pressed={manualEditing} onClick={() => setManualEditing((value) => !value)}>
           <span aria-hidden="true">⌁</span>{manualEditing ? 'Готово' : 'Расставить'}
         </button>
         <select className="layout-select" value={viewMode} onChange={(event) => setViewMode(event.target.value)} aria-label="Раскладка страниц"><option value="single">По 1 листу</option><option value="spread">По 2 листа</option></select>
         {!plotterMode && <button className="button ghost compact" type="button" onClick={reshuffle}>Перемешать</button>}
-        <button className="button ghost compact" type="button" onClick={() => setPreviewOnly((value) => !value)}>{previewOnly ? 'Вернуть панели' : 'Только листы'}</button>
+        <button
+          className="settings-toolbar-toggle"
+          type="button"
+          aria-label={settingsCollapsed ? 'Показать настройки' : 'Свернуть настройки'}
+          title={settingsCollapsed ? 'Показать настройки' : 'Свернуть настройки'}
+          aria-pressed={!settingsCollapsed}
+          onClick={() => setSettingsCollapsed((value) => !value)}
+        >
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <rect x="3.25" y="3.25" width="13.5" height="13.5" rx="2.5" />
+            <path d="M12.5 3.8v12.4" />
+            <path d={settingsCollapsed ? 'm8.8 7.2 2.8 2.8-2.8 2.8' : 'm10.8 7.2-2.8 2.8 2.8 2.8'} />
+          </svg>
+        </button>
       </div>
       {manualEditing && <BlockInspector selected={selectedBlock} onUpdate={onUpdateManualBlock} onCommit={onCommitManualBlock} onReset={(originPage, blockId) => { onResetManualBlock(originPage, blockId); setSelectedBlock(null) }} />}
       <div className="pages-viewport" ref={previewRef} {...panHandlers} onScroll={detectActiveSheet}>

@@ -6,7 +6,7 @@ export function usePreviewInteractions({
   setZoom,
   viewMode,
   pageSize,
-  previewOnly,
+  layoutKey,
   sourceMode,
 }) {
   const panRef = useRef(null);
@@ -119,7 +119,7 @@ export function usePreviewInteractions({
       viewport.scrollTop = Math.max(0, firstPage.offsetTop - topGap);
     });
     return () => cancelAnimationFrame(frame);
-  }, [previewRef, viewMode, pageSize, previewOnly, sourceMode]);
+  }, [previewRef, viewMode, pageSize, layoutKey, sourceMode]);
 
   const beginPan = useCallback(
     (event) => {

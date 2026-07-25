@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 const MARKDOWN_TOOLS = [
   { label: 'H1', title: 'Заголовок 1', kind: 'line', before: '# ' },
@@ -121,8 +122,9 @@ export default function EditorPanel({
   insertText,
   wordCount,
   characterCount,
+  expanded,
+  setExpanded,
 }) {
-  const [expanded, setExpanded] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const expandedRef = useRef(null)
   const svgInputRef = useRef(null)
@@ -237,7 +239,6 @@ export default function EditorPanel({
         </div>
         <div className="editor-title-actions">
           {sourceMode === 'markdown' && <button type="button" className="editor-expand-button editor-svg-button" onClick={() => svgInputRef.current?.click()} title="Вставить SVG">SVG</button>}
-          <button type="button" className="editor-expand-button" onClick={() => setExpanded(true)} aria-label="Открыть большой редактор" title="Открыть большой редактор">↗</button>
         </div>
       </div>
       <textarea
@@ -249,7 +250,7 @@ export default function EditorPanel({
         onKeyDown={handleEditorKeyDown}
         aria-label={sourceMode === 'tex' ? 'Редактор TeX' : 'Редактор Markdown'}
       />
-      {expanded && (
+      {expanded && createPortal(
         <div className="expanded-editor-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setExpanded(false)}>
           <section className="expanded-editor" role="dialog" aria-modal="true" aria-label="Большой редактор текста">
             <header>
@@ -323,7 +324,8 @@ export default function EditorPanel({
               <span><kbd>Esc</kbd> закрыть</span>
             </footer>
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
       <input ref={svgInputRef} type="file" accept=".svg,image/svg+xml" hidden onChange={importSvg} />
     </section>

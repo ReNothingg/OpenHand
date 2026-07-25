@@ -13,6 +13,8 @@
   .editor-panel,
   .settings-panel,
   .preview-toolbar,
+  .block-inspector,
+  .integrated-plotter-footer,
   .measure-host {
     display: none !important;
   }

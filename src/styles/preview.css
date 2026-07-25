@@ -1,4 +1,8 @@
 .preview-panel {
+  --preview-float-gap: 12px;
+  --preview-toolbar-height: 51px;
+  position: relative;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -6,22 +10,43 @@
   overflow: hidden;
 }
 .preview-toolbar {
-  min-height: 49px;
-  flex: 0 0 auto;
+  position: absolute;
+  z-index: 8;
+  top: var(--preview-float-gap);
+  left: var(--preview-float-gap);
+  right: calc(var(--settings-panel-width) + var(--preview-float-gap));
+  min-height: var(--preview-toolbar-height);
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--line);
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
   background: #ffffff;
-  z-index: 4;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.09);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  transition:
+    right 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms ease;
 }
+.preview-toolbar::-webkit-scrollbar { display: none; }
 .preview-context {
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 9px;
   margin-right: auto;
+}
+.preview-leading-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 9px;
+  border-right: 1px solid #e1e5ea;
 }
 .preview-sheet-status {
   display: inline-flex;
@@ -35,6 +60,87 @@
   width: 1px;
   height: 12px;
   background: #d8dee6;
+}
+.preview-job-stats {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  padding: 0 8px;
+  border-left: 1px solid #e1e5ea;
+  border-right: 1px solid #e1e5ea;
+}
+.preview-job-stats > span {
+  min-width: 70px;
+  height: 34px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 8px;
+  border: 1px solid #e0e5eb;
+  border-radius: 8px;
+  color: #64748b;
+  background: #f8fafc;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.preview-job-stats strong {
+  color: #1f2937;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.preview-job-stats small {
+  margin-top: 2px;
+  font-size: 7px;
+  font-weight: 650;
+  letter-spacing: 0.025em;
+}
+
+@container (max-width: 1100px) {
+  .preview-toolbar {
+    gap: 5px;
+  }
+  .preview-leading-actions {
+    gap: 2px;
+    padding-right: 5px;
+  }
+  .preview-icon-button,
+  .settings-toolbar-toggle {
+    width: 30px;
+    flex-basis: 30px;
+  }
+  .preview-context {
+    display: none;
+  }
+  .preview-job-stats {
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    gap: 3px;
+    padding: 0 4px;
+  }
+  .preview-job-stats > span {
+    min-width: 38px;
+    height: 30px;
+    padding: 0 4px;
+  }
+  .preview-job-stats > span:nth-child(2) { min-width: 48px; }
+  .preview-job-stats > span:nth-child(3) { min-width: 40px; }
+  .preview-job-stats > span:nth-child(4) { min-width: 72px; }
+  .preview-job-stats strong { font-size: 8px; }
+  .preview-job-stats small { display: none; }
+  .placement-toggle {
+    width: 30px;
+    min-width: 30px;
+    padding: 0;
+    font-size: 0;
+  }
+  .placement-toggle span { font-size: 16px; }
+  .layout-select {
+    width: 70px;
+    padding-left: 5px;
+  }
 }
 .layout-select {
   height: 31px;
@@ -51,8 +157,47 @@
   border-color: #60a5fa;
   box-shadow: 0 0 0 2px #dbeafe;
 }
+.settings-toolbar-toggle,
+.preview-icon-button {
+  width: 34px;
+  height: 32px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  margin-left: 2px;
+  padding: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  color: #64748b;
+  background: #fff;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 180ms ease;
+}
+.settings-toolbar-toggle:hover,
+.preview-icon-button:hover {
+  border-color: #aeb7c4;
+  color: #172033;
+  background: #f7f8fa;
+}
+.settings-toolbar-toggle:active,
+.preview-icon-button:active { transform: scale(0.94); }
+.settings-toolbar-toggle svg,
+.preview-icon-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.45;
+}
 .pages-viewport {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   position: relative;
   overscroll-behavior: contain;

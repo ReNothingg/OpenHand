@@ -1,10 +1,13 @@
 .workspace {
-  --settings-panel-width: clamp(290px, 24vw, 340px);
+  --editor-panel-width: clamp(320px, 31vw, 400px);
+  --settings-panel-size: clamp(290px, 24vw, 340px);
+  --settings-panel-width: var(--settings-panel-size);
   --settings-panel-gap: 10px;
   height: 100vh;
   position: relative;
   display: grid;
-  grid-template-columns: minmax(320px, 400px) minmax(450px, 1fr);
+  grid-template-columns: var(--editor-panel-width) minmax(450px, 1fr);
+  transition: grid-template-columns 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .panel {
   background: var(--panel);
@@ -16,6 +19,27 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
+  transform: translateX(0);
+  opacity: 1;
+  visibility: visible;
+  transition:
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease,
+    visibility 0s linear;
+}
+.editor-collapsed .workspace {
+  --editor-panel-width: 0px;
+}
+.editor-collapsed .editor-panel {
+  transform: translateX(-18px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 160ms ease,
+    visibility 0s linear 320ms;
 }
 .settings-panel {
   position: absolute;
@@ -23,7 +47,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: var(--settings-panel-width);
+  width: var(--settings-panel-size);
   border: 1px solid var(--line);
   border-right: 0;
   border-radius: 18px 0 0 18px;
@@ -32,56 +56,26 @@
   padding-bottom: 12px;
   background: #fff;
   box-shadow: none;
-}
-.preview-toolbar,
-.block-inspector,
-.integrated-plotter-footer {
-  margin-right: calc(var(--settings-panel-width) + var(--settings-panel-gap));
-  border-radius: 0 14px 14px 0;
-  overflow: hidden;
+  transform: translateX(0);
+  opacity: 1;
+  visibility: visible;
+  transition:
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease,
+    visibility 0s linear;
 }
 .settings-collapsed .workspace {
-  --settings-panel-width: 49px;
+  --settings-panel-width: 0px;
 }
 .settings-collapsed .settings-panel {
-  display: none;
-}
-.settings-collapsed .integrated-plotter-footer {
-  margin-right: 0;
-}
-.settings-panel-collapse,
-.settings-panel-reopen {
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  color: #64748b;
-  background: #fff;
-  cursor: pointer;
-  font: 600 22px/1 ui-sans-serif, system-ui, sans-serif;
-}
-.settings-panel-collapse {
-  position: absolute;
-  z-index: 3;
-  top: 10px;
-  right: 48px;
-  width: 32px;
-  height: 34px;
-  border-radius: 9px;
-}
-.settings-panel-reopen {
-  position: absolute;
-  z-index: 21;
-  top: 0;
-  right: 0;
-  width: 49px;
-  height: 49px;
-  border-right: 0;
-  border-radius: 14px 0 0 14px;
-}
-.settings-panel-collapse:hover,
-.settings-panel-reopen:hover {
-  color: #172033;
-  background: #f7f8fa;
+  transform: translateX(calc(100% + 16px));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease,
+    visibility 0s linear 320ms;
 }
 .settings-panel > .settings-section:first-child {
   margin-top: 0;
@@ -109,34 +103,15 @@
 .panel-title strong {
   font-size: 13px;
 }
-.preview-only .editor-panel,
-.preview-only .settings-panel {
-  display: none;
-}
-.preview-only .settings-panel-reopen {
-  display: none;
-}
-.preview-only .workspace {
-  grid-template-columns: 1fr;
-}
-.preview-only .preview-panel {
-  grid-column: 1;
-}
-
 @media (max-width: 1180px) {
   .workspace {
-    grid-template-columns: minmax(310px, 360px) 1fr;
+    --editor-panel-width: clamp(310px, 30vw, 360px);
   }
+  .editor-collapsed .workspace { --editor-panel-width: 0px; }
 }
 @media (min-width: 901px) and (max-width: 1180px) {
   .preview-toolbar {
-    flex-wrap: wrap;
-    align-content: center;
-    padding: 6px 10px;
-  }
-  .preview-context {
-    flex: 1 0 100%;
-    width: 100%;
+    padding: 0 10px;
   }
   .preview-context .plotter-status {
     gap: 0;
@@ -154,12 +129,19 @@
     min-height: 100vh;
     grid-template-columns: 1fr;
     grid-template-rows: 460px auto auto;
+    transition:
+      grid-template-columns 320ms cubic-bezier(0.22, 1, 0.36, 1),
+      grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .editor-collapsed .workspace {
+    grid-template-rows: 0 auto auto;
   }
   .editor-panel {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
   .preview-panel {
+    --preview-float-gap: 10px;
     min-height: 720px;
   }
   .settings-panel {
@@ -177,20 +159,27 @@
   .settings-collapsed .workspace {
     --settings-panel-width: 0px;
   }
-  .settings-panel-reopen {
-    position: fixed;
+  .settings-collapsed .settings-panel {
+    display: none;
   }
 }
 @media (max-width: 560px) {
   .preview-toolbar {
-    flex-wrap: wrap;
-    padding: 8px 10px;
-  }
-  .preview-context {
-    flex: 1 0 100%;
-    width: 100%;
+    padding: 0 8px;
   }
   .pages-canvas {
     padding: 140px 220px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-panel,
+  .editor-panel,
+  .workspace,
+  .preview-toolbar,
+  .block-inspector,
+  .integrated-plotter-footer,
+  .settings-toolbar-toggle {
+    transition: none !important;
   }
 }

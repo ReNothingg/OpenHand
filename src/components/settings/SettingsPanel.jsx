@@ -32,7 +32,6 @@ export default function SettingsPanel({
   naturalnessReport,
   applyNaturalnessFix,
   applyHandwritingProfile,
-  onCollapse,
 }) {
   const maxTextWidth = Math.max(
     260,
@@ -41,15 +40,6 @@ export default function SettingsPanel({
 
   return (
     <aside className="settings-panel panel">
-      <button
-        className="settings-panel-collapse"
-        type="button"
-        aria-label="Свернуть настройки"
-        title="Свернуть настройки"
-        onClick={onCollapse}
-      >
-        ›
-      </button>
       <SettingSection title="Текст и страница">
         <FontPicker
           fontType={settings.fontType}
