@@ -7,6 +7,14 @@ export const PLOTTER_MARKS = Object.freeze({
   wavyEnd: '\uE005',
   strikeStart: '\uE006',
   strikeEnd: '\uE007',
+  boldStart: '\uE008',
+  boldEnd: '\uE009',
+  italicStart: '\uE00A',
+  italicEnd: '\uE00B',
+  codeStart: '\uE00C',
+  codeEnd: '\uE00D',
+  highlightStart: '\uE00E',
+  highlightEnd: '\uE00F',
 })
 
 export const PLOTTER_ALIGN_MARKS = Object.freeze({
@@ -23,10 +31,32 @@ export const PLOTTER_CALLOUT_MARKS = Object.freeze({
   end: '\uE121',
 })
 
+export const PLOTTER_QUOTE_MARKS = Object.freeze({
+  start: '\uE122',
+  end: '\uE123',
+})
+
+export const PLOTTER_HEADING_MARKS = Object.freeze({
+  h1Start: '\uE150',
+  h1End: '\uE151',
+  h2Start: '\uE152',
+  h2End: '\uE153',
+  h3Start: '\uE154',
+  h3End: '\uE155',
+  h4Start: '\uE156',
+  h4End: '\uE157',
+  h5Start: '\uE158',
+  h5End: '\uE159',
+  h6Start: '\uE15A',
+  h6End: '\uE15B',
+})
+
 export const PLOTTER_CONTROL_MARKS = new Set([
   ...Object.values(PLOTTER_MARKS),
   ...Object.values(PLOTTER_ALIGN_MARKS),
   ...Object.values(PLOTTER_CALLOUT_MARKS),
+  ...Object.values(PLOTTER_QUOTE_MARKS),
+  ...Object.values(PLOTTER_HEADING_MARKS),
 ])
 
 export const PLOTTER_FORMULA_START = '\uE100'
@@ -47,10 +77,18 @@ const STYLE_MARKS = {
   double: [PLOTTER_MARKS.doubleStart, PLOTTER_MARKS.doubleEnd],
   wavy: [PLOTTER_MARKS.wavyStart, PLOTTER_MARKS.wavyEnd],
   strike: [PLOTTER_MARKS.strikeStart, PLOTTER_MARKS.strikeEnd],
+  bold: [PLOTTER_MARKS.boldStart, PLOTTER_MARKS.boldEnd],
+  italic: [PLOTTER_MARKS.italicStart, PLOTTER_MARKS.italicEnd],
+  code: [PLOTTER_MARKS.codeStart, PLOTTER_MARKS.codeEnd],
+  highlight: [PLOTTER_MARKS.highlightStart, PLOTTER_MARKS.highlightEnd],
 }
 
 function elementStyles(element) {
   const styles = []
+  if (element.matches('strong, b, .bf')) styles.push('bold')
+  if (element.matches('em, i, .it, .sl')) styles.push('italic')
+  if (element.matches('code') && !element.closest('pre')) styles.push('code')
+  if (element.matches('mark')) styles.push('highlight')
   if (element.matches('del, s, strike')) styles.push('strike')
   if (element.classList.contains('underline-double')) styles.push('double')
   else if (element.classList.contains('underline-wavy')) styles.push('wavy')
@@ -464,14 +502,20 @@ export function htmlToPlotterText(html) {
     }
 
     const callout = element.matches('blockquote.callout')
+    const quote = element.matches('blockquote:not(.callout)')
+    const headingLevel = /^H[1-6]$/.test(element.tagName) ? Number(element.tagName.slice(1)) : 0
     if (callout) output += PLOTTER_CALLOUT_MARKS.start
+    if (quote) output += PLOTTER_QUOTE_MARKS.start
+    if (headingLevel) output += PLOTTER_HEADING_MARKS[`h${headingLevel}Start`]
     const alignment = elementAlignment(element)
     if (alignment) output += PLOTTER_ALIGN_MARKS[`${alignment}Start`]
     const styles = elementStyles(element)
     styles.forEach((style) => { output += STYLE_MARKS[style][0] })
     Array.from(element.childNodes).forEach(walk)
     styles.slice().reverse().forEach((style) => { output += STYLE_MARKS[style][1] })
+    if (headingLevel) appendBeforeTrailingBreaks(PLOTTER_HEADING_MARKS[`h${headingLevel}End`])
     if (alignment) appendBeforeTrailingBreaks(PLOTTER_ALIGN_MARKS[`${alignment}End`])
+    if (quote) appendBeforeTrailingBreaks(PLOTTER_QUOTE_MARKS.end)
     if (callout) appendBeforeTrailingBreaks(PLOTTER_CALLOUT_MARKS.end)
 
     if (element.tagName === 'LI') appendBreak(1)

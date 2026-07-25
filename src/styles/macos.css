@@ -82,6 +82,24 @@
   background: var(--mac-canvas);
 }
 
+.macos-native .settings-panel {
+  border-color: var(--mac-line);
+  background: var(--mac-surface);
+}
+
+.macos-native .settings-panel-collapse,
+.macos-native .settings-panel-reopen {
+  border-color: var(--mac-line);
+  color: var(--mac-secondary);
+  background: var(--mac-surface);
+}
+
+.macos-native .settings-panel-collapse:hover,
+.macos-native .settings-panel-reopen:hover {
+  color: var(--mac-text);
+  background: var(--mac-surface-hover);
+}
+
 .macos-native .panel-title,
 .macos-native .settings-panel > .panel-title,
 .macos-native .preview-toolbar,
@@ -96,7 +114,7 @@
 }
 
 .macos-native .panel-title {
-  height: 54px;
+  height: 49px;
   padding: 0 14px;
 }
 
@@ -108,8 +126,7 @@
 }
 
 .macos-native .panel-title small,
-.macos-native .preview-context,
-.macos-native .preview-font-status {
+.macos-native .preview-context {
   color: var(--mac-secondary);
 }
 
@@ -356,8 +373,31 @@
   background: var(--mac-surface-hover);
 }
 
+.macos-native .settings-panel .settings-section {
+  border: 0;
+  border-bottom: 1px solid var(--mac-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.macos-native .settings-panel .settings-section > summary,
+.macos-native .settings-panel .settings-section > summary:hover,
+.macos-native .settings-panel .settings-section[open] > summary {
+  border-radius: 0;
+}
+
 .macos-native .settings-content {
   border-color: var(--mac-line);
+}
+
+.macos-native .settings-subgroup,
+.macos-native .settings-reset {
+  border-color: var(--mac-line);
+}
+
+.macos-native .settings-subgroup h3 {
+  color: var(--mac-secondary);
 }
 
 .macos-native .toggle-block.is-on {
@@ -370,6 +410,10 @@
   border-color: var(--mac-accent);
   color: var(--mac-accent);
   background: var(--mac-accent-soft);
+}
+
+.macos-native .markdown-body blockquote:not(.callout) {
+  background: color-mix(in srgb, var(--mac-surface-hover) 68%, transparent);
 }
 
 .macos-native .font-picker-menu,
@@ -394,14 +438,37 @@
 
 .macos-native .expanded-editor > header,
 .macos-native .expanded-editor > footer,
+.macos-native .expanded-editor-toolbar,
 .macos-native .photo-import-dialog > header,
 .macos-native .photo-import-dialog > footer,
 .macos-native .expanded-editor-body textarea,
 .macos-native .expanded-editor-body aside,
-.macos-native .expanded-editor-body aside code {
+.macos-native .editor-help-list code {
   border-color: var(--mac-line);
   color: var(--mac-text);
   background: var(--mac-surface);
+}
+
+.macos-native .expanded-editor-body {
+  background: var(--mac-panel-muted);
+}
+
+.macos-native .expanded-editor-toolbar button {
+  color: var(--mac-secondary);
+}
+
+.macos-native .expanded-editor-toolbar button:hover,
+.macos-native .expanded-editor-toolbar button.active,
+.macos-native .editor-help-heading button:hover {
+  border-color: var(--mac-line);
+  color: var(--mac-text);
+  background: var(--mac-surface-hover);
+}
+
+.macos-native .editor-help-heading strong,
+.macos-native .editor-help-group h3,
+.macos-native .expanded-editor-identity strong {
+  color: var(--mac-text);
 }
 
 .macos-native .font-picker-group button,

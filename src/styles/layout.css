@@ -1,10 +1,10 @@
 .workspace {
+  --settings-panel-width: clamp(290px, 24vw, 340px);
+  --settings-panel-gap: 10px;
   height: 100vh;
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(320px, 400px) minmax(450px, 1fr) minmax(
-      290px,
-      340px
-    );
+  grid-template-columns: minmax(320px, 400px) minmax(450px, 1fr);
 }
 .panel {
   background: var(--panel);
@@ -12,20 +12,92 @@
   z-index: 5;
 }
 .editor-panel {
-  border-right: 1px solid var(--line);
+  border-right: 0;
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 .settings-panel {
-  border-left: 1px solid var(--line);
+  position: absolute;
+  z-index: 20;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--settings-panel-width);
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: 18px 0 0 18px;
   overflow-y: auto;
   min-width: 0;
   padding-bottom: 12px;
-  background: #f3f5f7;
+  background: #fff;
+  box-shadow: none;
+}
+.preview-toolbar,
+.block-inspector,
+.integrated-plotter-footer {
+  margin-right: calc(var(--settings-panel-width) + var(--settings-panel-gap));
+  border-radius: 0 14px 14px 0;
+  overflow: hidden;
+}
+.settings-collapsed .workspace {
+  --settings-panel-width: 49px;
+}
+.settings-collapsed .settings-panel {
+  display: none;
+}
+.settings-collapsed .integrated-plotter-footer {
+  margin-right: 0;
+}
+.settings-panel-collapse,
+.settings-panel-reopen {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  color: #64748b;
+  background: #fff;
+  cursor: pointer;
+  font: 600 22px/1 ui-sans-serif, system-ui, sans-serif;
+}
+.settings-panel-collapse {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  right: 48px;
+  width: 32px;
+  height: 34px;
+  border-radius: 9px;
+}
+.settings-panel-reopen {
+  position: absolute;
+  z-index: 21;
+  top: 0;
+  right: 0;
+  width: 49px;
+  height: 49px;
+  border-right: 0;
+  border-radius: 14px 0 0 14px;
+}
+.settings-panel-collapse:hover,
+.settings-panel-reopen:hover {
+  color: #172033;
+  background: #f7f8fa;
+}
+.settings-panel > .settings-section:first-child {
+  margin-top: 0;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 18px 0 10px 10px;
+}
+.settings-panel > .settings-section:first-child > summary {
+  border-radius: 18px 0 10px 10px;
+}
+.settings-panel > .settings-section:first-child[open] > summary {
+  border-radius: 18px 0 0 0;
 }
 .panel-title {
-  height: 59px;
+  height: 49px;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -37,15 +109,11 @@
 .panel-title strong {
   font-size: 13px;
 }
-.settings-panel > .panel-title {
-  position: sticky;
-  z-index: 40;
-  top: 0;
-  background: #fff;
-  box-shadow: 0 1px 0 #e2e8f0, 0 5px 14px rgb(15 23 42 / 0.04);
-}
 .preview-only .editor-panel,
 .preview-only .settings-panel {
+  display: none;
+}
+.preview-only .settings-panel-reopen {
   display: none;
 }
 .preview-only .workspace {
@@ -57,7 +125,7 @@
 
 @media (max-width: 1180px) {
   .workspace {
-    grid-template-columns: minmax(310px, 360px) 1fr 310px;
+    grid-template-columns: minmax(310px, 360px) 1fr;
   }
 }
 @media (min-width: 901px) and (max-width: 1180px) {
@@ -70,10 +138,6 @@
     flex: 1 0 100%;
     width: 100%;
   }
-  .preview-font-status {
-    flex: 1 1 auto;
-    max-width: none;
-  }
   .preview-context .plotter-status {
     gap: 0;
     font-size: 0;
@@ -84,6 +148,8 @@
     overflow: auto;
   }
   .workspace {
+    --settings-panel-width: 0px;
+    --settings-panel-gap: 0px;
     height: auto;
     min-height: 100vh;
     grid-template-columns: 1fr;
@@ -97,9 +163,22 @@
     min-height: 720px;
   }
   .settings-panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    width: auto;
     border-left: 0;
-    border-top: 1px solid var(--line);
+    border-right: 0;
+    border-radius: 0;
     max-height: none;
+    box-shadow: none;
+  }
+  .settings-collapsed .workspace {
+    --settings-panel-width: 0px;
+  }
+  .settings-panel-reopen {
+    position: fixed;
   }
 }
 @media (max-width: 560px) {
@@ -110,10 +189,6 @@
   .preview-context {
     flex: 1 0 100%;
     width: 100%;
-  }
-  .preview-font-status {
-    flex: 1 1 auto;
-    max-width: none;
   }
   .pages-canvas {
     padding: 140px 220px;

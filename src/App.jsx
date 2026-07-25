@@ -31,6 +31,7 @@ export default function App() {
   const [presets, setPresets] = useState(() => loadStoredObject(STORAGE_KEYS.presets, {}))
   const [activePreset, setActivePreset] = useState('')
   const [previewOnly, setPreviewOnly] = useState(false)
+  const [settingsCollapsed, setSettingsCollapsed] = useState(false)
   const [viewMode, setViewMode] = useState('single')
   const [activeSheetIndex, setActiveSheetIndex] = useState(0)
   const [manualEditing, setManualEditing] = useState(false)
@@ -507,7 +508,7 @@ export default function App() {
   }, [sourceMode])
 
   return (
-    <div className={`app ${previewOnly ? 'preview-only' : ''}`}>
+    <div className={`app ${previewOnly ? 'preview-only' : ''} ${settingsCollapsed ? 'settings-collapsed' : ''}`}>
       <style>{`@page { size: ${metrics.width}px ${metrics.height}px; margin: 0; }`}</style>
       <div className="workspace">
         <EditorPanel
@@ -571,7 +572,19 @@ export default function App() {
             naturalnessReport={naturalnessReport}
             applyNaturalnessFix={() => updateSettings(naturalnessAutofix(settings))}
             applyHandwritingProfile={(profileId) => updateSettings(profilePatch(profileId))}
+            onCollapse={() => setSettingsCollapsed(true)}
           />
+        {settingsCollapsed && (
+          <button
+            className="settings-panel-reopen"
+            type="button"
+            aria-label="Показать настройки"
+            title="Показать настройки"
+            onClick={() => setSettingsCollapsed(false)}
+          >
+            ‹
+          </button>
+        )}
       </div>
 
       <input ref={sourceImportRef} type="file" accept=".md,.markdown,.txt,.tex,text/markdown,text/plain,application/x-tex" hidden onChange={importSource} />

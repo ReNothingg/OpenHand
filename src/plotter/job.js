@@ -5,7 +5,9 @@ import {
   PLOTTER_CONTROL_MARKS,
   PLOTTER_FORMULA_END,
   PLOTTER_FORMULA_START,
+  PLOTTER_HEADING_MARKS,
   PLOTTER_MARKS,
+  PLOTTER_QUOTE_MARKS,
   PLOTTER_SVG_END,
   PLOTTER_SVG_START,
 } from './richText.js'
@@ -310,16 +312,22 @@ export async function layoutText(text, font, page, config) {
     }
   }
 
-  const advanceFor = (char) => {
-    if (char === ' ' || char === '\t') return spaceWidth * (char === '\t' ? 4 : 1)
+  const advanceFor = (char, textScale = 1) => {
+    if (char === ' ' || char === '\t') return spaceWidth * (char === '\t' ? 4 : 1) * textScale
     const glyph = glyphs.get(char)
     const widthScale = Math.max(0.78, Math.min(1.22, Number(config.authorWidth || 100) / 100))
-    return glyph ? Math.max((glyph.bounds.maxX - glyph.bounds.minX) * scale * widthScale + letterSpacing, page.fontSize * 0.24) : spaceWidth
+    return glyph
+      ? Math.max(
+        (glyph.bounds.maxX - glyph.bounds.minX) * scale * widthScale * textScale + letterSpacing,
+        page.fontSize * 0.24 * textScale,
+      )
+      : spaceWidth * textScale
   }
 
   const strokes = []
   const activeDecorations = new Set()
   const decorationStarts = new Map()
+  const activeTextStyles = new Set()
   let x = page.left
   let baseline = page.top + page.fontSize
   const maxX = page.pageWidth - Math.max(0, page.right)
@@ -327,7 +335,13 @@ export async function layoutText(text, font, page, config) {
   let clipped = false
   let overflowText = ''
   let activeCallout = null
+  let activeQuote = null
+  let activeHeadingLevel = 0
+  let pendingHeadingGap = 0
   let glyphOccurrence = 0
+  const quoteIndent = page.fontSize * 0.58
+  const headingScales = [1, 1.62, 1.38, 1.2, 1.1, 1.02, 0.96]
+  const headingScale = () => headingScales[activeHeadingLevel] || 1
 
   const markCalloutContent = () => {
     if (!activeCallout) return
@@ -350,6 +364,39 @@ export async function layoutText(text, font, page, config) {
       )
     }
     activeCallout = null
+  }
+
+  const markQuoteContent = () => {
+    if (!activeQuote) return
+    activeQuote.lastBaseline = baseline
+  }
+
+  const closeQuote = () => {
+    if (!activeQuote) return
+    const railX = page.left + page.fontSize * 0.09
+    const top = activeQuote.top
+    const bottom = Math.min(maxY, activeQuote.lastBaseline + page.fontSize * 0.16)
+    const middle = (top + bottom) / 2
+    const quoteX = railX + page.fontSize * 0.15
+    const quoteY = top + page.fontSize * 0.16
+    strokes.push(
+      [
+        { x: railX, y: top },
+        { x: railX - page.fontSize * 0.025, y: middle },
+        { x: railX + page.fontSize * 0.018, y: bottom },
+      ],
+      [
+        { x: quoteX, y: quoteY },
+        { x: quoteX - page.fontSize * 0.035, y: quoteY + page.fontSize * 0.13 },
+        { x: quoteX + page.fontSize * 0.025, y: quoteY + page.fontSize * 0.19 },
+      ],
+      [
+        { x: quoteX + page.fontSize * 0.16, y: quoteY },
+        { x: quoteX + page.fontSize * 0.125, y: quoteY + page.fontSize * 0.13 },
+        { x: quoteX + page.fontSize * 0.185, y: quoteY + page.fontSize * 0.19 },
+      ],
+    )
+    activeQuote = null
   }
 
   const decorationStroke = (style, startX, endX) => {
@@ -376,7 +423,50 @@ export async function layoutText(text, font, page, config) {
       })))
       return
     }
+    if (style === 'code') {
+      const inset = page.fontSize * 0.08
+      const top = baseline - page.fontSize * 0.82
+      const bottom = baseline + page.fontSize * 0.16
+      strokes.push([
+        { x: startX - inset, y: bottom },
+        { x: startX - inset, y: top },
+        { x: endX + inset, y: top },
+        { x: endX + inset, y: bottom },
+      ])
+      return
+    }
+    if (style === 'highlight') {
+      const top = baseline - page.fontSize * 0.76
+      const bottom = baseline + page.fontSize * 0.13
+      strokes.push(
+        [{ x: startX, y: top }, { x: endX, y: top }],
+        [{ x: startX, y: bottom }, { x: endX, y: bottom }],
+      )
+      return
+    }
     strokes.push([{ x: startX, y: baseline + page.fontSize * 0.14 }, { x: endX, y: baseline + page.fontSize * 0.14 }])
+  }
+
+  const applyTextStyles = (sourceStrokes, originBaseline = baseline) => {
+    const italic = activeTextStyles.has('italic')
+    const bold = activeTextStyles.has('bold')
+    const primary = sourceStrokes.map((stroke) => {
+      const styled = stroke.map((point) => ({
+        x: point.x + (italic ? (originBaseline - point.y) * 0.29 : 0),
+        y: point.y,
+      }))
+      styled.pressure = (stroke.pressure || 1) * (bold ? 1.18 : 1)
+      return styled
+    })
+    if (!bold) return primary
+
+    const offset = Math.max(0.09, Math.min(0.18, page.fontSize * 0.024))
+    const reinforcement = primary.map((stroke) => {
+      const reinforced = stroke.map((point) => ({ x: point.x + offset, y: point.y + offset * 0.12 }))
+      reinforced.pressure = (stroke.pressure || 1) * 1.08
+      return reinforced
+    })
+    return [...primary, ...reinforcement]
   }
 
   const closeLineDecorations = () => {
@@ -385,8 +475,9 @@ export async function layoutText(text, font, page, config) {
 
   const nextLine = () => {
     closeLineDecorations()
-    x = page.left
-    baseline += page.lineHeight
+    x = page.left + (activeQuote ? quoteIndent : 0)
+    baseline += page.lineHeight + pendingHeadingGap
+    pendingHeadingGap = 0
     activeDecorations.forEach((style) => decorationStarts.set(style, x))
     if (baseline > maxY) clipped = true
   }
@@ -396,12 +487,40 @@ export async function layoutText(text, font, page, config) {
     [PLOTTER_MARKS.doubleStart, 'double'],
     [PLOTTER_MARKS.wavyStart, 'wavy'],
     [PLOTTER_MARKS.strikeStart, 'strike'],
+    [PLOTTER_MARKS.codeStart, 'code'],
+    [PLOTTER_MARKS.highlightStart, 'highlight'],
   ])
   const endMarks = new Map([
     [PLOTTER_MARKS.underlineEnd, 'underline'],
     [PLOTTER_MARKS.doubleEnd, 'double'],
     [PLOTTER_MARKS.wavyEnd, 'wavy'],
     [PLOTTER_MARKS.strikeEnd, 'strike'],
+    [PLOTTER_MARKS.codeEnd, 'code'],
+    [PLOTTER_MARKS.highlightEnd, 'highlight'],
+  ])
+  const textStyleStarts = new Map([
+    [PLOTTER_MARKS.boldStart, 'bold'],
+    [PLOTTER_MARKS.italicStart, 'italic'],
+  ])
+  const textStyleEnds = new Map([
+    [PLOTTER_MARKS.boldEnd, 'bold'],
+    [PLOTTER_MARKS.italicEnd, 'italic'],
+  ])
+  const headingStarts = new Map([
+    [PLOTTER_HEADING_MARKS.h1Start, 1],
+    [PLOTTER_HEADING_MARKS.h2Start, 2],
+    [PLOTTER_HEADING_MARKS.h3Start, 3],
+    [PLOTTER_HEADING_MARKS.h4Start, 4],
+    [PLOTTER_HEADING_MARKS.h5Start, 5],
+    [PLOTTER_HEADING_MARKS.h6Start, 6],
+  ])
+  const headingEnds = new Map([
+    [PLOTTER_HEADING_MARKS.h1End, 1],
+    [PLOTTER_HEADING_MARKS.h2End, 2],
+    [PLOTTER_HEADING_MARKS.h3End, 3],
+    [PLOTTER_HEADING_MARKS.h4End, 4],
+    [PLOTTER_HEADING_MARKS.h5End, 5],
+    [PLOTTER_HEADING_MARKS.h6End, 6],
   ])
   const alignmentStarts = new Map([
     [PLOTTER_ALIGN_MARKS.leftStart, 'left'],
@@ -413,22 +532,35 @@ export async function layoutText(text, font, page, config) {
     PLOTTER_ALIGN_MARKS.centerEnd,
     PLOTTER_ALIGN_MARKS.rightEnd,
   ])
-  const widthForLine = (line) => line
-    .split(new RegExp(`(${PLOTTER_FORMULA_START}.*?${PLOTTER_FORMULA_END}|${PLOTTER_SVG_START}.*?${PLOTTER_SVG_END})`, 'u'))
-    .filter(Boolean)
-    .reduce((width, token) => {
-      if (token.startsWith(PLOTTER_FORMULA_START) && token.endsWith(PLOTTER_FORMULA_END)) {
-        const source = token.slice(PLOTTER_FORMULA_START.length, -PLOTTER_FORMULA_END.length)
-        return width + (formulaLayouts.get(source)?.width || 0)
-      }
-      if (token.startsWith(PLOTTER_SVG_START) && token.endsWith(PLOTTER_SVG_END)) {
-        return width + (maxX - page.left) * 0.84
-      }
-      return width + Array.from(token).reduce(
-        (total, char) => total + (PLOTTER_CONTROL_MARKS.has(char) ? 0 : advanceFor(char)),
-        0,
-      )
-    }, 0)
+  const widthForLine = (line) => {
+    let measuredHeadingLevel = activeHeadingLevel
+    return line
+      .split(new RegExp(`(${PLOTTER_FORMULA_START}.*?${PLOTTER_FORMULA_END}|${PLOTTER_SVG_START}.*?${PLOTTER_SVG_END})`, 'u'))
+      .filter(Boolean)
+      .reduce((width, token) => {
+        const measuredScale = headingScales[measuredHeadingLevel] || 1
+        if (token.startsWith(PLOTTER_FORMULA_START) && token.endsWith(PLOTTER_FORMULA_END)) {
+          const source = token.slice(PLOTTER_FORMULA_START.length, -PLOTTER_FORMULA_END.length)
+          return width + (formulaLayouts.get(source)?.width || 0) * measuredScale
+        }
+        if (token.startsWith(PLOTTER_SVG_START) && token.endsWith(PLOTTER_SVG_END)) {
+          return width + (maxX - page.left) * 0.84
+        }
+        return width + Array.from(token).reduce((total, char) => {
+          if (headingStarts.has(char)) {
+            measuredHeadingLevel = headingStarts.get(char)
+            return total
+          }
+          if (headingEnds.has(char)) {
+            measuredHeadingLevel = 0
+            return total
+          }
+          return total + (PLOTTER_CONTROL_MARKS.has(char)
+            ? 0
+            : advanceFor(char, headingScales[measuredHeadingLevel] || 1))
+        }, 0)
+      }, 0)
+  }
   let activeAlignment = 'left'
 
   const rawLines = text.replace(/\r/g, '').split('\n')
@@ -447,6 +579,7 @@ export async function layoutText(text, font, page, config) {
     } else {
       x = page.left
     }
+    if (activeQuote) x += quoteIndent
     activeDecorations.forEach((style) => decorationStarts.set(style, x))
     const tokens = line.split(new RegExp(`(${PLOTTER_FORMULA_START}.*?${PLOTTER_FORMULA_END}|${PLOTTER_SVG_START}.*?${PLOTTER_SVG_END}|\\s+)`, 'u')).filter(Boolean)
     const preserveOverflow = (tokenIndex, charIndex = 0) => {
@@ -465,7 +598,7 @@ export async function layoutText(text, font, page, config) {
         const source = token.slice(PLOTTER_FORMULA_START.length, -PLOTTER_FORMULA_END.length)
         const formula = formulaLayouts.get(source)
         if (!formula) continue
-        if (x > page.left && x + formula.width > maxX) {
+        if (x > page.left && x + formula.width * headingScale() > maxX) {
           nextLine()
           if (clipped) {
             preserveOverflow(tokenIndex)
@@ -477,12 +610,17 @@ export async function layoutText(text, font, page, config) {
           preserveOverflow(tokenIndex)
           break
         }
-        strokes.push(...formula.strokes.map((stroke) => {
-          const placed = stroke.map((point) => ({ x: x + point.x, y: baseline + point.y }))
+        const formulaStrokes = formula.strokes.map((stroke) => {
+          const currentScale = headingScale()
+          const placed = stroke.map((point) => ({
+            x: x + point.x * currentScale,
+            y: baseline + point.y * currentScale,
+          }))
           if (stroke.pressure) placed.pressure = stroke.pressure
           return placed
-        }))
-        x += formula.width
+        })
+        strokes.push(...applyTextStyles(formulaStrokes))
+        x += formula.width * headingScale()
         markCalloutContent()
         continue
       }
@@ -558,7 +696,7 @@ export async function layoutText(text, font, page, config) {
       if (/^\s+$/u.test(token)) {
         for (const char of token) {
           if (char === '\n') nextLine()
-          else x += advanceFor(char)
+          else x += advanceFor(char, headingScale())
         }
         continue
       }
@@ -588,10 +726,37 @@ export async function layoutText(text, font, page, config) {
           closeCallout()
           continue
         }
+        if (char === PLOTTER_QUOTE_MARKS.start) {
+          closeQuote()
+          activeQuote = {
+            top: baseline - page.fontSize * 0.79,
+            lastBaseline: baseline,
+          }
+          x += quoteIndent
+          continue
+        }
+        if (char === PLOTTER_QUOTE_MARKS.end) {
+          closeQuote()
+          continue
+        }
+        if (headingStarts.has(char)) {
+          activeHeadingLevel = headingStarts.get(char)
+          continue
+        }
+        if (headingEnds.has(char)) {
+          const level = headingEnds.get(char)
+          pendingHeadingGap = page.lineHeight * (level === 1 ? 0.18 : level === 2 ? 0.1 : 0.05)
+          activeHeadingLevel = 0
+          continue
+        }
         if (startMarks.has(char)) {
           const style = startMarks.get(char)
           activeDecorations.add(style)
           decorationStarts.set(style, x)
+          continue
+        }
+        if (textStyleStarts.has(char)) {
+          activeTextStyles.add(textStyleStarts.get(char))
           continue
         }
         if (endMarks.has(char)) {
@@ -601,7 +766,12 @@ export async function layoutText(text, font, page, config) {
           decorationStarts.delete(style)
           continue
         }
-        const advance = advanceFor(char)
+        if (textStyleEnds.has(char)) {
+          activeTextStyles.delete(textStyleEnds.get(char))
+          continue
+        }
+        const currentHeadingScale = headingScale()
+        const advance = advanceFor(char, currentHeadingScale)
         if (x > page.left && x + advance > maxX) {
           nextLine()
           previousJoin = null
@@ -613,7 +783,7 @@ export async function layoutText(text, font, page, config) {
         if (clipped) break
         const glyph = glyphs.get(char)
         if (glyph) {
-          const glyphStrokes = splitGlyphStrokes(glyph, x, baseline, scale, {
+          const sourceGlyphStrokes = splitGlyphStrokes(glyph, x, baseline, scale * currentHeadingScale, {
             enabled: Boolean(config.trueHandwriting),
             variation: config.glyphVariation,
             pressure: config.pressureVariation,
@@ -627,12 +797,14 @@ export async function layoutText(text, font, page, config) {
             fatigueStrength: config.fatigueStrength,
             progress: glyphOccurrence / plainCharacterCount,
           })
+          const glyphStrokes = applyTextStyles(sourceGlyphStrokes)
+          const primaryGlyphStrokes = glyphStrokes.slice(0, sourceGlyphStrokes.length)
           const isLetter = LETTER_PATTERN.test(char)
           const entryAnchor = isLetter
-            ? findCursiveAnchor(glyphStrokes, 'entry', baseline, page.fontSize)
+            ? findCursiveAnchor(primaryGlyphStrokes, 'entry', baseline, page.fontSize * currentHeadingScale)
             : null
           const exitAnchor = isLetter
-            ? findCursiveAnchor(glyphStrokes, 'exit', baseline, page.fontSize)
+            ? findCursiveAnchor(primaryGlyphStrokes, 'exit', baseline, page.fontSize * currentHeadingScale)
             : null
           const connectionChance = Math.max(0, Math.min(100, Number(config.connectionStrength) || 0))
           if (
@@ -647,10 +819,10 @@ export async function layoutText(text, font, page, config) {
             const connector = createCursiveConnector(
               previousJoin.anchor.point,
               entryAnchor.point,
-              page.fontSize,
+              page.fontSize * currentHeadingScale,
               connectionChance,
             )
-            if (connector) strokes.push(connector)
+            if (connector) strokes.push(...applyTextStyles([connector]))
           }
           if (
             config.trueHandwriting &&
@@ -673,7 +845,10 @@ export async function layoutText(text, font, page, config) {
           previousJoin = null
         }
         x += advance
-        if (glyph || !/\s/u.test(char)) markCalloutContent()
+        if (glyph || !/\s/u.test(char)) {
+          markCalloutContent()
+          markQuoteContent()
+        }
       }
       if (
         config.trueHandwriting &&
@@ -713,6 +888,7 @@ export async function layoutText(text, font, page, config) {
     if (clipped) break
   }
   closeCallout()
+  closeQuote()
 
   return { strokes, missing: [...missing], clipped, overflowText }
 }

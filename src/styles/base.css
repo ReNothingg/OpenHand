@@ -56,7 +56,7 @@ button {
   min-height: 100vh;
   background: #f3f4f6;
 }
-.panel-title > div:first-child {
+.panel-title > div:first-child:not(.source-tabs) {
   display: flex;
   flex-direction: column;
   min-width: 0;

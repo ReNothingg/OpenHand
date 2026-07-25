@@ -85,7 +85,6 @@ export default function PreviewPanel({
     <main className="preview-panel">
       <div className="preview-toolbar">
         <div className="preview-context">
-          {plotterMode && <strong className="preview-font-status">{plotterWorkspace.fontStatus}</strong>}
           <span className="preview-sheet-status">
             Лист {Math.min(activeSheetIndex + 1, sheetCount)} из {sheetCount}
             <i aria-hidden="true" />

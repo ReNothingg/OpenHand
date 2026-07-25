@@ -50,6 +50,69 @@
   gap: 14px;
   border-top: 1px solid #edf0f3;
 }
+.settings-subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 2px;
+  padding-top: 16px;
+  border-top: 1px solid #edf0f3;
+}
+.settings-subgroup h3 {
+  margin: 0;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.plotter-subgroup:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.settings-reset {
+  margin: 14px 10px 4px;
+  padding-top: 14px;
+  border-top: 1px solid #dce2e8;
+}
+
+/* The floating inspector is one surface; sections are rows, not cards on cards. */
+.settings-panel > .settings-section,
+.settings-panel .integrated-plotter-settings .settings-section {
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid #e3e7ec;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.settings-panel .settings-section > summary {
+  height: 54px;
+  padding: 0 24px;
+  border-radius: 0;
+}
+.settings-panel .settings-section > summary:hover,
+.settings-panel .settings-section[open] > summary {
+  border-radius: 0;
+  background: #f7f8fa;
+}
+.settings-panel .settings-section[open] > summary::before {
+  display: none;
+}
+.settings-panel .settings-content {
+  padding: 18px 24px 22px;
+}
+.settings-panel .integrated-plotter-settings {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.settings-panel .settings-reset {
+  margin: 0;
+  padding: 20px 18px 24px;
+  border-top: 0;
+}
 .field {
   display: flex;
   flex-direction: column;

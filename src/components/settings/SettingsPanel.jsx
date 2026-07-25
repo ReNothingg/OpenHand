@@ -32,6 +32,7 @@ export default function SettingsPanel({
   naturalnessReport,
   applyNaturalnessFix,
   applyHandwritingProfile,
+  onCollapse,
 }) {
   const maxTextWidth = Math.max(
     260,
@@ -40,13 +41,16 @@ export default function SettingsPanel({
 
   return (
     <aside className="settings-panel panel">
-      <div className="panel-title">
-        <strong>Настройки</strong>
-        <button className="text-button" type="button" onClick={resetSettings}>
-          Сбросить
-        </button>
-      </div>
-      <SettingSection title="Шрифт и текст">
+      <button
+        className="settings-panel-collapse"
+        type="button"
+        aria-label="Свернуть настройки"
+        title="Свернуть настройки"
+        onClick={onCollapse}
+      >
+        ›
+      </button>
+      <SettingSection title="Текст и страница">
         <FontPicker
           fontType={settings.fontType}
           value={settings.fontFamily}
@@ -95,8 +99,8 @@ export default function SettingsPanel({
           suffix="°"
           onChange={(value) => updateSetting("textRotation", value)}
         />
-      </SettingSection>
-      <SettingSection title="Страница и поля">
+        <div className="settings-subgroup" role="group" aria-labelledby="page-settings-title">
+          <h3 id="page-settings-title">Страница и поля</h3>
         <div className="page-format-field">
           <div className="page-format-row">
             <select
@@ -153,6 +157,7 @@ export default function SettingsPanel({
           suffix=" px"
           onChange={(value) => updateSetting("marginBottom", value)}
         />
+        </div>
       </SettingSection>
       <PlotterSettings workspace={plotterWorkspace} />
       <SettingSection title="Живой почерк">
@@ -436,6 +441,11 @@ export default function SettingsPanel({
           </button>
         </div>
       </SettingSection>
+      <div className="settings-reset">
+        <button className="button ghost settings-wide-button" type="button" onClick={resetSettings}>
+          Сбросить все настройки
+        </button>
+      </div>
     </aside>
   );
 }

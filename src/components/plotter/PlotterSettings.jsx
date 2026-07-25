@@ -20,7 +20,9 @@ export default function PlotterSettings({ workspace }) {
   return (
     <div className={`integrated-plotter-settings ${enabled ? 'enabled' : 'disabled'}`}>
       <fieldset disabled={!enabled}>
-        <SettingSection title="Контроллер">
+        <SettingSection title="Плоттер" open={false}>
+          <section className="settings-subgroup plotter-subgroup" aria-labelledby="plotter-controller-title">
+            <h3 id="plotter-controller-title">Подключение</h3>
           <div className="plotter-row two">
             <label className="field"><Caption help="Тип прошивки платы. Неверный вариант не повредит контроллер, но команды не будут распознаны.">Прошивка</Caption><select value={config.profile} disabled={connected} onChange={(event) => workspace.changeProfile(event.target.value)}><option value="grbl">GRBL</option><option value="marlin">Marlin</option><option value="ebb">EBB / DrawCore</option></select></label>
             <label className="field"><Caption help="Скорость обмена с платой. Обычно используется 115200. При неверном значении порт отвечает мусором или молчит.">Скорость порта</Caption><select value={config.baudRate} disabled={connected} onChange={(event) => workspace.updateConfig('baudRate', Number(event.target.value))}><option>9600</option><option>115200</option><option>250000</option></select></label>
@@ -29,9 +31,10 @@ export default function PlotterSettings({ workspace }) {
             ? <button className="button primary settings-wide-button" type="button" disabled={!enabled || !plotter.supported || plotter.status === 'connecting'} onClick={workspace.connect}>Выбрать USB-порт</button>
             : <button className="button settings-wide-button" type="button" disabled={running} onClick={workspace.disconnect}>Отключить</button>}
           {!plotter.supported && <p className="plotter-warning">Web Serial работает в Chrome/Edge на localhost или HTTPS.</p>}
-        </SettingSection>
+          </section>
 
-        <SettingSection title="Механика">
+          <section className="settings-subgroup plotter-subgroup" aria-labelledby="plotter-mechanics-title">
+            <h3 id="plotter-mechanics-title">Механика</h3>
           <div className="plotter-reset-row"><button className="text-button" type="button" disabled={locked} onClick={workspace.resetMechanics}>Сбросить</button></div>
           {config.profile !== 'ebb' && <label className="field"><Caption help="Servo управляет сервоприводом, Z/E — шаговым мотором. Laser может немедленно включить излучатель — сначала снимите с него питание.">Механизм пера</Caption><select value={config.penMode} disabled={running} onChange={(event) => workspace.updateConfig('penMode', event.target.value)}><option value="servo">Сервопривод</option><option value="stepper">Ось Z</option>{config.profile === 'grbl' && <option value="laser">Лазер / PWM</option>}{config.profile === 'marlin' && <option value="estepper">Ось E</option>}</select></label>}
           {config.profile === 'ebb'
@@ -50,9 +53,10 @@ export default function PlotterSettings({ workspace }) {
           <div className="plotter-row two"><label className="field"><Caption help="Пауза после движения пера. Слишком мало — линия начнётся до касания; слишком много — печать замедлится.">Задержка, сек.</Caption><input type="number" min="0" max="10" step="0.05" value={config.penDelay} onChange={number('penDelay', 0, 10)} /></label><label className="field"><Caption help="Дополнительное расстояние между символами. Большое значение вытеснит текст за границы листа.">Межбуквенно, мм</Caption><input type="number" min="0" max="20" step="0.1" value={config.letterSpacing} onChange={number('letterSpacing', 0, 20)} /></label></div>
           <button className="button ghost settings-wide-button" type="button" disabled={!enabled || running} onClick={() => fontInputRef.current?.click()}>Загрузить свой .gfont</button>
           <input ref={fontInputRef} type="file" accept=".gfont,application/octet-stream" hidden onChange={(event) => { workspace.importFont(event.target.files?.[0]); event.target.value = '' }} />
-        </SettingSection>
+          </section>
 
-        <SettingSection title="Ручная проверка">
+          <section className="settings-subgroup plotter-subgroup" aria-labelledby="plotter-manual-title">
+            <h3 id="plotter-manual-title">Ручная проверка</h3>
           <div className="jog-control">
             <button type="button" disabled={!connected || running} onClick={() => workspace.jog(0, -config.jogDistance)}>↑</button>
             <button type="button" disabled={!connected || running} onClick={() => workspace.jog(-config.jogDistance, 0)}>←</button>
@@ -66,6 +70,7 @@ export default function PlotterSettings({ workspace }) {
             <button className="button compact" type="button" disabled={!connected || running} onClick={() => workspace.pen(false)}>Перо ↓</button>
             <button className="button compact" type="button" disabled={!connected || running || config.profile === 'ebb'} onClick={workspace.setOrigin}>Это ноль</button>
           </div>
+          </section>
         </SettingSection>
       </fieldset>
     </div>

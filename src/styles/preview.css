@@ -23,14 +23,6 @@
   gap: 9px;
   margin-right: auto;
 }
-.preview-font-status {
-  max-width: min(360px, 35vw);
-  overflow: hidden;
-  color: #1e293b;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .preview-sheet-status {
   display: inline-flex;
   align-items: center;
