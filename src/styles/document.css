@@ -1,7 +1,5 @@
 .markdown-body {
   overflow-wrap: break-word;
-  container-type: inline-size;
-  container-name: document-page;
 }
 .markdown-body > :first-child {
   margin-top: 0 !important;
@@ -237,51 +235,49 @@
 .markdown-body .document-table-long tbody tr {
   break-inside: avoid;
 }
-@container document-page (max-width: 700px) {
-  .markdown-body .document-table-ultrawide {
-    display: block;
-    border: 0;
-    font-size: 0.72em;
-  }
-  .markdown-body .document-table-ultrawide colgroup,
-  .markdown-body .document-table-ultrawide thead {
-    display: none;
-  }
-  .markdown-body .document-table-ultrawide tbody {
-    display: grid;
-    gap: 0.72em;
-  }
-  .markdown-body .document-table-ultrawide tbody tr {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.16em 0.8em;
-    padding: 0.48em 0.62em;
-    border: 1px solid rgb(31 41 55 / 0.36);
-    border-radius: 0.2em;
-    break-inside: avoid;
-  }
-  .markdown-body .document-table-ultrawide td {
-    min-width: 0;
-    display: grid;
-    grid-template-columns: minmax(4.6em, 0.85fr) minmax(0, 1.15fr);
-    gap: 0.45em;
-    padding: 0.24em 0;
-    border: 0;
-  }
-  .markdown-body .document-table-ultrawide td::before {
-    content: attr(data-label);
-    min-width: 0;
-    font-weight: 700;
-    opacity: 0.62;
-    overflow-wrap: anywhere;
-  }
-  .markdown-body .document-table-ultrawide .table-cell-value {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-  .markdown-body .document-table-ultrawide td:last-child {
-    grid-column: 1 / -1;
-  }
+.markdown-body .document-table-stacked {
+  display: block;
+  border: 0;
+  font-size: 0.72em;
+}
+.markdown-body .document-table-stacked colgroup,
+.markdown-body .document-table-stacked thead {
+  display: none;
+}
+.markdown-body .document-table-stacked tbody {
+  display: grid;
+  gap: 0.72em;
+}
+.markdown-body .document-table-stacked tbody tr {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.16em 0.8em;
+  padding: 0.48em 0.62em;
+  border: 1px solid rgb(31 41 55 / 0.36);
+  border-radius: 0.2em;
+  break-inside: avoid;
+}
+.markdown-body .document-table-stacked td {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(4.6em, 0.85fr) minmax(0, 1.15fr);
+  gap: 0.45em;
+  padding: 0.24em 0;
+  border: 0;
+}
+.markdown-body .document-table-stacked td::before {
+  content: attr(data-label);
+  min-width: 0;
+  font-weight: 700;
+  opacity: 0.62;
+  overflow-wrap: anywhere;
+}
+.markdown-body .document-table-stacked .table-cell-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.markdown-body .document-table-stacked td:last-child {
+  grid-column: 1 / -1;
 }
 .markdown-body td > p {
   margin: 0;

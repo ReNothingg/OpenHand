@@ -201,6 +201,10 @@ export function paginateHtml(html, settings, host, finalizePages) {
   host.replaceChildren()
   const template = document.createElement('template')
   template.innerHTML = html
+  const useStackedTables = getPageMetrics(settings).contentWidth <= 760
+  template.content.querySelectorAll('table.document-table-ultrawide').forEach((table) => {
+    table.classList.toggle('document-table-stacked', useStackedTables)
+  })
   const pages = []
   const createPage = () => {
     const measured = makeMeasurePage(host, settings)
