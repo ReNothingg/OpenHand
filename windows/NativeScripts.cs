@@ -35,6 +35,12 @@ internal static class NativeScripts
             host.postMessage({ bridge, ...payload });
           }
 
+          const colorScheme = matchMedia("(prefers-color-scheme: dark)");
+          const syncWindowTheme = () =>
+            post("theme", { dark: colorScheme.matches });
+          colorScheme.addEventListener("change", syncWindowTheme);
+          syncWindowTheme();
+
           const bridge = {
             call(action, payload = {}) {
               const id = nextRequestID++;

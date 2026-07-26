@@ -8,13 +8,18 @@ internal sealed class NativeBridge : IDisposable
 {
     private readonly Form _owner;
     private readonly CoreWebView2 _webView;
+    private readonly Action<bool> _applyWindowTheme;
     private readonly SerialConnection _serial = new();
     private string? _selectedPortPath;
 
-    public NativeBridge(Form owner, CoreWebView2 webView)
+    public NativeBridge(
+        Form owner,
+        CoreWebView2 webView,
+        Action<bool> applyWindowTheme)
     {
         _owner = owner;
         _webView = webView;
+        _applyWindowTheme = applyWindowTheme;
         _serial.DataReceived += data => PostSerial("receive", new
         {
             data = Convert.ToBase64String(data)
@@ -34,6 +39,13 @@ internal sealed class NativeBridge : IDisposable
             using var document = JsonDocument.Parse(eventArgs.WebMessageAsJson);
             var root = document.RootElement;
             var bridge = GetRequiredString(root, "bridge");
+            if (bridge == "theme")
+            {
+                _applyWindowTheme(
+                    root.TryGetProperty("dark", out var dark) &&
+                    dark.ValueKind == JsonValueKind.True);
+                return;
+            }
             if (bridge == "file")
             {
                 await SaveFileAsync(root);

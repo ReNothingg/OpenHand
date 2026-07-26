@@ -9,6 +9,12 @@ namespace OpenHand;
 internal sealed class MainForm : Form
 {
     private const string ApplicationHost = "app.openhand.local";
+    private const int DwmwaUseImmersiveDarkModeBefore20H1 = 19;
+    private const int DwmwaUseImmersiveDarkMode = 20;
+    private const int DwmwaBorderColor = 34;
+    private const int DwmwaCaptionColor = 35;
+    private const int DwmwaTextColor = 36;
+    private const int DwmColorDefault = -1;
     private static readonly HashSet<string> SupportedDocumentExtensions =
         new(StringComparer.OrdinalIgnoreCase) { ".gcode", ".nc", ".tap" };
 
@@ -73,7 +79,7 @@ internal sealed class MainForm : Form
 
         var core = _webView.CoreWebView2;
         ConfigureWebView(core, webRoot);
-        _nativeBridge = new NativeBridge(this, core);
+        _nativeBridge = new NativeBridge(this, core, ApplyWindowTheme);
         core.WebMessageReceived += _nativeBridge.HandleWebMessage;
         await core.AddScriptToExecuteOnDocumentCreatedAsync(
             NativeScripts.SerialShim);
@@ -357,6 +363,55 @@ internal sealed class MainForm : Form
         }
     }
 
+    private void ApplyWindowTheme(bool dark)
+    {
+        if (!IsHandleCreated || IsDisposed)
+        {
+            return;
+        }
+
+        var darkMode = dark ? 1 : 0;
+        var darkModeResult = DwmSetWindowAttribute(
+            Handle,
+            DwmwaUseImmersiveDarkMode,
+            ref darkMode,
+            sizeof(int));
+        if (darkModeResult != 0)
+        {
+            DwmSetWindowAttribute(
+                Handle,
+                DwmwaUseImmersiveDarkModeBefore20H1,
+                ref darkMode,
+                sizeof(int));
+        }
+
+        var captionColor = dark
+            ? ColorTranslator.ToWin32(Color.FromArgb(23, 23, 25))
+            : DwmColorDefault;
+        var textColor = dark
+            ? ColorTranslator.ToWin32(Color.FromArgb(242, 242, 244))
+            : DwmColorDefault;
+        var borderColor = dark
+            ? ColorTranslator.ToWin32(Color.FromArgb(23, 23, 25))
+            : DwmColorDefault;
+
+        DwmSetWindowAttribute(
+            Handle,
+            DwmwaCaptionColor,
+            ref captionColor,
+            sizeof(int));
+        DwmSetWindowAttribute(
+            Handle,
+            DwmwaTextColor,
+            ref textColor,
+            sizeof(int));
+        DwmSetWindowAttribute(
+            Handle,
+            DwmwaBorderColor,
+            ref borderColor,
+            sizeof(int));
+    }
+
     private static void OpenExternalUri(Uri uri)
     {
         if (uri.Scheme is not ("http" or "https" or "mailto"))
@@ -393,6 +448,13 @@ internal sealed class MainForm : Form
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool DestroyIcon(IntPtr handle);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        IntPtr window,
+        int attribute,
+        ref int value,
+        int valueSize);
 
     private sealed record PendingDocument(
         string Name,
