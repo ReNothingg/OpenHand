@@ -155,9 +155,8 @@ flowchart LR
 | Команда | Назначение |
 | --- | --- |
 | `npm run dev` | Запустить Vite dev server на всех интерфейсах |
-| `npm run build` | Собрать сайт, синхронизировать macOS и упаковать нативное приложение для текущей ОС |
-| `npm run build:web` | Собрать только production‑версию сайта в `docs/` |
-| `npm run preview` | Локально проверить production‑сборку |
+| `npm run build` | Собрать сайт, синхронизировать macOS и упаковать приложение для текущей ОС |
+| `npm run build:web` | Собрать только прод версию сайта в `docs/` |
 | `npm run macos:sync` | Собрать web и перенести ресурсы в macOS‑проект |
 | `npm run macos:build` | Собрать универсальный `OpenHand.app` на macOS |
 | `npm run windows:build` | Собрать автономный Windows x64 release и ZIP в `windows/build/` |
