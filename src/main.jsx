@@ -11,9 +11,17 @@ const path = window.location.pathname.replace(/\/+$/, '') || '/'
 const searchParams = new URLSearchParams(window.location.search)
 const isMacOSNative = Boolean(window.webkit?.messageHandlers?.serialBridge)
   || searchParams.get('platform') === 'macos'
+const colorScheme = window.matchMedia('(prefers-color-scheme: dark)')
 const view = searchParams.get('view')
 
-document.documentElement.classList.toggle('macos-native', isMacOSNative)
+const syncPlatformTheme = () => {
+  document.documentElement.classList.toggle(
+    'macos-native',
+    isMacOSNative || colorScheme.matches,
+  )
+}
+colorScheme.addEventListener('change', syncPlatformTheme)
+syncPlatformTheme()
 
 window.__openhandReceiveFile = (payload) => {
   window.__openhandPendingFile = payload

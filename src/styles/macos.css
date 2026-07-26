@@ -721,25 +721,25 @@
 
 @media (prefers-color-scheme: dark) {
   .macos-native {
-    --mac-bg: #171719;
-    --mac-panel: #232326;
-    --mac-panel-muted: #2b2b2f;
-    --mac-surface: #303034;
-    --mac-surface-hover: #3a3a3f;
-    --mac-surface-active: #44444a;
-    --mac-canvas: #111113;
-    --mac-text: #f2f2f4;
-    --mac-secondary: #b0b0b5;
-    --mac-tertiary: #85858b;
-    --mac-line: #414146;
-    --mac-line-strong: #57575d;
-    --mac-accent: #2f91f2;
-    --mac-accent-hover: #57a7f6;
-    --mac-accent-soft: #173b60;
+    --mac-bg: #111111;
+    --mac-panel: #171717;
+    --mac-panel-muted: #1b1b1b;
+    --mac-surface: #1f1f1f;
+    --mac-surface-hover: #252525;
+    --mac-surface-active: #2c2c2c;
+    --mac-canvas: #0b0b0b;
+    --mac-text: #fcfcfc;
+    --mac-secondary: #b8b8b8;
+    --mac-tertiary: #808080;
+    --mac-line: #2c2c2c;
+    --mac-line-strong: #3b3b3b;
+    --mac-accent: #0169cc;
+    --mac-accent-hover: #0879e6;
+    --mac-accent-soft: #082b4d;
     --mac-danger: #ff6961;
-    --mac-danger-soft: #4a2423;
+    --mac-danger-soft: #3d1d1b;
     --mac-warning: #ffc56d;
-    --mac-warning-soft: #49391f;
+    --mac-warning-soft: #382b16;
   }
 }
 

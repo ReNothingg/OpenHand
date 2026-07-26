@@ -49,7 +49,7 @@ internal sealed class MainForm : Form
         {
             ShowFatalError(
                 "Не найдены ресурсы OpenHand.\n\n" +
-                "Выполните «npm run build» в корне проекта и пересоберите Windows-приложение.");
+                "Выполните «npm run build:web» в корне проекта и пересоберите Windows-приложение.");
             return;
         }
 
@@ -386,13 +386,13 @@ internal sealed class MainForm : Form
         }
 
         var captionColor = dark
-            ? ColorTranslator.ToWin32(Color.FromArgb(23, 23, 25))
+            ? ColorTranslator.ToWin32(Color.FromArgb(23, 23, 23))
             : DwmColorDefault;
         var textColor = dark
-            ? ColorTranslator.ToWin32(Color.FromArgb(242, 242, 244))
+            ? ColorTranslator.ToWin32(Color.FromArgb(252, 252, 252))
             : DwmColorDefault;
         var borderColor = dark
-            ? ColorTranslator.ToWin32(Color.FromArgb(23, 23, 25))
+            ? ColorTranslator.ToWin32(Color.FromArgb(23, 23, 23))
             : DwmColorDefault;
 
         DwmSetWindowAttribute(
@@ -410,6 +410,10 @@ internal sealed class MainForm : Form
             DwmwaBorderColor,
             ref borderColor,
             sizeof(int));
+
+        _webView.DefaultBackgroundColor = dark
+            ? Color.FromArgb(17, 17, 17)
+            : Color.White;
     }
 
     private static void OpenExternalUri(Uri uri)

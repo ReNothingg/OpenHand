@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build && node scripts/write-sites-worker.mjs",
-    "macos:sync": "npm run build && sh macos/scripts/sync-web-assets.sh",
+    "build": "node scripts/build-all.mjs",
+    "build:web": "vite build && node scripts/write-sites-worker.mjs",
+    "macos:sync": "npm run build:web && node scripts/sync-macos-web.mjs",
+    "macos:build": "sh macos/scripts/build-release.sh",
     "windows:build": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/scripts/build-release.ps1",
     "windows:build:arm64": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/scripts/build-release.ps1 -Runtime win-arm64",
     "preview": "vite preview --host 0.0.0.0"

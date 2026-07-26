@@ -45,7 +45,7 @@
   <Target Name="ValidateWebAssets" BeforeTargets="BeforeBuild">
     <Error
       Condition="!Exists('..\docs\index.html')"
-      Text="Не найдена web-сборка OpenHand. Выполните npm run build в корне проекта." />
+      Text="Не найдена web-сборка OpenHand. Выполните npm run build:web в корне проекта." />
   </Target>
 
   <Target Name="GenerateApplicationIcon" BeforeTargets="CoreCompile"

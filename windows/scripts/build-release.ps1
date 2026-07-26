@@ -1,6 +1,7 @@
 param(
     [ValidateSet('win-x64', 'win-arm64')]
-    [string]$Runtime = 'win-x64'
+    [string]$Runtime = 'win-x64',
+    [switch]$SkipWebBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,9 +15,11 @@ $archivePath = Join-Path $buildDirectory "OpenHand-$Runtime.zip"
 
 Push-Location $projectDirectory
 try {
-    & npm run build
-    if ($LASTEXITCODE -ne 0) {
-        throw "Web build failed with exit code $LASTEXITCODE."
+    if (-not $SkipWebBuild) {
+        & npm run build:web
+        if ($LASTEXITCODE -ne 0) {
+            throw "Web build failed with exit code $LASTEXITCODE."
+        }
     }
 
     & dotnet publish (Join-Path $windowsDirectory 'OpenHand.csproj') `

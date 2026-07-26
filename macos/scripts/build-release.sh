@@ -32,7 +32,9 @@ if [ -z "$XCODEBUILD" ]; then
 fi
 
 cd "$PROJECT_DIR"
-npm run macos:sync
+if [ "${OPENHAND_SKIP_WEB_BUILD:-0}" != "1" ]; then
+  npm run macos:sync
+fi
 mkdir -p "$OUTPUT_DIR"
 
 "$XCODEBUILD" \

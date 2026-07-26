@@ -8,7 +8,7 @@ SOURCE_DIR="$PROJECT_DIR/docs"
 TARGET_DIR="$PROJECT_DIR/macos/Web"
 
 if [ ! -f "$SOURCE_DIR/index.html" ]; then
-  echo "Сначала соберите веб-приложение: npm run build" >&2
+  echo "Сначала соберите веб-приложение: npm run build:web" >&2
   exit 1
 fi
 
