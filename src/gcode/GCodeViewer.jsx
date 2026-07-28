@@ -138,7 +138,7 @@ export default function GCodeViewer({ payload, onClose }) {
               </label>
               <label className="gcode-zoom">
                 <span>Масштаб</span>
-                <input type="range" min="0.6" max="3" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} />
+                <input type="range" min="0.6" max="3" step="0.1" value={zoom} aria-label="Масштаб просмотра G-code" onChange={(event) => setZoom(Number(event.target.value))} />
                 <output>{Math.round(zoom * 100)}%</output>
               </label>
             </div>

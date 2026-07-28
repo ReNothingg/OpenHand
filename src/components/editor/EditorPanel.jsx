@@ -125,6 +125,7 @@ export default function EditorPanel({
   characterCount,
   expanded,
   setExpanded,
+  showPreview,
 }) {
   const [helpOpen, setHelpOpen] = useState(false)
   const expandedRef = useRef(null)
@@ -240,6 +241,14 @@ export default function EditorPanel({
         </div>
         <div className="editor-title-actions">
           {sourceMode === 'markdown' && <button type="button" className="editor-expand-button editor-svg-button" onClick={() => svgInputRef.current?.click()} title="Вставить SVG">SVG</button>}
+          <button
+            type="button"
+            className="editor-preview-button"
+            onClick={showPreview}
+            aria-label="Перейти к предпросмотру листа"
+          >
+            К листу
+          </button>
         </div>
       </div>
       <textarea

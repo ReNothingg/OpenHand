@@ -32,6 +32,8 @@ export default function SettingsPanel({
   naturalnessReport,
   applyNaturalnessFix,
   applyHandwritingProfile,
+  closeSettings,
+  settingsCollapsed,
 }) {
   const maxTextWidth = Math.max(
     260,
@@ -39,7 +41,15 @@ export default function SettingsPanel({
   );
 
   return (
-    <aside className="settings-panel panel">
+    <aside
+      className="settings-panel panel"
+      aria-hidden={settingsCollapsed}
+      inert={settingsCollapsed}
+    >
+      <div className="settings-drawer-header">
+        <strong>Настройки</strong>
+        <button type="button" onClick={closeSettings} aria-label="Закрыть настройки">×</button>
+      </div>
       <SettingSection title="Текст и страница">
         <FontPicker
           fontType={settings.fontType}
@@ -363,6 +373,8 @@ export default function SettingsPanel({
             />
             <button
               type="button"
+              aria-label="Создать новое зерно случайности"
+              title="Создать новое зерно случайности"
               onClick={() =>
                 updateSetting("seed", Math.floor(Math.random() * 999999))
               }

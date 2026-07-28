@@ -28,7 +28,7 @@ internal sealed class MainForm : Form
     public MainForm(string? initialDocument)
     {
         _initialDocument = initialDocument;
-        Text = "Чернильник";
+        Text = "OpenHand";
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(1440, 900);
         MinimumSize = new Size(980, 680);

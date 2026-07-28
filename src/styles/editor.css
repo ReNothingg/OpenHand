@@ -3,6 +3,25 @@
   align-items: center;
   gap: 10px;
 }
+.editor-preview-button {
+  display: none;
+  height: 29px;
+  padding: 0 10px;
+  border: 1px solid #cfd6df;
+  border-radius: 7px;
+  color: #334155;
+  background: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+}
+.editor-preview-button:hover {
+  border-color: #7c93ad;
+  background: #f8fafc;
+}
+@media (max-width: 900px) {
+  .editor-preview-button { display: inline-flex; align-items: center; }
+}
 .editor-expand-button {
   width: 29px;
   height: 29px;

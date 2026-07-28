@@ -51,7 +51,7 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
   const pageHeight = layout?.page?.pageHeight || metrics.height * 25.4 / 96
 
   return (
-    <svg className="integrated-plotter-paper" viewBox={`0 0 ${pageWidth} ${pageHeight}`} preserveAspectRatio="none" shapeRendering="geometricPrecision" aria-label={`Траектория листа ${pageIndex + 1}`}>
+    <svg className="integrated-plotter-paper" viewBox={`0 0 ${pageWidth} ${pageHeight}`} preserveAspectRatio="none" shapeRendering="geometricPrecision" role="img" aria-label={`Траектория листа ${pageIndex + 1}`}>
       <defs>
         <pattern id={`plotter-rules-${pageIndex}`} width="5" height="5" patternUnits="userSpaceOnUse">
           <path d="M 5 0 L 5 5 L 0 5" className="plotter-rule-line" />

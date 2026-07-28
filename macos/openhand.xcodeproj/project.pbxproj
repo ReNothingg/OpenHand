@@ -257,8 +257,8 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = openhand/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Чернильник";
-				INFOPLIST_KEY_CFBundleName = "Чернильник";
+				INFOPLIST_KEY_CFBundleDisplayName = OpenHand;
+				INFOPLIST_KEY_CFBundleName = OpenHand;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -293,8 +293,8 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = openhand/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Чернильник";
-				INFOPLIST_KEY_CFBundleName = "Чернильник";
+				INFOPLIST_KEY_CFBundleDisplayName = OpenHand;
+				INFOPLIST_KEY_CFBundleName = OpenHand;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (

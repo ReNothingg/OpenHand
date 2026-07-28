@@ -32,7 +32,9 @@ export default function App() {
   const [activePreset, setActivePreset] = useState('')
   const [editorCollapsed, setEditorCollapsed] = useState(false)
   const [editorExpanded, setEditorExpanded] = useState(false)
-  const [settingsCollapsed, setSettingsCollapsed] = useState(false)
+  const [settingsCollapsed, setSettingsCollapsed] = useState(
+    () => window.matchMedia('(max-width: 1180px)').matches,
+  )
   const [viewMode, setViewMode] = useState('single')
   const [activeSheetIndex, setActiveSheetIndex] = useState(0)
   const [manualEditing, setManualEditing] = useState(false)
@@ -45,6 +47,15 @@ export default function App() {
   const previewRef = useRef(null)
   const sourceImportRef = useRef(null)
   const settingsImportRef = useRef(null)
+
+  useEffect(() => {
+    const mediumWindow = window.matchMedia('(max-width: 1180px)')
+    const collapseSettingsForNarrowWindow = (event) => {
+      if (event.matches) setSettingsCollapsed(true)
+    }
+    mediumWindow.addEventListener('change', collapseSettingsForNarrowWindow)
+    return () => mediumWindow.removeEventListener('change', collapseSettingsForNarrowWindow)
+  }, [])
 
   const activeSource = sourceMode === 'tex' ? texSource : markdown
   const plotterEnabled = settings.fontType === 'plotter'
@@ -522,6 +533,7 @@ export default function App() {
           characterCount={activeSource.length}
           expanded={editorExpanded}
           setExpanded={setEditorExpanded}
+          showPreview={() => setEditorCollapsed(true)}
         />
         <PreviewPanel
             pages={displayPages}
@@ -578,6 +590,8 @@ export default function App() {
             naturalnessReport={naturalnessReport}
             applyNaturalnessFix={() => updateSettings(naturalnessAutofix(settings))}
             applyHandwritingProfile={(profileId) => updateSettings(profilePatch(profileId))}
+            closeSettings={() => setSettingsCollapsed(true)}
+            settingsCollapsed={settingsCollapsed}
           />
       </div>
 

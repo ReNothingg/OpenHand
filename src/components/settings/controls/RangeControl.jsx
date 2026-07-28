@@ -1,16 +1,29 @@
+import { useId } from 'react'
 import LiquidRange from '../../controls/LiquidRange.jsx'
 
 export default function RangeControl({ label, value, min, max, step = 1, suffix = '', onChange, hint }) {
+  const inputId = useId()
+  const hintId = hint ? `${inputId}-hint` : undefined
+
   return (
-    <label className="range-control">
+    <div className="range-control">
       <span className="control-heading">
-        <span className="control-label">
+        <label className="control-label" htmlFor={inputId}>
           {label}
-          {hint && <span className="setting-help" tabIndex="0" title={hint} aria-label={hint}>!</span>}
-        </span>
-        <output>{value}{suffix}</output>
+          {hint && <span id={hintId} className="setting-help" tabIndex="0" title={hint} aria-label={hint}>!</span>}
+        </label>
+        <output htmlFor={inputId}>{value}{suffix}</output>
       </span>
-      <LiquidRange min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
-    </label>
+      <LiquidRange
+        id={inputId}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        aria-label={label}
+        aria-describedby={hintId}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </div>
   )
 }

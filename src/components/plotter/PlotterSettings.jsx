@@ -58,13 +58,13 @@ export default function PlotterSettings({ workspace }) {
           <section className="settings-subgroup plotter-subgroup" aria-labelledby="plotter-manual-title">
             <h3 id="plotter-manual-title">Ручная проверка</h3>
           <div className="jog-control">
-            <button type="button" disabled={!connected || running} onClick={() => workspace.jog(0, -config.jogDistance)}>↑</button>
-            <button type="button" disabled={!connected || running} onClick={() => workspace.jog(-config.jogDistance, 0)}>←</button>
+            <button type="button" aria-label="Переместить каретку вверх" disabled={!connected || running} onClick={() => workspace.jog(0, -config.jogDistance)}>↑</button>
+            <button type="button" aria-label="Переместить каретку влево" disabled={!connected || running} onClick={() => workspace.jog(-config.jogDistance, 0)}>←</button>
             <span>{config.jogDistance} мм</span>
-            <button type="button" disabled={!connected || running} onClick={() => workspace.jog(config.jogDistance, 0)}>→</button>
-            <button type="button" disabled={!connected || running} onClick={() => workspace.jog(0, config.jogDistance)}>↓</button>
+            <button type="button" aria-label="Переместить каретку вправо" disabled={!connected || running} onClick={() => workspace.jog(config.jogDistance, 0)}>→</button>
+            <button type="button" aria-label="Переместить каретку вниз" disabled={!connected || running} onClick={() => workspace.jog(0, config.jogDistance)}>↓</button>
           </div>
-          <label className="range-control"><span className="control-heading"><Caption help="Для первого теста выберите 0,1–1 мм, чтобы не ударить каретку о край.">Шаг ручного движения</Caption><output>{config.jogDistance} мм</output></span><LiquidRange min="0.1" max="50" step="0.1" value={config.jogDistance} onChange={number('jogDistance', 0.1, 50)} /></label>
+          <label className="range-control"><span className="control-heading"><Caption help="Для первого теста выберите 0,1–1 мм, чтобы не ударить каретку о край.">Шаг ручного движения</Caption><output>{config.jogDistance} мм</output></span><LiquidRange min="0.1" max="50" step="0.1" value={config.jogDistance} aria-label="Шаг ручного движения" onChange={number('jogDistance', 0.1, 50)} /></label>
           <div className="plotter-actions compact-actions">
             <button className="button compact" type="button" disabled={!connected || running} onClick={() => workspace.pen(true)}>Перо ↑</button>
             <button className="button compact" type="button" disabled={!connected || running} onClick={() => workspace.pen(false)}>Перо ↓</button>
