@@ -2,6 +2,12 @@ import { useRef } from 'react'
 import LiquidRange from '../controls/LiquidRange.jsx'
 import SettingSection from '../settings/controls/SettingSection.jsx'
 import Toggle from '../settings/controls/Toggle.jsx'
+import { downloadFile } from '../../lib/files.js'
+import {
+  safeProfileFilename,
+  serializePlotterProfile,
+} from '../../plotter/profiles.js'
+import PlotterCalibrationWizard from './PlotterCalibrationWizard.jsx'
 
 function Help({ children }) {
   return <span className="plotter-help" tabIndex="0" aria-label={children}>!<span role="tooltip">{children}</span></span>
@@ -13,14 +19,102 @@ function Caption({ children, help }) {
 
 export default function PlotterSettings({ workspace }) {
   const fontInputRef = useRef(null)
-  const { enabled, config, connected, running, plotter } = workspace
-  const locked = !enabled || running
+  const profileInputRef = useRef(null)
+  const { enabled, config, connected, running, plotter, calibrationActive } = workspace
+  const locked = !enabled || running || calibrationActive
   const number = (key, min, max) => (event) => workspace.boundedConfig(key, event.target.value, min, max)
+  const createProfile = () => {
+    const name = window.prompt('Название нового профиля:', 'Мой плоттер')?.trim()
+    if (name) workspace.createDeviceProfile(name)
+  }
+  const renameProfile = () => {
+    const name = window.prompt('Новое название профиля:', workspace.activeProfile.name)?.trim()
+    if (name) workspace.renameDeviceProfile(workspace.activeProfile.id, name)
+  }
+  const duplicateProfile = () => {
+    const name = window.prompt('Название копии:', `${workspace.activeProfile.name} — копия`)?.trim()
+    if (name) workspace.duplicateDeviceProfile(workspace.activeProfile.id, name)
+  }
+  const deleteProfile = () => {
+    if (
+      window.confirm(`Удалить профиль «${workspace.activeProfile.name}»?`)
+    ) workspace.deleteDeviceProfile(workspace.activeProfile.id)
+  }
+  const exportProfile = () => {
+    downloadFile(
+      safeProfileFilename(workspace.activeProfile.name),
+      serializePlotterProfile(workspace.activeProfile),
+      'application/json;charset=utf-8',
+    )
+  }
+  const importProfile = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      await workspace.importDeviceProfile(file)
+    } catch (reason) {
+      window.alert(reason instanceof Error ? reason.message : 'Не удалось импортировать профиль.')
+    }
+    event.target.value = ''
+  }
 
   return (
     <div className={`integrated-plotter-settings ${enabled ? 'enabled' : 'disabled'}`}>
-      <fieldset disabled={!enabled}>
+      <fieldset disabled={!enabled || calibrationActive}>
         <SettingSection title="Плоттер" open={false}>
+          <section className="settings-subgroup plotter-subgroup" aria-labelledby="plotter-profile-title">
+            <h3 id="plotter-profile-title">Профиль устройства</h3>
+            <label className="field">
+              <span>Активный профиль</span>
+              <select
+                value={workspace.activeProfile.id}
+                disabled={connected || running}
+                onChange={(event) => workspace.selectDeviceProfile(event.target.value)}
+              >
+                {workspace.profileStore.profiles.map((profile) => (
+                  <option value={profile.id} key={profile.id}>{profile.name}</option>
+                ))}
+              </select>
+            </label>
+            <div className="plotter-profile-meta">
+              {workspace.activeProfile.calibratedAt
+                ? `Калибровка: ${new Date(workspace.activeProfile.calibratedAt).toLocaleString('ru-RU')}`
+                : 'Калибровка ещё не завершена'}
+            </div>
+            <div className="plotter-profile-actions">
+              <button className="text-button" type="button" disabled={connected || running} onClick={createProfile}>Новый</button>
+              <button className="text-button" type="button" disabled={connected || running} onClick={renameProfile}>Переименовать</button>
+              <button className="text-button" type="button" disabled={connected || running} onClick={duplicateProfile}>Дублировать</button>
+              <button
+                className="text-button danger-text"
+                type="button"
+                disabled={connected || running || workspace.profileStore.profiles.length < 2}
+                onClick={deleteProfile}
+              >
+                Удалить
+              </button>
+            </div>
+            <div className="plotter-row two">
+              <button className="button ghost compact" type="button" onClick={exportProfile}>Экспорт</button>
+              <button className="button ghost compact" type="button" disabled={connected || running} onClick={() => profileInputRef.current?.click()}>Импорт</button>
+            </div>
+            <input
+              ref={profileInputRef}
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={importProfile}
+            />
+            <button
+              className="button primary settings-wide-button"
+              type="button"
+              disabled={!enabled || running}
+              onClick={workspace.startCalibration}
+            >
+              Калибровать
+            </button>
+          </section>
+
           <section className="settings-subgroup plotter-subgroup" aria-labelledby="plotter-controller-title">
             <h3 id="plotter-controller-title">Подключение</h3>
           <div className="plotter-row two">
@@ -45,6 +139,8 @@ export default function PlotterSettings({ workspace }) {
                 ? <label className="field"><Caption help="Мощность PWM. Не проверяйте со включённым лазером без очков и закрытого корпуса.">Мощность S</Caption><input type="number" min="0" max="1000" value={config.laserPower} onChange={number('laserPower', 0, 1000)} /></label>
                 : <div className="plotter-row two"><label className="field"><Caption help="Координата Z/E при поднятом пере. Ошибка направления может увести ось в концевик.">Перо поднято, мм</Caption><input type="number" min="-50" max="50" step="0.1" value={config.zUp} onChange={number('zUp', -50, 50)} /></label><label className="field"><Caption help="Координата касания листа. Не задавайте большое заглубление.">Перо опущено, мм</Caption><input type="number" min="-50" max="50" step="0.1" value={config.zDown} onChange={number('zDown', -50, 50)} /></label></div>}
           <div className="plotter-row two"><label className="field"><Caption help="Начните с 500–1500 мм/мин. Высокая скорость вызывает пропуски шагов и рваные линии.">Рисование, мм/мин</Caption><input type="number" min="1" max="10000" value={config.feedRate} onChange={number('feedRate', 1, 10000)} /></label><label className="field"><Caption help="Скорость движения с поднятым пером. Слишком большое значение может привести к удару о раму.">Холостой ход</Caption><input type="number" min="1" max="10000" value={config.jogSpeed} onChange={number('jogSpeed', 1, 10000)} /></label></div>
+          <div className="plotter-row two"><label className="field"><Caption help="Физическая ширина безопасной рабочей области. Мастер использует её для проверки рамки.">Рабочая ширина, мм</Caption><input type="number" min="20" max="2000" step="0.1" value={config.workAreaWidth} onChange={number('workAreaWidth', 20, 2000)} /></label><label className="field"><Caption help="Физическая высота безопасной рабочей области. Значение должно помещаться в пределы механики.">Рабочая высота, мм</Caption><input type="number" min="20" max="2000" step="0.1" value={config.workAreaHeight} onChange={number('workAreaHeight', 20, 2000)} /></label></div>
+          <label className="field"><Caption help="Короткое движение на этапе проверки направлений. Для первого запуска оставьте 1 мм или меньше.">Шаг калибровки, мм</Caption><input type="number" min="0.1" max="5" step="0.1" value={config.calibrationStep} onChange={number('calibrationStep', 0.1, 5)} /></label>
           <Toggle
             checked={Boolean(config.optimizePath)}
             onChange={(value) => workspace.updateConfig('optimizePath', value)}
@@ -73,6 +169,7 @@ export default function PlotterSettings({ workspace }) {
           </section>
         </SettingSection>
       </fieldset>
+      {calibrationActive && <PlotterCalibrationWizard workspace={workspace} />}
     </div>
   )
 }

@@ -23,6 +23,7 @@ export default function PlotterFooter({ workspace }) {
     plotter,
     playback,
     recoveryAvailable,
+    calibrationActive,
   } = workspace
 
   return (
@@ -55,18 +56,18 @@ export default function PlotterFooter({ workspace }) {
         <output>{Math.round(playback.progress * 100)}%</output>
       </div>
       <div className="plotter-footer-actions">
-        <label className="plotter-arm"><input type="checkbox" checked={armed} onChange={(event) => setArmed(event.target.checked)} /><span>Перо и нулевая точка проверены.</span></label>
+        <label className="plotter-arm"><input type="checkbox" checked={armed} disabled={calibrationActive} onChange={(event) => setArmed(event.target.checked)} /><span>Перо и нулевая точка проверены.</span></label>
         <div className="plotter-runbar">
           <button className="button compact" type="button" disabled={!job.commands.length || busy} onClick={() => {
             const currentJob = workspace.createJob()
             downloadFile(`openhand-page-${workspace.activeIndex + 1}.${config.profile === 'ebb' ? 'ebb.txt' : 'gcode'}`, `${currentJob.commands.join('\n')}\n`, 'text/plain;charset=utf-8')
           }}>Скачать команды</button>
           {!running && !recoveryAvailable && (
-            <button className="button primary compact" type="button" disabled={!connected || !armed || !job.commands.length || busy} onClick={workspace.run}>Запустить</button>
+            <button className="button primary compact" type="button" disabled={calibrationActive || !connected || !armed || !job.commands.length || busy} onClick={workspace.run}>Запустить</button>
           )}
           {!running && recoveryAvailable && (
             <>
-              <button className="button primary compact" type="button" disabled={!connected || !armed || busy} onClick={workspace.recover}>
+              <button className="button primary compact" type="button" disabled={calibrationActive || !connected || !armed || busy} onClick={workspace.recover}>
                 Продолжить с {Math.round(plotter.recovery.current / plotter.recovery.total * 100)}%
               </button>
               <button className="button ghost compact" type="button" onClick={workspace.discardRecovery}>Начать заново</button>

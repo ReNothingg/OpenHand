@@ -14,36 +14,14 @@ import {
   pageSettingsToMillimeters,
 } from '../plotter/job.js'
 import { PLOTTER_PAGE_BREAK } from '../plotter/richText.js'
-
-const STORAGE_KEY = 'openhand.plotter.settings.v1'
-
-function clamp(value, min, max, fallback) {
-  const number = Number(value)
-  return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback
-}
-
-function loadConfig() {
-  try {
-    const config = { ...DEFAULT_PLOTTER_CONFIG, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }
-    const servoMax = config.profile === 'marlin' ? 180 : 32767
-    return {
-      ...config,
-      feedRate: clamp(config.feedRate, 1, 10000, DEFAULT_PLOTTER_CONFIG.feedRate),
-      jogSpeed: clamp(config.jogSpeed, 1, 10000, DEFAULT_PLOTTER_CONFIG.jogSpeed),
-      jogDistance: clamp(config.jogDistance, 0.1, 50, DEFAULT_PLOTTER_CONFIG.jogDistance),
-      penUp: clamp(config.penUp, 0, servoMax, config.profile === 'marlin' ? 50 : DEFAULT_PLOTTER_CONFIG.penUp),
-      penDown: clamp(config.penDown, 0, servoMax, config.profile === 'marlin' ? 0 : DEFAULT_PLOTTER_CONFIG.penDown),
-      zUp: clamp(config.zUp, -50, 50, DEFAULT_PLOTTER_CONFIG.zUp),
-      zDown: clamp(config.zDown, -50, 50, DEFAULT_PLOTTER_CONFIG.zDown),
-      laserPower: clamp(config.laserPower, 0, 1000, DEFAULT_PLOTTER_CONFIG.laserPower),
-      mmToSteps: clamp(config.mmToSteps, 1, 1000, DEFAULT_PLOTTER_CONFIG.mmToSteps),
-      penDelay: clamp(config.penDelay, 0, 10, DEFAULT_PLOTTER_CONFIG.penDelay),
-      letterSpacing: clamp(config.letterSpacing, 0, 20, DEFAULT_PLOTTER_CONFIG.letterSpacing),
-    }
-  } catch {
-    return { ...DEFAULT_PLOTTER_CONFIG }
-  }
-}
+import { runCalibrationAction } from '../plotter/calibrationRunner.js'
+import {
+  createPlotterProfile,
+  loadPlotterProfileStore,
+  normalizePlotterConfig,
+  parsePlotterProfile,
+  PLOTTER_PROFILES_KEY,
+} from '../plotter/profiles.js'
 
 export function mechanicsDefaults(profile) {
   return {
@@ -96,18 +74,43 @@ export function useIntegratedPlotter({
   activeSheetIndex,
   pending = false,
 }) {
-  const [config, setConfig] = useState(() => ({ ...loadConfig(), fontId: fontId || DEFAULT_PLOTTER_CONFIG.fontId }))
+  const [profileStore, setProfileStore] = useState(loadPlotterProfileStore)
   const [font, setFont] = useState(null)
   const [fontStatus, setFontStatus] = useState('Выберите однолинейный GFont')
   const [layouts, setLayouts] = useState([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [armed, setArmed] = useState(false)
+  const [calibrationActive, setCalibrationActive] = useState(false)
   const plotter = usePlotter()
+  const activeProfile = profileStore.profiles.find(
+    (profile) => profile.id === profileStore.activeProfileId,
+  ) || profileStore.profiles[0]
+  const config = activeProfile.config
+  const setConfig = useCallback((updater) => {
+    setProfileStore((current) => {
+      const activeId = current.activeProfileId
+      return {
+        ...current,
+        profiles: current.profiles.map((profile) => {
+          if (profile.id !== activeId) return profile
+          const incoming = typeof updater === 'function' ? updater(profile.config) : updater
+          const nextConfig = normalizePlotterConfig(incoming)
+          if (JSON.stringify(nextConfig) === JSON.stringify(profile.config)) return profile
+          return {
+            ...profile,
+            config: nextConfig,
+            calibratedAt: null,
+            updatedAt: Date.now(),
+          }
+        }),
+      }
+    })
+  }, [])
   const previewConfig = useDebouncedValue(config)
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
-  }, [config])
+    localStorage.setItem(PLOTTER_PROFILES_KEY, JSON.stringify(profileStore))
+  }, [profileStore])
 
   useEffect(() => {
     if (!enabled) {
@@ -278,28 +281,37 @@ export function useIntegratedPlotter({
   })
 
   const updateConfig = useCallback((key, value) => {
+    if (calibrationActive) return
     setConfig((current) => ({ ...current, [key]: value }))
     setArmed(false)
-  }, [])
+  }, [calibrationActive, setConfig])
   const boundedConfig = useCallback((key, value, min, max) => {
     if (!Number.isFinite(Number(value))) return
     updateConfig(key, Math.min(max, Math.max(min, Number(value))))
   }, [updateConfig])
   const changeProfile = useCallback((profile) => {
+    if (calibrationActive) return
     setConfig((current) => profile === 'marlin'
       ? { ...current, profile, penMode: 'servo', penUp: 50, penDown: 0 }
       : profile === 'grbl'
         ? { ...current, profile, penMode: 'servo', penUp: 12000, penDown: 18000 }
         : { ...current, profile })
     setArmed(false)
-  }, [])
+  }, [calibrationActive, setConfig])
   const resetMechanics = useCallback(() => {
+    if (calibrationActive) return
     setConfig((current) => ({ ...current, ...mechanicsDefaults(current.profile) }))
     setArmed(false)
-  }, [])
+  }, [calibrationActive, setConfig])
   const safeAction = useCallback(async (action) => {
     setError('')
-    try { await action() } catch (reason) { setError(reason.message) }
+    try {
+      await action()
+      return true
+    } catch (reason) {
+      setError(reason.message)
+      return false
+    }
   }, [])
   const importFont = useCallback(async (file) => {
     if (!file) return
@@ -317,9 +329,117 @@ export function useIntegratedPlotter({
     }
   }, [])
 
+  const createDeviceProfile = useCallback((name) => {
+    const profile = createPlotterProfile(name, config)
+    setProfileStore((current) => ({
+      ...current,
+      activeProfileId: profile.id,
+      profiles: [...current.profiles, profile],
+    }))
+    setArmed(false)
+    return profile.id
+  }, [config])
+  const selectDeviceProfile = useCallback((id) => {
+    if (calibrationActive || connected || running) return false
+    if (!profileStore.profiles.some((profile) => profile.id === id)) return false
+    setProfileStore((current) => ({ ...current, activeProfileId: id }))
+    setArmed(false)
+    return true
+  }, [calibrationActive, connected, profileStore.profiles, running])
+  const renameDeviceProfile = useCallback((id, name) => {
+    const clean = String(name || '').trim().slice(0, 64)
+    if (!clean) return
+    setProfileStore((current) => ({
+      ...current,
+      profiles: current.profiles.map((profile) => profile.id === id
+        ? { ...profile, name: clean, updatedAt: Date.now() }
+        : profile),
+    }))
+  }, [])
+  const duplicateDeviceProfile = useCallback((id, name) => {
+    const source = profileStore.profiles.find((profile) => profile.id === id)
+    if (!source) return null
+    const profile = createPlotterProfile(name || `${source.name} — копия`, source.config)
+    setProfileStore((current) => ({
+      ...current,
+      activeProfileId: profile.id,
+      profiles: [...current.profiles, profile],
+    }))
+    setArmed(false)
+    return profile.id
+  }, [profileStore.profiles])
+  const deleteDeviceProfile = useCallback((id) => {
+    if (profileStore.profiles.length < 2 || calibrationActive || connected) return false
+    setProfileStore((current) => {
+      const profiles = current.profiles.filter((profile) => profile.id !== id)
+      return {
+        ...current,
+        activeProfileId: current.activeProfileId === id ? profiles[0].id : current.activeProfileId,
+        profiles,
+      }
+    })
+    setArmed(false)
+    return true
+  }, [calibrationActive, connected, profileStore.profiles.length])
+  const importDeviceProfile = useCallback(async (file) => {
+    const profile = parsePlotterProfile(await file.text())
+    setProfileStore((current) => ({
+      ...current,
+      activeProfileId: profile.id,
+      profiles: [...current.profiles, profile],
+    }))
+    setArmed(false)
+    return profile
+  }, [])
+  const completeCalibration = useCallback(() => {
+    const calibratedAt = Date.now()
+    setProfileStore((current) => ({
+      ...current,
+      profiles: current.profiles.map((profile) => profile.id === current.activeProfileId
+        ? { ...profile, calibratedAt, updatedAt: calibratedAt }
+        : profile),
+    }))
+    setCalibrationActive(false)
+    setArmed(false)
+  }, [])
+  const performCalibrationAction = useCallback(async (action) => {
+    setError('')
+    try {
+      return await runCalibrationAction(action, config, plotter.sendCommands)
+    } catch (reason) {
+      setError(reason.message)
+      throw reason
+    }
+  }, [config, plotter.sendCommands])
+  const startCalibration = useCallback(() => {
+    if (running) return false
+    setProfileStore((current) => ({
+      ...current,
+      profiles: current.profiles.map((profile) => profile.id === current.activeProfileId
+        ? { ...profile, calibratedAt: null, updatedAt: Date.now() }
+        : profile),
+    }))
+    setCalibrationActive(true)
+    setArmed(false)
+    return true
+  }, [running])
+  const cancelCalibration = useCallback(async ({ emergency = false } = {}) => {
+    if (emergency) await safeAction(plotter.stop)
+    setCalibrationActive(false)
+    setArmed(false)
+  }, [plotter.stop, safeAction])
+
   return {
     enabled,
     config,
+    profileStore,
+    activeProfile,
+    createDeviceProfile,
+    selectDeviceProfile,
+    renameDeviceProfile,
+    duplicateDeviceProfile,
+    deleteDeviceProfile,
+    importDeviceProfile,
     updateConfig,
     boundedConfig,
     changeProfile,
@@ -335,7 +455,14 @@ export function useIntegratedPlotter({
     busy: busy || pending,
     error,
     armed,
-    setArmed,
+    setArmed: (value) => {
+      if (!calibrationActive) setArmed(value)
+    },
+    calibrationActive,
+    startCalibration,
+    cancelCalibration,
+    completeCalibration,
+    performCalibrationAction,
     plotter,
     connected,
     running,
@@ -347,8 +474,8 @@ export function useIntegratedPlotter({
     jog: (dx, dy) => safeAction(() => plotter.sendCommands(createJogCommands(dx, dy, config))),
     pen: (up) => safeAction(() => plotter.sendCommands(createPenCommand(up, config))),
     setOrigin: () => safeAction(() => plotter.sendCommands(createOriginCommands(config))),
-    run: () => safeAction(() => plotter.run(createJob())),
-    runSheets: (indices) => safeAction(() => {
+    run: () => calibrationActive ? Promise.resolve(false) : safeAction(() => plotter.run(createJob())),
+    runSheets: (indices) => calibrationActive ? Promise.resolve(false) : safeAction(() => {
       const jobs = indices.map((index) => createJob(index))
       const commands = jobs.flatMap((item) => item.commands)
       return plotter.run({
@@ -359,7 +486,7 @@ export function useIntegratedPlotter({
         recoverable: false,
       })
     }),
-    recover: () => safeAction(() => plotter.recover(createJob())),
+    recover: () => calibrationActive ? Promise.resolve(false) : safeAction(() => plotter.recover(createJob())),
     discardRecovery: plotter.discardRecovery,
     pause: () => safeAction(plotter.pause),
     resume: () => safeAction(plotter.resume),

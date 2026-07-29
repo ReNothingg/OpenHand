@@ -719,6 +719,73 @@
   color: var(--mac-tertiary);
 }
 
+.macos-native .calibration-backdrop {
+  background: rgb(0 0 0 / 0.52);
+}
+
+.macos-native .calibration-dialog {
+  border-color: var(--mac-line-strong);
+  color: var(--mac-text);
+  background: var(--mac-surface);
+}
+
+.macos-native .calibration-dialog h2,
+.macos-native .calibration-verification strong {
+  color: var(--mac-text);
+}
+
+.macos-native .calibration-dialog > header small,
+.macos-native .calibration-content > p,
+.macos-native .calibration-dialog > footer,
+.macos-native .plotter-profile-meta {
+  color: var(--mac-secondary);
+}
+
+.macos-native .calibration-dialog > header > button,
+.macos-native .calibration-checklist label,
+.macos-native .calibration-jog button {
+  border-color: var(--mac-line-strong);
+  color: var(--mac-text);
+  background: var(--mac-surface-hover);
+}
+
+.macos-native .calibration-step-track {
+  background: var(--mac-line-strong);
+}
+
+.macos-native .calibration-step-track i {
+  background: var(--mac-accent);
+}
+
+.macos-native .calibration-verification {
+  border-color: var(--mac-accent);
+  background: var(--mac-accent-soft);
+}
+
+.macos-native .calibration-dialog > footer {
+  border-color: var(--mac-line);
+}
+
+.macos-native .calibration-warning {
+  color: var(--mac-warning) !important;
+  background: var(--mac-warning-soft);
+}
+
+.macos-native .calibration-error {
+  color: var(--mac-danger) !important;
+  background: var(--mac-danger-soft);
+}
+
+.macos-native .calibration-note {
+  color: var(--mac-secondary) !important;
+  background: var(--mac-panel-muted);
+}
+
+.macos-native .calibration-success {
+  color: var(--mac-accent);
+  background: var(--mac-accent-soft);
+}
+
 @media (prefers-color-scheme: dark) {
   .macos-native {
     --mac-bg: #111111;
