@@ -25,6 +25,7 @@ xcuserdata/
 *.app
 *.swiftmodule
 *.swiftdoc
+test/
 *.swiftsourceinfo
 .build/
 .swiftpm/

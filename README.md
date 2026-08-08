@@ -155,6 +155,7 @@ flowchart LR
 | Команда | Назначение |
 | --- | --- |
 | `npm run dev` | Запустить Vite dev server на всех интерфейсах |
+| `npm run typecheck` | Проверить TypeScript без генерации файлов |
 | `npm run build` | Собрать сайт, синхронизировать macOS и упаковать приложение для текущей ОС |
 | `npm run build:web` | Собрать только прод версию сайта в `docs/` |
 | `npm run macos:sync` | Собрать web и перенести ресурсы в macOS‑проект |
