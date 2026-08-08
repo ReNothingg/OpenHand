@@ -8,14 +8,19 @@ function bytesToBase64(bytes) {
 }
 
 export async function downloadBlob(blob, name) {
-  const nativeBridge = window.webkit?.messageHandlers?.fileBridge
-  if (nativeBridge) {
+  const nativeBridge = window.__openhandFileBridge
+  if (nativeBridge?.save) {
     const bytes = new Uint8Array(await blob.arrayBuffer())
-    nativeBridge.postMessage({
-      name,
-      type: blob.type || 'application/octet-stream',
-      data: bytesToBase64(bytes),
-    })
+    try {
+      const result = await nativeBridge.save({
+        name, type: blob.type || 'application/octet-stream', data: bytesToBase64(bytes),
+      })
+      window.dispatchEvent(new CustomEvent('openhand:save-result', { detail: { name, ...result } }))
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent('openhand:save-result', {
+        detail: { name, saved: false, error: error.message || 'Не удалось сохранить файл.' },
+      }))
+    }
     return
   }
 
@@ -25,6 +30,7 @@ export async function downloadBlob(blob, name) {
   link.download = name
   link.click()
   URL.revokeObjectURL(url)
+  window.dispatchEvent(new CustomEvent('openhand:save-result', { detail: { name, saved: true } }))
 }
 
 export function downloadFile(name, contents, type) {

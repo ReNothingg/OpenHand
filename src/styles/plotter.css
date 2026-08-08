@@ -650,7 +650,12 @@
 }
 
 .plotter-arm input { margin-top: 2px; }
-.plotter-runbar { display: flex; justify-content: flex-end; gap: 8px; }
+.plotter-preflight { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; font-size: 11px; }
+.plotter-preflight span { padding: 4px 7px; border: 1px solid #cbd5e1; border-radius: 999px; color: #475569; background: #fff; }
+.plotter-preflight .pass { border-color: #86efac; color: #166534; background: #f0fdf4; }
+.plotter-preflight .warning { border-color: #fed7aa; color: #9a3412; background: #fff7ed; }
+.plotter-runbar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: 0; }
+.plotter-runbar .button { white-space: nowrap; }
 .button.danger { border-color: #dc2626; color: #fff; background: #dc2626; }
 .button.danger:hover { background: #b91c1c; }
 

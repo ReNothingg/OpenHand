@@ -132,11 +132,14 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
 
     private func handleFileMessage(_ body: Any) {
         guard let payload = body as? [String: Any],
+              let requestID = payload["id"] as? NSNumber,
               let encoded = payload["data"] as? String,
               let data = Data(base64Encoded: encoded) else {
             showError("Не удалось подготовить файл к сохранению.")
             return
         }
+
+        let id = requestID.intValue
 
         let proposedName = sanitizedFilename(payload["name"] as? String ?? "openhand-file")
         let panel = NSSavePanel()
@@ -144,11 +147,15 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
 
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard panel.runModal() == .OK, let url = panel.url else {
+            resolveFile(id, result: ["saved": false, "cancelled": true])
+            return
+        }
         do {
             try data.write(to: url, options: .atomic)
+            resolveFile(id, result: ["saved": true, "path": url.path])
         } catch {
-            showError("Не удалось сохранить файл: \(error.localizedDescription)")
+            resolveFile(id, result: ["saved": false, "error": "Не удалось сохранить файл: \(error.localizedDescription)"])
         }
     }
 
@@ -186,6 +193,13 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         callJavaScript(
             function: "window.__openhandSerialBridge?.resolve",
             payload: ["id": id, "error": message]
+        )
+    }
+
+    private func resolveFile(_ id: Int, result: Any) {
+        callJavaScript(
+            function: "window.__openhandFileBridge?.resolve",
+            payload: ["id": id, "result": result]
         )
     }
 

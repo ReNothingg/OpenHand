@@ -58,6 +58,20 @@ internal sealed class NativeBridge : IDisposable
         }
         catch (Exception error)
         {
+            try
+            {
+                using var document = JsonDocument.Parse(eventArgs.WebMessageAsJson);
+                var root = document.RootElement;
+                if (GetOptionalString(root, "bridge", "") == "file" &&
+                    root.TryGetProperty("id", out var idElement) && idElement.TryGetInt32(out var id))
+                {
+                    ResolveFile(id, new { saved = false, error = $"Не удалось сохранить файл: {error.Message}" });
+                    return;
+                }
+            }
+            catch
+            {
+            }
             ShowError($"Ошибка нативного моста: {error.Message}");
         }
     }
@@ -150,6 +164,10 @@ internal sealed class NativeBridge : IDisposable
 
     private async Task SaveFileAsync(JsonElement payload)
     {
+        if (!payload.TryGetProperty("id", out var idElement) || !idElement.TryGetInt32(out var id))
+        {
+            return;
+        }
         var proposedName = SanitizeFilename(
             GetOptionalString(payload, "name", "openhand-file"));
         var bytes = Convert.FromBase64String(
@@ -168,17 +186,24 @@ internal sealed class NativeBridge : IDisposable
 
         if (panel.ShowDialog(_owner) != DialogResult.OK)
         {
+            ResolveFile(id, new { saved = false, cancelled = true });
             return;
         }
 
         try
         {
             await File.WriteAllBytesAsync(panel.FileName, bytes);
+            ResolveFile(id, new { saved = true, path = panel.FileName });
         }
         catch (Exception error)
         {
-            ShowError($"Не удалось сохранить файл: {error.Message}");
+            ResolveFile(id, new { saved = false, error = $"Не удалось сохранить файл: {error.Message}" });
         }
+    }
+
+    private void ResolveFile(int id, object result)
+    {
+        PostMessage("file", "resolve", new { id, result });
     }
 
     private void Resolve(int id, object result)
@@ -193,6 +218,11 @@ internal sealed class NativeBridge : IDisposable
 
     private void PostSerial(string type, object payload)
     {
+        PostMessage("serial", type, payload);
+    }
+
+    private void PostMessage(string bridge, string type, object payload)
+    {
         if (_owner.IsDisposed || !_owner.IsHandleCreated)
         {
             return;
@@ -204,7 +234,7 @@ internal sealed class NativeBridge : IDisposable
             {
                 _webView.PostWebMessageAsJson(JsonSerializer.Serialize(new
                 {
-                    bridge = "serial",
+                    bridge,
                     type,
                     payload
                 }));

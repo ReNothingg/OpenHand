@@ -13,6 +13,7 @@ private let serialShim = #"""
   if (navigator.serial || window.__openhandSerialBridge) return;
 
   const pending = new Map();
+  const pendingFiles = new Map();
   let nextRequestID = 1;
   let activePort = null;
 
@@ -56,6 +57,23 @@ private let serialShim = #"""
       activePort?._disconnect(message.error || "Устройство отключено.");
       activePort = null;
       serial.dispatchEvent(new Event("disconnect"));
+    },
+  };
+
+  const fileBridge = {
+    save(payload) {
+      const id = nextRequestID++;
+      return new Promise((resolve, reject) => {
+        pendingFiles.set(id, { resolve, reject });
+        window.webkit.messageHandlers.fileBridge.postMessage({ id, ...payload });
+      });
+    },
+    resolve(message) {
+      const request = pendingFiles.get(message.id);
+      if (!request) return;
+      pendingFiles.delete(message.id);
+      if (message.error) request.reject(new Error(message.error));
+      else request.resolve(message.result || { saved: false });
     },
   };
 
@@ -154,6 +172,11 @@ private let serialShim = #"""
 
   Object.defineProperty(window, "__openhandSerialBridge", {
     value: bridge,
+    configurable: false,
+    writable: false,
+  });
+  Object.defineProperty(window, "__openhandFileBridge", {
+    value: fileBridge,
     configurable: false,
     writable: false,
   });

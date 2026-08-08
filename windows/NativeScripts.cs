@@ -10,6 +10,7 @@ internal static class NativeScripts
           if (!host) return;
 
           const pending = new Map();
+          const pendingFiles = new Map();
           let nextRequestID = 1;
           let activePort = null;
 
@@ -63,6 +64,23 @@ internal static class NativeScripts
               activePort?._disconnect(message.error || "Устройство отключено.");
               activePort = null;
               serial.dispatchEvent(new Event("disconnect"));
+            },
+          };
+
+          const fileBridge = {
+            save(payload) {
+              const id = nextRequestID++;
+              return new Promise((resolve, reject) => {
+                pendingFiles.set(id, { resolve, reject });
+                post("file", { id, ...payload });
+              });
+            },
+            resolve(message) {
+              const request = pendingFiles.get(message.id);
+              if (!request) return;
+              pendingFiles.delete(message.id);
+              if (message.error) request.reject(new Error(message.error));
+              else request.resolve(message.result || { saved: false });
             },
           };
 
@@ -174,6 +192,11 @@ internal static class NativeScripts
             configurable: false,
             writable: false,
           });
+          Object.defineProperty(window, "__openhandFileBridge", {
+            value: fileBridge,
+            configurable: false,
+            writable: false,
+          });
           Object.defineProperty(navigator, "serial", {
             value: serial,
             configurable: true,
@@ -197,7 +220,12 @@ internal static class NativeScripts
 
           host.addEventListener("message", (event) => {
             const message = event.data;
-            if (!message || message.bridge !== "serial") return;
+            if (!message) return;
+            if (message.bridge === "file" && message.type === "resolve") {
+              fileBridge.resolve(message.payload);
+              return;
+            }
+            if (message.bridge !== "serial") return;
             if (message.type === "resolve") bridge.resolve(message.payload);
             else if (message.type === "receive") bridge.receive(message.payload);
             else if (message.type === "disconnected") bridge.disconnected(message.payload);

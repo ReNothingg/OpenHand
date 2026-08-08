@@ -5,6 +5,7 @@ import { usePlotterPlayback } from './usePlotterPlayback.js'
 import { loadBundledGFont, loadGFont } from '../plotter/gfont.js'
 import {
   compilePlotJob,
+  createDryRunCommands,
   createJogCommands,
   createOriginCommands,
   createPenCommand,
@@ -81,6 +82,7 @@ export function useIntegratedPlotter({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [armed, setArmed] = useState(false)
+  const [originConfirmed, setOriginConfirmed] = useState(false)
   const [calibrationActive, setCalibrationActive] = useState(false)
   const plotter = usePlotter()
   const activeProfile = profileStore.profiles.find(
@@ -275,6 +277,13 @@ export function useIntegratedPlotter({
     plotter.recovery.total === job.commands.length &&
     plotter.recovery.current < plotter.recovery.total,
   )
+  const preflight = {
+    hasStrokes: activeLayout.strokes.length > 0,
+    hasMissingGlyphs: activeLayout.missing.length > 0,
+    clipped: activeLayout.clipped,
+    calibrated: Boolean(activeProfile.calibratedAt),
+    inBounds: !activeLayout.clippedItems?.some((item) => /границ|bound/i.test(item)),
+  }
   const playback = usePlotterPlayback(job, {
     status: plotter.status,
     progress: plotter.progress,
@@ -284,6 +293,7 @@ export function useIntegratedPlotter({
     if (calibrationActive) return
     setConfig((current) => ({ ...current, [key]: value }))
     setArmed(false)
+    setOriginConfirmed(false)
   }, [calibrationActive, setConfig])
   const boundedConfig = useCallback((key, value, min, max) => {
     if (!Number.isFinite(Number(value))) return
@@ -297,6 +307,7 @@ export function useIntegratedPlotter({
         ? { ...current, profile, penMode: 'servo', penUp: 12000, penDown: 18000 }
         : { ...current, profile })
     setArmed(false)
+    setOriginConfirmed(false)
   }, [calibrationActive, setConfig])
   const resetMechanics = useCallback(() => {
     if (calibrationActive) return
@@ -401,6 +412,7 @@ export function useIntegratedPlotter({
     }))
     setCalibrationActive(false)
     setArmed(false)
+    setOriginConfirmed(true)
   }, [])
   const performCalibrationAction = useCallback(async (action) => {
     setError('')
@@ -428,6 +440,24 @@ export function useIntegratedPlotter({
     setCalibrationActive(false)
     setArmed(false)
   }, [plotter.stop, safeAction])
+
+  const setOrigin = useCallback(async () => {
+    const success = await safeAction(() => plotter.sendCommands(createOriginCommands(config)))
+    if (success) setOriginConfirmed(true)
+    return success
+  }, [config, plotter.sendCommands, safeAction])
+
+  const dryRun = useCallback(() => safeAction(() => (
+    plotter.sendCommands(createDryRunCommands(activeLayout.strokes, config))
+  )), [activeLayout.strokes, config, plotter.sendCommands, safeAction])
+
+  const recover = useCallback(() => {
+    if (!originConfirmed) {
+      setError('Перед продолжением выполните homing на контроллере, верните перо к исходной точке листа и нажмите «Установить ноль».')
+      return Promise.resolve(false)
+    }
+    return calibrationActive ? Promise.resolve(false) : safeAction(() => plotter.recover(createJob()))
+  }, [calibrationActive, createJob, originConfirmed, plotter.recover, safeAction])
 
   return {
     enabled,
@@ -468,12 +498,19 @@ export function useIntegratedPlotter({
     running,
     progressPercent,
     recoveryAvailable,
+    preflight,
+    originConfirmed,
     playback,
     connect: () => safeAction(() => plotter.connect(config.profile, config.baudRate)),
-    disconnect: () => safeAction(plotter.disconnect),
+    disconnect: async () => {
+      const success = await safeAction(plotter.disconnect)
+      if (success) setOriginConfirmed(false)
+      return success
+    },
     jog: (dx, dy) => safeAction(() => plotter.sendCommands(createJogCommands(dx, dy, config))),
     pen: (up) => safeAction(() => plotter.sendCommands(createPenCommand(up, config))),
-    setOrigin: () => safeAction(() => plotter.sendCommands(createOriginCommands(config))),
+    setOrigin,
+    dryRun,
     run: () => calibrationActive ? Promise.resolve(false) : safeAction(() => plotter.run(createJob())),
     runSheets: (indices) => calibrationActive ? Promise.resolve(false) : safeAction(() => {
       const jobs = indices.map((index) => createJob(index))
@@ -486,7 +523,7 @@ export function useIntegratedPlotter({
         recoverable: false,
       })
     }),
-    recover: () => calibrationActive ? Promise.resolve(false) : safeAction(() => plotter.recover(createJob())),
+    recover,
     discardRecovery: plotter.discardRecovery,
     pause: () => safeAction(plotter.pause),
     resume: () => safeAction(plotter.resume),

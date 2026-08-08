@@ -98,6 +98,10 @@ export default function SettingsPanel({
           step={0.1}
           suffix="°"
           onChange={(value) => updateSetting("textRotation", value)}
+          disabled={settings.fontType === 'plotter'}
+          hint={settings.fontType === 'plotter'
+            ? 'Поворот экранного текста не преобразуется в траекторию GFont, поэтому для плоттера настройка недоступна.'
+            : undefined}
         />
         <div className="settings-subgroup" role="group" aria-labelledby="page-settings-title">
           <h3 id="page-settings-title">Страница и поля</h3>

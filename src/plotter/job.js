@@ -1142,6 +1142,43 @@ export function compilePlotJob(strokes, config) {
   }
 }
 
+export function plotBounds(strokes) {
+  const points = strokes.flat().filter((point) => (
+    Number.isFinite(point?.x) && Number.isFinite(point?.y)
+  ))
+  if (!points.length) return null
+  return points.reduce((bounds, point) => ({
+    minX: Math.min(bounds.minX, point.x),
+    minY: Math.min(bounds.minY, point.y),
+    maxX: Math.max(bounds.maxX, point.x),
+    maxY: Math.max(bounds.maxY, point.y),
+  }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity })
+}
+
+export function createDryRunCommands(strokes, config) {
+  const bounds = plotBounds(strokes)
+  if (!bounds) throw new Error('Нет штрихов для проверки рамки.')
+  const epsilon = 0.01
+  if (
+    bounds.minX < -epsilon || bounds.minY < -epsilon ||
+    bounds.maxX > Number(config.workAreaWidth) + epsilon ||
+    bounds.maxY > Number(config.workAreaHeight) + epsilon
+  ) {
+    throw new Error('Траектория выходит за настроенную рабочую область. Измените лист, поля или границы механики.')
+  }
+  if (config.profile === 'ebb') {
+    throw new Error('Сухой прогон рамки для EBB требует относительных шагов и пока недоступен. Проверьте область в мастере калибровки.')
+  }
+  const corners = [
+    [bounds.minX, bounds.minY], [bounds.maxX, bounds.minY],
+    [bounds.maxX, bounds.maxY], [bounds.minX, bounds.maxY], [bounds.minX, bounds.minY],
+  ]
+  return [
+    'G21', 'G90', penCommand(true, config),
+    ...corners.map(([x, y]) => `G0X${number(x)}Y${number(y)}F${config.jogSpeed}`),
+  ]
+}
+
 export function createJogCommands(dx, dy, config) {
   if (config.profile === 'ebb') {
     return [buildEbbMove({ x: 0, y: 0 }, { x: dx, y: dy }, config.jogSpeed, config, { x: 0, y: 0 })]

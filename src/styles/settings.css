@@ -222,6 +222,18 @@
   height: 4px;
   margin: 2px 0;
 }
+.range-control.is-disabled {
+  color: #94a3b8;
+}
+.range-control.is-disabled .control-heading output {
+  color: #94a3b8;
+}
+.range-control.is-disabled .liquid-range {
+  opacity: 0.45;
+}
+.range-control.is-disabled input[type="range"] {
+  cursor: not-allowed;
+}
 .liquid-range {
   display: block;
   width: 100%;

@@ -95,15 +95,28 @@ export function usePlotter() {
 
   const sendCommand = useCallback(async (command, timeoutMs = 12000) => {
     if (!writerRef.current) throw new Error('Плоттер не подключён.')
+    let pending = null
     const acknowledgement = new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         const index = pendingRef.current.findIndex((item) => item.timeout === timeout)
         if (index >= 0) pendingRef.current.splice(index, 1)
         reject(new Error(`Плоттер не ответил на команду: ${command}`))
       }, timeoutMs)
-      pendingRef.current.push({ resolve, reject, timeout })
+      pending = { resolve, reject, timeout }
+      pendingRef.current.push(pending)
     })
-    await writeRaw(`${command}${lineEnding(profileRef.current)}`)
+    try {
+      await writeRaw(`${command}${lineEnding(profileRef.current)}`)
+    } catch (error) {
+      const index = pendingRef.current.indexOf(pending)
+      if (index >= 0) pendingRef.current.splice(index, 1)
+      clearTimeout(pending.timeout)
+      pending.reject(error)
+      // The acknowledgement promise is deliberately handled here: the write
+      // failure is the error the caller needs, not a delayed timeout.
+      await acknowledgement.catch(() => {})
+      throw error
+    }
     return acknowledgement
   }, [writeRaw])
 

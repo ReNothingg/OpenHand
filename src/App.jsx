@@ -42,6 +42,7 @@ export default function App() {
   const [customPlotterFonts, setCustomPlotterFonts] = useState([])
   const [customFontsReady, setCustomFontsReady] = useState(false)
   const [texRenderer, setTexRenderer] = useState(null)
+  const [saveNotice, setSaveNotice] = useState(null)
 
   const textareaRef = useRef(null)
   const previewRef = useRef(null)
@@ -55,6 +56,23 @@ export default function App() {
     }
     mediumWindow.addEventListener('change', collapseSettingsForNarrowWindow)
     return () => mediumWindow.removeEventListener('change', collapseSettingsForNarrowWindow)
+  }, [])
+
+  useEffect(() => {
+    let timer = 0
+    const onSaveResult = (event) => {
+      const result = event.detail || {}
+      if (result.saved) setSaveNotice({ kind: 'success', text: `Сохранено: ${result.name}` })
+      else if (result.cancelled) setSaveNotice({ kind: 'neutral', text: 'Сохранение отменено' })
+      else setSaveNotice({ kind: 'error', text: result.error || `Не удалось сохранить: ${result.name || 'файл'}` })
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => setSaveNotice(null), 4200)
+    }
+    window.addEventListener('openhand:save-result', onSaveResult)
+    return () => {
+      window.removeEventListener('openhand:save-result', onSaveResult)
+      window.clearTimeout(timer)
+    }
   }, [])
 
   const activeSource = sourceMode === 'tex' ? texSource : markdown
@@ -521,6 +539,7 @@ export default function App() {
 
   return (
     <div className={`app ${editorCollapsed ? 'editor-collapsed' : ''} ${settingsCollapsed ? 'settings-collapsed' : ''}`}>
+      {saveNotice && <div className={`save-notice ${saveNotice.kind}`} role="status">{saveNotice.text}</div>}
       <style>{`@page { size: ${metrics.width}px ${metrics.height}px; margin: 0; }`}</style>
       <div className="workspace">
         <EditorPanel
