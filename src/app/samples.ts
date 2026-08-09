@@ -33,7 +33,7 @@ $$
 3. При необходимости используйте системную печать браузера для сохранения PDF.
 
 \`:::pagebreak\` на отдельной строке создаёт ручной разрыв страницы.
-`
+`;
 
 export const SAMPLE_TEX = String.raw`\documentclass{article}
 
@@ -84,4 +84,4 @@ export const SAMPLE_TEX = String.raw`\documentclass{article}
 \hline
 \end{tabular}
 
-\end{document}`
+\end{document}`;

@@ -34,111 +34,130 @@ function signed(settings, value, key) {
 }
 
 function preserveExtraBlankLines(markdown) {
-  const lines = String(markdown).replace(/\r\n?/g, '\n').split('\n')
-  const output = []
-  let fence = null
+  const lines = String(markdown).replace(/\r\n?/g, "\n").split("\n");
+  const output = [];
+  let fence = null;
 
   for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index]
-    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/)
+    const line = lines[index];
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
     if (fenceMatch) {
-      const marker = fenceMatch[1]
-      if (!fence) fence = { character: marker[0], length: marker.length }
-      else if (marker[0] === fence.character && marker.length >= fence.length) fence = null
-      output.push(line)
-      continue
+      const marker = fenceMatch[1];
+      if (!fence) fence = { character: marker[0], length: marker.length };
+      else if (marker[0] === fence.character && marker.length >= fence.length)
+        fence = null;
+      output.push(line);
+      continue;
     }
     if (fence || line.trim()) {
-      output.push(line)
-      continue
+      output.push(line);
+      continue;
     }
 
-    let end = index
-    while (end + 1 < lines.length && !lines[end + 1].trim()) end += 1
-    const count = end - index + 1
+    let end = index;
+    while (end + 1 < lines.length && !lines[end + 1].trim()) end += 1;
+    const count = end - index + 1;
     if (index === 0 || end === lines.length - 1) {
-      output.push(...Array(count).fill(''))
+      output.push(...Array(count).fill(""));
     } else {
-      output.push('')
-      output.push(...Array(count).fill('<div data-preserved-blank="true"></div>'))
-      output.push('')
+      output.push("");
+      output.push(
+        ...Array(count).fill('<div data-preserved-blank="true"></div>'),
+      );
+      output.push("");
     }
-    index = end
+    index = end;
   }
 
-  return output.join('\n')
+  return output.join("\n");
 }
 
 function renderAlignmentBlocks(markdown) {
   return String(markdown).replace(
     /^:::(left|center|right)[ \t]*\n([\s\S]*?)\n:::[ \t]*$/gm,
-    (_, alignment, contents) => (
-      `<div class="text-align-${alignment}" align="${alignment}">\n`
-      + `${marked.parse(contents.trim())}\n`
-      + '</div>'
-    ),
-  )
+    (_, alignment, contents) =>
+      `<div class="text-align-${alignment}" align="${alignment}">\n` +
+      `${marked.parse(contents.trim())}\n` +
+      "</div>",
+  );
 }
 
 function escapeAttribute(value) {
-  return String(value).replace(/[&"]/g, (character) => character === '&' ? '&amp;' : '&quot;')
+  return String(value).replace(/[&"]/g, (character) =>
+    character === "&" ? "&amp;" : "&quot;",
+  );
 }
 
 function renderPlacementBlocks(markdown) {
   return String(markdown).replace(
     /^:::place(?:[ \t]+([^\n]+))?[ \t]*\n([\s\S]*?)\n:::[ \t]*$/gm,
-    (_, attributeSource = '', contents) => {
-      const attributes: Record<string, string> = {}
-      attributeSource.replace(/([\w-]+)(?:=("[^"]*"|'[^']*'|[^\s]+))?/g, (match, key, rawValue) => {
-        const value = rawValue ? rawValue.replace(/^(['"])([\s\S]*)\1$/, '$2') : 'true'
-        attributes[key.toLowerCase()] = value
-        return match
-      })
+    (_, attributeSource = "", contents) => {
+      const attributes: Record<string, string> = {};
+      attributeSource.replace(
+        /([\w-]+)(?:=("[^"]*"|'[^']*'|[^\s]+))?/g,
+        (match, key, rawValue) => {
+          const value = rawValue
+            ? rawValue.replace(/^(['"])([\s\S]*)\1$/, "$2")
+            : "true";
+          attributes[key.toLowerCase()] = value;
+          return match;
+        },
+      );
       const number = (key: string, alias: string, fallback: number) => {
-        const value = Number(attributes[key] ?? attributes[alias])
-        return Number.isFinite(value) ? value : fallback
-      }
-      const id = attributes.id || `place-${Math.abs(hashSeed(contents)).toString(36)}`
-      const page = Math.max(0, Math.round(number('page', 'sheet', 1)) - 1)
-      const align = ['left', 'center', 'right'].includes(attributes.align) ? attributes.align : 'left'
-      const noWrap = ['true', '1', 'yes', 'on'].includes(String(attributes.nowrap || 'false').toLowerCase())
+        const value = Number(attributes[key] ?? attributes[alias]);
+        return Number.isFinite(value) ? value : fallback;
+      };
+      const id =
+        attributes.id || `place-${Math.abs(hashSeed(contents)).toString(36)}`;
+      const page = Math.max(0, Math.round(number("page", "sheet", 1)) - 1);
+      const align = ["left", "center", "right"].includes(attributes.align)
+        ? attributes.align
+        : "left";
+      const noWrap = ["true", "1", "yes", "on"].includes(
+        String(attributes.nowrap || "false").toLowerCase(),
+      );
       const placementAttributes = [
         `data-layout-id="${escapeAttribute(id)}"`,
         `data-layout-page="${page}"`,
-        `data-layout-x="${number('x', 'left', 0)}"`,
-        `data-layout-y="${number('y', 'top', 0)}"`,
-        `data-layout-width="${Math.max(36, number('width', 'w', 320))}"`,
-        `data-layout-height="${Math.max(24, number('height', 'h', 80))}"`,
-        `data-layout-rotation="${number('rotate', 'rotation', 0)}"`,
+        `data-layout-x="${number("x", "left", 0)}"`,
+        `data-layout-y="${number("y", "top", 0)}"`,
+        `data-layout-width="${Math.max(36, number("width", "w", 320))}"`,
+        `data-layout-height="${Math.max(24, number("height", "h", 80))}"`,
+        `data-layout-rotation="${number("rotate", "rotation", 0)}"`,
         `data-layout-align="${align}"`,
         `data-layout-nowrap="${noWrap}"`,
-      ].join(' ')
-      return `<section class="manual-source-block" ${placementAttributes}>\n${marked.parse(contents.trim())}\n</section>`
+      ].join(" ");
+      return `<section class="manual-source-block" ${placementAttributes}>\n${marked.parse(contents.trim())}\n</section>`;
     },
-  )
+  );
 }
 
 function protectSvgBlocks(markdown) {
-  const blocks = []
+  const blocks = [];
   const store = (block) => {
-    const token = `OPENHANDSVGBLOCK${blocks.length}TOKEN`
-    blocks.push({ token, block })
-    return token
-  }
+    const token = `OPENHANDSVGBLOCK${blocks.length}TOKEN`;
+    blocks.push({ token, block });
+    return token;
+  };
   const protectedSource = String(markdown)
-    .replace(/<figure\b[^>]*>[\s\S]*?<svg\b[\s\S]*?<\/svg>[\s\S]*?<\/figure>/gi, store)
-    .replace(/<svg\b[\s\S]*?<\/svg>/gi, store)
+    .replace(
+      /<figure\b[^>]*>[\s\S]*?<svg\b[\s\S]*?<\/svg>[\s\S]*?<\/figure>/gi,
+      store,
+    )
+    .replace(/<svg\b[\s\S]*?<\/svg>/gi, store);
 
   return {
     source: protectedSource,
     restore(html) {
-      return blocks.reduce((output, { token, block }) => (
-        output
-          .replace(new RegExp(`<p>\\s*${token}\\s*</p>`, 'g'), block)
-          .replaceAll(token, block)
-      ), html)
+      return blocks.reduce(
+        (output, { token, block }) =>
+          output
+            .replace(new RegExp(`<p>\\s*${token}\\s*</p>`, "g"), block)
+            .replaceAll(token, block),
+        html,
+      );
     },
-  }
+  };
 }
 
 function enhanceDocumentTables(root, documentNode) {
@@ -166,17 +185,25 @@ function enhanceDocumentTables(root, documentNode) {
       });
     });
     const weights = Array.from({ length: columnCount }, (_, columnIndex) => {
-      const header = (headers[columnIndex]?.textContent || "").trim().toLowerCase();
+      const header = (headers[columnIndex]?.textContent || "")
+        .trim()
+        .toLowerCase();
       const values = bodyRows
         .map((row) => (row.cells[columnIndex]?.textContent || "").trim())
         .filter(Boolean);
-      const longest = Math.max(header.length, 0, ...values.map((value) => value.length));
-      const numeric = values.length > 0 && values.every((value) =>
-        /^[-+]?\d+(?:[.,]\d+)?%?$/u.test(value),
+      const longest = Math.max(
+        header.length,
+        0,
+        ...values.map((value) => value.length),
       );
-      const dateTime = values.length > 0 && values.every((value) =>
-        /^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/u.test(value),
-      );
+      const numeric =
+        values.length > 0 &&
+        values.every((value) => /^[-+]?\d+(?:[.,]\d+)?%?$/u.test(value));
+      const dateTime =
+        values.length > 0 &&
+        values.every((value) =>
+          /^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/u.test(value),
+        );
 
       if (/^(id|№|#)$/iu.test(header)) return 0.42;
       if (numeric) return 0.62;
@@ -198,13 +225,22 @@ function enhanceDocumentTables(root, documentNode) {
 }
 
 export function renderMarkdown(markdown, settings, fontPool) {
-  const protectedSvg = protectSvgBlocks(markdown)
-  const source = renderAlignmentBlocks(preserveExtraBlankLines(renderPlacementBlocks(protectedSvg.source))
-    .replace(/^\s*:::pagebreak\s*$/gm, '<div data-page-break="true"></div>')
-    .replace(/\+\+\+([^\n]+?)\+\+\+/g, '<span class="underline-double">$1</span>')
-    .replace(/\+\+([^\n]+?)\+\+/g, '<u>$1</u>')
-    .replace(/==([^\n]+?)==/g, '<mark>$1</mark>'));
-  return renderHandwrittenHtml(protectedSvg.restore(marked.parse(source)), settings, fontPool);
+  const protectedSvg = protectSvgBlocks(markdown);
+  const source = renderAlignmentBlocks(
+    preserveExtraBlankLines(renderPlacementBlocks(protectedSvg.source))
+      .replace(/^\s*:::pagebreak\s*$/gm, '<div data-page-break="true"></div>')
+      .replace(
+        /\+\+\+([^\n]+?)\+\+\+/g,
+        '<span class="underline-double">$1</span>',
+      )
+      .replace(/\+\+([^\n]+?)\+\+/g, "<u>$1</u>")
+      .replace(/==([^\n]+?)==/g, "<mark>$1</mark>"),
+  );
+  return renderHandwrittenHtml(
+    protectedSvg.restore(marked.parse(source)),
+    settings,
+    fontPool,
+  );
 }
 
 export function renderHandwrittenHtml(html, settings, fontPool) {
@@ -289,7 +325,13 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
   let letterIndex = 0;
   const totalLetters = Math.max(
     1,
-    textNodes.reduce((sum, node) => sum + Array.from(node.nodeValue).filter((character) => !/\s/u.test(character)).length, 0),
+    textNodes.reduce(
+      (sum, node) =>
+        sum +
+        Array.from(node.nodeValue).filter((character) => !/\s/u.test(character))
+          .length,
+      0,
+    ),
   );
   textNodes.forEach((node) => {
     const fragment = documentNode.createDocumentFragment();
@@ -316,9 +358,14 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
         word.classList.add("hw-breakable");
       }
       word.dataset.wordIndex = String(wordIndex);
-      const fatigueProgress = Math.max(0, Math.min(1, letterIndex / totalLetters));
+      const fatigueProgress = Math.max(
+        0,
+        Math.min(1, letterIndex / totalLetters),
+      );
       const fatigue = settings.fatigueEnabled
-        ? Math.pow(fatigueProgress, 1.65) * Math.max(0, Math.min(100, Number(settings.fatigueStrength) || 0)) / 100
+        ? (Math.pow(fatigueProgress, 1.65) *
+            Math.max(0, Math.min(100, Number(settings.fatigueStrength) || 0))) /
+          100
         : 0;
       const tilt =
         active && settings.maxWordTilt > 0
@@ -338,10 +385,20 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
               `word:${wordIndex}:lift`,
             )
           : 0;
-      const authorBaseline = Math.max(0, Math.min(100, Number(settings.authorBaseline) || 0));
-      const fatigueTilt = fatigue * (0.8 + Number(settings.authorRhythm || 0) * 0.012);
-      word.style.setProperty("--word-rotation", `${(tilt + fatigueTilt).toFixed(2)}deg`);
-      word.style.setProperty("--word-lift", `${(lift + fatigue * authorBaseline * 0.026).toFixed(2)}px`);
+      const authorBaseline = Math.max(
+        0,
+        Math.min(100, Number(settings.authorBaseline) || 0),
+      );
+      const fatigueTilt =
+        fatigue * (0.8 + Number(settings.authorRhythm || 0) * 0.012);
+      word.style.setProperty(
+        "--word-rotation",
+        `${(tilt + fatigueTilt).toFixed(2)}deg`,
+      );
+      word.style.setProperty(
+        "--word-lift",
+        `${(lift + fatigue * authorBaseline * 0.026).toFixed(2)}px`,
+      );
       if (
         settings.trueHandwriting &&
         randomFor(settings.seed, `word:${wordIndex}:correction`) * 100 <
@@ -372,24 +429,57 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
         letter.className = "hw-letter";
         letter.textContent = character;
         if (settings.trueHandwriting) {
-          const variation = Math.max(0, Math.min(100, Number(settings.glyphVariation) || 0));
-          const variant = randomFor(settings.seed, `letter:${letterIndex}:variant-active`) * 100 < variation
-            ? Math.floor(randomFor(settings.seed, `letter:${letterIndex}:variant`) * 4)
-            : 0;
+          const variation = Math.max(
+            0,
+            Math.min(100, Number(settings.glyphVariation) || 0),
+          );
+          const variant =
+            randomFor(settings.seed, `letter:${letterIndex}:variant-active`) *
+              100 <
+            variation
+              ? Math.floor(
+                  randomFor(settings.seed, `letter:${letterIndex}:variant`) * 4,
+                )
+              : 0;
           const authorSlant = Number(settings.authorSlant || 0);
-          const rhythm = Math.max(0, Math.min(100, Number(settings.authorRhythm) || 0));
-          const slant = authorSlant + (randomFor(settings.seed, `letter:${letterIndex}:slant`) - 0.5) * (variation * 0.05 + rhythm * 0.025) + fatigue * 3.2;
-          const scaleY = 1 + (randomFor(settings.seed, `letter:${letterIndex}:height`) - 0.5) * variation * 0.0024;
-          const scaleX = Math.max(0.78, Math.min(1.22, Number(settings.authorWidth || 100) / 100 + fatigue * 0.025));
-          const pressure = 1 + (randomFor(settings.seed, `letter:${letterIndex}:pressure`) - 0.5) * Number(settings.pressureVariation || 0) * 0.012;
+          const rhythm = Math.max(
+            0,
+            Math.min(100, Number(settings.authorRhythm) || 0),
+          );
+          const slant =
+            authorSlant +
+            (randomFor(settings.seed, `letter:${letterIndex}:slant`) - 0.5) *
+              (variation * 0.05 + rhythm * 0.025) +
+            fatigue * 3.2;
+          const scaleY =
+            1 +
+            (randomFor(settings.seed, `letter:${letterIndex}:height`) - 0.5) *
+              variation *
+              0.0024;
+          const scaleX = Math.max(
+            0.78,
+            Math.min(
+              1.22,
+              Number(settings.authorWidth || 100) / 100 + fatigue * 0.025,
+            ),
+          );
+          const pressure =
+            1 +
+            (randomFor(settings.seed, `letter:${letterIndex}:pressure`) - 0.5) *
+              Number(settings.pressureVariation || 0) *
+              0.012;
           letter.classList.add("hw-glyph-variant", `variant-${variant}`);
           if (characterIndex === 0) letter.classList.add("word-start");
-          if (characterIndex === wordCharacters.length - 1) letter.classList.add("word-end");
+          if (characterIndex === wordCharacters.length - 1)
+            letter.classList.add("word-end");
           letter.style.setProperty("--glyph-slant", `${slant.toFixed(2)}deg`);
           letter.style.setProperty("--glyph-height", scaleY.toFixed(3));
           letter.style.setProperty("--glyph-width", scaleX.toFixed(3));
           letter.style.setProperty("--glyph-pressure", pressure.toFixed(3));
-          letter.style.setProperty("--glyph-join", `${Math.max(0, Number(settings.connectionStrength || 0)) * -0.006}em`);
+          letter.style.setProperty(
+            "--glyph-join",
+            `${Math.max(0, Number(settings.connectionStrength || 0)) * -0.006}em`,
+          );
           letter.style.fontFeatureSettings = `"calt" 1, "liga" 1, "salt" ${variant ? 1 : 0}, "ss0${variant + 1}" 1`;
         }
         const applySpacing =
@@ -404,9 +494,12 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
               `letter:${letterIndex}:spacing`,
             )
           : 0;
-        const widthSpacing = (Number(settings.authorWidth || 100) - 100) * 0.012;
+        const widthSpacing =
+          (Number(settings.authorWidth || 100) - 100) * 0.012;
         const rhythmSpacing = settings.trueHandwriting
-          ? (randomFor(settings.seed, `letter:${letterIndex}:rhythm`) - 0.5) * Number(settings.authorRhythm || 0) * 0.014
+          ? (randomFor(settings.seed, `letter:${letterIndex}:rhythm`) - 0.5) *
+            Number(settings.authorRhythm || 0) *
+            0.014
           : 0;
         letter.style.marginRight = `${(spacing + widthSpacing + rhythmSpacing + fatigue * 0.12).toFixed(2)}px`;
         word.append(letter);

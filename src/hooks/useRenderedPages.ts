@@ -1,33 +1,35 @@
-import { useEffect, useRef, useState } from 'react'
-import { applyLineEffects } from '../markdown'
-import { paginateHtml } from '../lib/pagination'
+import { useEffect, useRef, useState } from "react";
+import { applyLineEffects } from "../markdown";
+import { paginateHtml } from "../lib/pagination";
 
 export function useRenderedPages(renderedHtml, settings) {
-  const [pages, setPages] = useState([''])
-  const measureRef = useRef(null)
+  const [pages, setPages] = useState([""]);
+  const measureRef = useRef(null);
 
   useEffect(() => {
-    let cancelled = false
-    let frame = 0
+    let cancelled = false;
+    let frame = 0;
     const calculate = async () => {
-      await document.fonts.ready
-      if (cancelled || !measureRef.current) return
+      await document.fonts.ready;
+      if (cancelled || !measureRef.current) return;
       frame = requestAnimationFrame(() => {
         if (!cancelled && measureRef.current) {
-          setPages(paginateHtml(
-            renderedHtml,
-            settings,
-            measureRef.current,
-            applyLineEffects,
-          ))
+          setPages(
+            paginateHtml(
+              renderedHtml,
+              settings,
+              measureRef.current,
+              applyLineEffects,
+            ),
+          );
         }
-      })
-    }
-    calculate()
+      });
+    };
+    calculate();
     return () => {
-      cancelled = true
-      cancelAnimationFrame(frame)
-    }
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
   }, [
     renderedHtml,
     settings.fontFamily,
@@ -44,7 +46,7 @@ export function useRenderedPages(renderedHtml, settings) {
     settings.directionChance,
     settings.maxLineDrift,
     settings.maxLineIndent,
-  ])
+  ]);
 
-  return { pages, measureRef }
+  return { pages, measureRef };
 }

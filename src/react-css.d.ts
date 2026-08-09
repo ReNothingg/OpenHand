@@ -1,7 +1,7 @@
-import 'react'
+import "react";
 
-declare module 'react' {
+declare module "react" {
   interface CSSProperties {
-    [customProperty: `--${string}`]: string | number | undefined
+    [customProperty: `--${string}`]: string | number | undefined;
   }
 }

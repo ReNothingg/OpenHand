@@ -1,16 +1,26 @@
-import { defaultFontPool } from '../fonts'
+import { defaultFontPool } from "../fonts";
 
 export const PAGE_SIZES = {
-  A4: { width: 794, height: 1123, label: 'A4', millimeters: '210 × 297 мм' },
-  A5: { width: 559, height: 794, label: 'A5', millimeters: '148 × 210 мм' },
-  Letter: { width: 816, height: 1056, label: 'Letter', millimeters: '216 × 279 мм' },
-  NotebookSpread: { width: 768, height: 1248, label: 'Тетрадь — разворот', millimeters: '330 × 203 мм' },
-}
+  A4: { width: 794, height: 1123, label: "A4", millimeters: "210 × 297 мм" },
+  A5: { width: 559, height: 794, label: "A5", millimeters: "148 × 210 мм" },
+  Letter: {
+    width: 816,
+    height: 1056,
+    label: "Letter",
+    millimeters: "216 × 279 мм",
+  },
+  NotebookSpread: {
+    width: 768,
+    height: 1248,
+    label: "Тетрадь — разворот",
+    millimeters: "330 × 203 мм",
+  },
+};
 
 export const DEFAULT_SETTINGS = {
-  fontType: 'screen',
-  fontFamily: 'Caveat',
-  plotterFontId: 'ifdream-original',
+  fontType: "screen",
+  fontFamily: "Caveat",
+  plotterFontId: "ifdream-original",
   fontSize: 27,
   textWidth: 620,
   lineHeight: 1.55,
@@ -19,10 +29,10 @@ export const DEFAULT_SETTINGS = {
   marginLeftEven: 94,
   marginBottom: 0,
   textRotation: 0,
-  inkColor: '#1f2937',
-  pageColor: '#ffffff',
-  pageSize: 'NotebookSpread',
-  pageOrientation: 'landscape',
+  inkColor: "#1f2937",
+  pageColor: "#ffffff",
+  pageSize: "NotebookSpread",
+  pageOrientation: "landscape",
   ruledPaper: true,
   directionChance: 50,
   maxWordTilt: 2,
@@ -38,7 +48,7 @@ export const DEFAULT_SETTINGS = {
   connectionStrength: 62,
   correctionChance: 1.2,
   pressureVariation: 18,
-  handwritingProfile: 'personal',
+  handwritingProfile: "personal",
   authorSlant: 0,
   authorWidth: 100,
   authorRhythm: 35,
@@ -48,61 +58,76 @@ export const DEFAULT_SETTINGS = {
   seed: 31847,
   zoom: 72,
   fontPool: defaultFontPool,
-}
+};
 
 const LEGACY_EFFECTS = [
-  ['randomWordTilt', 'maxWordTilt'],
-  ['randomLift', 'maxLift'],
-  ['randomLetterSpacing', 'maxLetterSpacing'],
-  ['lineDrift', 'maxLineDrift'],
-  ['randomLineIndent', 'maxLineIndent'],
-]
+  ["randomWordTilt", "maxWordTilt"],
+  ["randomLift", "maxLift"],
+  ["randomLetterSpacing", "maxLetterSpacing"],
+  ["lineDrift", "maxLineDrift"],
+  ["randomLineIndent", "maxLineIndent"],
+];
 
-export type AppSettings = typeof DEFAULT_SETTINGS & Record<string, unknown>
+export type AppSettings = typeof DEFAULT_SETTINGS & Record<string, unknown>;
 
-export function normalizeSettings(incoming: Record<string, any> = {}): AppSettings {
-  const settings: AppSettings = { ...DEFAULT_SETTINGS, ...incoming }
+export function normalizeSettings(
+  incoming: Record<string, any> = {},
+): AppSettings {
+  const settings: AppSettings = { ...DEFAULT_SETTINGS, ...incoming };
 
-  if (settings.pageSize === 'Notebook' || !PAGE_SIZES[settings.pageSize]) {
-    settings.pageSize = 'NotebookSpread'
-    settings.pageOrientation = 'landscape'
-    settings.ruledPaper = true
+  if (settings.pageSize === "Notebook" || !PAGE_SIZES[settings.pageSize]) {
+    settings.pageSize = "NotebookSpread";
+    settings.pageOrientation = "landscape";
+    settings.ruledPaper = true;
   }
   if (
-    settings.pageSize === 'NotebookSpread' &&
+    settings.pageSize === "NotebookSpread" &&
     [44, 68].includes(Number(incoming.marginBottom))
   ) {
-    settings.marginBottom = 0
+    settings.marginBottom = 0;
   }
 
-  if (settings.fontType !== 'plotter') settings.fontType = 'screen'
-  if (settings.plotterFontId === 'custom') {
-    settings.fontType = 'screen'
-    settings.plotterFontId = DEFAULT_SETTINGS.plotterFontId
+  if (settings.fontType !== "plotter") settings.fontType = "screen";
+  if (settings.plotterFontId === "custom") {
+    settings.fontType = "screen";
+    settings.plotterFontId = DEFAULT_SETTINGS.plotterFontId;
   }
 
-  if (!Object.hasOwn(incoming, 'directionChance') && Object.hasOwn(incoming, 'randomDirection')) {
-    settings.directionChance = incoming.randomDirection ? 50 : 0
+  if (
+    !Object.hasOwn(incoming, "directionChance") &&
+    Object.hasOwn(incoming, "randomDirection")
+  ) {
+    settings.directionChance = incoming.randomDirection ? 50 : 0;
   }
-  if (!Object.hasOwn(incoming, 'fontRandomization') && Object.hasOwn(incoming, 'randomFonts')) {
-    settings.fontRandomization = incoming.randomFonts ? 100 : 0
+  if (
+    !Object.hasOwn(incoming, "fontRandomization") &&
+    Object.hasOwn(incoming, "randomFonts")
+  ) {
+    settings.fontRandomization = incoming.randomFonts ? 100 : 0;
   }
 
   LEGACY_EFFECTS.forEach(([legacyToggle, valueKey]) => {
-    if (Object.hasOwn(incoming, legacyToggle) && !incoming[legacyToggle]) settings[valueKey] = 0
-  })
+    if (Object.hasOwn(incoming, legacyToggle) && !incoming[legacyToggle])
+      settings[valueKey] = 0;
+  });
+  [
+    "randomDirection",
+    "randomWordTilt",
+    "randomLift",
+    "randomLetterSpacing",
+    "randomFonts",
+    "lineDrift",
+    "randomLineIndent",
+  ].forEach((key) => delete settings[key]);
 
-  ;['randomDirection', 'randomWordTilt', 'randomLift', 'randomLetterSpacing', 'randomFonts', 'lineDrift', 'randomLineIndent']
-    .forEach((key) => delete settings[key])
-
-  return settings
+  return settings;
 }
 
 export const STORAGE_KEYS = {
-  markdown: 'handwriter-markdown-v1',
-  tex: 'handwriter-tex-v1',
-  sourceMode: 'handwriter-source-mode-v1',
-  settings: 'handwriter-settings-v2',
-  presets: 'handwriter-presets-v2',
-  manualLayout: 'handwriter-manual-layout-v1',
-}
+  markdown: "handwriter-markdown-v1",
+  tex: "handwriter-tex-v1",
+  sourceMode: "handwriter-source-mode-v1",
+  settings: "handwriter-settings-v2",
+  presets: "handwriter-presets-v2",
+  manualLayout: "handwriter-manual-layout-v1",
+};

@@ -54,7 +54,9 @@ export function usePreviewInteractions({
       const currentZoom = zoomRef.current;
       const direction = event.deltaY > 0 ? -1 : 1;
       const sensitivity = event.ctrlKey || event.metaKey ? 0.012 : 0.0015;
-      let nextZoom = Math.round(currentZoom * Math.exp(-event.deltaY * sensitivity));
+      let nextZoom = Math.round(
+        currentZoom * Math.exp(-event.deltaY * sensitivity),
+      );
       if (nextZoom === currentZoom) nextZoom += direction;
       applyZoomAtPoint(nextZoom, event.clientX, event.clientY);
     };
@@ -124,7 +126,11 @@ export function usePreviewInteractions({
   const beginPan = useCallback(
     (event) => {
       if (event.button !== 0) return;
-      if (event.target.closest("a, button, input, textarea, select, label, summary"))
+      if (
+        event.target.closest(
+          "a, button, input, textarea, select, label, summary",
+        )
+      )
         return;
       const viewport = previewRef.current;
       const canvas = viewport?.querySelector(".pages-canvas");

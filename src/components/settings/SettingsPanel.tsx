@@ -48,7 +48,13 @@ export default function SettingsPanel({
     >
       <div className="settings-drawer-header">
         <strong>Настройки</strong>
-        <button type="button" onClick={closeSettings} aria-label="Закрыть настройки">×</button>
+        <button
+          type="button"
+          onClick={closeSettings}
+          aria-label="Закрыть настройки"
+        >
+          ×
+        </button>
       </div>
       <SettingSection title="Текст и страница">
         <FontPicker
@@ -62,7 +68,10 @@ export default function SettingsPanel({
         {settings.fontType !== "plotter" && (
           <div className="font-compat-warning" role="note">
             <b>!</b>
-            <span>Обычный шрифт не содержит однолинейных траекторий. Подключение и запуск плоттера заблокированы.</span>
+            <span>
+              Обычный шрифт не содержит однолинейных траекторий. Подключение и
+              запуск плоттера заблокированы.
+            </span>
           </div>
         )}
         <RangeControl
@@ -98,69 +107,93 @@ export default function SettingsPanel({
           step={0.1}
           suffix="°"
           onChange={(value) => updateSetting("textRotation", value)}
-          disabled={settings.fontType === 'plotter'}
-          hint={settings.fontType === 'plotter'
-            ? 'Поворот экранного текста не преобразуется в траекторию GFont, поэтому для плоттера настройка недоступна.'
-            : undefined}
+          disabled={settings.fontType === "plotter"}
+          hint={
+            settings.fontType === "plotter"
+              ? "Поворот экранного текста не преобразуется в траекторию GFont, поэтому для плоттера настройка недоступна."
+              : undefined
+          }
         />
-        <div className="settings-subgroup" role="group" aria-labelledby="page-settings-title">
+        <div
+          className="settings-subgroup"
+          role="group"
+          aria-labelledby="page-settings-title"
+        >
           <h3 id="page-settings-title">Страница и поля</h3>
-        <div className="page-format-field">
-          <div className="page-format-row">
-            <select
-              value={settings.pageSize}
-              onChange={(event) => updatePageSize(event.target.value)}
-              aria-label="Формат страницы"
-            >
-              {Object.entries(PAGE_SIZES).map(([key, page]) => (
-                <option value={key} key={key}>
-                  {page.label}
-                </option>
-              ))}
-            </select>
-            <button
-              className="orientation-toggle"
-              type="button"
-              aria-label={`Сменить ориентацию. Сейчас ${settings.pageOrientation === "landscape" ? "альбомная" : "книжная"}`}
-              title={settings.pageOrientation === "landscape" ? "Альбомная ориентация" : "Книжная ориентация"}
-              onClick={() => updateSetting("pageOrientation", settings.pageOrientation === "landscape" ? "portrait" : "landscape")}
-            >
-              <span className={settings.pageOrientation === "landscape" ? "landscape" : "portrait"} aria-hidden="true" />
-            </button>
+          <div className="page-format-field">
+            <div className="page-format-row">
+              <select
+                value={settings.pageSize}
+                onChange={(event) => updatePageSize(event.target.value)}
+                aria-label="Формат страницы"
+              >
+                {Object.entries(PAGE_SIZES).map(([key, page]) => (
+                  <option value={key} key={key}>
+                    {page.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="orientation-toggle"
+                type="button"
+                aria-label={`Сменить ориентацию. Сейчас ${settings.pageOrientation === "landscape" ? "альбомная" : "книжная"}`}
+                title={
+                  settings.pageOrientation === "landscape"
+                    ? "Альбомная ориентация"
+                    : "Книжная ориентация"
+                }
+                onClick={() =>
+                  updateSetting(
+                    "pageOrientation",
+                    settings.pageOrientation === "landscape"
+                      ? "portrait"
+                      : "landscape",
+                  )
+                }
+              >
+                <span
+                  className={
+                    settings.pageOrientation === "landscape"
+                      ? "landscape"
+                      : "portrait"
+                  }
+                  aria-hidden="true"
+                />
+              </button>
+            </div>
           </div>
-        </div>
-        <RangeControl
-          label="Отступ сверху"
-          value={settings.marginTop}
-          min={0}
-          max={220}
-          suffix=" px"
-          onChange={(value) => updateSetting("marginTop", value)}
-        />
-        <RangeControl
-          label="Отступ слева"
-          value={settings.marginLeft}
-          min={0}
-          max={220}
-          suffix=" px"
-          onChange={(value) => updateSetting("marginLeft", value)}
-        />
-        <RangeControl
-          label="Слева на чётных страницах"
-          value={settings.marginLeftEven}
-          min={0}
-          max={220}
-          suffix=" px"
-          onChange={(value) => updateSetting("marginLeftEven", value)}
-        />
-        <RangeControl
-          label="Отступ снизу"
-          value={settings.marginBottom}
-          min={0}
-          max={220}
-          suffix=" px"
-          onChange={(value) => updateSetting("marginBottom", value)}
-        />
+          <RangeControl
+            label="Отступ сверху"
+            value={settings.marginTop}
+            min={0}
+            max={220}
+            suffix=" px"
+            onChange={(value) => updateSetting("marginTop", value)}
+          />
+          <RangeControl
+            label="Отступ слева"
+            value={settings.marginLeft}
+            min={0}
+            max={220}
+            suffix=" px"
+            onChange={(value) => updateSetting("marginLeft", value)}
+          />
+          <RangeControl
+            label="Слева на чётных страницах"
+            value={settings.marginLeftEven}
+            min={0}
+            max={220}
+            suffix=" px"
+            onChange={(value) => updateSetting("marginLeftEven", value)}
+          />
+          <RangeControl
+            label="Отступ снизу"
+            value={settings.marginBottom}
+            min={0}
+            max={220}
+            suffix=" px"
+            onChange={(value) => updateSetting("marginBottom", value)}
+          />
         </div>
       </SettingSection>
       <PlotterSettings workspace={plotterWorkspace} />
@@ -172,96 +205,116 @@ export default function SettingsPanel({
             onChange={(event) => applyHandwritingProfile(event.target.value)}
           >
             {Object.entries(HANDWRITING_PROFILES).map(([id, profile]) => (
-              <option value={id} key={id}>{profile.label}</option>
+              <option value={id} key={id}>
+                {profile.label}
+              </option>
             ))}
           </select>
-          <small>{HANDWRITING_PROFILES[settings.handwritingProfile]?.description || HANDWRITING_PROFILES.personal.description}</small>
+          <small>
+            {HANDWRITING_PROFILES[settings.handwritingProfile]?.description ||
+              HANDWRITING_PROFILES.personal.description}
+          </small>
         </label>
         <Toggle
           checked={settings.trueHandwriting}
           onChange={(value) => updateSetting("trueHandwriting", value)}
           label="Настоящий почерк"
-        ><small>Варианты глифов, контекстные соединения, начала и окончания слов, давление и редкие исправления.</small></Toggle>
-        {settings.trueHandwriting && <>
-          <Toggle
-            checked={settings.fatigueEnabled}
-            onChange={(value) => updateSetting("fatigueEnabled", value)}
-            label="Усталость почерка"
-          ><small>К концу длинного текста ритм, наклон и линия постепенно становятся свободнее, но автор остаётся узнаваемым.</small></Toggle>
-          {settings.fatigueEnabled && (
+        >
+          <small>
+            Варианты глифов, контекстные соединения, начала и окончания слов,
+            давление и редкие исправления.
+          </small>
+        </Toggle>
+        {settings.trueHandwriting && (
+          <>
+            <Toggle
+              checked={settings.fatigueEnabled}
+              onChange={(value) => updateSetting("fatigueEnabled", value)}
+              label="Усталость почерка"
+            >
+              <small>
+                К концу длинного текста ритм, наклон и линия постепенно
+                становятся свободнее, но автор остаётся узнаваемым.
+              </small>
+            </Toggle>
+            {settings.fatigueEnabled && (
+              <RangeControl
+                label="Сила усталости"
+                value={settings.fatigueStrength}
+                min={5}
+                max={100}
+                suffix="%"
+                onChange={(value) => updateSetting("fatigueStrength", value)}
+              />
+            )}
             <RangeControl
-              label="Сила усталости"
-              value={settings.fatigueStrength}
-              min={5}
+              label="Наклон автора"
+              value={settings.authorSlant}
+              min={-12}
+              max={16}
+              step={0.5}
+              suffix="°"
+              onChange={(value) => updateSetting("authorSlant", value)}
+            />
+            <RangeControl
+              label="Ширина букв автора"
+              value={settings.authorWidth}
+              min={82}
+              max={118}
+              suffix="%"
+              onChange={(value) => updateSetting("authorWidth", value)}
+            />
+            <RangeControl
+              label="Живой ритм"
+              value={settings.authorRhythm}
+              min={0}
               max={100}
               suffix="%"
-              onChange={(value) => updateSetting("fatigueStrength", value)}
+              onChange={(value) => updateSetting("authorRhythm", value)}
             />
-          )}
-          <RangeControl
-            label="Наклон автора"
-            value={settings.authorSlant}
-            min={-12}
-            max={16}
-            step={0.5}
-            suffix="°"
-            onChange={(value) => updateSetting("authorSlant", value)}
-          />
-          <RangeControl
-            label="Ширина букв автора"
-            value={settings.authorWidth}
-            min={82}
-            max={118}
-            suffix="%"
-            onChange={(value) => updateSetting("authorWidth", value)}
-          />
-          <RangeControl
-            label="Живой ритм"
-            value={settings.authorRhythm}
-            min={0}
-            max={100}
-            suffix="%"
-            onChange={(value) => updateSetting("authorRhythm", value)}
-          />
-          <RangeControl
-            label="Вариативность букв"
-            value={settings.glyphVariation}
-            min={0}
-            max={100}
-            suffix="%"
-            onChange={(value) => updateSetting("glyphVariation", value)}
-            hint="Выбирает один из нескольких устойчивых вариантов каждой буквы."
-          />
-          <RangeControl
-            label="Связность"
-            value={settings.connectionStrength}
-            min={0}
-            max={100}
-            suffix="%"
-            onChange={(value) => updateSetting("connectionStrength", value)}
-            hint="Частота контекстных соединений между соседними буквами."
-          />
-          <RangeControl
-            label="Редкие исправления"
-            value={settings.correctionChance}
-            min={0}
-            max={5}
-            step={0.1}
-            suffix="%"
-            onChange={(value) => updateSetting("correctionChance", value)}
-            hint="Вероятность естественного зачёркивания слова."
-          />
-          <RangeControl
-            label="Изменение давления"
-            value={settings.pressureVariation}
-            min={0}
-            max={50}
-            suffix="%"
-            onChange={(value) => updateSetting("pressureVariation", value)}
-            hint="Слегка меняет толщину предпросмотра и усилие пера между штрихами."
-          />
-          <NaturalnessReport report={naturalnessReport} onAutofix={applyNaturalnessFix} />
-        </>}
+            <RangeControl
+              label="Вариативность букв"
+              value={settings.glyphVariation}
+              min={0}
+              max={100}
+              suffix="%"
+              onChange={(value) => updateSetting("glyphVariation", value)}
+              hint="Выбирает один из нескольких устойчивых вариантов каждой буквы."
+            />
+            <RangeControl
+              label="Связность"
+              value={settings.connectionStrength}
+              min={0}
+              max={100}
+              suffix="%"
+              onChange={(value) => updateSetting("connectionStrength", value)}
+              hint="Частота контекстных соединений между соседними буквами."
+            />
+            <RangeControl
+              label="Редкие исправления"
+              value={settings.correctionChance}
+              min={0}
+              max={5}
+              step={0.1}
+              suffix="%"
+              onChange={(value) => updateSetting("correctionChance", value)}
+              hint="Вероятность естественного зачёркивания слова."
+            />
+            <RangeControl
+              label="Изменение давления"
+              value={settings.pressureVariation}
+              min={0}
+              max={50}
+              suffix="%"
+              onChange={(value) => updateSetting("pressureVariation", value)}
+              hint="Слегка меняет толщину предпросмотра и усилие пера между штрихами."
+            />
+            <NaturalnessReport
+              report={naturalnessReport}
+              onAutofix={applyNaturalnessFix}
+            />
+          </>
+        )}
         <RangeControl
           label="Случайное направление"
           value={settings.directionChance}
@@ -448,7 +501,11 @@ export default function SettingsPanel({
         </div>
       </SettingSection>
       <div className="settings-reset">
-        <button className="button ghost settings-wide-button" type="button" onClick={resetSettings}>
+        <button
+          className="button ghost settings-wide-button"
+          type="button"
+          onClick={resetSettings}
+        >
           Сбросить все настройки
         </button>
       </div>
