@@ -177,7 +177,19 @@ export function createPlotterProfileStore(
   };
 }
 
-export function loadPlotterProfileStore(storage = localStorage) {
+type ProfileStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+function browserStorage(): ProfileStorage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function loadPlotterProfileStore(
+  storage: ProfileStorage | null = browserStorage(),
+) {
   let rawStore = null;
   let legacyConfig = null;
   try {
@@ -194,8 +206,13 @@ export function loadPlotterProfileStore(storage = localStorage) {
   }
 
   const store = createPlotterProfileStore(rawStore, legacyConfig);
-  storage.setItem(PLOTTER_PROFILES_KEY, JSON.stringify(store));
-  storage.removeItem(LEGACY_PLOTTER_SETTINGS_KEY);
+  if (!storage) return store;
+  try {
+    storage.setItem(PLOTTER_PROFILES_KEY, JSON.stringify(store));
+    storage.removeItem(LEGACY_PLOTTER_SETTINGS_KEY);
+  } catch {
+    // The app remains usable in private mode or after local storage is full.
+  }
   return store;
 }
 

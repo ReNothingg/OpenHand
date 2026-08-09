@@ -1,19 +1,24 @@
 import { useEffect } from "react";
 import { STORAGE_KEYS } from "../app/config";
+import { saveStoredValues } from "../lib/storage";
 
 export function useDocumentPersistence({
   markdown,
   texSource,
   sourceMode,
   settings,
+  onSaveError,
 }) {
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      localStorage.setItem(STORAGE_KEYS.markdown, markdown);
-      localStorage.setItem(STORAGE_KEYS.tex, texSource);
-      localStorage.setItem(STORAGE_KEYS.sourceMode, sourceMode);
-      localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
+      const saved = saveStoredValues({
+        [STORAGE_KEYS.markdown]: markdown,
+        [STORAGE_KEYS.tex]: texSource,
+        [STORAGE_KEYS.sourceMode]: sourceMode,
+        [STORAGE_KEYS.settings]: JSON.stringify(settings),
+      });
+      if (!saved) onSaveError?.();
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [markdown, texSource, sourceMode, settings]);
+  }, [markdown, onSaveError, settings, sourceMode, texSource]);
 }

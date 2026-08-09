@@ -7,13 +7,15 @@
     "dev": "vite --host 0.0.0.0",
     "build": "node scripts/build-all.mjs",
     "build:web": "npm run typecheck && vite build && node scripts/write-sites-worker.mjs",
+    "verify:web-sync": "node scripts/verify-web-sync.mjs",
     "typecheck": "tsc --noEmit",
     "macos:sync": "npm run build:web && node scripts/sync-macos-web.mjs",
     "macos:build": "sh macos/scripts/build-release.sh",
     "windows:build": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/scripts/build-release.ps1",
     "windows:build:arm64": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/scripts/build-release.ps1 -Runtime win-arm64",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "dompurify": "^3.2.6",
@@ -29,6 +31,7 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^3.2.7"
   }
 }

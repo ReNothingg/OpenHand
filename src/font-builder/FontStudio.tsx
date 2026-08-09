@@ -6,6 +6,7 @@ import FontPreview from "./FontPreview";
 import PhotoFontImporter from "./PhotoFontImporter";
 import { createGFontBlob, safeFontFilename } from "./gfontExport";
 import { downloadBlob } from "../lib/files";
+import { loadStoredObject, saveStoredValues } from "../lib/storage";
 import LiquidRange from "../components/controls/LiquidRange";
 import "./font-studio.css";
 
@@ -14,18 +15,17 @@ const DRAFT_KEY = "openhand.font-studio.draft.v1";
 type FontPoint = { x: number; y: number };
 type FontStroke = FontPoint[];
 type GlyphMap = Record<string, FontStroke[]>;
+type FontDraft = { name?: unknown; glyphs?: unknown };
 
 function readDraft() {
-  try {
-    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}");
-    return {
-      name: typeof draft.name === "string" ? draft.name : "Мой почерк",
-      glyphs:
-        draft.glyphs && typeof draft.glyphs === "object" ? draft.glyphs : {},
-    };
-  } catch {
-    return { name: "Мой почерк", glyphs: {} };
-  }
+  const draft = loadStoredObject<FontDraft>(DRAFT_KEY, {});
+  return {
+    name: typeof draft.name === "string" ? draft.name : "Мой почерк",
+    glyphs:
+      draft.glyphs && typeof draft.glyphs === "object"
+        ? (draft.glyphs as GlyphMap)
+        : {},
+  };
 }
 
 function splitGlyph(glyph: {
@@ -63,7 +63,8 @@ export default function FontStudio() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ name, glyphs }));
+      if (!saveStoredValues({ [DRAFT_KEY]: JSON.stringify({ name, glyphs }) }))
+        setNotice("Черновик шрифта не удалось сохранить локально.");
     }, 300);
     return () => window.clearTimeout(timer);
   }, [name, glyphs]);

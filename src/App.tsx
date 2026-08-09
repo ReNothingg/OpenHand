@@ -22,7 +22,11 @@ import {
   createManualPages,
   updatePlacementDirective,
 } from "./lib/manualLayout";
-import { loadStoredObject, loadStoredText } from "./lib/storage";
+import {
+  loadStoredObject,
+  loadStoredText,
+  saveStoredValues,
+} from "./lib/storage";
 import { renderMarkdown } from "./markdown";
 import { loadGFont } from "./plotter/gfont";
 import { htmlToPlotterText } from "./plotter/richText";
@@ -40,7 +44,7 @@ export default function App() {
     loadStoredText(STORAGE_KEYS.tex, SAMPLE_TEX),
   );
   const [sourceMode, setSourceMode] = useState(() =>
-    localStorage.getItem(STORAGE_KEYS.sourceMode) === "tex"
+    loadStoredText(STORAGE_KEYS.sourceMode, "") === "tex"
       ? "tex"
       : "markdown",
   );
@@ -66,6 +70,13 @@ export default function App() {
   const [customFontsReady, setCustomFontsReady] = useState(false);
   const [texRenderer, setTexRenderer] = useState(null);
   const [saveNotice, setSaveNotice] = useState(null);
+
+  const showLocalSaveError = useCallback(() => {
+    setSaveNotice({
+      kind: "error",
+      text: "Черновик не удалось сохранить локально. Освободите место в хранилище браузера.",
+    });
+  }, []);
 
   const textareaRef = useRef(null);
   const previewRef = useRef(null);
@@ -422,16 +433,24 @@ export default function App() {
     [updateSetting],
   );
 
-  useDocumentPersistence({ markdown, texSource, sourceMode, settings });
+  useDocumentPersistence({
+    markdown,
+    texSource,
+    sourceMode,
+    settings,
+    onSaveError: showLocalSaveError,
+  });
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      localStorage.setItem(
-        STORAGE_KEYS.manualLayout,
-        JSON.stringify(manualLayouts),
-      );
+      if (
+        !saveStoredValues({
+          [STORAGE_KEYS.manualLayout]: JSON.stringify(manualLayouts),
+        })
+      )
+        showLocalSaveError();
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [manualLayouts]);
+  }, [manualLayouts, showLocalSaveError]);
   const panHandlers = usePreviewInteractions({
     previewRef,
     zoom: settings.zoom,
@@ -518,7 +537,8 @@ export default function App() {
     const next = { ...presets, [name]: settings };
     setPresets(next);
     setActivePreset(name);
-    localStorage.setItem(STORAGE_KEYS.presets, JSON.stringify(next));
+    if (!saveStoredValues({ [STORAGE_KEYS.presets]: JSON.stringify(next) }))
+      showLocalSaveError();
   };
 
   const deletePreset = () => {
@@ -527,7 +547,8 @@ export default function App() {
     delete next[activePreset];
     setPresets(next);
     setActivePreset("");
-    localStorage.setItem(STORAGE_KEYS.presets, JSON.stringify(next));
+    if (!saveStoredValues({ [STORAGE_KEYS.presets]: JSON.stringify(next) }))
+      showLocalSaveError();
   };
 
   const selectPreset = (name) => {

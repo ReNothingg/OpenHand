@@ -153,16 +153,18 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           </button>
           {!running && !recoveryAvailable && (
             <button
-              className="button primary compact"
-              type="button"
-              disabled={
-                calibrationActive ||
-                !connected ||
-                !armed ||
-                !job.commands.length ||
-                busy
-              }
-              onClick={workspace.run}
+            className="button primary compact"
+            type="button"
+            disabled={
+              calibrationActive ||
+              !connected ||
+              !armed ||
+              !preflight.canStart ||
+              !job.commands.length ||
+              busy
+            }
+            title={preflight.canStart ? undefined : preflight.blockers[0]}
+            onClick={workspace.run}
             >
               Запустить
             </button>

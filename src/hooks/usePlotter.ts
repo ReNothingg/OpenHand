@@ -1,22 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  loadStoredObject,
+  removeStoredValue,
+  saveStoredValues,
+} from "../lib/storage";
 
 const encoder = new TextEncoder();
 const RECOVERY_KEY = "openhand.plotter.recovery.v1";
 
-function loadRecovery() {
-  try {
-    const value = JSON.parse(localStorage.getItem(RECOVERY_KEY) || "null");
-    if (
-      !value ||
-      typeof value.jobId !== "string" ||
-      !Number.isInteger(value.current) ||
-      !Number.isInteger(value.total)
-    )
-      return null;
-    return value;
-  } catch {
+type RecoveryState = {
+  jobId: string;
+  current: number;
+  total: number;
+  profile: string;
+  updatedAt?: number;
+};
+
+function loadRecovery(): RecoveryState | null {
+  const value = loadStoredObject<Partial<RecoveryState>>(RECOVERY_KEY, {});
+  if (
+    typeof value.jobId !== "string" ||
+    !Number.isInteger(value.current) ||
+    !Number.isInteger(value.total) ||
+    typeof value.profile !== "string"
+  )
     return null;
-  }
+  return value as RecoveryState;
 }
 
 function lineEnding(profile) {
@@ -40,13 +49,13 @@ export function usePlotter() {
 
   const saveRecovery = useCallback((value) => {
     if (!value) {
-      localStorage.removeItem(RECOVERY_KEY);
+      removeStoredValue(RECOVERY_KEY);
       setRecovery(null);
       return;
     }
     const next = { ...value, updatedAt: Date.now() };
     try {
-      localStorage.setItem(RECOVERY_KEY, JSON.stringify(next));
+      saveStoredValues({ [RECOVERY_KEY]: JSON.stringify(next) });
     } catch {
       /* storage may be full */
     }

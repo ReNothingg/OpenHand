@@ -23,6 +23,7 @@ import {
   parsePlotterProfile,
   PLOTTER_PROFILES_KEY,
 } from "../plotter/profiles";
+import { assessPlotterPreflight } from "../plotter/preflight";
 
 export function mechanicsDefaults(profile) {
   return {
@@ -124,7 +125,11 @@ export function useIntegratedPlotter({
   }, []);
   const previewConfig = useDebouncedValue(config);
   useEffect(() => {
-    localStorage.setItem(PLOTTER_PROFILES_KEY, JSON.stringify(profileStore));
+    try {
+      localStorage.setItem(PLOTTER_PROFILES_KEY, JSON.stringify(profileStore));
+    } catch {
+      setError("Профили плоттера не удалось сохранить локально.");
+    }
   }, [profileStore]);
 
   useEffect(() => {
@@ -336,15 +341,10 @@ export function useIntegratedPlotter({
     plotter.recovery.total === job.commands.length &&
     plotter.recovery.current < plotter.recovery.total,
   );
-  const preflight = {
-    hasStrokes: activeLayout.strokes.length > 0,
-    hasMissingGlyphs: activeLayout.missing.length > 0,
-    clipped: activeLayout.clipped,
+  const preflight = assessPlotterPreflight(activeLayout, {
     calibrated: Boolean(activeProfile.calibratedAt),
-    inBounds: !activeLayout.clippedItems?.some((item) =>
-      /границ|bound/i.test(item),
-    ),
-  };
+    originConfirmed,
+  });
   const playback = usePlotterPlayback(job, {
     status: plotter.status,
     progress: plotter.progress,
@@ -651,24 +651,45 @@ export function useIntegratedPlotter({
       safeAction(() => plotter.sendCommands(createPenCommand(up, config))),
     setOrigin,
     dryRun,
-    run: () =>
-      calibrationActive
-        ? Promise.resolve(false)
-        : safeAction(() => plotter.run(createJob())),
-    runSheets: (indices) =>
-      calibrationActive
-        ? Promise.resolve(false)
-        : safeAction(() => {
-            const jobs = indices.map((index) => createJob(index));
-            const commands = jobs.flatMap((item) => item.commands);
-            return plotter.run({
-              id: jobs.map((item) => item.id).join(":"),
-              commands,
-              resumePoints: [],
-              resumePrefix: jobs[0]?.resumePrefix || [],
-              recoverable: false,
-            });
+    run: () => {
+      if (calibrationActive) return Promise.resolve(false);
+      if (!preflight.canStart) {
+        setError(preflight.blockers[0]);
+        return Promise.resolve(false);
+      }
+      return safeAction(() => plotter.run(createJob()));
+    },
+    runSheets: (indices) => {
+      if (calibrationActive) return Promise.resolve(false);
+      if (!indices.length) {
+        setError("Выберите хотя бы один лист для запуска.");
+        return Promise.resolve(false);
+      }
+      const unsafeLayout = indices
+        .map((index) => layouts[index])
+        .map((layout) =>
+          assessPlotterPreflight(layout, {
+            calibrated: Boolean(activeProfile.calibratedAt),
+            originConfirmed,
           }),
+        )
+        .find((assessment) => !assessment.canStart);
+      if (unsafeLayout) {
+        setError(unsafeLayout.blockers[0]);
+        return Promise.resolve(false);
+      }
+      return safeAction(() => {
+        const jobs = indices.map((index) => createJob(index));
+        const commands = jobs.flatMap((item) => item.commands);
+        return plotter.run({
+          id: jobs.map((item) => item.id).join(":"),
+          commands,
+          resumePoints: [],
+          resumePrefix: jobs[0]?.resumePrefix || [],
+          recoverable: false,
+        });
+      });
+    },
     recover,
     discardRecovery: plotter.discardRecovery,
     pause: () => safeAction(plotter.pause),
