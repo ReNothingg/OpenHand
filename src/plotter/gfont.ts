@@ -1,6 +1,27 @@
 const EOCD_SIGNATURE = 0x06054b50;
 const CENTRAL_SIGNATURE = 0x02014b50;
 const LOCAL_SIGNATURE = 0x04034b50;
+export const MAX_GFONT_ARCHIVE_BYTES = 32 * 1024 * 1024;
+const MAX_GFONT_UNCOMPRESSED_BYTES = 256 * 1024 * 1024;
+
+export interface GFontPoint {
+  x: number;
+  y: number;
+}
+
+export interface GFontGlyph {
+  codePoint: number;
+  points: GFontPoint[];
+  flags: number[];
+  bounds: { minX: number; maxX: number; minY: number; maxY: number };
+}
+
+interface GFontEntry {
+  method: number;
+  compressedSize: number;
+  uncompressedSize: number;
+  localOffset: number;
+}
 
 export const BUILTIN_GFONT_FAMILIES = [
   {
@@ -140,7 +161,7 @@ export const BUILTIN_GFONT_OPTIONS = BUILTIN_GFONT_FAMILIES.flatMap((family) =>
   })),
 );
 
-const bundledSourceCache = new Map();
+const bundledSourceCache = new Map<string, Promise<GFont>>();
 
 const BUNDLED_GFONT_LOADERS = {
   "ifdream-unicode.gfont": () =>
@@ -169,7 +190,7 @@ const BUNDLED_GFONT_LOADERS = {
     ),
 };
 
-function findEndOfCentralDirectory(view) {
+function findEndOfCentralDirectory(view: DataView) {
   const minimum = Math.max(0, view.byteLength - 0xffff - 22);
   for (let offset = view.byteLength - 22; offset >= minimum; offset -= 1) {
     if (view.getUint32(offset, true) === EOCD_SIGNATURE) return offset;
@@ -177,19 +198,19 @@ function findEndOfCentralDirectory(view) {
   throw new Error("В файле не найден ZIP-каталог шрифта.");
 }
 
-async function inflateRaw(bytes) {
+async function inflateRaw(bytes: Uint8Array) {
   if (!globalThis.DecompressionStream) {
     throw new Error(
       "Браузер не поддерживает распаковку .gfont. Откройте OpenHand в Chrome или Edge.",
     );
   }
-  const stream = new Blob([bytes])
+  const stream = new Blob([bytes.slice().buffer])
     .stream()
     .pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-function parseGlyph(bytes, expectedCodePoint) {
+function parseGlyph(bytes: Uint8Array, expectedCodePoint: number): GFontGlyph {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (view.byteLength < 10) throw new Error("Повреждённая глифа в .gfont.");
 
@@ -206,7 +227,7 @@ function parseGlyph(bytes, expectedCodePoint) {
     throw new Error("Некорректные координаты глифы.");
   }
 
-  const points = [];
+  const points: GFontPoint[] = [];
   for (let index = 0; index < floatCount; index += 2) {
     points.push({
       x: view.getFloat32(offset, false),
@@ -249,18 +270,15 @@ export class GFont {
   bytes: Uint8Array;
   view: DataView;
   name: string;
-  entries: Map<
-    number,
-    {
-      method: number;
-      compressedSize: number;
-      uncompressedSize: number;
-      localOffset: number;
-    }
-  >;
-  cache: Map<number, any>;
+  entries: Map<number, GFontEntry>;
+  cache: Map<number, GFontGlyph | null>;
 
   constructor(arrayBuffer: ArrayBuffer, name = "Шрифт .gfont") {
+    if (arrayBuffer.byteLength > MAX_GFONT_ARCHIVE_BYTES) {
+      throw new Error(
+        `.gfont больше ${MAX_GFONT_ARCHIVE_BYTES / 1024 / 1024} МБ. Уменьшите шрифт или разделите набор глифов.`,
+      );
+    }
     this.bytes = new Uint8Array(arrayBuffer);
     this.view = new DataView(arrayBuffer);
     this.name = name;
@@ -271,13 +289,22 @@ export class GFont {
 
   readDirectory() {
     const eocd = findEndOfCentralDirectory(this.view);
+    this.assertRange(eocd, 22, "Повреждённый ZIP-каталог .gfont.");
     const entryCount = this.view.getUint16(eocd + 10, true);
     const directorySize = this.view.getUint32(eocd + 12, true);
     const recordedDirectoryOffset = this.view.getUint32(eocd + 16, true);
     const zipBase = eocd - directorySize - recordedDirectoryOffset;
+    if (zipBase < 0) throw new Error("Некорректное смещение ZIP-каталога .gfont.");
+    this.assertRange(
+      zipBase + recordedDirectoryOffset,
+      directorySize,
+      "ZIP-каталог .gfont выходит за границы файла.",
+    );
     let offset = zipBase + recordedDirectoryOffset;
+    let totalUncompressedSize = 0;
 
     for (let index = 0; index < entryCount; index += 1) {
+      this.assertRange(offset, 46, "Повреждённая запись каталога .gfont.");
       if (this.view.getUint32(offset, true) !== CENTRAL_SIGNATURE) {
         throw new Error("Повреждённый каталог .gfont.");
       }
@@ -288,6 +315,13 @@ export class GFont {
       const extraLength = this.view.getUint16(offset + 30, true);
       const commentLength = this.view.getUint16(offset + 32, true);
       const localOffset = zipBase + this.view.getUint32(offset + 42, true);
+      const recordSize = 46 + nameLength + extraLength + commentLength;
+      this.assertRange(offset, recordSize, "Запись каталога .gfont обрезана.");
+      this.assertRange(localOffset, 30, "Смещение глифы выходит за границы .gfont.");
+      totalUncompressedSize += uncompressedSize;
+      if (totalUncompressedSize > MAX_GFONT_UNCOMPRESSED_BYTES) {
+        throw new Error("Распакованный размер .gfont превышает безопасный предел.");
+      }
       const nameBytes = this.bytes.subarray(
         offset + 46,
         offset + 46 + nameLength,
@@ -301,20 +335,34 @@ export class GFont {
           localOffset,
         });
       }
-      offset += 46 + nameLength + extraLength + commentLength;
+      offset += recordSize;
     }
   }
 
-  has(codePoint) {
+  private assertRange(offset: number, length: number, message: string) {
+    if (
+      !Number.isSafeInteger(offset) ||
+      !Number.isSafeInteger(length) ||
+      offset < 0 ||
+      length < 0 ||
+      offset + length > this.view.byteLength
+    ) {
+      throw new Error(message);
+    }
+  }
+
+  has(codePoint: number) {
     return this.entries.has(codePoint);
   }
 
-  async getGlyph(codePoint) {
-    if (this.cache.has(codePoint)) return this.cache.get(codePoint);
+  async getGlyph(codePoint: number): Promise<GFontGlyph | null> {
+    const cached = this.cache.get(codePoint);
+    if (cached !== undefined) return cached;
     const entry = this.entries.get(codePoint);
     if (!entry) return null;
 
     const { localOffset } = entry;
+    this.assertRange(localOffset, 30, "Повреждённая локальная запись .gfont.");
     if (this.view.getUint32(localOffset, true) !== LOCAL_SIGNATURE) {
       throw new Error(
         `Повреждена запись символа U+${codePoint.toString(16).toUpperCase()}.`,
@@ -323,6 +371,11 @@ export class GFont {
     const nameLength = this.view.getUint16(localOffset + 26, true);
     const extraLength = this.view.getUint16(localOffset + 28, true);
     const dataOffset = localOffset + 30 + nameLength + extraLength;
+    this.assertRange(
+      dataOffset,
+      entry.compressedSize,
+      "Сжатые данные глифы выходят за границы .gfont.",
+    );
     const compressed = this.bytes.subarray(
       dataOffset,
       dataOffset + entry.compressedSize,
@@ -344,6 +397,12 @@ export class GFont {
 }
 
 export async function loadGFont(source: ArrayBuffer | Blob, name?: string) {
+  const sourceSize = source instanceof ArrayBuffer ? source.byteLength : source.size;
+  if (sourceSize > MAX_GFONT_ARCHIVE_BYTES) {
+    throw new Error(
+      `.gfont больше ${MAX_GFONT_ARCHIVE_BYTES / 1024 / 1024} МБ. Уменьшите шрифт или разделите набор глифов.`,
+    );
+  }
   const buffer =
     source instanceof ArrayBuffer ? source : await source.arrayBuffer();
   return new GFont(
@@ -353,7 +412,7 @@ export async function loadGFont(source: ArrayBuffer | Blob, name?: string) {
 }
 
 function transformGlyph(
-  glyph: any,
+  glyph: GFontGlyph,
   codePoint: number,
   transform: { width?: number; slant?: number; wobble?: number } = {},
 ) {
@@ -363,7 +422,7 @@ function transformGlyph(
   const originX = glyph.bounds.minX;
   const baseline = glyph.bounds.maxY;
   const seed = (codePoint % 97) * 0.173;
-  const points = glyph.points.map((point) => ({
+  const points = glyph.points.map((point: GFontPoint) => ({
     x:
       originX +
       (point.x - originX) * width -
@@ -371,30 +430,40 @@ function transformGlyph(
       wobble * Math.sin((point.y - baseline) * 0.035 + seed),
     y: point.y,
   }));
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const point of points) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
   return {
     ...glyph,
     points,
     flags: [...glyph.flags],
     bounds: points.length
       ? {
-          minX: Math.min(...xs),
-          maxX: Math.max(...xs),
-          minY: Math.min(...ys),
-          maxY: Math.max(...ys),
+          minX,
+          maxX,
+          minY,
+          maxY,
         }
       : { minX: 0, maxX: 0, minY: 0, maxY: 0 },
   };
 }
 
-function createVariantFont(base, option) {
-  const cache = new Map();
+type BuiltinGFontOption = (typeof BUILTIN_GFONT_OPTIONS)[number];
+
+function createVariantFont(base: GFont, option: BuiltinGFontOption) {
+  const cache = new Map<number, GFontGlyph | null>();
   return {
     name: option.label,
     entries: base.entries,
-    has: (codePoint) => base.has(codePoint),
-    async getGlyph(codePoint) {
+    has: (codePoint: number) => base.has(codePoint),
+    async getGlyph(codePoint: number) {
       if (cache.has(codePoint)) return cache.get(codePoint);
       const glyph = await base.getGlyph(codePoint);
       const transformed = glyph
@@ -406,9 +475,11 @@ function createVariantFont(base, option) {
   };
 }
 
-async function loadBundledSource(filename) {
-  if (bundledSourceCache.has(filename)) return bundledSourceCache.get(filename);
-  const loader = BUNDLED_GFONT_LOADERS[filename];
+async function loadBundledSource(filename: string) {
+  const cached = bundledSourceCache.get(filename);
+  if (cached) return cached;
+  const loader =
+    BUNDLED_GFONT_LOADERS[filename as keyof typeof BUNDLED_GFONT_LOADERS];
   if (!loader)
     throw new Error(`Встроенный шрифт «${filename}» не найден в сборке.`);
   const pending = loader()
@@ -425,10 +496,13 @@ async function loadBundledSource(filename) {
   return pending;
 }
 
-export async function loadBundledGFont(id = BUILTIN_GFONT_OPTIONS[0].id) {
+export async function loadBundledGFont(
+  id = BUILTIN_GFONT_OPTIONS[0]?.id || "ifdream-original",
+) {
   const option =
     BUILTIN_GFONT_OPTIONS.find((item) => item.id === id) ||
     BUILTIN_GFONT_OPTIONS[0];
+  if (!option) throw new Error("Встроенные GFont не настроены.");
   try {
     const base = await loadBundledSource(option.source);
     return createVariantFont(base, option);

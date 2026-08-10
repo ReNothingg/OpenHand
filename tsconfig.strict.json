@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "include": [
+    "src/gcode/**/*.ts",
+    "src/gcode/**/*.tsx",
+    "src/lib/storage.ts",
+    "src/plotter/gfont.ts",
+    "src/plotter/preflight.ts",
+    "src/plotter/recovery.ts",
+    "src/vite-env.d.ts"
+  ]
+}

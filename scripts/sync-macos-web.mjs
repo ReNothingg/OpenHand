@@ -6,6 +6,12 @@ const projectDirectory = process.cwd()
 const sourceDirectory = path.resolve(projectDirectory, 'docs')
 const targetDirectory = path.resolve(projectDirectory, 'macos', 'Web')
 const expectedTargetRoot = `${path.resolve(projectDirectory, 'macos')}${path.sep}`
+const ignoredNames = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini'])
+
+function shouldCopy(source) {
+  const name = path.basename(source)
+  return !ignoredNames.has(name) && !name.startsWith('._')
+}
 
 if (!targetDirectory.startsWith(expectedTargetRoot)) {
   throw new Error(`Unsafe macOS web target: ${targetDirectory}`)
@@ -24,6 +30,7 @@ for (const entry of await readdir(targetDirectory)) {
 await cp(sourceDirectory, targetDirectory, {
   recursive: true,
   force: true,
+  filter: shouldCopy,
 })
 
 console.log(`macOS resources synced: ${targetDirectory}`)

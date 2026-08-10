@@ -4,13 +4,18 @@ import path from "node:path";
 const projectDirectory = process.cwd();
 const sourceDirectory = path.join(projectDirectory, "docs");
 const macosDirectory = path.join(projectDirectory, "macos", "Web");
+const ignoredNames = new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
+
+function shouldInclude(name) {
+  return !ignoredNames.has(name) && !name.startsWith("._");
+}
 
 async function listFiles(directory, relative = "") {
   const entries = await readdir(path.join(directory, relative), {
     withFileTypes: true,
   });
   const files = await Promise.all(
-    entries.map(async (entry) => {
+    entries.filter((entry) => shouldInclude(entry.name)).map(async (entry) => {
       const entryPath = path.join(relative, entry.name);
       if (entry.isDirectory()) return listFiles(directory, entryPath);
       if (entry.isFile()) return [entryPath];

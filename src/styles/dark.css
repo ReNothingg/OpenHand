@@ -1,0 +1,155 @@
+.theme-dark {
+  color-scheme: dark;
+  --line: #303a4a;
+  --muted: #9aa6b6;
+  --green: #60a5fa;
+  --green-dark: #3b82f6;
+  --panel: #151c28;
+  color: #e5eaf1;
+  background: #0d131d;
+}
+
+.theme-dark.macos-native {
+  --mac-bg: #0d1117;
+  --mac-panel: #151a22;
+  --mac-panel-muted: #1b222d;
+  --mac-surface: #171d26;
+  --mac-surface-hover: #222b37;
+  --mac-surface-active: #2a3543;
+  --mac-canvas: #0a0f16;
+  --mac-text: #edf1f7;
+  --mac-secondary: #a5afbd;
+  --mac-tertiary: #747f8d;
+  --mac-line: #303946;
+  --mac-line-strong: #465365;
+  --mac-accent: #409cff;
+  --mac-accent-hover: #68afff;
+  --mac-accent-soft: #17385b;
+  --mac-danger: #ff6961;
+  --mac-danger-soft: #3d2022;
+  --mac-warning: #f2bd63;
+  --mac-warning-soft: #3b3020;
+}
+
+.theme-dark body,
+.theme-dark #root,
+.theme-dark .app,
+.theme-dark .workspace,
+.theme-dark .font-studio,
+.theme-dark .gcode-viewer {
+  color: #e5eaf1;
+  background: #0d131d;
+}
+
+.theme-dark .panel,
+.theme-dark .editor-panel,
+.theme-dark .settings-panel,
+.theme-dark .panel-title,
+.theme-dark .preview-toolbar,
+.theme-dark .plotter-header,
+.theme-dark .font-studio-toolbar,
+.theme-dark .font-character-panel,
+.theme-dark .font-canvas-panel,
+.theme-dark .font-live-preview,
+.theme-dark .integrated-plotter-footer,
+.theme-dark .plotter-controls,
+.theme-dark .plotter-card,
+.theme-dark .settings-section,
+.theme-dark .settings-subgroup,
+.theme-dark .expanded-editor,
+.theme-dark .photo-import-dialog,
+.theme-dark .gcode-viewer-header,
+.theme-dark .gcode-preview-toolbar,
+.theme-dark .gcode-source-panel,
+.theme-dark .gcode-source-panel > header,
+.theme-dark .gcode-source-panel pre {
+  border-color: var(--line);
+  color: #e5eaf1;
+  background: var(--panel);
+}
+
+.theme-dark .preview-panel,
+.theme-dark .gcode-preview-panel,
+.theme-dark .gcode-canvas,
+.theme-dark .plotter-preview {
+  background: #090e15;
+}
+
+.theme-dark .markdown-editor,
+.theme-dark textarea,
+.theme-dark input:not([type="range"]):not([type="checkbox"]),
+.theme-dark select,
+.theme-dark .font-picker-trigger,
+.theme-dark .font-picker-menu,
+.theme-dark .font-picker-menu > input,
+.theme-dark .font-preview-canvas {
+  border-color: #3a4657;
+  color: #e5eaf1;
+  background: #101722;
+}
+
+.theme-dark .button,
+.theme-dark .editor-expand-button,
+.theme-dark .orientation-toggle,
+.theme-dark .seed-field button,
+.theme-dark .font-upload-button,
+.theme-dark .jog-control button {
+  border-color: #465365;
+  color: #e5eaf1;
+  background: #1a2230;
+}
+
+.theme-dark .button:hover,
+.theme-dark .editor-expand-button:hover,
+.theme-dark .orientation-toggle:hover,
+.theme-dark .seed-field button:hover,
+.theme-dark .font-upload-button:hover,
+.theme-dark .jog-control button:hover:not(:disabled) {
+  border-color: #64748b;
+  background: #253143;
+}
+
+.theme-dark .button.primary {
+  border-color: #3b82f6;
+  color: #fff;
+  background: #2563eb;
+}
+
+.theme-dark .button.primary:hover {
+  background: #1d4ed8;
+}
+
+.theme-dark .view-loading,
+.theme-dark .gcode-empty-preview,
+.theme-dark .gcode-dropzone {
+  border-color: #465365;
+  color: #d7dee8;
+  background: #111925;
+}
+
+.theme-dark .gcode-source-panel code:hover,
+.theme-dark .font-picker-group button:hover,
+.theme-dark .custom-gfont-grid button:hover {
+  background: #202a39;
+}
+
+.theme-dark .gcode-source-panel code {
+  color: #d5dce6;
+}
+
+.theme-dark .gcode-paper {
+  fill: #f8fafc;
+  stroke: #64748b;
+}
+
+.theme-dark .gcode-viewer-warning.neutral {
+  border-bottom-color: #3a4657;
+  color: #b7c1cf;
+  background: #18212e;
+}
+
+.theme-dark .save-notice {
+  border-color: #465365;
+  color: #e5eaf1;
+  background: #17202c;
+}

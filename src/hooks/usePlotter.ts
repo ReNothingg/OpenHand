@@ -4,28 +4,21 @@ import {
   removeStoredValue,
   saveStoredValues,
 } from "../lib/storage";
+import {
+  assertRecoveryCompatible,
+  normalizeRecoveryState,
+  type PlotterRecoveryState,
+} from "../plotter/recovery";
 
 const encoder = new TextEncoder();
 const RECOVERY_KEY = "openhand.plotter.recovery.v1";
 
-type RecoveryState = {
-  jobId: string;
-  current: number;
-  total: number;
-  profile: string;
-  updatedAt?: number;
-};
-
-function loadRecovery(): RecoveryState | null {
-  const value = loadStoredObject<Partial<RecoveryState>>(RECOVERY_KEY, {});
-  if (
-    typeof value.jobId !== "string" ||
-    !Number.isInteger(value.current) ||
-    !Number.isInteger(value.total) ||
-    typeof value.profile !== "string"
-  )
-    return null;
-  return value as RecoveryState;
+function loadRecovery(): PlotterRecoveryState | null {
+  const value = loadStoredObject<Partial<PlotterRecoveryState>>(
+    RECOVERY_KEY,
+    {},
+  );
+  return normalizeRecoveryState(value);
 }
 
 function lineEnding(profile) {
@@ -357,27 +350,8 @@ export function usePlotter() {
 
   const recover = useCallback(
     async (job) => {
-      if (!recovery)
-        throw new Error("Нет сохранённого задания для продолжения.");
-      if (job?.recoverable === false) {
-        throw new Error(
-          "Эта прошивка использует относительные координаты: безопасное продолжение после сбоя недоступно.",
-        );
-      }
-      if (
-        !job ||
-        job.id !== recovery.jobId ||
-        job.commands.length !== recovery.total
-      ) {
-        throw new Error(
-          "Текст или настройки изменились. Продолжение старой траектории небезопасно.",
-        );
-      }
-      if (recovery.profile !== profileRef.current) {
-        throw new Error(
-          "Профиль контроллера изменился. Верните прежнюю прошивку перед продолжением.",
-        );
-      }
+      assertRecoveryCompatible(recovery, job, profileRef.current);
+      if (!recovery) return;
       log(
         "system",
         `Продолжение с безопасного штриха: ${recovery.current} / ${recovery.total}`,

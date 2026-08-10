@@ -1,26 +1,52 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { parseGCode, segmentsToPath } from "./parser";
+import {
+  base64DecodedSize,
+  MAX_GCODE_FILE_BYTES,
+  previewSegments,
+  validateGCodeFileSize,
+} from "./limits";
+import { parseGCodeAsync } from "./parseAsync";
+import {
+  normalizeGCodeSource,
+  parseGCode,
+  segmentsToPathChunks,
+  type GCodeParseResult,
+} from "./parser";
 
-function decodePayload(payload) {
+const EMPTY_RESULT = parseGCode("");
+const SOURCE_ROW_HEIGHT = 18;
+const SOURCE_OVERSCAN = 40;
+
+interface GCodeDocument {
+  name: string;
+  text: string;
+}
+
+function decodePayload(payload?: OpenHandFilePayload | null): GCodeDocument | null {
   if (!payload) return null;
-  if (typeof payload.text === "string") {
-    return { name: payload.name || "openhand.gcode", text: payload.text };
+  if (typeof payload.content === "string") {
+    validateGCodeFileSize(new Blob([payload.content]).size);
+    return {
+      name: payload.name || "openhand.gcode",
+      text: normalizeGCodeSource(payload.content),
+    };
   }
   if (typeof payload.data !== "string") return null;
+  validateGCodeFileSize(base64DecodedSize(payload.data));
   const binary = atob(payload.data);
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
   return {
     name: payload.name || "openhand.gcode",
-    text: new TextDecoder().decode(bytes),
+    text: normalizeGCodeSource(new TextDecoder().decode(bytes)),
   };
 }
 
-function formatDistance(value) {
+function formatDistance(value: number) {
   if (value >= 1000) return `${(value / 1000).toFixed(2)} м`;
   return `${value.toFixed(1)} мм`;
 }
 
-function initialDocument(payload) {
+function initialDocument(payload?: OpenHandFilePayload | null) {
   try {
     return decodePayload(payload);
   } catch {
@@ -28,12 +54,93 @@ function initialDocument(payload) {
   }
 }
 
-export default function GCodeViewer({ payload, onClose }) {
-  const [document, setDocument] = useState(() => initialDocument(payload));
+function VirtualizedSource({
+  source,
+  offsets,
+}: {
+  source: string;
+  offsets: Uint32Array;
+}) {
+  const containerRef = useRef<HTMLPreElement>(null);
+  const [viewport, setViewport] = useState({ scrollTop: 0, height: 640 });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+    const updateHeight = () =>
+      setViewport((current) => ({
+        ...current,
+        height: container.clientHeight || current.height,
+      }));
+    updateHeight();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  const start = Math.max(
+    0,
+    Math.floor(viewport.scrollTop / SOURCE_ROW_HEIGHT) - SOURCE_OVERSCAN,
+  );
+  const visibleCount =
+    Math.ceil(viewport.height / SOURCE_ROW_HEIGHT) + SOURCE_OVERSCAN * 2;
+  const end = Math.min(offsets.length, start + visibleCount);
+
+  return (
+    <pre
+      ref={containerRef}
+      onScroll={(event) =>
+        setViewport({
+          scrollTop: event.currentTarget.scrollTop,
+          height: event.currentTarget.clientHeight,
+        })
+      }
+    >
+      <div
+        className="gcode-source-virtual"
+        style={{ height: `${offsets.length * SOURCE_ROW_HEIGHT}px` }}
+      >
+        {Array.from({ length: end - start }, (_, offset) => {
+          const index = start + offset;
+          const lineStart = offsets[index] ?? 0;
+          const nextLineStart = offsets[index + 1];
+          const lineEnd =
+            nextLineStart === undefined
+              ? source.length
+              : Math.max(lineStart, nextLineStart - 1);
+          const line = source.slice(lineStart, lineEnd);
+          return (
+            <code
+              key={index}
+              style={{ top: `${index * SOURCE_ROW_HEIGHT}px` }}
+            >
+              <i>{index + 1}</i>
+              <span>{line || " "}</span>
+            </code>
+          );
+        })}
+      </div>
+    </pre>
+  );
+}
+
+export default function GCodeViewer({
+  payload,
+  onClose,
+}: {
+  payload?: OpenHandFilePayload | null;
+  onClose: () => void;
+}) {
+  const [document, setDocument] = useState<GCodeDocument | null>(() =>
+    initialDocument(payload),
+  );
+  const [result, setResult] = useState<GCodeParseResult>(EMPTY_RESULT);
   const [error, setError] = useState("");
+  const [parsing, setParsing] = useState(false);
   const [showTravel, setShowTravel] = useState(true);
   const [zoom, setZoom] = useState(1);
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!payload) return;
@@ -44,15 +151,60 @@ export default function GCodeViewer({ payload, onClose }) {
         setError("");
         setZoom(1);
       }
-    } catch {
-      setError("Не удалось прочитать содержимое файла.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Не удалось прочитать содержимое файла.",
+      );
     }
   }, [payload]);
 
-  const result = useMemo(
-    () => parseGCode(document?.text || ""),
-    [document?.text],
+  useEffect(() => {
+    let cancelled = false;
+    setResult(EMPTY_RESULT);
+    setParsing(true);
+    parseGCodeAsync(document?.text || "")
+      .then((parsed) => {
+        if (!cancelled) setResult(parsed);
+      })
+      .catch((reason) => {
+        if (!cancelled) {
+          setResult(EMPTY_RESULT);
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Не удалось разобрать G-code.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setParsing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [document?.text]);
+
+  const drawingPreview = useMemo(
+    () => previewSegments(result.drawing),
+    [result.drawing],
   );
+  const travelPreview = useMemo(
+    () => previewSegments(result.travel),
+    [result.travel],
+  );
+  const drawingPaths = useMemo(
+    () => segmentsToPathChunks(drawingPreview),
+    [drawingPreview],
+  );
+  const travelPaths = useMemo(
+    () => segmentsToPathChunks(travelPreview),
+    [travelPreview],
+  );
+  const previewReduced =
+    drawingPreview.length < result.drawingSegmentCount ||
+    travelPreview.length < result.travelSegmentCount;
   const padding = Math.max(
     4,
     Math.max(result.bounds.width, result.bounds.height) * 0.035,
@@ -64,19 +216,27 @@ export default function GCodeViewer({ payload, onClose }) {
     result.bounds.height + padding * 2,
   ].join(" ");
 
-  const openFile = async (file) => {
+  const openFile = async (file?: File) => {
     if (!file) return;
     const extension = file.name.split(".").pop()?.toLowerCase();
-    if (!["gcode", "nc", "tap"].includes(extension)) {
+    if (!extension || !["gcode", "nc", "tap"].includes(extension)) {
       setError("Выберите файл G-code с расширением .gcode, .nc или .tap.");
       return;
     }
     try {
-      setDocument({ name: file.name, text: await file.text() });
+      validateGCodeFileSize(file.size);
+      setDocument({
+        name: file.name,
+        text: normalizeGCodeSource(await file.text()),
+      });
       setError("");
       setZoom(1);
-    } catch {
-      setError("Не удалось прочитать выбранный файл.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Не удалось прочитать выбранный файл.",
+      );
     }
   };
 
@@ -88,7 +248,7 @@ export default function GCodeViewer({ payload, onClose }) {
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
-        openFile(event.dataTransfer.files[0]);
+        void openFile(event.dataTransfer.files[0]);
       }}
     >
       <header className="gcode-viewer-header">
@@ -108,8 +268,10 @@ export default function GCodeViewer({ payload, onClose }) {
               команд
             </span>
             <span>
-              <strong>{result.drawing.length.toLocaleString("ru-RU")}</strong>{" "}
-              линий
+              <strong>
+                {result.drawingSegmentCount.toLocaleString("ru-RU")}
+              </strong>{" "}
+              сегментов
             </span>
             <span>
               <strong>{formatDistance(result.drawDistance)}</strong> пером
@@ -122,7 +284,10 @@ export default function GCodeViewer({ payload, onClose }) {
             type="file"
             accept=".gcode,.nc,.tap,text/plain"
             hidden
-            onChange={(event) => openFile(event.target.files[0])}
+            onChange={(event) => {
+              void openFile(event.target.files?.[0]);
+              event.target.value = "";
+            }}
           />
           <button
             className="button primary compact"
@@ -139,6 +304,11 @@ export default function GCodeViewer({ payload, onClose }) {
           {error}
         </p>
       )}
+      {parsing && (
+        <p className="gcode-viewer-warning neutral" role="status">
+          Разбор траектории в фоне…
+        </p>
+      )}
       {document && result.ignoredLines.length > 0 && (
         <p className="gcode-viewer-warning" role="status">
           Не распознаны строки: {result.ignoredLines.slice(0, 8).join(", ")}
@@ -146,6 +316,21 @@ export default function GCodeViewer({ payload, onClose }) {
             ? ` и ещё ${result.ignoredLines.length - 8}`
             : ""}
           . Они не показаны на траектории.
+        </p>
+      )}
+      {document && result.unsupportedMotionLines.length > 0 && (
+        <p className="gcode-viewer-warning" role="status">
+          Упрощены неподдерживаемые движения в строках:{" "}
+          {result.unsupportedMotionLines.slice(0, 8).join(", ")}
+          {result.unsupportedMotionLines.length > 8
+            ? ` и ещё ${result.unsupportedMotionLines.length - 8}`
+            : ""}
+          . Проверьте траекторию перед запуском.
+        </p>
+      )}
+      {previewReduced && (
+        <p className="gcode-viewer-warning neutral" role="status">
+          Очень большая траектория показана с прореживанием; расстояния и статистика рассчитаны полностью.
         </p>
       )}
 
@@ -157,7 +342,9 @@ export default function GCodeViewer({ payload, onClose }) {
         >
           <strong>Перетащите сюда файл G-code</strong>
           <span>или нажмите, чтобы выбрать .gcode, .nc или .tap</span>
-          <small>Файл обрабатывается только на этом устройстве.</small>
+          <small>
+            Файл обрабатывается только на этом устройстве, максимум {MAX_GCODE_FILE_BYTES / 1024 / 1024} МБ.
+          </small>
         </button>
       ) : (
         <div className="gcode-viewer-workspace">
@@ -204,21 +391,26 @@ export default function GCodeViewer({ payload, onClose }) {
                     height={result.bounds.height + padding * 2}
                     className="gcode-paper"
                   />
-                  {showTravel && (
+                  {showTravel &&
+                    travelPaths.map((path, index) => (
+                      <path
+                        key={`travel-${index}`}
+                        d={path}
+                        className="gcode-travel-path"
+                      />
+                    ))}
+                  {drawingPaths.map((path, index) => (
                     <path
-                      d={segmentsToPath(result.travel)}
-                      className="gcode-travel-path"
+                      key={`drawing-${index}`}
+                      d={path}
+                      className="gcode-draw-path"
                     />
-                  )}
-                  <path
-                    d={segmentsToPath(result.drawing)}
-                    className="gcode-draw-path"
-                  />
+                  ))}
                 </svg>
               ) : (
                 <div className="gcode-empty-preview">
                   <strong>Нет линий для просмотра</strong>
-                  <span>В файле не найдены перемещения G1 по осям X/Y.</span>
+                  <span>В файле не найдены движения с опущенным пером.</span>
                 </div>
               )}
             </div>
@@ -226,16 +418,12 @@ export default function GCodeViewer({ payload, onClose }) {
           <aside className="gcode-source-panel" aria-label="Содержимое файла">
             <header>
               <strong>Команды</strong>
-              <span>{result.lines.length.toLocaleString("ru-RU")} строк</span>
+              <span>{result.lineCount.toLocaleString("ru-RU")} строк</span>
             </header>
-            <pre>
-              {result.lines.map((line, index) => (
-                <code key={index}>
-                  <i>{index + 1}</i>
-                  <span>{line || " "}</span>
-                </code>
-              ))}
-            </pre>
+            <VirtualizedSource
+              source={document.text}
+              offsets={result.lineOffsets}
+            />
           </aside>
         </div>
       )}

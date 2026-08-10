@@ -170,6 +170,11 @@ private let serialShim = #"""
   serial.requestPort = async () => new NativeSerialPort(await bridge.call("requestPort"));
   serial.getPorts = async () => [];
 
+  Object.defineProperty(window, "__openhandNativePlatform", {
+    value: "macos",
+    configurable: false,
+    writable: false,
+  });
   Object.defineProperty(window, "__openhandSerialBridge", {
     value: bridge,
     configurable: false,
@@ -218,9 +223,11 @@ struct OpenHandWebView: NSViewRepresentable {
         webView.underPageBackgroundColor = .windowBackgroundColor
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
+#if DEBUG
         if #available(macOS 13.3, *) {
             webView.isInspectable = true
         }
+#endif
 
         context.coordinator.bridge.webView = webView
         context.coordinator.webView = webView
@@ -242,6 +249,7 @@ struct OpenHandWebView: NSViewRepresentable {
 
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+        private static let maximumDocumentBytes = 64 * 1024 * 1024
         let bridge = NativeBridge()
         let assetHandler = LocalAssetSchemeHandler()
         weak var webView: WKWebView?
@@ -280,7 +288,21 @@ struct OpenHandWebView: NSViewRepresentable {
             }
 
             do {
+                let values = try request.url.resourceValues(forKeys: [.fileSizeKey])
+                if let fileSize = values.fileSize,
+                   fileSize > Self.maximumDocumentBytes {
+                    showDocumentError(
+                        "Файл G-code больше 64 МБ. Разделите задание на несколько файлов."
+                    )
+                    return
+                }
                 let data = try Data(contentsOf: request.url, options: .mappedIfSafe)
+                if data.count > Self.maximumDocumentBytes {
+                    showDocumentError(
+                        "Файл G-code больше 64 МБ. Разделите задание на несколько файлов."
+                    )
+                    return
+                }
                 pendingDocument = [
                     "name": request.url.lastPathComponent,
                     "type": "text/plain;charset=utf-8",
@@ -321,10 +343,15 @@ struct OpenHandWebView: NSViewRepresentable {
                 return
             }
 
-            if url.scheme == "openhand" || url.scheme == "about" || url.scheme == "blob" {
+            let scheme = url.scheme?.lowercased()
+            let isApplicationURL = scheme == "openhand" && url.host == "app"
+            let isInternalURL = isApplicationURL || scheme == "about" || scheme == "blob"
+            if isInternalURL {
                 decisionHandler(.allow)
-            } else {
+            } else if ["http", "https", "mailto"].contains(scheme ?? "") {
                 NSWorkspace.shared.open(url)
+                decisionHandler(.cancel)
+            } else {
                 decisionHandler(.cancel)
             }
         }

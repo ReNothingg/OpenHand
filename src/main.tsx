@@ -9,17 +9,26 @@ const GCodeViewer = lazy(() => import("./gcode/GCodeViewer"));
 
 const path = window.location.pathname.replace(/\/+$/, "") || "/";
 const searchParams = new URLSearchParams(window.location.search);
-const isMacOSNative =
-  Boolean(window.webkit?.messageHandlers?.serialBridge) ||
-  searchParams.get("platform") === "macos";
+const requestedPlatform = searchParams.get("platform");
+const nativePlatform =
+  window.__openhandNativePlatform === "macos" ||
+  window.__openhandNativePlatform === "windows"
+    ? window.__openhandNativePlatform
+    : requestedPlatform === "macos" || requestedPlatform === "windows"
+      ? requestedPlatform
+      : null;
 const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
 const view = searchParams.get("view");
 
 const syncPlatformTheme = () => {
-  document.documentElement.classList.toggle(
-    "macos-native",
-    isMacOSNative || colorScheme.matches,
-  );
+  const root = document.documentElement;
+  root.classList.toggle("platform-macos", nativePlatform === "macos");
+  root.classList.toggle("platform-windows", nativePlatform === "windows");
+  // Keep the existing selector name limited to the actual macOS shell.
+  root.classList.toggle("macos-native", nativePlatform === "macos");
+  root.classList.toggle("theme-dark", colorScheme.matches);
+  root.dataset.platform = nativePlatform || "web";
+  root.dataset.theme = colorScheme.matches ? "dark" : "light";
 };
 colorScheme.addEventListener("change", syncPlatformTheme);
 syncPlatformTheme();

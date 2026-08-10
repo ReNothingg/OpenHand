@@ -15,6 +15,7 @@ interface OpenHandSaveResult {
 }
 
 interface Window {
+  __openhandNativePlatform?: "macos" | "windows";
   __openhandFileBridge?: {
     save?: (file: {
       name: string;

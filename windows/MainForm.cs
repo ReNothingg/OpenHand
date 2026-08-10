@@ -9,6 +9,7 @@ namespace OpenHand;
 internal sealed class MainForm : Form
 {
     private const string ApplicationHost = "app.openhand.local";
+    private const long MaximumDocumentBytes = 64L * 1024 * 1024;
     private const int DwmwaUseImmersiveDarkModeBefore20H1 = 19;
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const int DwmwaBorderColor = 34;
@@ -283,7 +284,28 @@ internal sealed class MainForm : Form
 
         try
         {
+            var fileInfo = new FileInfo(path);
+            if (fileInfo.Length > MaximumDocumentBytes)
+            {
+                MessageBox.Show(
+                    this,
+                    "Файл G-code больше 64 МБ. Разделите задание на несколько файлов.",
+                    "Не удалось открыть G-code",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
             var bytes = await File.ReadAllBytesAsync(path);
+            if (bytes.LongLength > MaximumDocumentBytes)
+            {
+                MessageBox.Show(
+                    this,
+                    "Файл G-code больше 64 МБ. Разделите задание на несколько файлов.",
+                    "Не удалось открыть G-code",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
             _pendingDocument = new PendingDocument(
                 Path.GetFileName(path),
                 "text/plain;charset=utf-8",
