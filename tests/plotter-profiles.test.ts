@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  configFromDevicePreset,
   normalizePlotterConfig,
   parsePlotterProfile,
   serializePlotterProfile,
@@ -28,5 +29,24 @@ describe("plotter profile validation", () => {
     expect(() => parsePlotterProfile("{}" as string)).toThrow(
       "Это не профиль плоттера",
     );
+  });
+
+  it("applies the locally reconstructed Ozon KDraw preset", () => {
+    const config = configFromDevicePreset("ozon-kdraw-grbl", {
+      fontId: "custom:mine",
+    });
+    expect(config.fontId).toBe("custom:mine");
+    expect(config.profile).toBe("grbl");
+    expect(config.baudRate).toBe(115200);
+    expect(config.startPosition).toBe("left-top");
+    expect(config.penUp).toBe(12000);
+    expect(config.penDown).toBe(18000);
+    expect(config.returnToOrigin).toBe(true);
+  });
+
+  it("migrates the old shared pen delay to both directions", () => {
+    const config = normalizePlotterConfig({ penDelay: 0.7 });
+    expect(config.penUpDelay).toBe(0.7);
+    expect(config.penDownDelay).toBe(0.7);
   });
 });

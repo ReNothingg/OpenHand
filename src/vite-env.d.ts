@@ -35,7 +35,9 @@ interface Window {
 
 interface Navigator {
   serial: {
-    requestPort(): Promise<any>;
+    requestPort(options?: {
+      openhandNetwork?: { host: string; port: number };
+    }): Promise<any>;
     addEventListener(type: string, listener: EventListener): void;
     removeEventListener(type: string, listener: EventListener): void;
   };

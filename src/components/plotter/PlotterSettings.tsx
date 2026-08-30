@@ -1,9 +1,10 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import LiquidRange from "../controls/LiquidRange";
 import SettingSection from "../settings/controls/SettingSection";
 import Toggle from "../settings/controls/Toggle";
 import { downloadFile } from "../../lib/files";
 import {
+  PLOTTER_DEVICE_PRESETS,
   safeProfileFilename,
   serializePlotterProfile,
 } from "../../plotter/profiles";
@@ -35,6 +36,7 @@ function Caption({
 export default function PlotterSettings({ workspace }: { workspace: any }) {
   const fontInputRef = useRef(null);
   const profileInputRef = useRef(null);
+  const [manualCommand, setManualCommand] = useState("");
   const { enabled, config, connected, running, plotter, calibrationActive } =
     workspace;
   const locked = !enabled || running || calibrationActive;
@@ -96,6 +98,29 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
             aria-labelledby="plotter-profile-title"
           >
             <h3 id="plotter-profile-title">Профиль устройства</h3>
+            <label className="field">
+              <Caption help="Готовые локальные параметры, восстановленные из KDraw. Применение заменит механику и координаты активного профиля.">
+                Совместимость
+              </Caption>
+              <select
+                defaultValue=""
+                disabled={connected || running}
+                onChange={(event) => {
+                  if (event.target.value)
+                    workspace.applyDevicePreset(event.target.value);
+                  event.target.value = "";
+                }}
+              >
+                <option value="" disabled>
+                  Применить готовый профиль…
+                </option>
+                {PLOTTER_DEVICE_PRESETS.map((preset) => (
+                  <option value={preset.id} key={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="field">
               <span>Активный профиль</span>
               <select
@@ -194,6 +219,21 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
             aria-labelledby="plotter-controller-title"
           >
             <h3 id="plotter-controller-title">Подключение</h3>
+            <label className="field">
+              <Caption help="USB и Bluetooth используют системный последовательный порт. TCP подключается к сетевому модулю плоттера по адресу и порту.">
+                Транспорт
+              </Caption>
+              <select
+                value={config.connectionType}
+                disabled={connected}
+                onChange={(event) =>
+                  workspace.updateConfig("connectionType", event.target.value)
+                }
+              >
+                <option value="serial">USB / Bluetooth Serial</option>
+                <option value="network">Wi‑Fi / TCP</option>
+              </select>
+            </label>
             <div className="plotter-row two">
               <label className="field">
                 <Caption help="Тип прошивки платы. Неверный вариант не повредит контроллер, но команды не будут распознаны.">
@@ -211,26 +251,145 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
                   <option value="ebb">EBB / DrawCore</option>
                 </select>
               </label>
+              {config.connectionType === "serial" ? (
+                <label className="field">
+                  <Caption help="Скорость обмена с платой. Обычно используется 115200. При неверном значении порт отвечает мусором или молчит.">
+                    Скорость порта
+                  </Caption>
+                  <select
+                    value={config.baudRate}
+                    disabled={connected}
+                    onChange={(event) =>
+                      workspace.updateConfig(
+                        "baudRate",
+                        Number(event.target.value),
+                      )
+                    }
+                  >
+                    <option>9600</option>
+                    <option>115200</option>
+                    <option>250000</option>
+                  </select>
+                </label>
+              ) : (
+                <label className="field">
+                  <Caption help="TCP-порт из сетевых настроек контроллера KDraw.">
+                    TCP-порт
+                  </Caption>
+                  <input
+                    type="number"
+                    min="1"
+                    max="65535"
+                    value={config.networkPort || ""}
+                    disabled={connected}
+                    onChange={number("networkPort", 1, 65535)}
+                  />
+                </label>
+              )}
+            </div>
+            {config.connectionType === "network" && (
               <label className="field">
-                <Caption help="Скорость обмена с платой. Обычно используется 115200. При неверном значении порт отвечает мусором или молчит.">
-                  Скорость порта
+                <Caption help="IPv4, IPv6 или локальное имя сетевого модуля без http://.">
+                  IP / хост плоттера
                 </Caption>
-                <select
-                  value={config.baudRate}
+                <input
+                  className="plotter-network-host"
+                  type="text"
+                  maxLength={253}
+                  placeholder="192.168.4.1"
+                  value={config.networkHost}
                   disabled={connected}
                   onChange={(event) =>
-                    workspace.updateConfig(
-                      "baudRate",
-                      Number(event.target.value),
-                    )
+                    workspace.updateConfig("networkHost", event.target.value)
                   }
-                >
-                  <option>9600</option>
-                  <option>115200</option>
-                  <option>250000</option>
-                </select>
+                />
               </label>
-            </div>
+            )}
+            {config.connectionType === "serial" && (
+            <details className="plotter-advanced">
+              <summary>Расширенные параметры порта</summary>
+              <div className="plotter-row two">
+                <label className="field">
+                  <span>Биты данных</span>
+                  <select
+                    value={config.dataBits}
+                    disabled={connected}
+                    onChange={(event) =>
+                      workspace.updateConfig(
+                        "dataBits",
+                        Number(event.target.value),
+                      )
+                    }
+                  >
+                    <option value="8">8</option>
+                    <option value="7">7</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Стоп-биты</span>
+                  <select
+                    value={config.stopBits}
+                    disabled={connected}
+                    onChange={(event) =>
+                      workspace.updateConfig(
+                        "stopBits",
+                        Number(event.target.value),
+                      )
+                    }
+                  >
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                  </select>
+                </label>
+              </div>
+              <div className="plotter-row two">
+                <label className="field">
+                  <span>Чётность</span>
+                  <select
+                    value={config.parity}
+                    disabled={connected}
+                    onChange={(event) =>
+                      workspace.updateConfig("parity", event.target.value)
+                    }
+                  >
+                    <option value="none">Нет</option>
+                    <option value="even">Чётная</option>
+                    <option value="odd">Нечётная</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Управление потоком</span>
+                  <select
+                    value={config.flowControl}
+                    disabled={connected}
+                    onChange={(event) =>
+                      workspace.updateConfig(
+                        "flowControl",
+                        event.target.value,
+                      )
+                    }
+                  >
+                    <option value="none">Нет</option>
+                    <option value="hardware">RTS/CTS</option>
+                  </select>
+                </label>
+              </div>
+              <label className="field">
+                <Caption help="Сколько ждать ответа контроллера на одну команду перед остановкой задания.">
+                  Тайм-аут ответа, мс
+                </Caption>
+                <input
+                  type="number"
+                  min="1000"
+                  max="60000"
+                  step="500"
+                  value={config.connectionTimeoutMs}
+                  disabled={connected}
+                  onChange={number("connectionTimeoutMs", 1000, 60000)}
+                />
+              </label>
+            </details>
+            )}
             {!connected ? (
               <button
                 className="button primary settings-wide-button"
@@ -238,11 +397,17 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
                 disabled={
                   !enabled ||
                   !plotter.supported ||
-                  plotter.status === "connecting"
+                  plotter.status === "connecting" ||
+                  (config.connectionType === "network" &&
+                    (!plotter.networkSupported ||
+                      !config.networkHost ||
+                      !config.networkPort))
                 }
                 onClick={workspace.connect}
               >
-                Выбрать USB-порт
+                {config.connectionType === "network"
+                  ? "Подключиться по TCP"
+                  : "Выбрать USB / Bluetooth-порт"}
               </button>
             ) : (
               <button
@@ -256,9 +421,17 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
             )}
             {!plotter.supported && (
               <p className="plotter-warning">
-                Web Serial работает в Chrome/Edge на localhost или HTTPS.
+                В браузере Web Serial работает в Chrome/Edge на localhost или
+                HTTPS. В приложении доступны также системные Bluetooth COM-порты.
               </p>
             )}
+            {config.connectionType === "network" &&
+              !plotter.networkSupported && (
+                <p className="plotter-warning">
+                  Браузер не разрешает прямой TCP-доступ. Wi‑Fi-подключение
+                  работает в приложениях OpenHand для macOS и Windows.
+                </p>
+              )}
           </section>
 
           <section
@@ -416,6 +589,64 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
                 />
               </label>
             </div>
+            <label className="field">
+              <Caption help="Физический угол, в котором вы устанавливаете ноль листа. Профиль Ozon / KDraw использует левый верхний угол и отрицательную Y вниз.">
+                Нулевая точка листа
+              </Caption>
+              <select
+                value={config.startPosition}
+                disabled={running}
+                onChange={(event) =>
+                  workspace.updateConfig("startPosition", event.target.value)
+                }
+              >
+                <option value="left-top">Слева сверху</option>
+                <option value="right-top">Справа сверху</option>
+                <option value="left-bottom">Слева снизу</option>
+                <option value="right-bottom">Справа снизу</option>
+              </select>
+            </label>
+            <Toggle
+              checked={Boolean(config.swapAxes)}
+              onChange={(value) => workspace.updateConfig("swapAxes", value)}
+              label="Поменять X и Y местами"
+            >
+              <small>Используйте, если движение X физически идёт по высоте.</small>
+            </Toggle>
+            <div className="plotter-row two">
+              <Toggle
+                checked={Boolean(config.invertX)}
+                onChange={(value) => workspace.updateConfig("invertX", value)}
+                label="Инвертировать X"
+              >
+                <small>Меняет знак выходных команд X.</small>
+              </Toggle>
+              <Toggle
+                checked={Boolean(config.invertY)}
+                onChange={(value) => workspace.updateConfig("invertY", value)}
+                label="Инвертировать Y"
+              >
+                <small>Меняет знак выходных команд Y.</small>
+              </Toggle>
+            </div>
+            <Toggle
+              checked={Boolean(config.autoSetOrigin)}
+              onChange={(value) =>
+                workspace.updateConfig("autoSetOrigin", value)
+              }
+              label="Фиксировать текущую точку как ноль перед заданием"
+            >
+              <small>Не заменяет ручную проверку положения пера на листе.</small>
+            </Toggle>
+            <Toggle
+              checked={Boolean(config.returnToOrigin)}
+              onChange={(value) =>
+                workspace.updateConfig("returnToOrigin", value)
+              }
+              label="Возвращаться в ноль после задания"
+            >
+              <small>По завершении перо поднимется и каретка вернётся в 0,0.</small>
+            </Toggle>
             <div className="plotter-row two">
               <label className="field">
                 <Caption help="Физическая ширина безопасной рабочей области. Мастер использует её для проверки рамки.">
@@ -472,19 +703,33 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
             </Toggle>
             <div className="plotter-row two">
               <label className="field">
-                <Caption help="Пауза после движения пера. Слишком мало — линия начнётся до касания; слишком много — печать замедлится.">
-                  Задержка, сек.
+                <Caption help="Пауза после подъёма, прежде чем каретка начнёт холостой ход.">
+                  После подъёма, сек.
                 </Caption>
                 <input
                   type="number"
                   min="0"
                   max="10"
                   step="0.05"
-                  value={config.penDelay}
-                  onChange={number("penDelay", 0, 10)}
+                  value={config.penUpDelay}
+                  onChange={number("penUpDelay", 0, 10)}
                 />
               </label>
               <label className="field">
+                <Caption help="Пауза после опускания, чтобы перо успело коснуться бумаги до начала линии.">
+                  После опускания, сек.
+                </Caption>
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.05"
+                  value={config.penDownDelay}
+                  onChange={number("penDownDelay", 0, 10)}
+                />
+              </label>
+            </div>
+            <label className="field">
                 <Caption help="Дополнительное расстояние между символами. Большое значение вытеснит текст за границы листа.">
                   Межбуквенно, мм
                 </Caption>
@@ -496,8 +741,42 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
                   value={config.letterSpacing}
                   onChange={number("letterSpacing", 0, 20)}
                 />
+            </label>
+            <details className="plotter-advanced">
+              <summary>Команды до и после задания</summary>
+              <p className="plotter-warning">
+                Эти строки отправляются контроллеру без изменения. Используйте
+                только известный вам G-code и по одной команде на строку.
+              </p>
+              <label className="field">
+                <span>Перед заданием</span>
+                <textarea
+                  rows={3}
+                  maxLength={8192}
+                  value={config.customStartGcode}
+                  onChange={(event) =>
+                    workspace.updateConfig(
+                      "customStartGcode",
+                      event.target.value,
+                    )
+                  }
+                />
               </label>
-            </div>
+              <label className="field">
+                <span>После задания</span>
+                <textarea
+                  rows={3}
+                  maxLength={8192}
+                  value={config.customEndGcode}
+                  onChange={(event) =>
+                    workspace.updateConfig(
+                      "customEndGcode",
+                      event.target.value,
+                    )
+                  }
+                />
+              </label>
+            </details>
             <button
               className="button ghost settings-wide-button"
               type="button"
@@ -599,7 +878,52 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
               >
                 Это ноль
               </button>
+              <button
+                className="button compact"
+                type="button"
+                disabled={!connected || running || config.profile === "ebb"}
+                onClick={workspace.home}
+              >
+                Homing
+              </button>
+              <button
+                className="button compact"
+                type="button"
+                disabled={!connected || running || config.profile === "ebb"}
+                onClick={workspace.returnToOrigin}
+              >
+                В ноль
+              </button>
             </div>
+            <form
+              className="plotter-command-line"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                if (await workspace.sendManualCommand(manualCommand))
+                  setManualCommand("");
+              }}
+            >
+              <label className="field">
+                <Caption help="Одна низкоуровневая команда контроллеру. Ответ появится в едином журнале порта снизу.">
+                  Консоль G-code
+                </Caption>
+                <input
+                  type="text"
+                  maxLength={256}
+                  placeholder={config.profile === "grbl" ? "$I" : "M115"}
+                  value={manualCommand}
+                  disabled={!connected || running}
+                  onChange={(event) => setManualCommand(event.target.value)}
+                />
+              </label>
+              <button
+                className="button ghost compact"
+                type="submit"
+                disabled={!connected || running || !manualCommand.trim()}
+              >
+                Отправить
+              </button>
+            </form>
           </section>
         </SettingSection>
       </fieldset>

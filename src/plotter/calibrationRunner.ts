@@ -1,5 +1,6 @@
 import {
   createJogCommands,
+  createPageJogCommands,
   createOriginCommands,
   createPenCommand,
 } from "./job";
@@ -36,13 +37,13 @@ export function calibrationCommands(action, config) {
     case "origin":
       return createOriginCommands(config);
     case "boundary-right":
-      return createJogCommands(width, 0, config);
+      return createPageJogCommands(width, 0, config);
     case "boundary-bottom":
-      return createJogCommands(0, height, config);
+      return createPageJogCommands(0, height, config);
     case "boundary-left":
-      return createJogCommands(-width, 0, config);
+      return createPageJogCommands(-width, 0, config);
     case "boundary-home":
-      return createJogCommands(0, -height, config);
+      return createPageJogCommands(0, -height, config);
     default:
       throw new Error("Неизвестный шаг калибровки.");
   }

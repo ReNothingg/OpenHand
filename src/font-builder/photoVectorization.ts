@@ -531,6 +531,51 @@ export async function vectorizeSinglePhoto(file: File) {
   );
 }
 
+export async function vectorizeDrawingPhotoToSvg(file: File) {
+  if (!file.type.startsWith("image/"))
+    throw new Error("Выберите локальное изображение PNG, JPEG или WebP.");
+  if (file.size > 16 * 1024 * 1024)
+    throw new Error("Изображение больше 16 МБ — сначала уменьшите его.");
+  const bitmap = await bitmapFromFile(file);
+  try {
+    const canvas = drawScaled(bitmap, 1400);
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const strokes = vectorizeImageData(
+      context.getImageData(0, 0, canvas.width, canvas.height),
+      {
+        baseline: 0,
+        targetHeight: 1000,
+        targetWidth: 1000,
+      },
+    );
+    const points = strokes.flat();
+    if (!points.length)
+      throw new Error("На изображении не найдено достаточно тёмных линий.");
+    const maxX = Math.max(...points.map((point) => point.x));
+    const maxY = Math.max(...points.map((point) => point.y));
+    const width = Math.max(1, Math.ceil(maxX));
+    const height = Math.max(1, Math.ceil(maxY));
+    const physicalWidth = 160;
+    const physicalHeight = Math.max(
+      10,
+      Math.round((physicalWidth * height * 10) / width) / 10,
+    );
+    const paths = strokes
+      .map((stroke) => {
+        const [first, ...rest] = stroke;
+        const data = [
+          `M${first.x} ${first.y}`,
+          ...rest.map((point) => `L${point.x} ${point.y}`),
+        ].join(" ");
+        return `<path d="${data}"/>`;
+      })
+      .join("");
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${physicalWidth}mm" height="${physicalHeight}mm" viewBox="0 0 ${width} ${height}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+  } finally {
+    if ("close" in bitmap && typeof bitmap.close === "function") bitmap.close();
+  }
+}
+
 export async function vectorizePhotoSheet(
   file: File,
   characters: string[],

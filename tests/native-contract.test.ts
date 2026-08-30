@@ -10,10 +10,32 @@ describe("native shell contract", () => {
       readFile(path.join(root, "macos/openhand/NativeBridge.swift"), "utf8"),
       readFile(path.join(root, "windows/NativeBridge.cs"), "utf8"),
     ]);
-    for (const action of ["requestPort", "open", "write", "setSignals", "close"]) {
+    for (const action of [
+      "requestPort",
+      "open",
+      "openNetwork",
+      "write",
+      "setSignals",
+      "close",
+    ]) {
       expect(mac).toContain(`case \"${action}\"`);
       expect(windows).toContain(`case \"${action}\"`);
     }
+    for (const option of ["dataBits", "stopBits", "parity", "flowControl"]) {
+      expect(mac).toContain(`payload[\"${option}\"]`);
+      expect(windows).toContain(`\"${option}\"`);
+    }
+  });
+
+  it("implements raw TCP transport in both desktop shells", async () => {
+    const [mac, windows] = await Promise.all([
+      readFile(path.join(root, "macos/openhand/TcpConnection.swift"), "utf8"),
+      readFile(path.join(root, "windows/NetworkConnection.cs"), "utf8"),
+    ]);
+    expect(mac).toContain("NWConnection");
+    expect(mac).toContain("using: .tcp");
+    expect(windows).toContain("TcpClient");
+    expect(windows).toContain("NoDelay = true");
   });
 
   it("declares distinct native platforms before the web app starts", async () => {

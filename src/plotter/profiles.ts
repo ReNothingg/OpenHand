@@ -10,6 +10,82 @@ const PROFILE_NAMES = {
   ebb: "EBB / DrawCore",
 };
 
+export const PLOTTER_DEVICE_PRESETS = [
+  {
+    id: "ozon-kdraw-grbl",
+    name: "Ozon / KDraw · GRBL",
+    description:
+      "Профиль купленного плоттера: 115200 бод, серво 12000/18000, ноль слева сверху.",
+    config: {
+      profile: "grbl",
+      connectionType: "serial",
+      baudRate: 115200,
+      dataBits: 8,
+      stopBits: 1,
+      parity: "none",
+      flowControl: "none",
+      feedRate: 1500,
+      jogSpeed: 2500,
+      penMode: "servo",
+      penUp: 12000,
+      penDown: 18000,
+      penUpDelay: 0.2,
+      penDownDelay: 0.2,
+      startPosition: "left-top",
+      swapAxes: false,
+      invertX: false,
+      invertY: false,
+      autoSetOrigin: true,
+      returnToOrigin: true,
+      workAreaWidth: 330,
+      workAreaHeight: 203,
+    },
+  },
+  {
+    id: "kdraw-marlin",
+    name: "KDraw · Marlin",
+    description:
+      "Совместимый профиль Marlin: 250000 бод, серво 50/0, ноль слева сверху.",
+    config: {
+      profile: "marlin",
+      connectionType: "serial",
+      baudRate: 250000,
+      dataBits: 8,
+      stopBits: 1,
+      parity: "none",
+      flowControl: "none",
+      penMode: "servo",
+      penUp: 50,
+      penDown: 0,
+      startPosition: "left-top",
+      autoSetOrigin: true,
+      returnToOrigin: true,
+    },
+  },
+  {
+    id: "kdraw-ebb",
+    name: "KDraw · EBB / DrawCore",
+    description:
+      "Совместимый относительный профиль EBB со 100 шагами на миллиметр.",
+    config: {
+      profile: "ebb",
+      connectionType: "serial",
+      baudRate: 115200,
+      dataBits: 8,
+      stopBits: 1,
+      parity: "none",
+      flowControl: "none",
+      penMode: "servo",
+      mmToSteps: 100,
+      penUp: 12000,
+      penDown: 18000,
+      startPosition: "left-top",
+      autoSetOrigin: false,
+      returnToOrigin: false,
+    },
+  },
+] as const;
+
 function clamp(value: unknown, min: number, max: number, fallback: number) {
   const number = Number(value);
   return Number.isFinite(number)
@@ -19,6 +95,18 @@ function clamp(value: unknown, min: number, max: number, fallback: number) {
 
 function boolean(value: unknown, fallback: boolean) {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function option<T extends string | number>(
+  value: unknown,
+  allowed: readonly T[],
+  fallback: T,
+) {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+function commandText(value: unknown) {
+  return typeof value === "string" ? value.slice(0, 8192) : "";
 }
 
 function profileId() {
@@ -41,13 +129,64 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
     profile === "marlin" ? 50 : DEFAULT_PLOTTER_CONFIG.penUp;
   const fallbackPenDown =
     profile === "marlin" ? 0 : DEFAULT_PLOTTER_CONFIG.penDown;
+  const legacyPenDelay = clamp(
+    incoming.penDelay,
+    0,
+    10,
+    DEFAULT_PLOTTER_CONFIG.penDelay,
+  );
 
   return {
     ...DEFAULT_PLOTTER_CONFIG,
+    fontId:
+      typeof incoming.fontId === "string" && incoming.fontId
+        ? incoming.fontId.slice(0, 160)
+        : DEFAULT_PLOTTER_CONFIG.fontId,
     profile,
+    connectionType: option(
+      incoming.connectionType,
+      ["serial", "network"],
+      DEFAULT_PLOTTER_CONFIG.connectionType,
+    ),
+    networkHost:
+      typeof incoming.networkHost === "string"
+        ? incoming.networkHost.trim().slice(0, 253)
+        : DEFAULT_PLOTTER_CONFIG.networkHost,
+    networkPort: clamp(
+      incoming.networkPort,
+      1,
+      65535,
+      DEFAULT_PLOTTER_CONFIG.networkPort,
+    ),
     baudRate: [9600, 115200, 250000].includes(Number(incoming.baudRate))
       ? Number(incoming.baudRate)
       : DEFAULT_PLOTTER_CONFIG.baudRate,
+    dataBits: option(
+      Number(incoming.dataBits),
+      [7, 8],
+      DEFAULT_PLOTTER_CONFIG.dataBits,
+    ),
+    stopBits: option(
+      Number(incoming.stopBits),
+      [1, 2],
+      DEFAULT_PLOTTER_CONFIG.stopBits,
+    ),
+    parity: option(
+      incoming.parity,
+      ["none", "even", "odd"],
+      DEFAULT_PLOTTER_CONFIG.parity,
+    ),
+    flowControl: option(
+      incoming.flowControl,
+      ["none", "hardware"],
+      DEFAULT_PLOTTER_CONFIG.flowControl,
+    ),
+    connectionTimeoutMs: clamp(
+      incoming.connectionTimeoutMs,
+      1000,
+      60000,
+      DEFAULT_PLOTTER_CONFIG.connectionTimeoutMs,
+    ),
     feedRate: clamp(
       incoming.feedRate,
       1,
@@ -84,7 +223,19 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
       1000,
       DEFAULT_PLOTTER_CONFIG.mmToSteps,
     ),
-    penDelay: clamp(incoming.penDelay, 0, 10, DEFAULT_PLOTTER_CONFIG.penDelay),
+    penDelay: legacyPenDelay,
+    penUpDelay: clamp(
+      incoming.penUpDelay,
+      0,
+      10,
+      legacyPenDelay,
+    ),
+    penDownDelay: clamp(
+      incoming.penDownDelay,
+      0,
+      10,
+      legacyPenDelay,
+    ),
     letterSpacing: clamp(
       incoming.letterSpacing,
       0,
@@ -95,10 +246,37 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
       incoming.optimizePath,
       DEFAULT_PLOTTER_CONFIG.optimizePath,
     ),
+    startPosition: option(
+      incoming.startPosition,
+      ["left-top", "right-top", "left-bottom", "right-bottom"],
+      DEFAULT_PLOTTER_CONFIG.startPosition,
+    ),
+    swapAxes: boolean(incoming.swapAxes, DEFAULT_PLOTTER_CONFIG.swapAxes),
+    invertX: boolean(incoming.invertX, DEFAULT_PLOTTER_CONFIG.invertX),
+    invertY: boolean(incoming.invertY, DEFAULT_PLOTTER_CONFIG.invertY),
+    autoSetOrigin: boolean(
+      incoming.autoSetOrigin,
+      DEFAULT_PLOTTER_CONFIG.autoSetOrigin,
+    ),
+    returnToOrigin: boolean(
+      incoming.returnToOrigin,
+      DEFAULT_PLOTTER_CONFIG.returnToOrigin,
+    ),
+    customStartGcode: commandText(incoming.customStartGcode),
+    customEndGcode: commandText(incoming.customEndGcode),
     workAreaWidth: clamp(incoming.workAreaWidth, 20, 2000, 330),
     workAreaHeight: clamp(incoming.workAreaHeight, 20, 2000, 203),
     calibrationStep: clamp(incoming.calibrationStep, 0.1, 5, 1),
   };
+}
+
+export function configFromDevicePreset(
+  presetId: string,
+  current: Record<string, any> = {},
+) {
+  const preset = PLOTTER_DEVICE_PRESETS.find((item) => item.id === presetId);
+  if (!preset) throw new Error("Неизвестный профиль совместимости.");
+  return normalizePlotterConfig({ ...current, ...preset.config });
 }
 
 export function createPlotterProfile(

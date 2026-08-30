@@ -6,6 +6,14 @@ struct SerialPortDescriptor {
     let name: String
 }
 
+struct SerialOpenOptions {
+    let baudRate: Int
+    let dataBits: Int
+    let stopBits: Int
+    let parity: String
+    let flowControl: String
+}
+
 enum SerialConnectionError: LocalizedError {
     case noPorts
     case notOpen
@@ -81,7 +89,7 @@ final class SerialConnection: @unchecked Sendable {
         return "\(kind) — \(identifier)"
     }
 
-    func open(path: String, baudRate: Int, completion: @escaping Completion) {
+    func open(path: String, options: SerialOpenOptions, completion: @escaping Completion) {
         queue.async { [weak self] in
             guard let self else { return }
             self.closeLocked(notify: false)
@@ -93,7 +101,7 @@ final class SerialConnection: @unchecked Sendable {
             }
 
             do {
-                try self.configure(fileDescriptor, baudRate: baudRate)
+                try self.configure(fileDescriptor, options: options)
                 self.descriptor = fileDescriptor
                 self.manuallyClosing = false
                 self.startReading(fileDescriptor)
@@ -166,7 +174,7 @@ final class SerialConnection: @unchecked Sendable {
         }
     }
 
-    private func configure(_ fileDescriptor: Int32, baudRate: Int) throws {
+    private func configure(_ fileDescriptor: Int32, options serialOptions: SerialOpenOptions) throws {
         var options = termios()
         guard tcgetattr(fileDescriptor, &options) == 0 else {
             throw SerialConnectionError.configurationFailed(String(cString: strerror(errno)))
@@ -174,12 +182,51 @@ final class SerialConnection: @unchecked Sendable {
 
         cfmakeraw(&options)
         options.c_cflag |= tcflag_t(CLOCAL | CREAD)
-        options.c_cflag &= ~tcflag_t(PARENB | CSTOPB | CSIZE)
-        options.c_cflag |= tcflag_t(CS8)
-        options.c_iflag &= ~tcflag_t(IXON | IXOFF | IXANY)
+        options.c_cflag &= ~tcflag_t(PARENB | PARODD | CSTOPB | CSIZE | CCTS_OFLOW | CRTS_IFLOW)
+        options.c_iflag &= ~tcflag_t(IXON | IXOFF | IXANY | INPCK)
+
+        switch serialOptions.dataBits {
+        case 7:
+            options.c_cflag |= tcflag_t(CS7)
+        case 8:
+            options.c_cflag |= tcflag_t(CS8)
+        default:
+            throw SerialConnectionError.configurationFailed("поддерживаются только 7 или 8 бит данных")
+        }
+
+        switch serialOptions.stopBits {
+        case 1:
+            break
+        case 2:
+            options.c_cflag |= tcflag_t(CSTOPB)
+        default:
+            throw SerialConnectionError.configurationFailed("поддерживаются только 1 или 2 стоп-бита")
+        }
+
+        switch serialOptions.parity {
+        case "none":
+            break
+        case "even":
+            options.c_cflag |= tcflag_t(PARENB)
+            options.c_iflag |= tcflag_t(INPCK)
+        case "odd":
+            options.c_cflag |= tcflag_t(PARENB | PARODD)
+            options.c_iflag |= tcflag_t(INPCK)
+        default:
+            throw SerialConnectionError.configurationFailed("неизвестный режим чётности")
+        }
+
+        switch serialOptions.flowControl {
+        case "none":
+            break
+        case "hardware":
+            options.c_cflag |= tcflag_t(CCTS_OFLOW | CRTS_IFLOW)
+        default:
+            throw SerialConnectionError.configurationFailed("неизвестный режим управления потоком")
+        }
 
         let standardSpeed: speed_t
-        switch baudRate {
+        switch serialOptions.baudRate {
         case 9_600:
             standardSpeed = speed_t(B9600)
         case 115_200:
@@ -187,7 +234,7 @@ final class SerialConnection: @unchecked Sendable {
         case 250_000:
             standardSpeed = speed_t(B115200)
         default:
-            throw SerialConnectionError.unsupportedBaudRate(baudRate)
+            throw SerialConnectionError.unsupportedBaudRate(serialOptions.baudRate)
         }
 
         guard cfsetispeed(&options, standardSpeed) == 0,
@@ -196,8 +243,8 @@ final class SerialConnection: @unchecked Sendable {
             throw SerialConnectionError.configurationFailed(String(cString: strerror(errno)))
         }
 
-        if baudRate == 250_000 {
-            var customSpeed = speed_t(baudRate)
+        if serialOptions.baudRate == 250_000 {
+            var customSpeed = speed_t(serialOptions.baudRate)
             let iossiospeed = UInt(0x80045402)
             guard ioctl(fileDescriptor, iossiospeed, &customSpeed) >= 0 else {
                 throw SerialConnectionError.configurationFailed(

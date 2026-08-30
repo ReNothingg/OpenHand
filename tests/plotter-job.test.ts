@@ -4,6 +4,7 @@ import {
   compilePlotJob,
   createDryRunCommands,
   createJogCommands,
+  createPageJogCommands,
   DEFAULT_PLOTTER_CONFIG,
   optimizeStrokeOrder,
 } from "../src/plotter/job";
@@ -80,5 +81,44 @@ describe("plotter job compiler", () => {
         workAreaHeight: 297,
       }),
     ).toThrow("не активирует лазер");
+  });
+
+  it("maps a KDraw top-left page to negative controller Y", () => {
+    const config = {
+      ...grblConfig,
+      startPosition: "left-top",
+      penUpDelay: 0.1,
+      penDownDelay: 0.35,
+      autoSetOrigin: true,
+      returnToOrigin: true,
+      customStartGcode: "M8",
+      customEndGcode: "M9",
+    };
+    const job = compilePlotJob(strokes, config);
+    expect(job.commands).toContain("G10P0L20X0Y0Z0");
+    expect(job.commands).toContain("G0X10Y-10F2500");
+    expect(job.commands).toContain("G4P0.1");
+    expect(job.commands).toContain("G4P0.35");
+    expect(job.commands.at(-2)).toBe("G0X0Y0F2500");
+    expect(job.commands.at(-1)).toBe("M9");
+    expect(createPageJogCommands(0, 5, config)).toEqual([
+      "$J=G21G91X0Y-5F2500",
+    ]);
+  });
+
+  it("checks transformed coordinates against the physical work area", () => {
+    const config = {
+      ...grblConfig,
+      workAreaWidth: 297,
+      workAreaHeight: 210,
+      swapAxes: true,
+    };
+    expect(compilePlotJob(strokes, config).withinWorkArea).toBe(true);
+    expect(() =>
+      createDryRunCommands(
+        [[{ x: 0, y: 0 }, { x: 211, y: 1 }]],
+        config,
+      ),
+    ).toThrow("рабочую область");
   });
 });

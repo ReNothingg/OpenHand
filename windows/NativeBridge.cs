@@ -10,7 +10,9 @@ internal sealed class NativeBridge : IDisposable
     private readonly CoreWebView2 _webView;
     private readonly Action<bool> _applyWindowTheme;
     private readonly SerialConnection _serial = new();
+    private readonly NetworkConnection _network = new();
     private string? _selectedPortPath;
+    private string? _activeTransport;
 
     public NativeBridge(
         Form owner,
@@ -24,10 +26,20 @@ internal sealed class NativeBridge : IDisposable
         {
             data = Convert.ToBase64String(data)
         });
-        _serial.Disconnected += reason => PostSerial("disconnected", new
+        _serial.Disconnected += reason =>
         {
-            error = reason
+            _activeTransport = null;
+            PostSerial("disconnected", new { error = reason });
+        };
+        _network.DataReceived += data => PostSerial("receive", new
+        {
+            data = Convert.ToBase64String(data)
         });
+        _network.Disconnected += reason =>
+        {
+            _activeTransport = null;
+            PostSerial("disconnected", new { error = reason });
+        };
     }
 
     public async void HandleWebMessage(
@@ -98,6 +110,7 @@ internal sealed class NativeBridge : IDisposable
                 }
                 case "open":
                 {
+                    await _network.CloseAsync();
                     var options = new SerialOpenOptions(
                         GetRequiredString(payload, "path"),
                         GetRequiredInt32(payload, "baudRate"),
@@ -106,6 +119,17 @@ internal sealed class NativeBridge : IDisposable
                         ParseParity(GetOptionalString(payload, "parity", "none")),
                         ParseHandshake(GetOptionalString(payload, "flowControl", "none")));
                     await _serial.OpenAsync(options);
+                    _activeTransport = "serial";
+                    Resolve(id, new { opened = true });
+                    break;
+                }
+                case "openNetwork":
+                {
+                    await _serial.CloseAsync();
+                    var host = GetRequiredString(payload, "host");
+                    var port = GetRequiredInt32(payload, "port");
+                    await _network.OpenAsync(host, port);
+                    _activeTransport = "network";
                     Resolve(id, new { opened = true });
                     break;
                 }
@@ -113,18 +137,25 @@ internal sealed class NativeBridge : IDisposable
                 {
                     var data = Convert.FromBase64String(
                         GetRequiredString(payload, "data"));
-                    var written = await _serial.WriteAsync(data);
+                    var written = _activeTransport == "network"
+                        ? await _network.WriteAsync(data)
+                        : await _serial.WriteAsync(data);
                     Resolve(id, new { written });
                     break;
                 }
                 case "setSignals":
-                    _serial.SetSignals(
-                        GetOptionalBoolean(payload, "dataTerminalReady"),
-                        GetOptionalBoolean(payload, "requestToSend"));
+                    if (_activeTransport == "serial")
+                    {
+                        _serial.SetSignals(
+                            GetOptionalBoolean(payload, "dataTerminalReady"),
+                            GetOptionalBoolean(payload, "requestToSend"));
+                    }
                     Resolve(id, new { updated = true });
                     break;
                 case "close":
                     await _serial.CloseAsync();
+                    await _network.CloseAsync();
+                    _activeTransport = null;
                     Resolve(id, new { closed = true });
                     break;
                 default:
@@ -396,5 +427,6 @@ internal sealed class NativeBridge : IDisposable
     public void Dispose()
     {
         _serial.Dispose();
+        _network.Dispose();
     }
 }

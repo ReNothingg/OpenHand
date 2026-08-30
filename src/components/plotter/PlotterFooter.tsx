@@ -1,5 +1,6 @@
 import { downloadFile } from "../../lib/files";
 import LiquidRange from "../controls/LiquidRange";
+import { useRef } from "react";
 
 export function formatDuration(seconds: number) {
   if (!Number.isFinite(seconds)) return "—";
@@ -9,6 +10,7 @@ export function formatDuration(seconds: number) {
 }
 
 export default function PlotterFooter({ workspace }: { workspace: any }) {
+  const gcodeInputRef = useRef<HTMLInputElement | null>(null);
   if (!workspace.enabled) return null;
   const {
     activeLayout: layout,
@@ -63,6 +65,11 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         <span className={!preflight.clipped ? "pass" : "warning"}>
           {!preflight.clipped ? "✓ Лист" : "• Есть обрезка"}
         </span>
+        <span className={preflight.withinWorkArea ? "pass" : "warning"}>
+          {preflight.withinWorkArea
+            ? "✓ Рабочая область"
+            : "• Выход за механику"}
+        </span>
         <span className={originConfirmed ? "pass" : "warning"}>
           {originConfirmed ? "✓ Ноль задан" : "• Проверьте ноль"}
         </span>
@@ -111,6 +118,83 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         </select>
         <output>{Math.round(playback.progress * 100)}%</output>
       </div>
+      <div className="plotter-imported-job" aria-label="Импорт готового G-code">
+        <div>
+          <strong>Готовый G-code</strong>
+          <small>
+            Локальный файл отправляется как есть; координаты профиля к нему не
+            применяются.
+          </small>
+        </div>
+        <div className="plotter-imported-actions">
+          <button
+            className="button ghost compact"
+            type="button"
+            disabled={running}
+            onClick={() => gcodeInputRef.current?.click()}
+          >
+            Открыть .gcode
+          </button>
+          {workspace.importedGcode && (
+            <button
+              className="text-button"
+              type="button"
+              disabled={running}
+              onClick={workspace.clearImportedGcode}
+            >
+              Убрать
+            </button>
+          )}
+        </div>
+        <input
+          ref={gcodeInputRef}
+          type="file"
+          accept=".gcode,.nc,.tap,.cnc,.txt,text/plain"
+          hidden
+          onChange={(event) => {
+            void workspace.importGcode(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
+        {workspace.importedGcode && (
+          <div className="plotter-imported-summary">
+            <span title={workspace.importedGcode.name}>
+              {workspace.importedGcode.name}
+            </span>
+            <small>
+              {workspace.importedGcode.commands.length.toLocaleString("ru-RU")} команд ·{" "}
+              {workspace.importedGcode.parsed.bounds.width.toFixed(1)} ×{" "}
+              {workspace.importedGcode.parsed.bounds.height.toFixed(1)} мм
+            </small>
+            {!workspace.importedWithinWorkArea && (
+              <p className="plotter-error">
+                Траектория выходит за рабочую область профиля.
+              </p>
+            )}
+            {workspace.importedGcode.warnings.map((warning) => (
+              <p className="plotter-warning" key={warning}>
+                {warning}
+              </p>
+            ))}
+            <button
+              className="button primary compact"
+              type="button"
+              disabled={
+                calibrationActive ||
+                !connected ||
+                running ||
+                !armed ||
+                !originConfirmed ||
+                !workspace.importedWithinWorkArea ||
+                config.profile === "ebb"
+              }
+              onClick={workspace.runImportedGcode}
+            >
+              Отправить файл
+            </button>
+          </div>
+        )}
+      </div>
       <div className="plotter-footer-actions">
         <label className="plotter-arm">
           <input
@@ -153,18 +237,18 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           </button>
           {!running && !recoveryAvailable && (
             <button
-            className="button primary compact"
-            type="button"
-            disabled={
-              calibrationActive ||
-              !connected ||
-              !armed ||
-              !preflight.canStart ||
-              !job.commands.length ||
-              busy
-            }
-            title={preflight.canStart ? undefined : preflight.blockers[0]}
-            onClick={workspace.run}
+              className="button primary compact"
+              type="button"
+              disabled={
+                calibrationActive ||
+                !connected ||
+                !armed ||
+                !preflight.canStart ||
+                !job.commands.length ||
+                busy
+              }
+              title={preflight.canStart ? undefined : preflight.blockers[0]}
+              onClick={workspace.run}
             >
               Запустить
             </button>

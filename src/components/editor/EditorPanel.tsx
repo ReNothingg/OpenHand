@@ -2,6 +2,10 @@ import DOMPurify from "dompurify";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Icon from "../Icon";
+import { vectorizeDrawingPhotoToSvg } from "../../font-builder/photoVectorization";
+import { delimitedTextToMarkdown } from "../../lib/tabularImport";
+import { dxfToSvg } from "../../lib/dxfImport";
+import { xlsxToMarkdown } from "../../lib/xlsxImport";
 
 const MARKDOWN_TOOLS = [
   { label: "H1", title: "Заголовок 1", kind: "line", before: "# " },
@@ -255,6 +259,9 @@ export default function EditorPanel({
   const [helpOpen, setHelpOpen] = useState(false);
   const expandedRef = useRef(null);
   const svgInputRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const tableInputRef = useRef(null);
+  const dxfInputRef = useRef(null);
   const lineCount = useMemo(
     () => activeSource.split("\n").length,
     [activeSource],
@@ -387,6 +394,69 @@ export default function EditorPanel({
     }
   };
 
+  const insertAtCursor = (block: string) => {
+    const target = expanded ? expandedRef.current : textareaRef.current;
+    const start = target?.selectionStart ?? activeSource.length;
+    const end = target?.selectionEnd ?? start;
+    setActiveSource(
+      `${activeSource.slice(0, start)}${block}${activeSource.slice(end)}`,
+    );
+    requestAnimationFrame(() => {
+      const position = start + block.length;
+      target?.focus();
+      target?.setSelectionRange(position, position);
+    });
+  };
+
+  const importImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const svg = cleanSvg(await vectorizeDrawingPhotoToSvg(file));
+      insertAtCursor(
+        `\n\n<figure class="imported-svg vectorized-image">\n${svg}\n</figure>\n\n`,
+      );
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const importTable = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const lowerName = file.name.toLowerCase();
+      let markdown;
+      if (lowerName.endsWith(".xlsx")) {
+        markdown = await xlsxToMarkdown(await file.arrayBuffer());
+      } else {
+        if (file.size > 4 * 1024 * 1024)
+          throw new Error("Таблица больше 4 МБ.");
+        const delimiter = lowerName.endsWith(".tsv") ? "\t" : undefined;
+        markdown = delimitedTextToMarkdown(await file.text(), delimiter);
+      }
+      insertAtCursor(`\n\n${markdown}\n\n`);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const importDxf = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const svg = cleanSvg(dxfToSvg(await file.text()));
+      insertAtCursor(
+        `\n\n<figure class="imported-svg imported-dxf">\n${svg}\n</figure>\n\n`,
+      );
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   return (
     <section className="editor-panel panel">
       <div className="panel-title editor-title">
@@ -416,14 +486,40 @@ export default function EditorPanel({
         </div>
         <div className="editor-title-actions">
           {sourceMode === "markdown" && (
-            <button
-              type="button"
-              className="editor-expand-button editor-svg-button"
-              onClick={() => svgInputRef.current?.click()}
-              title="Вставить SVG"
-            >
-              SVG
-            </button>
+            <>
+              <button
+                type="button"
+                className="editor-expand-button editor-svg-button"
+                onClick={() => tableInputRef.current?.click()}
+                title="Вставить таблицу XLSX/CSV/TSV"
+              >
+                Табл.
+              </button>
+              <button
+                type="button"
+                className="editor-expand-button editor-svg-button"
+                onClick={() => imageInputRef.current?.click()}
+                title="Векторизовать локальное изображение"
+              >
+                Фото
+              </button>
+              <button
+                type="button"
+                className="editor-expand-button editor-svg-button"
+                onClick={() => dxfInputRef.current?.click()}
+                title="Вставить ASCII DXF"
+              >
+                DXF
+              </button>
+              <button
+                type="button"
+                className="editor-expand-button editor-svg-button"
+                onClick={() => svgInputRef.current?.click()}
+                title="Вставить SVG"
+              >
+                SVG
+              </button>
+            </>
           )}
           <button
             type="button"
@@ -524,14 +620,38 @@ export default function EditorPanel({
                 </div>
                 <div className="editor-toolbar-actions">
                   {sourceMode === "markdown" && (
-                    <button
-                      type="button"
-                      onClick={() => svgInputRef.current?.click()}
-                      title="Вставить SVG"
-                    >
-                      <Icon name="image" />
-                      <span>SVG</span>
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => tableInputRef.current?.click()}
+                        title="Вставить таблицу XLSX/CSV/TSV"
+                      >
+                        <span>Таблица</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => imageInputRef.current?.click()}
+                        title="Векторизовать локальное изображение"
+                      >
+                        <Icon name="image" />
+                        <span>Фото</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => dxfInputRef.current?.click()}
+                        title="Вставить ASCII DXF"
+                      >
+                        <span>DXF</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => svgInputRef.current?.click()}
+                        title="Вставить SVG"
+                      >
+                        <Icon name="image" />
+                        <span>SVG</span>
+                      </button>
+                    </>
                   )}
                   <button
                     type="button"
@@ -612,6 +732,27 @@ export default function EditorPanel({
         accept=".svg,image/svg+xml"
         hidden
         onChange={importSvg}
+      />
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/bmp"
+        hidden
+        onChange={importImage}
+      />
+      <input
+        ref={tableInputRef}
+        type="file"
+        accept=".xlsx,.csv,.tsv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/tab-separated-values"
+        hidden
+        onChange={importTable}
+      />
+      <input
+        ref={dxfInputRef}
+        type="file"
+        accept=".dxf,application/dxf,image/vnd.dxf"
+        hidden
+        onChange={importDxf}
       />
     </section>
   );

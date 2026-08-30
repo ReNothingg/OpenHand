@@ -6,9 +6,11 @@ import { loadBundledGFont, loadGFont } from "../plotter/gfont";
 import {
   compilePlotJob,
   createDryRunCommands,
-  createJogCommands,
+  createHomingCommands,
+  createPageJogCommands,
   createOriginCommands,
   createPenCommand,
+  createReturnToOriginCommands,
   DEFAULT_PLOTTER_CONFIG,
   layoutBlocks,
   layoutText,
@@ -17,6 +19,7 @@ import {
 import { PLOTTER_PAGE_BREAK } from "../plotter/richText";
 import { runCalibrationAction } from "../plotter/calibrationRunner";
 import {
+  configFromDevicePreset,
   createPlotterProfile,
   loadPlotterProfileStore,
   normalizePlotterConfig,
@@ -24,6 +27,7 @@ import {
   PLOTTER_PROFILES_KEY,
 } from "../plotter/profiles";
 import { assessPlotterPreflight } from "../plotter/preflight";
+import { prepareImportedGcode } from "../plotter/gcodeImport";
 
 export function mechanicsDefaults(profile) {
   return {
@@ -39,6 +43,8 @@ export function mechanicsDefaults(profile) {
     laserPower: DEFAULT_PLOTTER_CONFIG.laserPower,
     mmToSteps: DEFAULT_PLOTTER_CONFIG.mmToSteps,
     penDelay: DEFAULT_PLOTTER_CONFIG.penDelay,
+    penUpDelay: DEFAULT_PLOTTER_CONFIG.penUpDelay,
+    penDownDelay: DEFAULT_PLOTTER_CONFIG.penDownDelay,
     letterSpacing: DEFAULT_PLOTTER_CONFIG.letterSpacing,
   };
 }
@@ -95,6 +101,7 @@ export function useIntegratedPlotter({
   const [armed, setArmed] = useState(false);
   const [originConfirmed, setOriginConfirmed] = useState(false);
   const [calibrationActive, setCalibrationActive] = useState(false);
+  const [importedGcode, setImportedGcode] = useState(null);
   const plotter = usePlotter();
   const activeProfile =
     profileStore.profiles.find(
@@ -344,11 +351,22 @@ export function useIntegratedPlotter({
   const preflight = assessPlotterPreflight(activeLayout, {
     calibrated: Boolean(activeProfile.calibratedAt),
     originConfirmed,
+    withinWorkArea: job.withinWorkArea,
   });
   const playback = usePlotterPlayback(job, {
     status: plotter.status,
     progress: plotter.progress,
   });
+  const importedWithinWorkArea = useMemo(() => {
+    if (!importedGcode) return true;
+    const { bounds } = importedGcode.parsed;
+    return (
+      Math.max(Math.abs(bounds.minX), Math.abs(bounds.maxX)) <=
+        Number(config.workAreaWidth) + 0.01 &&
+      Math.max(Math.abs(bounds.minY), Math.abs(bounds.maxY)) <=
+        Number(config.workAreaHeight) + 0.01
+    );
+  }, [config.workAreaHeight, config.workAreaWidth, importedGcode]);
 
   const updateConfig = useCallback(
     (key, value) => {
@@ -387,6 +405,16 @@ export function useIntegratedPlotter({
     },
     [calibrationActive, setConfig],
   );
+  const applyDevicePreset = useCallback(
+    (presetId) => {
+      if (calibrationActive || connected || running) return false;
+      setConfig((current) => configFromDevicePreset(presetId, current));
+      setArmed(false);
+      setOriginConfirmed(false);
+      return true;
+    },
+    [calibrationActive, connected, running, setConfig],
+  );
   const resetMechanics = useCallback(() => {
     if (calibrationActive) return;
     setConfig((current) => ({
@@ -422,6 +450,27 @@ export function useIntegratedPlotter({
       setBusy(false);
     }
   }, []);
+  const importGcode = useCallback(
+    async (file) => {
+      if (!file) return null;
+      setError("");
+      try {
+        const imported = prepareImportedGcode(await file.text(), {
+          name: file.name,
+          byteLength: file.size,
+          workAreaWidth: config.workAreaWidth,
+          workAreaHeight: config.workAreaHeight,
+        });
+        setImportedGcode(imported);
+        setArmed(false);
+        return imported;
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : String(reason));
+        return null;
+      }
+    },
+    [config.workAreaHeight, config.workAreaWidth],
+  );
 
   const createDeviceProfile = useCallback(
     (name) => {
@@ -610,9 +659,17 @@ export function useIntegratedPlotter({
     updateConfig,
     boundedConfig,
     changeProfile,
+    applyDevicePreset,
     resetMechanics,
     fontStatus,
     importFont,
+    importedGcode,
+    importedWithinWorkArea,
+    importGcode,
+    clearImportedGcode: () => {
+      setImportedGcode(null);
+      setArmed(false);
+    },
     layouts,
     activeIndex,
     activeLayout,
@@ -638,19 +695,62 @@ export function useIntegratedPlotter({
     preflight,
     originConfirmed,
     playback,
-    connect: () =>
-      safeAction(() => plotter.connect(config.profile, config.baudRate)),
+    connect: () => safeAction(() => plotter.connect(config.profile, config)),
     disconnect: async () => {
       const success = await safeAction(plotter.disconnect);
       if (success) setOriginConfirmed(false);
       return success;
     },
     jog: (dx, dy) =>
-      safeAction(() => plotter.sendCommands(createJogCommands(dx, dy, config))),
+      safeAction(() =>
+        plotter.sendCommands(createPageJogCommands(dx, dy, config)),
+      ),
     pen: (up) =>
       safeAction(() => plotter.sendCommands(createPenCommand(up, config))),
     setOrigin,
+    home: async () => {
+      const success = await safeAction(() =>
+        plotter.sendCommands(createHomingCommands(config)),
+      );
+      if (success) setOriginConfirmed(false);
+      return success;
+    },
+    returnToOrigin: () =>
+      safeAction(() =>
+        plotter.sendCommands(createReturnToOriginCommands(config)),
+      ),
+    sendManualCommand: (value) => {
+      const command = String(value || "").trim();
+      if (
+        !command ||
+        command.length > 256 ||
+        /[\r\n\u0000-\u001f]/.test(command)
+      ) {
+        setError("Введите одну корректную команду длиной до 256 символов.");
+        return Promise.resolve(false);
+      }
+      return safeAction(() => plotter.sendCommands([command]));
+    },
     dryRun,
+    runImportedGcode: () => {
+      if (!importedGcode) {
+        setError("Сначала откройте файл G-code.");
+        return Promise.resolve(false);
+      }
+      if (config.profile === "ebb") {
+        setError("Импорт обычного G-code доступен для GRBL и Marlin.");
+        return Promise.resolve(false);
+      }
+      if (!armed || !originConfirmed) {
+        setError("Перед отправкой файла подтвердите перо и нулевую точку.");
+        return Promise.resolve(false);
+      }
+      if (!importedWithinWorkArea) {
+        setError("Импортированная траектория выходит за рабочую область.");
+        return Promise.resolve(false);
+      }
+      return safeAction(() => plotter.run(importedGcode));
+    },
     run: () => {
       if (calibrationActive) return Promise.resolve(false);
       if (!preflight.canStart) {
@@ -671,6 +771,8 @@ export function useIntegratedPlotter({
           assessPlotterPreflight(layout, {
             calibrated: Boolean(activeProfile.calibratedAt),
             originConfirmed,
+            withinWorkArea: compilePlotJob(layout?.strokes || [], config)
+              .withinWorkArea,
           }),
         )
         .find((assessment) => !assessment.canStart);

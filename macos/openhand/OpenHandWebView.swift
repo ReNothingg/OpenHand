@@ -96,14 +96,21 @@ private let serialShim = #"""
       if (this._opened) throw new DOMException("Порт уже открыт.", "InvalidStateError");
       activePort = this;
       try {
-        await bridge.call("open", {
-          path: this.info.path,
-          baudRate: Number(options.baudRate),
-          dataBits: options.dataBits ?? 8,
-          stopBits: options.stopBits ?? 1,
-          parity: options.parity ?? "none",
-          flowControl: options.flowControl ?? "none",
-        });
+        if (this.info.network) {
+          await bridge.call("openNetwork", {
+            host: this.info.host,
+            port: this.info.port,
+          });
+        } else {
+          await bridge.call("open", {
+            path: this.info.path,
+            baudRate: Number(options.baudRate),
+            dataBits: options.dataBits ?? 8,
+            stopBits: options.stopBits ?? 1,
+            parity: options.parity ?? "none",
+            flowControl: options.flowControl ?? "none",
+          });
+        }
       } catch (error) {
         if (activePort === this) activePort = null;
         throw error;
@@ -132,6 +139,7 @@ private let serialShim = #"""
 
     async setSignals(signals) {
       if (!this._opened) throw new DOMException("Порт не открыт.", "InvalidStateError");
+      if (this.info.network) return;
       return bridge.call("setSignals", {
         dataTerminalReady: signals.dataTerminalReady,
         requestToSend: signals.requestToSend,
@@ -167,7 +175,12 @@ private let serialShim = #"""
   }
 
   const serial = new EventTarget();
-  serial.requestPort = async () => new NativeSerialPort(await bridge.call("requestPort"));
+  serial.requestPort = async (options = {}) => {
+    const network = options.openhandNetwork;
+    return network
+      ? new NativeSerialPort({ network: true, host: network.host, port: network.port })
+      : new NativeSerialPort(await bridge.call("requestPort"));
+  };
   serial.getPorts = async () => [];
 
   Object.defineProperty(window, "__openhandNativePlatform", {

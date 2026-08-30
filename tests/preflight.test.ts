@@ -22,4 +22,14 @@ describe("plotter preflight", () => {
     expect(result.blockers).toHaveLength(4);
     expect(result.warnings).toEqual(["Профиль ещё не прошёл калибровку."]);
   });
+
+  it("blocks a trajectory outside the configured mechanism", () => {
+    const result = assessPlotterPreflight(readyLayout, {
+      calibrated: true,
+      originConfirmed: true,
+      withinWorkArea: false,
+    });
+    expect(result.canStart).toBe(false);
+    expect(result.blockers[0]).toContain("рабочую область");
+  });
 });

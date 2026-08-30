@@ -31,6 +31,13 @@ const STEP_TEXT = {
   "boundary-home": "Перо вернётся вверх в исходную нулевую точку.",
 };
 
+const ORIGIN_LABELS = {
+  "left-top": "левый верхний",
+  "right-top": "правый верхний",
+  "left-bottom": "левый нижний",
+  "right-bottom": "правый нижний",
+};
+
 function actionLabel(step, connected) {
   if (step.kind === "connect")
     return connected ? "Проверить ответ" : "Подключить и проверить";
@@ -50,6 +57,10 @@ export default function PlotterCalibrationWizard({ workspace }) {
   const wasConnected = useRef(workspace.connected);
   const step = currentCalibrationStep(state);
   const running = state.phase === "running";
+  const stepText =
+    step.id === "origin"
+      ? `Кнопками переместите поднятое перо в ${ORIGIN_LABELS[workspace.config.startPosition] || "выбранный"} угол рабочей области, затем установите ноль.`
+      : STEP_TEXT[step.id];
 
   useEffect(() => {
     if (wasConnected.current && !workspace.connected)
@@ -192,7 +203,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
             </>
           ) : (
             <>
-              <p>{STEP_TEXT[step.id]}</p>
+              <p>{stepText}</p>
               {step.kind === "connect" &&
                 workspace.config.penMode === "laser" && (
                   <p className="calibration-warning">

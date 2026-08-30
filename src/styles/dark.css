@@ -54,6 +54,8 @@
 .theme-dark .integrated-plotter-footer,
 .theme-dark .plotter-controls,
 .theme-dark .plotter-card,
+.theme-dark .plotter-advanced,
+.theme-dark .plotter-imported-job,
 .theme-dark .settings-section,
 .theme-dark .settings-subgroup,
 .theme-dark .expanded-editor,
@@ -66,6 +68,22 @@
   border-color: var(--line);
   color: #e5eaf1;
   background: var(--panel);
+}
+
+.theme-dark .plotter-advanced summary,
+.theme-dark .plotter-imported-job strong,
+.theme-dark .plotter-imported-summary > span,
+.theme-dark .plotter-arm {
+  color: #d7dee8;
+}
+
+.theme-dark .plotter-profile-meta,
+.theme-dark .plotter-imported-job small {
+  color: #9aa6b6;
+}
+
+.theme-dark .plotter-imported-summary {
+  border-top-color: var(--line);
 }
 
 .theme-dark .preview-panel,

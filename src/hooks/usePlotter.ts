@@ -27,6 +27,8 @@ function lineEnding(profile) {
 
 export function usePlotter() {
   const supported = typeof navigator !== "undefined" && "serial" in navigator;
+  const networkSupported =
+    typeof window !== "undefined" && Boolean(window.__openhandNativePlatform);
   const [status, setStatus] = useState("disconnected");
   const [logs, setLogs] = useState([]);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -39,6 +41,7 @@ export function usePlotter() {
   const abortRef = useRef(false);
   const pausedRef = useRef(false);
   const pauseWaitersRef = useRef([]);
+  const commandTimeoutRef = useRef(12000);
 
   const saveRecovery = useCallback((value) => {
     if (!value) {
@@ -120,7 +123,7 @@ export function usePlotter() {
   );
 
   const sendCommand = useCallback(
-    async (command, timeoutMs = 12000) => {
+    async (command, timeoutMs = commandTimeoutRef.current) => {
       if (!writerRef.current) throw new Error("Плоттер не подключён.");
       let pending = null;
       const acknowledgement = new Promise((resolve, reject) => {
@@ -152,22 +155,57 @@ export function usePlotter() {
   );
 
   const connect = useCallback(
-    async (profile, baudRate) => {
+    async (profile, incomingOptions) => {
       if (!supported)
         throw new Error(
           "Web Serial недоступен. Используйте Chrome или Edge по HTTPS/localhost.",
         );
+      const options =
+        typeof incomingOptions === "object" && incomingOptions
+          ? incomingOptions
+          : { baudRate: incomingOptions };
+      const serialOptions = {
+        baudRate: Number(options.baudRate),
+        dataBits: Number(options.dataBits) === 7 ? 7 : 8,
+        stopBits: Number(options.stopBits) === 2 ? 2 : 1,
+        parity: ["even", "odd"].includes(options.parity)
+          ? options.parity
+          : "none",
+        flowControl:
+          options.flowControl === "hardware" ? "hardware" : "none",
+      };
+      const connectionType =
+        options.connectionType === "network" ? "network" : "serial";
+      const networkHost = String(options.networkHost || "").trim();
+      const networkPort = Number(options.networkPort);
+      if (connectionType === "network") {
+        if (!networkSupported)
+          throw new Error(
+            "Прямое TCP-подключение доступно в приложениях OpenHand для macOS и Windows.",
+          );
+        if (
+          !networkHost ||
+          networkHost.length > 253 ||
+          /[\s/\\]/.test(networkHost) ||
+          !Number.isInteger(networkPort) ||
+          networkPort < 1 ||
+          networkPort > 65535
+        )
+          throw new Error("Введите корректный IP/хост и TCP-порт плоттера.");
+      }
+      commandTimeoutRef.current = Math.max(
+        1000,
+        Math.min(60000, Number(options.connectionTimeoutMs) || 12000),
+      );
       setStatus("connecting");
       profileRef.current = profile;
       try {
-        const port = await navigator.serial.requestPort();
-        await port.open({
-          baudRate: Number(baudRate),
-          dataBits: 8,
-          stopBits: 1,
-          parity: "none",
-          flowControl: "none",
-        });
+        const port = await navigator.serial.requestPort(
+          connectionType === "network"
+            ? { openhandNetwork: { host: networkHost, port: networkPort } }
+            : undefined,
+        );
+        await port.open(serialOptions);
         try {
           await port.setSignals({
             dataTerminalReady: true,
@@ -181,7 +219,12 @@ export function usePlotter() {
         readerRef.current = port.readable.getReader();
         void readLoop(readerRef.current);
         setStatus("connected");
-        log("system", `${profile.toUpperCase()} · ${baudRate} бод`);
+        log(
+          "system",
+          connectionType === "network"
+            ? `${profile.toUpperCase()} · TCP ${networkHost}:${networkPort}`
+            : `${profile.toUpperCase()} · ${serialOptions.baudRate} бод · ${serialOptions.dataBits}${serialOptions.parity === "none" ? "N" : serialOptions.parity === "even" ? "E" : "O"}${serialOptions.stopBits}`,
+        );
         if (profile === "marlin") await writeRaw("M115\n");
         else await writeRaw(new Uint8Array([24]));
       } catch (error) {
@@ -207,7 +250,7 @@ export function usePlotter() {
         throw error;
       }
     },
-    [log, readLoop, supported, writeRaw],
+    [log, networkSupported, readLoop, supported, writeRaw],
   );
 
   const disconnect = useCallback(async () => {
@@ -426,6 +469,7 @@ export function usePlotter() {
 
   return {
     supported,
+    networkSupported,
     status,
     logs,
     progress,

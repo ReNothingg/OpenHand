@@ -6,7 +6,9 @@ import WebKit
 final class NativeBridge: NSObject, WKScriptMessageHandler {
     weak var webView: WKWebView?
     private let serial = SerialConnection()
+    private let tcp = TcpConnection()
     private var selectedPort: SerialPortDescriptor?
+    private var activeTransport: String?
 
     override init() {
         super.init()
@@ -15,6 +17,14 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             self?.sendSerialData(data)
         }
         serial.onDisconnect = { [weak self] reason in
+            self?.activeTransport = nil
+            self?.sendSerialDisconnect(reason)
+        }
+        tcp.onData = { [weak self] data in
+            self?.sendSerialData(data)
+        }
+        tcp.onDisconnect = { [weak self] reason in
+            self?.activeTransport = nil
             self?.sendSerialDisconnect(reason)
         }
     }
@@ -55,12 +65,40 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 return
             }
 
-            serial.open(path: path, baudRate: baudRate.intValue) { [weak self] result in
-                switch result {
-                case .success:
-                    self?.resolve(id, result: ["opened": true])
-                case let .failure(error):
-                    self?.reject(id, error: error)
+            let options = SerialOpenOptions(
+                baudRate: baudRate.intValue,
+                dataBits: (payload["dataBits"] as? NSNumber)?.intValue ?? 8,
+                stopBits: (payload["stopBits"] as? NSNumber)?.intValue ?? 1,
+                parity: payload["parity"] as? String ?? "none",
+                flowControl: payload["flowControl"] as? String ?? "none"
+            )
+            tcp.close { [weak self] in
+                self?.serial.open(path: path, options: options) { [weak self] result in
+                    switch result {
+                    case .success:
+                        self?.activeTransport = "serial"
+                        self?.resolve(id, result: ["opened": true])
+                    case let .failure(error):
+                        self?.reject(id, error: error)
+                    }
+                }
+            }
+
+        case "openNetwork":
+            guard let host = payload["host"] as? String,
+                  let port = payload["port"] as? NSNumber else {
+                reject(id, message: "Некорректные параметры TCP-подключения.")
+                return
+            }
+            serial.close { [weak self] in
+                self?.tcp.open(host: host, port: port.intValue) { [weak self] result in
+                    switch result {
+                    case .success:
+                        self?.activeTransport = "network"
+                        self?.resolve(id, result: ["opened": true])
+                    case let .failure(error):
+                        self?.reject(id, error: error)
+                    }
                 }
             }
 
@@ -71,7 +109,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 return
             }
 
-            serial.write(data) { [weak self] result in
+            let completion: SerialConnection.Completion = { [weak self] result in
                 switch result {
                 case .success:
                     self?.resolve(id, result: ["written": data.count])
@@ -79,8 +117,17 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                     self?.reject(id, error: error)
                 }
             }
+            if activeTransport == "network" {
+                tcp.write(data, completion: completion)
+            } else {
+                serial.write(data, completion: completion)
+            }
 
         case "setSignals":
+            if activeTransport == "network" {
+                resolve(id, result: ["updated": true])
+                return
+            }
             serial.setSignals(
                 dataTerminalReady: payload["dataTerminalReady"] as? Bool,
                 requestToSend: payload["requestToSend"] as? Bool
@@ -95,7 +142,10 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
 
         case "close":
             serial.close { [weak self] in
-                self?.resolve(id, result: ["closed": true])
+                self?.tcp.close { [weak self] in
+                    self?.activeTransport = nil
+                    self?.resolve(id, result: ["closed": true])
+                }
             }
 
         default:

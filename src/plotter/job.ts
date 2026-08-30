@@ -34,7 +34,15 @@ function seededRandom(seed, key) {
 export const DEFAULT_PLOTTER_CONFIG = {
   fontId: "ifdream-original",
   profile: "grbl",
+  connectionType: "serial",
+  networkHost: "",
+  networkPort: 0,
   baudRate: 115200,
+  dataBits: 8,
+  stopBits: 1,
+  parity: "none",
+  flowControl: "none",
+  connectionTimeoutMs: 12000,
   feedRate: 1500,
   jogSpeed: 2500,
   jogDistance: 10,
@@ -47,8 +55,18 @@ export const DEFAULT_PLOTTER_CONFIG = {
   laserPower: 1000,
   mmToSteps: 100,
   penDelay: 0.2,
+  penUpDelay: 0.2,
+  penDownDelay: 0.2,
   letterSpacing: 0.5,
   optimizePath: false,
+  startPosition: "left-bottom",
+  swapAxes: false,
+  invertX: false,
+  invertY: false,
+  autoSetOrigin: false,
+  returnToOrigin: false,
+  customStartGcode: "",
+  customEndGcode: "",
 };
 
 export function pageSettingsToMillimeters(
@@ -1293,6 +1311,59 @@ function number(value, digits = 3) {
   return Number(value.toFixed(digits)).toString();
 }
 
+function penDelay(up, config) {
+  const explicit = up ? config.penUpDelay : config.penDownDelay;
+  const fallback = config.penDelay;
+  const value = Number(explicit ?? fallback ?? 0);
+  return Number.isFinite(value) ? Math.max(0, value) : 0;
+}
+
+/**
+ * Maps page coordinates to the controller coordinate system. Page geometry is
+ * always authored with X moving right and Y moving down. The selected physical
+ * origin, axis swap and motor inversions are applied only at the output edge so
+ * previews and document layout stay stable.
+ */
+export function transformPointForMachine(point, config) {
+  const position = config.startPosition || "left-bottom";
+  let x = Number(point.x) * (position.startsWith("right") ? -1 : 1);
+  let y = Number(point.y) * (position.endsWith("top") ? -1 : 1);
+  if (config.swapAxes) [x, y] = [y, x];
+  if (config.invertX) x *= -1;
+  if (config.invertY) y *= -1;
+  return { x, y };
+}
+
+export function transformVectorForMachine(dx, dy, config) {
+  return transformPointForMachine({ x: dx, y: dy }, config);
+}
+
+function transformStrokeForMachine(stroke: PlotStroke, config): PlotStroke {
+  const transformed = stroke.map((point) =>
+    transformPointForMachine(point, config),
+  ) as PlotStroke;
+  if (stroke.pressure) transformed.pressure = stroke.pressure;
+  return transformed;
+}
+
+export function parseCustomGcode(value) {
+  const source = String(value || "").replace(/\r\n?/g, "\n");
+  if (source.length > 8192)
+    throw new Error("Пользовательский G-code длиннее 8 КБ.");
+  return source
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith(";") && !line.startsWith("("))
+    .map((line) => {
+      if (
+        line.length > 256 ||
+        /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(line)
+      )
+        throw new Error("В пользовательском G-code есть недопустимая строка.");
+      return line;
+    });
+}
+
 function penCommand(up, config, pressure = 1) {
   const servoMax = config.profile === "marlin" ? 180 : 32767;
   const pressuredPenDown = Math.max(
@@ -1305,7 +1376,7 @@ function penCommand(up, config, pressure = 1) {
     ),
   );
   if (config.profile === "ebb")
-    return `SP,${up ? 1 : 0},${Math.round(config.penDelay * 1000)}`;
+    return `SP,${up ? 1 : 0},${Math.round(penDelay(up, config) * 1000)}`;
   if (config.profile === "marlin") {
     if (config.penMode === "stepper")
       return `G1G90Z${number(up ? config.zUp : config.zDown)}F${config.zSpeed}`;
@@ -1426,13 +1497,17 @@ export function compilePlotJob(strokes, config) {
   const preparedStrokes = config.optimizePath
     ? optimizeStrokeOrder(sourceStrokes)
     : sourceStrokes;
+  const machineStrokes = preparedStrokes.map((stroke) =>
+    transformStrokeForMachine(stroke, config),
+  );
   const commands = [];
   const resumePoints = [];
   const strokeCommandRanges = [];
   const addPen = (up, pressure = 1) => {
     commands.push(penCommand(up, config, pressure));
-    if (config.profile !== "ebb" && Number(config.penDelay) > 0)
-      commands.push(`G4P${number(Number(config.penDelay))}`);
+    const delay = penDelay(up, config);
+    if (config.profile !== "ebb" && delay > 0)
+      commands.push(`G4P${number(delay)}`);
   };
   let current = { x: 0, y: 0 };
   const residue = { x: 0, y: 0 };
@@ -1445,7 +1520,10 @@ export function compilePlotJob(strokes, config) {
   if (config.profile !== "ebb") commands.push("G21", "G90");
   addPen(true);
   penChanges += 1;
-  for (const stroke of preparedStrokes) {
+  if (config.autoSetOrigin && config.profile !== "ebb")
+    commands.push(...createOriginCommands(config));
+  commands.push(...parseCustomGcode(config.customStartGcode));
+  for (const stroke of machineStrokes) {
     if (stroke.length < 2) continue;
     if (recoverable) resumePoints.push(commands.length);
     const start = stroke[0];
@@ -1485,10 +1563,23 @@ export function compilePlotJob(strokes, config) {
     penLifts += 1;
   }
 
+  if (
+    config.returnToOrigin &&
+    config.profile !== "ebb" &&
+    machineStrokes.length
+  ) {
+    const travel = Math.hypot(current.x, current.y);
+    distance += travel;
+    travelDistance += travel;
+    commands.push(`G0X0Y0F${config.jogSpeed}`);
+  }
+  commands.push(...parseCustomGcode(config.customEndGcode));
+
   const estimatedSeconds =
     (drawDistance / Math.max(1, Number(config.feedRate))) * 60 +
     (travelDistance / Math.max(1, Number(config.jogSpeed))) * 60 +
-    penChanges * Number(config.penDelay);
+    (penLifts + 1) * penDelay(true, config) +
+    Math.max(0, penChanges - penLifts - 1) * penDelay(false, config);
   const resumePrefix =
     config.profile === "ebb"
       ? [penCommand(true, config)]
@@ -1509,6 +1600,8 @@ export function compilePlotJob(strokes, config) {
     penLifts,
     penChanges,
     estimatedSeconds,
+    machineBounds: plotBounds(machineStrokes),
+    withinWorkArea: isWithinWorkArea(machineStrokes, config),
   };
 }
 
@@ -1528,16 +1621,32 @@ export function plotBounds(strokes) {
   );
 }
 
-export function createDryRunCommands(strokes, config) {
-  const bounds = plotBounds(strokes);
-  if (!bounds) throw new Error("Нет штрихов для проверки рамки.");
+export function isWithinWorkArea(machineStrokes, config) {
+  const bounds = plotBounds(machineStrokes);
+  if (!bounds) return true;
   const epsilon = 0.01;
-  if (
-    bounds.minX < -epsilon ||
-    bounds.minY < -epsilon ||
-    bounds.maxX > Number(config.workAreaWidth) + epsilon ||
-    bounds.maxY > Number(config.workAreaHeight) + epsilon
-  ) {
+  return (
+    Math.max(Math.abs(bounds.minX), Math.abs(bounds.maxX)) <=
+      Number(config.workAreaWidth) + epsilon &&
+    Math.max(Math.abs(bounds.minY), Math.abs(bounds.maxY)) <=
+      Number(config.workAreaHeight) + epsilon
+  );
+}
+
+export function createDryRunCommands(strokes, config) {
+  const sourceBounds = plotBounds(strokes);
+  if (!sourceBounds) throw new Error("Нет штрихов для проверки рамки.");
+  const sourceCorners = [
+    { x: sourceBounds.minX, y: sourceBounds.minY },
+    { x: sourceBounds.maxX, y: sourceBounds.minY },
+    { x: sourceBounds.maxX, y: sourceBounds.maxY },
+    { x: sourceBounds.minX, y: sourceBounds.maxY },
+    { x: sourceBounds.minX, y: sourceBounds.minY },
+  ];
+  const machineCorners = sourceCorners.map((point) =>
+    transformPointForMachine(point, config),
+  );
+  if (!isWithinWorkArea([machineCorners], config)) {
     throw new Error(
       "Траектория выходит за настроенную рабочую область. Измените лист, поля или границы механики.",
     );
@@ -1547,19 +1656,12 @@ export function createDryRunCommands(strokes, config) {
       "Сухой прогон рамки для EBB требует относительных шагов и пока недоступен. Проверьте область в мастере калибровки.",
     );
   }
-  const corners = [
-    [bounds.minX, bounds.minY],
-    [bounds.maxX, bounds.minY],
-    [bounds.maxX, bounds.maxY],
-    [bounds.minX, bounds.maxY],
-    [bounds.minX, bounds.minY],
-  ];
   return [
     "G21",
     "G90",
     penCommand(true, config),
-    ...corners.map(
-      ([x, y]) => `G0X${number(x)}Y${number(y)}F${config.jogSpeed}`,
+    ...machineCorners.map(
+      ({ x, y }) => `G0X${number(x)}Y${number(y)}F${config.jogSpeed}`,
     ),
   ];
 }
@@ -1578,6 +1680,11 @@ export function createJogCommands(dx, dy, config) {
   return [`$J=G21G91X${number(dx)}Y${number(dy)}F${config.jogSpeed}`];
 }
 
+export function createPageJogCommands(dx, dy, config) {
+  const transformed = transformVectorForMachine(dx, dy, config);
+  return createJogCommands(transformed.x, transformed.y, config);
+}
+
 export function createPenCommand(up, config) {
   return [penCommand(up, config)];
 }
@@ -1586,4 +1693,23 @@ export function createOriginCommands(config) {
   if (config.profile === "ebb") return [];
   if (config.profile === "marlin") return ["G92X0Y0Z0"];
   return ["G10P0L20X0Y0Z0"];
+}
+
+export function createHomingCommands(config) {
+  if (config.profile === "ebb")
+    throw new Error(
+      "Для EBB команда homing зависит от механики и не отправляется автоматически.",
+    );
+  return config.profile === "marlin" ? ["G28"] : ["$H"];
+}
+
+export function createReturnToOriginCommands(config) {
+  if (config.profile === "ebb")
+    throw new Error("Для EBB возврат к абсолютному нулю недоступен.");
+  return [
+    "G21",
+    "G90",
+    penCommand(true, config),
+    `G0X0Y0F${config.jogSpeed}`,
+  ];
 }
