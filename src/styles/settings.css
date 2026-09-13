@@ -28,7 +28,7 @@
   width: 3px;
   height: 24px;
   border-radius: 0 3px 3px 0;
-  background: #2563eb;
+  background: var(--green);
 }
 .settings-section > summary::-webkit-details-marker {
   display: none;
@@ -214,7 +214,7 @@
   font: 700 8px/1 ui-sans-serif, system-ui, sans-serif;
 }
 .setting-help:focus-visible {
-  outline: 2px solid #bfdbfe;
+  outline: 2px solid var(--accent-border);
   outline-offset: 2px;
 }
 .range-control input[type="range"] {
@@ -260,8 +260,8 @@
   gap: 11px;
 }
 .toggle-block.is-on {
-  border-color: #bfdbfe;
-  background: #eff6ff;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
 }
 .toggle-row {
   display: grid;
@@ -306,7 +306,7 @@
   transform: translateX(13px);
 }
 .toggle-row input:focus-visible + i {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--green);
   outline-offset: 2px;
 }
 .font-pool {
@@ -355,10 +355,10 @@
 }
 .notebook-note {
   padding: 9px 10px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--accent-border);
   border-radius: 6px;
   color: #1e40af;
-  background: #eff6ff;
+  background: var(--accent-soft);
   font-size: 10px;
   line-height: 1.45;
 }
@@ -389,7 +389,7 @@
 }
 .font-picker-trigger:hover,
 .font-picker-trigger[aria-expanded="true"] {
-  border-color: #93c5fd;
+  border-color: var(--accent-border);
 }
 .font-picker-trigger span {
   flex: 1;
@@ -432,7 +432,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 2px;
-  color: #2563eb;
+  color: var(--green);
   font-size: 9px;
   font-weight: 700;
   text-decoration: none;
@@ -451,8 +451,8 @@
 }
 .font-kind-badge.plotter,
 .gfont-option-badge {
-  color: #1d4ed8 !important;
-  background: #dbeafe !important;
+  color: var(--green-dark) !important;
+  background: var(--accent-soft) !important;
 }
 .font-kind-badge.screen {
   color: #64748b;
@@ -485,8 +485,8 @@
   font-size: 11px;
 }
 .font-picker-menu > input:focus {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 2px #dbeafe;
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 .font-picker-list {
   max-height: min(520px, 66vh);
@@ -545,14 +545,14 @@
 }
 
 .custom-gfont-grid button:hover {
-  border-color: #93c5fd;
+  border-color: var(--accent-border);
   background: #f8fbff;
 }
 
 .custom-gfont-grid button.selected {
-  border-color: #60a5fa;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--green-dark);
 }
 
 .custom-gfont-grid span {
@@ -593,7 +593,7 @@
   text-align: left;
 }
 .plotter-family-tabs > button:hover {
-  border-color: #bfdbfe;
+  border-color: var(--accent-border);
   background: #f8fafc;
 }
 .plotter-family-tabs > button.active {
@@ -601,10 +601,10 @@
   background: #f8fafc;
 }
 .plotter-family-tabs > button.selected {
-  border-color: #60a5fa;
-  color: #1d4ed8;
-  background: #eff6ff;
-  box-shadow: inset 0 0 0 1px #bfdbfe;
+  border-color: var(--accent-border);
+  color: var(--green-dark);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
 }
 .plotter-family-tabs > button span {
   max-width: 100%;
@@ -619,12 +619,12 @@
   font-size: 8px;
 }
 .plotter-family-tabs > button.selected small {
-  color: #60a5fa;
+  color: var(--accent-border);
 }
 .font-variant-panel {
   margin-top: 7px;
   padding: 9px 10px 8px;
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--accent-soft);
   border-radius: 9px;
   background: #f8fbff;
 }
@@ -638,7 +638,7 @@
   font-size: 9px;
 }
 .font-variant-heading strong {
-  color: #1d4ed8;
+  color: var(--green-dark);
   font-size: 10px;
   font-weight: 750;
 }
@@ -646,7 +646,7 @@
   width: 100%;
   height: 18px;
   margin: 0;
-  accent-color: #2563eb;
+  accent-color: var(--green);
   cursor: pointer;
 }
 .font-variant-labels {
@@ -672,8 +672,8 @@
   background: #e2e8f0;
 }
 .font-variant-labels button.selected {
-  color: #1d4ed8;
-  background: #dbeafe;
+  color: var(--green-dark);
+  background: var(--accent-soft);
   font-weight: 750;
 }
 .font-picker-group > small {
@@ -702,8 +702,8 @@
   background: #f3f4f6;
 }
 .font-picker-group button.selected {
-  color: #1d4ed8;
-  background: #eff6ff;
+  color: var(--green-dark);
+  background: var(--accent-soft);
 }
 .font-picker-group button span {
   flex: 1;
@@ -747,10 +747,10 @@
   background: #f8fafc;
 }
 .font-picker-group button.screen-font-card.selected {
-  border-color: #93c5fd;
-  color: #1d4ed8;
-  background: #eff6ff;
-  box-shadow: inset 0 0 0 1px #dbeafe;
+  border-color: var(--accent-border);
+  color: var(--green-dark);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-soft);
 }
 .font-picker-group button.screen-font-card span {
   font-size: 16px;

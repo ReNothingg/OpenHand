@@ -276,5 +276,5 @@
   .expanded-editor > footer > span { display: none; }
 }
 .markdown-editor::selection {
-  background: #dbeafe;
+  background: var(--accent-soft);
 }

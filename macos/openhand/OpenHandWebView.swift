@@ -233,7 +233,16 @@ struct OpenHandWebView: NSViewRepresentable {
         )
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.underPageBackgroundColor = .windowBackgroundColor
+        webView.underPageBackgroundColor = NSColor(
+            name: nil,
+            dynamicProvider: { appearance in
+                let match = appearance.bestMatch(from: [.darkAqua, .aqua])
+                if match == .darkAqua {
+                    return NSColor(calibratedWhite: 17.0 / 255.0, alpha: 1)
+                }
+                return NSColor(calibratedWhite: 1, alpha: 1)
+            }
+        )
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
 #if DEBUG

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 
 const WIDTH = 640;
 const HEIGHT = 520;
@@ -7,7 +7,11 @@ const RIGHT = 568;
 const BASELINE = 408;
 const SCALE = 1.14;
 
-function canvasPoint(event, canvas) {
+type FontPoint = { x: number; y: number };
+type FontStroke = FontPoint[];
+type PointerSample = Pick<PointerEvent, "clientX" | "clientY">;
+
+function canvasPoint(event: PointerSample, canvas: HTMLCanvasElement) {
   const bounds = canvas.getBoundingClientRect();
   return {
     x: ((event.clientX - bounds.left) * WIDTH) / bounds.width,
@@ -15,28 +19,50 @@ function canvasPoint(event, canvas) {
   };
 }
 
-function toFontPoint(point) {
+function toFontPoint(point: FontPoint) {
   return {
     x: Math.round(((point.x - LEFT) / SCALE) * 10) / 10,
     y: Math.round(((point.y - BASELINE) / SCALE) * 10) / 10,
   };
 }
 
-function toCanvasPoint(point) {
+function toCanvasPoint(point: FontPoint) {
   return {
     x: LEFT + point.x * SCALE,
     y: BASELINE + point.y * SCALE,
   };
 }
 
-export default function FontCanvas({ character, strokes, onChange }) {
-  const canvasRef = useRef(null);
-  const drawingRef = useRef(null);
-  const baseStrokesRef = useRef([]);
+function coalescedSamples(event: ReactPointerEvent<HTMLCanvasElement>) {
+  const nativeEvent = event.nativeEvent;
+  if (typeof nativeEvent.getCoalescedEvents !== "function") return [nativeEvent];
+  const samples = nativeEvent.getCoalescedEvents();
+  return samples.length ? samples : [nativeEvent];
+}
+
+export default function FontCanvas({
+  character,
+  strokes,
+  onChange,
+}: {
+  character: string;
+  strokes: FontStroke[];
+  onChange: (
+    strokes: FontStroke[],
+    options?: { transient?: boolean; previous?: FontStroke[] },
+  ) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingRef = useRef<FontStroke | null>(null);
+  const baseStrokesRef = useRef<FontStroke[]>([]);
+  const activePointerRef = useRef<{ id: number; type: string } | null>(null);
+  const penSeenRef = useRef(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const context = canvas.getContext("2d");
+    if (!context) return;
     context.clearRect(0, 0, WIDTH, HEIGHT);
 
     context.fillStyle = "#ffffff";
@@ -93,10 +119,35 @@ export default function FontCanvas({ character, strokes, onChange }) {
     });
   }, [character, strokes]);
 
-  const begin = (event) => {
+  const begin = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (event.button !== undefined && event.button !== 0) return;
     const canvas = canvasRef.current;
-    canvas.setPointerCapture(event.pointerId);
+    if (!canvas) return;
+    const pointerType = event.pointerType || "mouse";
+    if (!event.isPrimary && pointerType !== "pen") return;
+    if (pointerType === "pen") penSeenRef.current = true;
+    if (
+      pointerType === "touch" &&
+      (penSeenRef.current || Math.max(event.width, event.height) > 28)
+    )
+      return;
+    if (activePointerRef.current) {
+      if (
+        pointerType !== "pen" ||
+        activePointerRef.current.type === "pen"
+      )
+        return;
+      drawingRef.current = null;
+      onChange(baseStrokesRef.current, { transient: true });
+      activePointerRef.current = null;
+    }
+    event.preventDefault();
+    activePointerRef.current = { id: event.pointerId, type: pointerType };
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch {
+      /* Older iPadOS WebKit can reject capture while the Pencil is settling. */
+    }
     const point = toFontPoint(canvasPoint(event, canvas));
     baseStrokesRef.current = strokes;
     drawingRef.current = [point];
@@ -105,19 +156,37 @@ export default function FontCanvas({ character, strokes, onChange }) {
     });
   };
 
-  const move = (event) => {
-    if (!drawingRef.current) return;
+  const move = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (
+      !drawingRef.current ||
+      activePointerRef.current?.id !== event.pointerId
+    )
+      return;
     const canvas = canvasRef.current;
-    const point = toFontPoint(canvasPoint(event, canvas));
-    const previous = drawingRef.current.at(-1);
-    if (Math.hypot(point.x - previous.x, point.y - previous.y) < 1.8) return;
-    drawingRef.current = [...drawingRef.current, point];
+    if (!canvas) return;
+    event.preventDefault();
+    const nextStroke = [...drawingRef.current];
+    for (const sample of coalescedSamples(event)) {
+      const point = toFontPoint(canvasPoint(sample, canvas));
+      const previous = nextStroke.at(-1);
+      if (
+        previous &&
+        Math.hypot(point.x - previous.x, point.y - previous.y) < 0.8
+      )
+        continue;
+      nextStroke.push(point);
+    }
+    if (nextStroke.length === drawingRef.current.length) return;
+    drawingRef.current = nextStroke;
     onChange([...baseStrokesRef.current, drawingRef.current], {
       transient: true,
     });
   };
 
-  const end = () => {
+  const end = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (activePointerRef.current?.id !== event.pointerId) return;
+    event.preventDefault();
+    activePointerRef.current = null;
     if (!drawingRef.current) return;
     const stroke = drawingRef.current;
     drawingRef.current = null;
@@ -139,6 +208,8 @@ export default function FontCanvas({ character, strokes, onChange }) {
       onPointerMove={move}
       onPointerUp={end}
       onPointerCancel={end}
+      onLostPointerCapture={end}
+      onContextMenu={(event) => event.preventDefault()}
     />
   );
 }

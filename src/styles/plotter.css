@@ -34,9 +34,9 @@
 }
 
 .plotter-status.connected i { background: #22c55e; }
-.plotter-status.running i { background: #2563eb; box-shadow: 0 0 0 4px #dbeafe; }
+.plotter-status.running i { background: var(--green); box-shadow: 0 0 0 4px var(--accent-soft); }
 .plotter-status.paused i { background: #f59e0b; }
-.plotter-status.connecting i { background: #2563eb; animation: plotter-pulse 1s infinite alternate; }
+.plotter-status.connecting i { background: var(--green); animation: plotter-pulse 1s infinite alternate; }
 
 @keyframes plotter-pulse { to { opacity: 0.25; } }
 
@@ -62,10 +62,10 @@
 }
 .plotter-playback-head > circle:first-child {
   fill: rgb(37 99 235 / 0.16);
-  stroke: #2563eb;
+  stroke: var(--green);
   stroke-width: 0.22;
 }
-.plotter-playback-head > circle:last-child { fill: #2563eb; }
+.plotter-playback-head > circle:last-child { fill: var(--green); }
 
 .integrated-plotter-loading {
   position: absolute;
@@ -309,7 +309,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #2563eb;
+  background: var(--green);
   transition: width 180ms ease;
 }
 
@@ -346,9 +346,9 @@
 .calibration-checklist input { margin-top: 2px; }
 .calibration-verification {
   padding: 14px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--accent-border);
   border-radius: 10px;
-  background: #eff6ff;
+  background: var(--accent-soft);
 }
 .calibration-verification strong { display: block; margin-bottom: 12px; font-size: 13px; }
 .calibration-verification > div { display: flex; gap: 8px; }
@@ -518,9 +518,9 @@
 
 .plotter-help:hover,
 .plotter-help:focus-visible {
-  border-color: #2563eb;
-  color: #2563eb;
-  box-shadow: 0 0 0 2px #dbeafe;
+  border-color: var(--green);
+  color: var(--green);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .plotter-help:hover > [role="tooltip"],
@@ -660,8 +660,8 @@
 }
 
 .plotter-view-controls span { min-width: 45px; padding: 0 7px; color: #475569; font-size: 10px; text-align: center; }
-.plotter-view-controls button { height: 27px; border: 0; border-left: 1px solid #cbd5e1; padding: 0 8px; color: #2563eb; background: transparent; cursor: pointer; font-size: 10px; }
-.plotter-view-controls button:hover { background: #eff6ff; }
+.plotter-view-controls button { height: 27px; border: 0; border-left: 1px solid #cbd5e1; padding: 0 8px; color: var(--green); background: transparent; cursor: pointer; font-size: 10px; }
+.plotter-view-controls button:hover { background: var(--accent-soft); }
 
 .plotter-navigation-hint {
   position: absolute;
@@ -752,7 +752,7 @@
 .button.danger:hover { background: #b91c1c; }
 
 .plotter-progress { position: relative; height: 22px; margin-top: 10px; overflow: hidden; border-radius: 5px; background: #e2e8f0; }
-.plotter-progress i { position: absolute; inset: 0 auto 0 0; background: #93c5fd; transition: width 0.15s; }
+.plotter-progress i { position: absolute; inset: 0 auto 0 0; background: var(--green); transition: width 0.15s; }
 .plotter-progress span { position: relative; z-index: 1; display: grid; place-items: center; height: 100%; color: #1e3a8a; font-size: 10px; font-weight: 700; }
 
 .plotter-console { margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
@@ -761,7 +761,7 @@
 .plotter-console code { display: grid; grid-template-columns: 62px 18px 1fr; color: #cbd5e1; font: 10px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
 .plotter-console code time { color: #64748b; }
 .plotter-console code.in b { color: #4ade80; }
-.plotter-console code.out b { color: #60a5fa; }
+.plotter-console code.out b { color: var(--accent-border); }
 .plotter-console code.error { color: #fca5a5; }
 
 @media (max-height: 760px) and (min-width: 821px) {

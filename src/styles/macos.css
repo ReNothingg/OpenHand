@@ -1,20 +1,20 @@
 .macos-native {
   color-scheme: light dark;
-  --mac-bg: #eceef1;
+  --mac-bg: #ffffff;
   --mac-panel: #f7f7f8;
   --mac-panel-muted: #eff1f3;
   --mac-surface: #ffffff;
   --mac-surface-hover: #f2f3f5;
   --mac-surface-active: #e7e9ec;
   --mac-canvas: #d9dde2;
-  --mac-text: #1d1d1f;
+  --mac-text: #0d0d0d;
   --mac-secondary: #68686d;
   --mac-tertiary: #929298;
   --mac-line: #d1d3d7;
   --mac-line-strong: #b9bcc1;
-  --mac-accent: #0a72d8;
-  --mac-accent-hover: #0866c2;
-  --mac-accent-soft: #e2f0ff;
+  --mac-accent: #248a3d;
+  --mac-accent-hover: #1f7534;
+  --mac-accent-soft: #e8f5eb;
   --mac-danger: #d92d28;
   --mac-danger-soft: #fff0ef;
   --mac-warning: #8a5200;
@@ -271,8 +271,8 @@
 }
 
 .macos-native .source-tabs button.active {
-  color: var(--mac-text);
-  background: var(--mac-surface);
+  color: #fff;
+  background: var(--mac-accent);
   box-shadow: none;
 }
 
@@ -800,13 +800,18 @@
     --mac-tertiary: #808080;
     --mac-line: #2c2c2c;
     --mac-line-strong: #3b3b3b;
-    --mac-accent: #0169cc;
-    --mac-accent-hover: #0879e6;
-    --mac-accent-soft: #082b4d;
+    --mac-accent: #30d158;
+    --mac-accent-hover: #3ddd66;
+    --mac-accent-soft: #123d1e;
     --mac-danger: #ff6961;
     --mac-danger-soft: #3d1d1b;
     --mac-warning: #ffc56d;
     --mac-warning-soft: #382b16;
+  }
+
+  .macos-native .source-tabs button.active,
+  .macos-native .font-character-grid button.active {
+    color: #0d0d0d;
   }
 }
 

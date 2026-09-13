@@ -75,7 +75,7 @@
   background: #f8fafc;
   cursor: pointer;
 }
-.gcode-dropzone:hover { border-color: var(--green); background: #eff6ff; }
+.gcode-dropzone:hover { border-color: var(--green); background: var(--accent-soft); }
 .gcode-dropzone strong { font-size: 18px; }
 .gcode-dropzone span { color: #64748b; font-size: 13px; }
 .gcode-dropzone small { margin-top: 12px; color: #94a3b8; font-size: 10px; }
@@ -129,7 +129,7 @@
 .gcode-draw-path,
 .gcode-travel-path { fill: none; vector-effect: non-scaling-stroke; }
 .gcode-draw-path { stroke: #172033; stroke-width: 1.15; stroke-linecap: round; stroke-linejoin: round; }
-.gcode-travel-path { stroke: #3b82f6; stroke-width: 0.75; stroke-dasharray: 4 3; opacity: 0.48; }
+.gcode-travel-path { stroke: var(--green); stroke-width: 0.75; stroke-dasharray: 4 3; opacity: 0.48; }
 
 .gcode-empty-preview {
   display: flex;

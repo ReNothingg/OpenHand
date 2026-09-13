@@ -69,8 +69,8 @@ body:has(.font-studio) {
 }
 
 .font-name-field:focus-within {
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 2px #dbeafe;
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .font-studio-progress {
@@ -145,10 +145,10 @@ body:has(.font-studio) {
   max-width: 340px;
   margin: 0;
   padding: 9px 12px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--accent-border);
   border-radius: 7px;
   color: #1e40af;
-  background: #eff6ff;
+  background: var(--accent-soft);
   box-shadow: 0 8px 22px rgb(15 23 42 / 0.12);
   font-size: 10px;
 }
@@ -287,7 +287,7 @@ body:has(.font-studio) {
 }
 
 .font-character-grid button.active i {
-  background: #bfdbfe;
+  background: var(--accent-soft);
 }
 
 .font-studio-main {
@@ -356,6 +356,10 @@ body:has(.font-studio) {
   margin: auto;
   cursor: crosshair;
   touch-action: none;
+  overscroll-behavior: contain;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .font-live-preview {
@@ -394,8 +398,8 @@ body:has(.font-studio) {
 }
 
 .font-preview-toolbar label > input:not([type="range"]):focus {
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 2px #dbeafe;
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .font-preview-toolbar .font-preview-size {
@@ -476,7 +480,7 @@ body:has(.font-studio) {
 }
 
 .photo-import-dialog > header span {
-  color: #2563eb;
+  color: var(--green);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -548,9 +552,9 @@ body:has(.font-studio) {
 }
 
 .photo-import-options button.primary {
-  border-color: #2563eb;
+  border-color: var(--green);
   color: #fff;
-  background: #2563eb;
+  background: var(--green);
 }
 
 .photo-import-options label {
@@ -566,10 +570,10 @@ body:has(.font-studio) {
   gap: 7px;
   margin: 0 20px 18px;
   padding: 10px 12px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--accent-border);
   border-radius: 8px;
   color: #1e40af;
-  background: #eff6ff;
+  background: var(--accent-soft);
   font-size: 10px;
 }
 

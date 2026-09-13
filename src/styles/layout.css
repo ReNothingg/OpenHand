@@ -50,7 +50,7 @@
   width: var(--settings-panel-size);
   border: 1px solid var(--line);
   border-right: 0;
-  border-radius: 18px 0 0 18px;
+  border-radius: 0;
   overflow-y: auto;
   min-width: 0;
   padding-bottom: 12px;
@@ -82,13 +82,13 @@
   border-top: 0;
   border-right: 0;
   border-left: 0;
-  border-radius: 18px 0 10px 10px;
+  border-radius: 0;
 }
 .settings-panel > .settings-section:first-of-type > summary {
-  border-radius: 18px 0 10px 10px;
+  border-radius: 0;
 }
 .settings-panel > .settings-section:first-of-type[open] > summary {
-  border-radius: 18px 0 0 0;
+  border-radius: 0;
 }
 .panel-title {
   height: 49px;
@@ -113,7 +113,7 @@
   }
   .settings-panel {
     width: min(360px, calc(100vw - 48px));
-    border-radius: 16px 0 0 16px;
+    border-radius: 0;
     box-shadow: -16px 0 40px rgb(15 23 42 / 0.16);
   }
   .settings-panel > .settings-drawer-header {
@@ -211,7 +211,7 @@
     max-height: none;
     border-left: 1px solid var(--line);
     border-right: 0;
-    border-radius: 16px 0 0 16px;
+    border-radius: 0;
   }
   .settings-collapsed .workspace {
     --settings-panel-width: 0px;

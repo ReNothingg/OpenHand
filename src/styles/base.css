@@ -6,13 +6,15 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  color: #111827;
-  background: #f3f4f6;
+  color: #0d0d0d;
+  background: #ffffff;
   font-synthesis: none;
   --line: #e5e7eb;
   --muted: #6b7280;
-  --green: #2563eb;
-  --green-dark: #1d4ed8;
+  --green: #248a3d;
+  --green-dark: #1f7534;
+  --accent-soft: #e8f5eb;
+  --accent-border: #77c788;
   --panel: #ffffff;
 }
 * {
@@ -68,12 +70,12 @@ textarea:focus-visible,
 a:focus-visible,
 summary:focus-visible,
 [tabindex="0"]:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--green);
   outline-offset: 2px;
 }
 .app {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: #ffffff;
 }
 .save-notice {
   position: fixed;

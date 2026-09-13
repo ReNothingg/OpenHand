@@ -139,7 +139,7 @@
   outline-offset: 3px;
 }
 .manual-page-content.is-drop-target {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--green);
   outline-offset: 5px;
   background: rgb(37 99 235 / 0.045);
 }
@@ -153,7 +153,7 @@
   padding: 6px 9px;
   border-radius: 6px;
   color: #fff;
-  background: #2563eb;
+  background: var(--green);
   font: 700 10px/1 ui-sans-serif, system-ui, sans-serif;
   white-space: nowrap;
   pointer-events: none;
@@ -190,7 +190,7 @@
 }
 .manual-page-content.is-editing .manual-block.is-selected {
   z-index: 10;
-  outline: 1.5px solid #2563eb;
+  outline: 1.5px solid var(--green);
   box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
 }
 .manual-block-kind {
@@ -204,7 +204,7 @@
   place-items: center;
   border-radius: 4px 4px 0 0;
   color: #fff;
-  background: #2563eb;
+  background: var(--green);
   font: 700 8px/1 ui-sans-serif, sans-serif;
   opacity: 0;
   transition: opacity 0.14s;
@@ -221,8 +221,8 @@
   padding: 0;
   border: 2px solid #fff;
   border-radius: 50%;
-  background: #2563eb;
-  box-shadow: 0 0 0 1px #2563eb;
+  background: var(--green);
+  box-shadow: 0 0 0 1px var(--green);
   cursor: nwse-resize;
 }
 @keyframes inspector-in {

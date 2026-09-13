@@ -115,7 +115,7 @@ export default function PhotoFontImporter({
         className="photo-import-dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="photo-import-title"
+        aria-label="Импорт почерка по фотографии"
       >
         {/* <header>
           <button type="button" aria-label="Закрыть" disabled={busy} onClick={onClose}>×</button>
