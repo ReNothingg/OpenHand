@@ -1,5 +1,4 @@
-type FontPoint = { x: number; y: number };
-type FontStroke = FontPoint[];
+import { nibWidth, DEFAULT_PEN_SETTINGS, type FontStroke, type PenSettings } from "./penInput";
 
 function glyphWidth(strokes: FontStroke[]) {
   const points = strokes.flat();
@@ -28,10 +27,12 @@ export default function FontPreview({
   text,
   glyphs,
   size = 32,
+  penSettings = DEFAULT_PEN_SETTINGS,
 }: {
   text: string;
   glyphs: Record<string, FontStroke[]>;
   size?: number;
+  penSettings?: PenSettings;
 }) {
   const scale = size / 168;
   const baseline = 118;
@@ -46,6 +47,15 @@ export default function FontPreview({
     const strokes = glyphs[character] || [];
     const metrics = glyphWidth(strokes);
     strokes.forEach((stroke, strokeIndex) => {
+      if (stroke.some((point) => point.pressure !== undefined)) {
+        stroke.slice(1).forEach((point, index) => {
+          const previous = stroke[index];
+          paths.push(<path key={`${characterIndex}-${strokeIndex}-${index}`}
+            d={strokePath([previous, point], cursor, metrics.minX, scale, baseline)}
+            style={{ strokeWidth: (nibWidth(previous, penSettings) + nibWidth(point, penSettings)) / 2 * scale / 1.14 }} />);
+        });
+        return;
+      }
       paths.push(
         <path
           d={strokePath(stroke, cursor, metrics.minX, scale, baseline)}

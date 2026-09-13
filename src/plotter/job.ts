@@ -1,6 +1,8 @@
+import { wordMotion, spaceFactor, shapeVertical, structureValue } from "../handwriting/structure";
 import { layoutFormula } from "./mathLayout";
 import {
   PLOTTER_ALIGN_MARKS,
+  PLOTTER_PARAGRAPH_MARKS,
   PLOTTER_CALLOUT_MARKS,
   PLOTTER_CONTROL_MARKS,
   PLOTTER_FORMULA_END,
@@ -135,8 +137,9 @@ function splitGlyphStrokes(
     0.78,
     Math.min(1.22, Number(handwriting?.authorWidth || 100) / 100),
   );
+  const motion = handwriting?.motion || { coherence: 0, width: 1, height: 1, slant: 0, baseline: 0 };
   const scaleX =
-    authorWidth *
+    motion.width * authorWidth *
     (1 +
       (variant === 1
         ? -0.025
@@ -149,7 +152,7 @@ function splitGlyphStrokes(
   const scaleY =
     1 +
     (seededRandom(handwriting?.seed, `${handwriting?.key}:height`) - 0.5) *
-      variation *
+      variation * (1 - motion.coherence * 0.85) *
       0.0022;
   const pressure =
     1 +
@@ -169,12 +172,13 @@ function splitGlyphStrokes(
     0.22;
   for (let index = 0; index < glyph.points.length; index += 1) {
     const source = glyph.points[index];
-    const localY = source.y * scale * scaleY;
+    const shapedY = handwriting?.isLetter ? shapeVertical(source.y, handwriting.bodyTop, handwriting.structure) : source.y;
+    const localY = shapedY * scale * scaleY * motion.height;
     const localX =
-      (source.x - glyph.bounds.minX) * scale * scaleX + localY * slant;
+      (source.x - glyph.bounds.minX) * scale * scaleX - localY * (slant - randomSlant * motion.coherence * 0.85 + Math.tan(motion.slant * Math.PI / 180));
     const point = {
       x: cursorX + localX,
-      y: baseline + localY + baselineDrift + rhythmDrift,
+      y: baseline + localY + baselineDrift + rhythmDrift * (1 - motion.coherence * 0.85) + motion.baseline * scale * FONT_EM,
     };
     if (glyph.flags[index] === 0 || !stroke) {
       stroke = [point];
@@ -398,6 +402,14 @@ export async function layoutText(
     await getGlyph(char);
   }
 
+  const bodyHeights = [];
+  for (const char of "аеиносуэх") {
+    const glyph = await getGlyph(char, false);
+    if (glyph?.bounds.minY < 0) bodyHeights.push(-glyph.bounds.minY);
+  }
+  bodyHeights.sort((a, b) => a - b);
+  const bodyTop = -(bodyHeights[Math.floor(bodyHeights.length / 2)] || FONT_EM * 0.55);
+
   const formulaLayouts = new Map<string, any>();
   for (const source of formulaSources) {
     if (formulaLayouts.has(source)) continue;
@@ -443,9 +455,9 @@ export async function layoutText(
     }
   }
 
-  const advanceFor = (char, textScale = 1) => {
+  const advanceFor = (char, textScale = 1, motionWidth = 1) => {
     if (char === " " || char === "\t")
-      return spaceWidth * (char === "\t" ? 4 : 1) * textScale;
+      return spaceWidth * (char === "\t" ? 4 : 1) * textScale * spaceFactor(config, "base");
     const glyph = glyphs.get(char);
     const widthScale = Math.max(
       0.78,
@@ -455,7 +467,7 @@ export async function layoutText(
       ? Math.max(
           (glyph.bounds.maxX - glyph.bounds.minX) *
             scale *
-            widthScale *
+            widthScale * motionWidth *
             textScale +
             letterSpacing,
           page.fontSize * 0.24 * textScale,
@@ -752,21 +764,16 @@ export async function layoutText(
         }
         return (
           width +
-          Array.from(String(token)).reduce((total, char) => {
-            if (headingStarts.has(char)) {
-              measuredHeadingLevel = headingStarts.get(char);
-              return total;
-            }
-            if (headingEnds.has(char)) {
-              measuredHeadingLevel = 0;
-              return total;
-            }
-            return (
-              total +
-              (PLOTTER_CONTROL_MARKS.has(char)
-                ? 0
-                : advanceFor(char, headingScales[measuredHeadingLevel] || 1))
-            );
+          String(token).split(/(\s+)/u).reduce((subtotal, part, index, parts) => {
+            if (/^\s+$/u.test(part)) return subtotal + Array.from(part).reduce((sum, char) => sum + spaceWidth * (char === "\t" ? 4 : 1) * (headingScales[measuredHeadingLevel] || 1) * spaceFactor(config, parts[index - 1] || ""), 0);
+            const visible = Array.from(part).filter((char) => !PLOTTER_CONTROL_MARKS.has(char));
+            let position = 0;
+            return subtotal + Array.from(part).reduce((total, char) => {
+              if (headingStarts.has(char)) { measuredHeadingLevel = headingStarts.get(char); return total; }
+              if (headingEnds.has(char)) { measuredHeadingLevel = 0; return total; }
+              if (PLOTTER_CONTROL_MARKS.has(char)) return total;
+              return total + advanceFor(char, headingScales[measuredHeadingLevel] || 1, wordMotion(config, part, position++, visible.length).width);
+            }, 0);
           }, 0)
         );
       }, 0);
@@ -959,15 +966,12 @@ export async function layoutText(
       if (/^\s+$/u.test(token)) {
         for (const char of token) {
           if (char === "\n") nextLine();
-          else x += advanceFor(char, headingScale());
+          else x += spaceWidth * (char === "\t" ? 4 : 1) * headingScale() * spaceFactor(config, tokens[tokenIndex - 1] || "");
         }
         continue;
       }
-      const tokenWidth = Array.from(token).reduce(
-        (total, char) =>
-          total + (PLOTTER_CONTROL_MARKS.has(char) ? 0 : advanceFor(char)),
-        0,
-      );
+      const visibleChars = Array.from(token).filter((char) => !PLOTTER_CONTROL_MARKS.has(char));
+      const tokenWidth = visibleChars.reduce((total, char, index) => total + advanceFor(char, headingScale(), wordMotion(config, token, index, visibleChars.length).width), 0);
       if (x > page.left && x + tokenWidth > maxX) {
         nextLine();
         if (clipped) {
@@ -978,8 +982,17 @@ export async function layoutText(
       const tokenChars = Array.from(token);
       const tokenStartX = x;
       let previousJoin = null;
+      let visibleIndex = 0;
       for (let charIndex = 0; charIndex < tokenChars.length; charIndex += 1) {
         const char = tokenChars[charIndex];
+        if (char === PLOTTER_PARAGRAPH_MARKS.start) {
+          if (activeAlignment === "left") x += Math.min((maxX - page.left) * 0.4, page.fontSize * structureValue(config, "paragraphIndent") / 100);
+          continue;
+        }
+        if (char === PLOTTER_PARAGRAPH_MARKS.end) {
+          pendingHeadingGap += page.lineHeight * structureValue(config, "paragraphGap") / 100;
+          continue;
+        }
         if (char === PLOTTER_CALLOUT_MARKS.start) {
           closeCallout();
           activeCallout = {
@@ -1039,7 +1052,9 @@ export async function layoutText(
           continue;
         }
         const currentHeadingScale = headingScale();
-        const advance = advanceFor(char, currentHeadingScale);
+        const motion = wordMotion(config, `${rawLineIndex}:${tokenIndex}:${token}`, visibleIndex, visibleChars.length);
+        visibleIndex += 1;
+        const advance = advanceFor(char, currentHeadingScale, motion.width);
         if (x > page.left && x + advance > maxX) {
           nextLine();
           previousJoin = null;
@@ -1054,9 +1069,10 @@ export async function layoutText(
           const sourceGlyphStrokes = splitGlyphStrokes(
             glyph,
             x,
-            baseline,
+            baseline + (config.trueHandwriting ? Math.sin((x - page.left) / Math.max(1, page.fontSize * 7) + seededRandom(config.seed, `line:${rawLineIndex}`) * Math.PI * 2) * page.fontSize * Math.max(0, Math.min(100, Number(config.authorBaseline) || 0)) * 0.0006 : 0),
             scale * currentHeadingScale,
             {
+              motion, bodyTop, structure: config, isLetter: LETTER_PATTERN.test(char),
               enabled: Boolean(config.trueHandwriting),
               variation: config.glyphVariation,
               pressure: config.pressureVariation,

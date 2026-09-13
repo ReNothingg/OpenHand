@@ -1,8 +1,21 @@
+import { STRUCTURE_CONTROLS } from "./structure";
 export const HANDWRITING_PROFILES = Object.freeze({
   personal: {
     label: "Мой текущий",
     description: "Не меняет настроенные вручную значения.",
     settings: {},
+  },
+  notebook: {
+    label: "Реалистичный",
+    description: "Связное письмо, спокойная строка, свободные пробелы.",
+    settings: {
+      fontType: "plotter", plotterFontId: "retest-original", trueHandwriting: true,
+      glyphVariation: 40, connectionStrength: 80, pressureVariation: 10,
+      maxWordTilt: 0.8, maxLift: 0.6, maxLetterSpacing: 0.2,
+      authorSlant: 4, authorWidth: 98, authorRhythm: 25, authorBaseline: 12,
+      wordSpacing: 90, spaceVariation: 22, wordCoherence: 82, endCompression: 6,
+      ascenderScale: 108, descenderScale: 110, correctionChance: 0, fatigueEnabled: false,
+    },
   },
   careful: {
     label: "Аккуратный",
@@ -78,6 +91,7 @@ export function profilePatch(id) {
   const profile = HANDWRITING_PROFILES[id] || HANDWRITING_PROFILES.personal;
   return {
     handwritingProfile: id in HANDWRITING_PROFILES ? id : "personal",
+    ...(id !== "personal" ? Object.fromEntries(STRUCTURE_CONTROLS.map((control) => [control.key, control.initial])) : {}),
     ...profile.settings,
   };
 }

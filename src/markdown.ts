@@ -1,3 +1,4 @@
+import { wordMotion, spaceFactor, structureValue } from "./handwriting/structure";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import markedKatex from "marked-katex-extension";
@@ -306,6 +307,17 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
     label.textContent = calloutLabels[type];
     quote.prepend(label);
   });
+  root.querySelectorAll("p").forEach((paragraph) => {
+    if (paragraph.closest("li, blockquote, td, th")) return;
+    const indent = structureValue(settings, "paragraphIndent");
+    const gap = structureValue(settings, "paragraphGap");
+    let alignment = "";
+    for (let parent: HTMLElement | null = paragraph; parent && !alignment; parent = parent.parentElement) {
+      alignment = parent.style.textAlign || parent.getAttribute("align") || "";
+    }
+    if (indent && !["center", "right"].includes(alignment)) paragraph.style.textIndent = `${indent / 100}em`;
+    if (gap) paragraph.style.marginBottom = `${0.72 + gap / 100 * Number(settings.lineHeight || 1.55)}em`;
+  });
   enhanceDocumentTables(root, documentNode);
   const walker = documentNode.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const textNodes: Text[] = [];
@@ -342,6 +354,7 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
         whitespace.className = "hw-space";
         whitespace.dataset.plotterWhitespace = "true";
         whitespace.textContent = part;
+        whitespace.style.wordSpacing = `${(spaceFactor(settings, wordIndex - 1) - 1) * 0.46}em`;
         fragment.append(whitespace);
         return;
       }
@@ -397,7 +410,7 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
       );
       word.style.setProperty(
         "--word-lift",
-        `${(lift + fatigue * authorBaseline * 0.026).toFixed(2)}px`,
+        `${(lift + fatigue * authorBaseline * 0.026 + (settings.trueHandwriting ? Math.sin(wordIndex * 0.7) * authorBaseline * Number(settings.fontSize || 27) * 0.0006 : 0)).toFixed(2)}px`,
       );
       if (
         settings.trueHandwriting &&
@@ -441,6 +454,7 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
                   randomFor(settings.seed, `letter:${letterIndex}:variant`) * 4,
                 )
               : 0;
+          const motion = wordMotion(settings, `${wordIndex}:${part}`, characterIndex, wordCharacters.length);
           const authorSlant = Number(settings.authorSlant || 0);
           const rhythm = Math.max(
             0,
@@ -449,12 +463,12 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
           const slant =
             authorSlant +
             (randomFor(settings.seed, `letter:${letterIndex}:slant`) - 0.5) *
-              (variation * 0.05 + rhythm * 0.025) +
+              (variation * 0.05 + rhythm * 0.025) * (1 - motion.coherence * 0.85) + motion.slant +
             fatigue * 3.2;
           const scaleY =
             1 +
             (randomFor(settings.seed, `letter:${letterIndex}:height`) - 0.5) *
-              variation *
+              variation * (1 - motion.coherence * 0.85) *
               0.0024;
           const scaleX = Math.max(
             0.78,
@@ -468,13 +482,15 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
             (randomFor(settings.seed, `letter:${letterIndex}:pressure`) - 0.5) *
               Number(settings.pressureVariation || 0) *
               0.012;
+          letter.style.position = "relative";
+          letter.style.top = `${motion.baseline}em`;
           letter.classList.add("hw-glyph-variant", `variant-${variant}`);
           if (characterIndex === 0) letter.classList.add("word-start");
           if (characterIndex === wordCharacters.length - 1)
             letter.classList.add("word-end");
-          letter.style.setProperty("--glyph-slant", `${slant.toFixed(2)}deg`);
-          letter.style.setProperty("--glyph-height", scaleY.toFixed(3));
-          letter.style.setProperty("--glyph-width", scaleX.toFixed(3));
+          letter.style.setProperty("--glyph-slant", `${(-slant).toFixed(2)}deg`);
+          letter.style.setProperty("--glyph-height", (scaleY * motion.height).toFixed(3));
+          letter.style.setProperty("--glyph-width", (scaleX * motion.width).toFixed(3));
           letter.style.setProperty("--glyph-pressure", pressure.toFixed(3));
           letter.style.setProperty(
             "--glyph-join",
@@ -494,6 +510,7 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
               `letter:${letterIndex}:spacing`,
             )
           : 0;
+        const compressionSpacing = settings.trueHandwriting ? (wordMotion(settings, `${wordIndex}:${part}`, characterIndex, wordCharacters.length).width - 1) * Number(settings.fontSize || 27) * 0.45 : 0;
         const widthSpacing =
           (Number(settings.authorWidth || 100) - 100) * 0.012;
         const rhythmSpacing = settings.trueHandwriting
@@ -501,7 +518,7 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
             Number(settings.authorRhythm || 0) *
             0.014
           : 0;
-        letter.style.marginRight = `${(spacing + widthSpacing + rhythmSpacing + fatigue * 0.12).toFixed(2)}px`;
+        letter.style.marginRight = `${(spacing + compressionSpacing + widthSpacing + rhythmSpacing + fatigue * 0.12).toFixed(2)}px`;
         word.append(letter);
         letterIndex += 1;
       });

@@ -7,6 +7,10 @@ const MAX_GFONT_UNCOMPRESSED_BYTES = 256 * 1024 * 1024;
 export interface GFontPoint {
   x: number;
   y: number;
+  pressure?: number;
+  tiltX?: number;
+  tiltY?: number;
+  time?: number;
 }
 
 export interface GFontGlyph {
@@ -24,6 +28,7 @@ interface GFontEntry {
 }
 
 export const BUILTIN_GFONT_FAMILIES = [
+  { id: "retest", label: "ReTest", description: "личный рукописный GFont", source: "ReTest.gfont", variants: [{ id: "retest-original", label: "оригинал" }] },
   {
     id: "ifdream",
     label: "Если Мечта",
@@ -164,6 +169,7 @@ export const BUILTIN_GFONT_OPTIONS = BUILTIN_GFONT_FAMILIES.flatMap((family) =>
 const bundledSourceCache = new Map<string, Promise<GFont>>();
 
 const BUNDLED_GFONT_LOADERS = {
+  "ReTest.gfont": () => import("../../font/plotter/ReTest.gfont?url").then((module) => module.default),
   "ifdream-unicode.gfont": () =>
     import("../../font/plotter/ifdream-unicode.gfont?url").then(
       (module) => module.default,
@@ -272,6 +278,7 @@ export class GFont {
   name: string;
   entries: Map<number, GFontEntry>;
   cache: Map<number, GFontGlyph | null>;
+  private penEntries = new Map<number, GFontEntry>();
 
   constructor(arrayBuffer: ArrayBuffer, name = "Шрифт .gfont") {
     if (arrayBuffer.byteLength > MAX_GFONT_ARCHIVE_BYTES) {
@@ -327,6 +334,10 @@ export class GFont {
         offset + 46 + nameLength,
       );
       const entryName = new TextDecoder().decode(nameBytes);
+      const penMatch = entryName.match(/^openhand\/(\d+)\.pen\.json$/);
+      if (penMatch && uncompressedSize <= 8 * 1024 * 1024) {
+        this.penEntries.set(Number(penMatch[1]), { method, compressedSize, uncompressedSize, localOffset });
+      }
       if (/^\d+$/.test(entryName)) {
         this.entries.set(Number(entryName), {
           method,
@@ -339,33 +350,12 @@ export class GFont {
     }
   }
 
-  private assertRange(offset: number, length: number, message: string) {
-    if (
-      !Number.isSafeInteger(offset) ||
-      !Number.isSafeInteger(length) ||
-      offset < 0 ||
-      length < 0 ||
-      offset + length > this.view.byteLength
-    ) {
-      throw new Error(message);
-    }
-  }
-
-  has(codePoint: number) {
-    return this.entries.has(codePoint);
-  }
-
-  async getGlyph(codePoint: number): Promise<GFontGlyph | null> {
-    const cached = this.cache.get(codePoint);
-    if (cached !== undefined) return cached;
-    const entry = this.entries.get(codePoint);
-    if (!entry) return null;
-
+  private async readEntry(entry: GFontEntry): Promise<Uint8Array> {
     const { localOffset } = entry;
     this.assertRange(localOffset, 30, "Повреждённая локальная запись .gfont.");
     if (this.view.getUint32(localOffset, true) !== LOCAL_SIGNATURE) {
       throw new Error(
-        `Повреждена запись символа U+${codePoint.toString(16).toUpperCase()}.`,
+        "Повреждена локальная запись .gfont.",
       );
     }
     const nameLength = this.view.getUint16(localOffset + 26, true);
@@ -390,7 +380,49 @@ export class GFont {
     ) {
       throw new Error("Размер распакованной глифы не совпал с каталогом.");
     }
+    return decoded;
+  }
+
+  private assertRange(offset: number, length: number, message: string) {
+    if (
+      !Number.isSafeInteger(offset) ||
+      !Number.isSafeInteger(length) ||
+      offset < 0 ||
+      length < 0 ||
+      offset + length > this.view.byteLength
+    ) {
+      throw new Error(message);
+    }
+  }
+
+  has(codePoint: number) {
+    return this.entries.has(codePoint);
+  }
+
+  async getGlyph(codePoint: number): Promise<GFontGlyph | null> {
+    const cached = this.cache.get(codePoint);
+    if (cached !== undefined) return cached;
+    const entry = this.entries.get(codePoint);
+    if (!entry) return null;
+
+    const decoded = await this.readEntry(entry);
     const glyph = parseGlyph(decoded, codePoint);
+    const penEntry = this.penEntries.get(codePoint);
+    if (penEntry) {
+      try {
+        const metadata = JSON.parse(new TextDecoder().decode(await this.readEntry(penEntry)));
+        if (metadata.version === 1 && Array.isArray(metadata.points) && metadata.points.length === glyph.points.length) {
+          glyph.points.forEach((point, index) => {
+            const sample = metadata.points[index];
+            if (!sample || typeof sample !== "object") return;
+            for (const [key, min, max] of [["pressure", 0, 1], ["tiltX", -90, 90], ["tiltY", -90, 90], ["time", 0, 86400000]] as const) {
+              const value = sample[key];
+              if (typeof value === "number" && Number.isFinite(value) && value >= min && value <= max) point[key] = value;
+            }
+          });
+        }
+      } catch { /* Optional pen metadata must not make valid centerline glyphs unreadable. */ }
+    }
     this.cache.set(codePoint, glyph);
     return glyph;
   }
@@ -423,6 +455,7 @@ function transformGlyph(
   const baseline = glyph.bounds.maxY;
   const seed = (codePoint % 97) * 0.173;
   const points = glyph.points.map((point: GFontPoint) => ({
+    ...point,
     x:
       originX +
       (point.x - originX) * width -

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { loadGFont } from "../plotter/gfont";
 import { ALL_CHARACTERS, CHARACTER_GROUPS, PREVIEW_TEXT } from "./characters";
 import FontCanvas from "./FontCanvas";
+import PenTools from "./PenTools";
 import FontPreview from "./FontPreview";
 import PhotoFontImporter from "./PhotoFontImporter";
 import { createGFontBlob, safeFontFilename } from "./gfontExport";
@@ -10,16 +11,17 @@ import { loadStoredObject, saveStoredValues } from "../lib/storage";
 import LiquidRange from "../components/controls/LiquidRange";
 import "./font-studio.css";
 
+import { normalizePenSettings, type FontPoint, type FontStroke, type PenSettings } from "./penInput";
+
 const DRAFT_KEY = "openhand.font-studio.draft.v1";
 
-type FontPoint = { x: number; y: number };
-type FontStroke = FontPoint[];
 type GlyphMap = Record<string, FontStroke[]>;
-type FontDraft = { name?: unknown; glyphs?: unknown };
+type FontDraft = { name?: unknown; glyphs?: unknown; penSettings?: PenSettings };
 
 function readDraft() {
   const draft = loadStoredObject<FontDraft>(DRAFT_KEY, {});
   return {
+    penSettings: normalizePenSettings(draft.penSettings),
     name: typeof draft.name === "string" ? draft.name : "Мой почерк",
     glyphs:
       draft.glyphs && typeof draft.glyphs === "object"
@@ -39,13 +41,17 @@ function splitGlyph(glyph: {
       stroke = [];
       strokes.push(stroke);
     }
-    stroke.push({ x: point.x, y: point.y });
+    stroke.push({ ...point });
   });
   return strokes.filter((item) => item.length > 1);
 }
 
 export default function FontStudio() {
   const initial = useMemo(readDraft, []);
+  const [penSettings, setPenSettings] = useState(initial.penSettings);
+  const [tool, setTool] = useState<"pen" | "eraser">("pen");
+  const penSeenRef = useRef(false);
+  const [redoHistory, setRedoHistory] = useState<FontStroke[][]>([]);
   const [name, setName] = useState(initial.name);
   const [glyphs, setGlyphs] = useState<GlyphMap>(initial.glyphs);
   const [activeCharacter, setActiveCharacter] = useState("А");
@@ -62,33 +68,67 @@ export default function FontStudio() {
   const currentStrokes = glyphs[activeCharacter] || [];
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (!saveStoredValues({ [DRAFT_KEY]: JSON.stringify({ name, glyphs }) }))
-        setNotice("Черновик шрифта не удалось сохранить локально.");
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [name, glyphs]);
+    const save = () => {
+      if (!saveStoredValues({ [DRAFT_KEY]: JSON.stringify({ name, glyphs, penSettings }) }))
+        setNotice("Черновик шрифта не удалось сохранить локально. Скачайте .gfont, чтобы сохранить работу.");
+    };
+    const hide = () => { if (document.hidden) save(); };
+    const timer = window.setTimeout(save, 300);
+    window.addEventListener("pagehide", save);
+    document.addEventListener("visibilitychange", hide);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pagehide", save);
+      document.removeEventListener("visibilitychange", hide);
+    };
+  }, [name, glyphs, penSettings]);
 
   const updateGlyph = (
     strokes: FontStroke[],
-    options: { transient?: boolean; previous?: FontStroke[] } = {},
+    options: { previous?: FontStroke[] } = {},
   ) => {
-    if (!options.transient)
-      setHistory((current) => [
+    setHistory((current) => [
         ...current.slice(-29),
         options.previous || currentStrokes,
       ]);
+    setRedoHistory([]);
     setGlyphs((current) => ({ ...current, [activeCharacter]: strokes }));
   };
 
   const undo = () => {
     const previous = history.at(-1);
     if (!previous) return;
+    setRedoHistory((current) => [...current.slice(-29), currentStrokes]);
     setGlyphs((current) => ({ ...current, [activeCharacter]: previous }));
     setHistory((current) => current.slice(0, -1));
   };
 
+  const redo = () => {
+    const next = redoHistory.at(-1);
+    if (!next) return;
+    setHistory((current) => [...current.slice(-29), currentStrokes]);
+    setRedoHistory((current) => current.slice(0, -1));
+    setGlyphs((current) => ({ ...current, [activeCharacter]: next }));
+  };
+
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
+      if (event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redo(); else undo();
+      } else if (event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", keydown);
+    return () => window.removeEventListener("keydown", keydown);
+  }, [history, redoHistory, activeCharacter, currentStrokes]);
+
   const clear = () => {
+    setRedoHistory([]);
     if (!currentStrokes.length) return;
     setHistory((current) => [...current.slice(-29), currentStrokes]);
     setGlyphs((current) => ({ ...current, [activeCharacter]: [] }));
@@ -102,6 +142,7 @@ export default function FontStudio() {
       return;
     setGlyphs({});
     setHistory([]);
+    setRedoHistory([]);
     setNotice("Все символы очищены. Можно создавать новый шрифт.");
   };
 
@@ -111,6 +152,7 @@ export default function FontStudio() {
       ALL_CHARACTERS.length;
     setActiveCharacter(ALL_CHARACTERS[index]);
     setHistory([]);
+    setRedoHistory([]);
   };
 
   const exportFont = () => {
@@ -135,6 +177,8 @@ export default function FontStudio() {
         const glyph = await font.getGlyph(character.codePointAt(0));
         if (glyph) imported[character] = splitGlyph(glyph);
       }
+      setHistory([]);
+      setRedoHistory([]);
       setGlyphs(imported);
       setName(file.name.replace(/\.gfont$/i, "") || "Мой почерк");
       setNotice(`Загружено символов: ${Object.keys(imported).length}.`);
@@ -146,6 +190,7 @@ export default function FontStudio() {
 
   const importPhotoCharacter = (strokes: FontStroke[]) => {
     setHistory((current) => [...current.slice(-29), currentStrokes]);
+    setRedoHistory([]);
     setGlyphs((current) => ({ ...current, [activeCharacter]: strokes }));
   };
 
@@ -160,6 +205,7 @@ export default function FontStudio() {
       ]);
     });
     setHistory([]);
+    setRedoHistory([]);
   };
 
   return (
@@ -242,6 +288,7 @@ export default function FontStudio() {
                         onClick={() => {
                           setActiveCharacter(character);
                           setHistory([]);
+    setRedoHistory([]);
                         }}
                         aria-label={`Редактировать символ ${character}`}
                       >
@@ -283,6 +330,7 @@ export default function FontStudio() {
                 <button type="button" disabled={!history.length} onClick={undo}>
                   Отменить
                 </button>
+                <button type="button" disabled={!redoHistory.length} onClick={redo}>Повторить</button>
                 <button
                   type="button"
                   disabled={!currentStrokes.length}
@@ -292,7 +340,12 @@ export default function FontStudio() {
                 </button>
               </div>
             </div>
+            <PenTools settings={penSettings} onChange={setPenSettings} tool={tool} onToolChange={setTool} />
             <FontCanvas
+              key={activeCharacter}
+              settings={penSettings}
+              tool={tool}
+              penSeenRef={penSeenRef}
               character={activeCharacter}
               strokes={currentStrokes}
               onChange={updateGlyph}
@@ -326,6 +379,7 @@ export default function FontStudio() {
             <FontPreview
               text={previewText}
               glyphs={glyphs}
+              penSettings={penSettings}
               size={previewSize}
             />
           </section>

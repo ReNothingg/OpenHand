@@ -1,3 +1,4 @@
+import { STRUCTURE_CONTROLS } from "../../handwriting/structure";
 import { PAGE_SIZES } from "../../app/config";
 import { fonts } from "../../fonts";
 import PlotterSettings from "../plotter/PlotterSettings";
@@ -279,7 +280,7 @@ export default function SettingsPanel({
               max={100}
               suffix="%"
               onChange={(value) => updateSetting("glyphVariation", value)}
-              hint="Выбирает один из нескольких устойчивых вариантов каждой буквы."
+              hint="Варьирует пропорции глифа; новые начертания букв не создаются."
             />
             <RangeControl
               label="Связность"
@@ -309,6 +310,16 @@ export default function SettingsPanel({
               onChange={(value) => updateSetting("pressureVariation", value)}
               hint="Слегка меняет толщину предпросмотра и усилие пера между штрихами."
             />
+            <div className="settings-subgroup">
+              <h3>Структура письма</h3>
+              {STRUCTURE_CONTROLS.map((control) => (
+                <RangeControl key={control.key} label={control.label} value={settings[control.key] ?? control.initial} min={control.min} max={control.max} suffix="%"
+                  disabled={"plotterOnly" in control && settings.fontType !== "plotter"}
+                  hint={control.hint} onChange={(value) => updateSetting(control.key, value)} />
+              ))}
+              <RangeControl label="Колебание строки" value={settings.authorBaseline} min={0} max={100} suffix="%"
+                hint="Плавный ход строки без резких скачков отдельных букв." onChange={(value) => updateSetting("authorBaseline", value)} />
+            </div>
             <NaturalnessReport
               report={naturalnessReport}
               onAutofix={applyNaturalnessFix}

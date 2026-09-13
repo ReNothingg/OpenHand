@@ -16,7 +16,7 @@ export default function NaturalnessReport({
     <div className={`naturalness-report ${report.level}`}>
       <div className="naturalness-score">
         <span>
-          <small>Естественность</small>
+          <small title="Эвристика по тексту и настройкам, не сравнение с образцом почерка.">Условная оценка</small>
           <strong>
             {report.score}
             <i>/100</i>

@@ -410,7 +410,7 @@ function humanizeFormula(strokes, handwriting, fontSize) {
           0.5) *
         jitter;
       return {
-        x: point.x * width + point.y * slant + localJitter,
+        x: point.x * width - point.y * slant + localJitter,
         y: point.y + localJitter * 0.65,
       };
     });

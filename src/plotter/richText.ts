@@ -51,8 +51,11 @@ export const PLOTTER_HEADING_MARKS = Object.freeze({
   h6End: "\uE15B",
 });
 
+export const PLOTTER_PARAGRAPH_MARKS = Object.freeze({ start: "\uE160", end: "\uE161" });
+
 export const PLOTTER_CONTROL_MARKS = new Set<string>([
   ...Object.values(PLOTTER_MARKS),
+  ...Object.values(PLOTTER_PARAGRAPH_MARKS),
   ...Object.values(PLOTTER_ALIGN_MARKS),
   ...Object.values(PLOTTER_CALLOUT_MARKS),
   ...Object.values(PLOTTER_QUOTE_MARKS),
@@ -630,6 +633,8 @@ export function htmlToPlotterText(html) {
       output += `${"  ".repeat(listDepth(element))}${listMarker(element)}`;
     }
 
+    const paragraph = element.tagName === "P" && !element.closest("li, blockquote, td, th");
+    if (paragraph) output += PLOTTER_PARAGRAPH_MARKS.start;
     const callout = element.matches("blockquote.callout");
     const quote = element.matches("blockquote:not(.callout)");
     const headingLevel = /^H[1-6]$/.test(element.tagName)
@@ -655,6 +660,7 @@ export function htmlToPlotterText(html) {
       appendBeforeTrailingBreaks(PLOTTER_HEADING_MARKS[`h${headingLevel}End`]);
     if (alignment)
       appendBeforeTrailingBreaks(PLOTTER_ALIGN_MARKS[`${alignment}End`]);
+    if (paragraph) appendBeforeTrailingBreaks(PLOTTER_PARAGRAPH_MARKS.end);
     if (quote) appendBeforeTrailingBreaks(PLOTTER_QUOTE_MARKS.end);
     if (callout) appendBeforeTrailingBreaks(PLOTTER_CALLOUT_MARKS.end);
 

@@ -1,7 +1,6 @@
 const encoder = new TextEncoder();
 
-type FontPoint = { x: number; y: number };
-type FontStroke = FontPoint[];
+import type { FontStroke } from "./penInput";
 
 function crc32(bytes: Uint8Array) {
   let crc = 0xffffffff;
@@ -70,16 +69,23 @@ export function createGFontBlob(glyphs: Record<string, FontStroke[]>) {
   const centralChunks: Uint8Array[] = [];
   let localOffset = 0;
 
-  Object.entries(glyphs as Record<string, FontStroke[]>)
+  const entries: { filename: string; data: Uint8Array }[] = [];
+  Object.entries(glyphs)
     .filter(([, strokes]) => strokes?.some((stroke) => stroke.length > 1))
-    .sort(([left], [right]) => Number(left) - Number(right))
+    .sort(([left], [right]) => left.codePointAt(0) - right.codePointAt(0))
     .forEach(([character, strokes]) => {
       const codePoint = character.codePointAt(0);
-      const name = encoder.encode(String(codePoint));
-      const data = encodeGlyph(
-        codePoint,
-        strokes.filter((stroke) => stroke.length > 1),
-      );
+      const kept = strokes.filter((stroke) => stroke.length > 1);
+      entries.push({ filename: String(codePoint), data: encodeGlyph(codePoint, kept) });
+      if (kept.some((stroke) => stroke.some((point) => point.pressure !== undefined))) {
+        entries.push({
+          filename: `openhand/${codePoint}.pen.json`,
+          data: encoder.encode(JSON.stringify({ version: 1, points: kept.flat().map(({ pressure, tiltX, tiltY, time }) => ({ pressure, tiltX, tiltY, time })) })),
+        });
+      }
+    });
+  entries.forEach(({ filename, data }) => {
+      const name = encoder.encode(filename);
       const checksum = crc32(data);
 
       const localHeader = new Uint8Array(30 + name.length);

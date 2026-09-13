@@ -1,3 +1,4 @@
+import { STRUCTURE_CONTROLS, structureValue } from "../handwriting/structure";
 import { defaultFontPool } from "../fonts";
 
 export const PAGE_SIZES = {
@@ -53,6 +54,14 @@ export const DEFAULT_SETTINGS = {
   authorWidth: 100,
   authorRhythm: 35,
   authorBaseline: 20,
+  paragraphIndent: 0,
+  paragraphGap: 0,
+  wordSpacing: 100,
+  spaceVariation: 0,
+  wordCoherence: 0,
+  endCompression: 0,
+  ascenderScale: 100,
+  descenderScale: 100,
   fatigueEnabled: false,
   fatigueStrength: 38,
   seed: 31847,
@@ -120,6 +129,7 @@ export function normalizeSettings(
     "randomLineIndent",
   ].forEach((key) => delete settings[key]);
 
+  for (const control of STRUCTURE_CONTROLS) settings[control.key] = structureValue(settings, control.key);
   return settings;
 }
 
