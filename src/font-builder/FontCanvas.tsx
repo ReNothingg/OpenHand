@@ -1,4 +1,5 @@
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { erasePart } from './partialErase';
 import {
   acceptsPointer, appendSample, completeStroke, nibWidth, penPoint, strokeHit,
   type FontPoint, type FontStroke, type PenSettings,
@@ -18,7 +19,7 @@ export default function FontCanvas({ character, strokes, onChange, settings, too
   strokes: FontStroke[];
   onChange: (strokes: FontStroke[], options?: { previous?: FontStroke[] }) => void;
   settings: PenSettings;
-  tool: "pen" | "eraser";
+  tool: "pen" | "eraser" | "trim";
   penSeenRef: { current: boolean };
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -30,6 +31,7 @@ export default function FontCanvas({ character, strokes, onChange, settings, too
   const hoverRef = useRef<FontPoint | null>(null);
   const frameRef = useRef(0);
   const paintRef = useRef<() => void>(() => {});
+  const erase = (source: FontStroke[], point: FontPoint) => tool === 'trim' ? source.flatMap(stroke => erasePart(stroke, point, 12 / SCALE)) : source.filter(stroke => !strokeHit(stroke, point, 12 / SCALE));
 
   const schedule = () => {
     if (!frameRef.current) frameRef.current = requestAnimationFrame(() => {
@@ -144,7 +146,7 @@ export default function FontCanvas({ character, strokes, onChange, settings, too
       context.strokeStyle = "#64748b";
       context.lineWidth = 1;
       context.arc(LEFT + hover.x * SCALE, BASELINE + hover.y * SCALE,
-        tool === "eraser" || active?.erasing ? 12 : nibWidth(hover, settings) / 2 + 2, 0, Math.PI * 2);
+        tool !== "pen" || active?.erasing ? 12 : nibWidth(hover, settings) / 2 + 2, 0, Math.PI * 2);
       context.stroke();
     }
   };
@@ -183,7 +185,7 @@ export default function FontCanvas({ character, strokes, onChange, settings, too
     event.preventDefault();
     if (event.pointerType === "pen") penSeenRef.current = true;
     const active = { id: event.pointerId, type: event.pointerType, startTime: event.timeStamp,
-      erasing: tool === "eraser" || event.button === 5 || Boolean(event.buttons & 32) };
+      erasing: tool !== "pen" || event.button === 5 || Boolean(event.buttons & 32) };
     activeRef.current = active;
     baseRef.current = strokes;
     erasedRef.current = strokes;
@@ -191,7 +193,7 @@ export default function FontCanvas({ character, strokes, onChange, settings, too
     drawingRef.current = [point];
     predictedRef.current = [];
     hoverRef.current = point;
-    if (active.erasing) erasedRef.current = strokes.filter((stroke) => !strokeHit(stroke, point, 12 / SCALE));
+    if (active.erasing) erasedRef.current = erase(strokes, point);
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Capture may be unavailable in older WebKit. */ }
     schedule();
   };
@@ -214,7 +216,7 @@ export default function FontCanvas({ character, strokes, onChange, settings, too
     if (!samples.length) samples = [native];
     for (const sample of samples) {
       const point = penPoint(sample, position(sample), active.type, active.startTime);
-      if (active.erasing) erasedRef.current = erasedRef.current.filter((stroke) => !strokeHit(stroke, point, 12 / SCALE));
+      if (active.erasing) erasedRef.current = erase(erasedRef.current, point);
       else appendSample(drawingRef.current, point, settings.smoothing);
       hoverRef.current = point;
     }
@@ -244,7 +246,7 @@ export default function FontCanvas({ character, strokes, onChange, settings, too
     predictedRef.current = [];
     drawingRef.current = [];
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    if (!active.erasing || result.length !== previous.length) onChange(result, { previous });
+    if (!active.erasing || result.length !== previous.length || result.some((s, i) => s !== previous[i])) onChange(result, { previous });
     schedule();
   };
 

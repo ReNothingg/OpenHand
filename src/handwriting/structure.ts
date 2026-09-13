@@ -51,3 +51,9 @@ export function shapeVertical(y: number, bodyTop: number, settings): number {
   if (y > 0) return y * structureValue(settings, "descenderScale") / 100;
   return y;
 }
+
+export function pageEvolution(progress: number, enabled: boolean, strength: number) {
+  const t = Math.max(0, Math.min(1, (progress - .15) / .85));
+  const amount = enabled ? t * t * (3 - 2 * t) * Math.max(0, Math.min(100, Number(strength) || 0)) / 100 : 0;
+  return { amount, width: 1 - amount * .035, slant: amount * 3.2, pressure: 1 - amount * .06 };
+}

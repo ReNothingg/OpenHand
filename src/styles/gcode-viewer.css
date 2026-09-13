@@ -121,7 +121,7 @@
   width: min(100%, 980px);
   height: min(100%, 760px);
   overflow: visible;
-  filter: drop-shadow(0 8px 16px rgb(15 23 42 / 0.16));
+  filter: none;
   transform-origin: center;
   transition: transform 120ms ease;
 }

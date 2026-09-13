@@ -8,6 +8,8 @@ import SettingSection from "./controls/SettingSection";
 import Toggle from "./controls/Toggle";
 import NaturalnessReport from "./NaturalnessReport";
 import { HANDWRITING_PROFILES } from "../../handwriting/profiles";
+import HandwritingSamples from './HandwritingSamples';
+import { DOCUMENT_PRESETS } from '../../handwriting/documentPresets';
 
 export default function SettingsPanel({
   settings,
@@ -58,6 +60,7 @@ export default function SettingsPanel({
         </button>
       </div>
       <SettingSection title="Текст и страница">
+        <details className="studio-detail"><summary>Оформление конспекта</summary><p>Применяет размер текста и интервалы. Заголовки, списки и формулы задаются в редакторе.</p>{DOCUMENT_PRESETS.map(p => <button className="document-preset" type="button" key={p.id} onClick={() => Object.entries(p.settings).forEach(([key, value]) => updateSetting(key, value))}><strong>{p.label}</strong><small>{p.description}</small></button>)}</details>
         <FontPicker
           fontType={settings.fontType}
           value={settings.fontFamily}
@@ -231,16 +234,16 @@ export default function SettingsPanel({
             <Toggle
               checked={settings.fatigueEnabled}
               onChange={(value) => updateSetting("fatigueEnabled", value)}
-              label="Усталость почерка"
+              label="Изменение письма по странице"
             >
               <small>
-                К концу длинного текста ритм, наклон и линия постепенно
-                становятся свободнее, но автор остаётся узнаваемым.
+                К низу страницы буквы постепенно сужаются, наклон и давление
+                меняются. На новом листе изменение начинается заново.
               </small>
             </Toggle>
             {settings.fatigueEnabled && (
               <RangeControl
-                label="Сила усталости"
+                label="Выраженность изменения"
                 value={settings.fatigueStrength}
                 min={5}
                 max={100}
@@ -324,6 +327,8 @@ export default function SettingsPanel({
               report={naturalnessReport}
               onAutofix={applyNaturalnessFix}
             />
+            <HandwritingSamples onApply={patch => Object.entries(patch).forEach(([key, value]) => updateSetting(key, value))} />
+            {plotterWorkspace?.activeLayout?.trajectoryReport?.length > 0 && <details className="studio-detail"><summary>Траектории на странице</summary><p>Сколько исходных начертаний использовано для повторяющихся букв. Геометрические искажения отдельно не считаются новым начертанием.</p><div className="form-audit">{plotterWorkspace.activeLayout.trajectoryReport.map(r => <span key={r.character}>{r.character}: {r.distinct} форм на {r.count} букв</span>)}</div></details>}
           </>
         )}
         <RangeControl

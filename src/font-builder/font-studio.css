@@ -140,17 +140,25 @@ body:has(.font-studio) {
 .font-studio-notice {
   position: fixed;
   z-index: 120;
-  top: 68px;
+  top: auto;
+  bottom: 18px;
   right: 16px;
-  max-width: 340px;
+  max-width: min(360px, calc(100vw - 32px));
   margin: 0;
-  padding: 9px 12px;
-  border: 1px solid var(--accent-border);
-  border-radius: 7px;
-  color: #1e40af;
-  background: var(--accent-soft);
-  box-shadow: 0 8px 22px rgb(15 23 42 / 0.12);
-  font-size: 10px;
+  padding: 10px 12px 10px 14px;
+  border: 0;
+  border-left: 3px solid var(--green);
+  border-radius: 5px;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  font-size: 11px;
+  line-height: 1.45;
+  animation: font-notice-enter 180ms ease-out;
+}
+
+@keyframes font-notice-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .font-studio-workspace {
@@ -326,6 +334,18 @@ body:has(.font-studio) {
 .font-canvas-toolbar > div:first-child button {
   width: 30px;
   padding: 0;
+}
+
+.font-canvas-toolbar .character-navigation button {
+  border-radius: 50%;
+}
+
+.font-canvas-toolbar .canvas-actions {
+  gap: 2px;
+}
+
+.font-canvas-toolbar .canvas-actions button {
+  padding-inline: 9px;
 }
 
 .font-canvas-toolbar strong {
@@ -649,57 +669,118 @@ body:has(.font-studio) {
 }
 
 .font-pen-tools {
+  position: relative;
+  z-index: 30;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 12px;
+  padding: 7px 10px;
   border-bottom: 1px solid #edf0f3;
   flex: 0 0 auto;
   color: #334155;
-  font-size: 12px;
+  font-size: 11px;
+}
+.font-tool-group {
+  display: inline-flex;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
 }
 .font-pen-tools button,
 .font-pen-tools select,
 .font-pen-tools summary {
-  min-height: 40px;
-  border: 1px solid #d1d5db;
-  border-radius: 7px;
-  padding: 8px 10px;
-  background: #fff;
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 10px;
+  background: transparent;
   color: inherit;
   font: inherit;
+  font-weight: 650;
   cursor: pointer;
 }
-.font-pen-tools button[aria-pressed="true"] {
-  border-color: var(--green);
-  background: var(--green);
-  color: #fff;
+.font-tool-group button {
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
 }
-.font-pen-tools label { display: flex; align-items: center; gap: 8px; }
-.font-pen-options { flex: 1; min-width: 150px; }
-.font-pen-options[open] { flex-basis: 100%; }
-.font-pen-options[open] > label { margin-top: 10px; min-height: 32px; }
-.font-pen-options .liquid-range { width: min(200px, 45vw); }
-.font-pen-options input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--green); }
-.font-pen-options p { max-width: 640px; color: #64748b; line-height: 1.5; margin: 10px 0 0; }
+.font-tool-group button:hover:not([aria-pressed="true"]),
+.font-pen-options > summary:hover { color: var(--text-primary); background: transparent; }
+.font-pen-tools button[aria-pressed="true"] {
+  border-bottom-color: var(--green);
+  background: transparent;
+  color: var(--green);
+}
+.font-pen-tools label { display: flex; align-items: center; gap: 7px; }
+.font-pen-input > span { color: var(--muted); font-weight: 650; }
+.font-pen-input select { min-width: 88px; background: var(--control-surface, #f3f4f6); }
+.font-pen-options { position: static; flex: 0 1 auto; min-width: 92px; }
+.font-pen-options > summary { list-style-position: inside; background: transparent; }
+.font-pen-options-panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% - 1px);
+  left: 10px;
+  right: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  animation: font-pen-panel-enter 160ms ease-out;
+}
+.font-pen-options-panel .font-pen-toggle {
+  min-height: 30px;
+}
+.font-pen-options-panel .font-pen-range {
+  display: grid;
+  grid-template-columns: 106px minmax(120px, 1fr);
+  gap: 12px;
+  min-height: 30px;
+}
+.font-pen-options .liquid-range { width: 100%; }
+.font-pen-options input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--green); }
+.font-pen-options p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.45;
+}
+@keyframes font-pen-panel-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .font-canvas-panel { overflow-y: auto; }
 .font-drawing-canvas { flex: 0 0 auto; aspect-ratio: 640 / 520; }
 @media (pointer: coarse) {
   .font-canvas-toolbar { min-height: 54px; height: auto; flex-wrap: wrap; gap: 8px; padding: 6px 10px; }
   .font-canvas-toolbar button { min-height: 44px; }
   .font-canvas-toolbar > div:first-child button { width: 44px; }
+  .font-pen-tools button,
+  .font-pen-tools select,
+  .font-pen-tools summary { min-height: 38px; }
   .font-studio-workspace { height: calc(100dvh - 59px); }
 }
 @media (max-width: 780px) {
   .font-studio-workspace { height: auto; }
   .font-canvas-toolbar { height: auto; min-height: 47px; flex-wrap: wrap; padding-block: 6px; gap: 6px; }
 }
+@media (max-width: 520px) {
+  .font-pen-options-panel { grid-template-columns: 1fr; gap: 10px; }
+  .font-pen-options p { grid-column: 1; }
+}
 .theme-dark .font-pen-tools { color: #d1d5db; border-color: #343434; }
+.theme-dark .font-tool-group { background: transparent; }
 .theme-dark .font-pen-tools button,
 .theme-dark .font-pen-tools select,
-.theme-dark .font-pen-tools summary { color: #d1d5db; background: #222; border-color: #363636; }
-.theme-dark .font-pen-tools button[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff; }
+.theme-dark .font-pen-tools summary { color: #d1d5db; background-color: transparent; }
+.theme-dark .font-pen-input select { background-color: var(--control-surface); }
+.theme-dark .font-pen-tools button[aria-pressed="true"] { border-bottom-color: var(--green); background: transparent; color: var(--green); }
 .theme-dark .font-pen-options p { color: #a1a1aa; }
 /* Keep logical glyph proportions even when the available panel is narrow. */
 .font-drawing-canvas { width: min(100%, 51.69vh, 615px); height: auto; }

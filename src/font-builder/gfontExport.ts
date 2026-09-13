@@ -1,6 +1,7 @@
 const encoder = new TextEncoder();
 
 import type { FontStroke } from "./penInput";
+import type { LetterForms } from './letterForms';
 
 function crc32(bytes: Uint8Array) {
   let crc = 0xffffffff;
@@ -64,7 +65,7 @@ function concatBytes(chunks) {
   return result;
 }
 
-export function createGFontBlob(glyphs: Record<string, FontStroke[]>) {
+export function createGFontBlob(glyphs: Record<string, FontStroke[]>, forms: LetterForms = {}) {
   const localChunks: Uint8Array[] = [];
   const centralChunks: Uint8Array[] = [];
   let localOffset = 0;
@@ -77,6 +78,7 @@ export function createGFontBlob(glyphs: Record<string, FontStroke[]>) {
       const codePoint = character.codePointAt(0);
       const kept = strokes.filter((stroke) => stroke.length > 1);
       entries.push({ filename: String(codePoint), data: encodeGlyph(codePoint, kept) });
+      if (forms[character]?.length) entries.push({ filename: `openhand/${codePoint}.forms.json`, data: encoder.encode(JSON.stringify({ version: 1, forms: forms[character] })) });
       if (kept.some((stroke) => stroke.some((point) => point.pressure !== undefined))) {
         entries.push({
           filename: `openhand/${codePoint}.pen.json`,

@@ -9,6 +9,7 @@ import {
   serializePlotterProfile,
 } from "../../plotter/profiles";
 import PlotterCalibrationWizard from "./PlotterCalibrationWizard";
+import PenCalibrationSheet from './PenCalibrationSheet';
 
 function Help({ children }: { children: string }) {
   return (
@@ -928,6 +929,7 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
         </SettingSection>
       </fieldset>
       {calibrationActive && <PlotterCalibrationWizard workspace={workspace} />}
+      <PenCalibrationSheet workspace={workspace} />
     </div>
   );
 }

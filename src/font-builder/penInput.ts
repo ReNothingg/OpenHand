@@ -30,7 +30,7 @@ export function finiteClamp(value: unknown, min: number, max: number, fallback: 
 export function normalizePenSettings(value: Partial<PenSettings> = {}): PenSettings {
   if (!value || typeof value !== "object") value = {};
   return {
-    inputMode: ["auto", "pen", "all"].includes(value.inputMode) ? value.inputMode : "auto",
+    inputMode: value.inputMode === 'pen' || value.inputMode === 'all' ? value.inputMode : "auto",
     pressureEnabled: value.pressureEnabled !== false,
     pressureResponse: finiteClamp(value.pressureResponse, 0.4, 2, 1),
     smoothing: finiteClamp(value.smoothing, 0, 70, 25),
@@ -75,7 +75,7 @@ export function completeStroke(stroke: FontStroke): FontStroke {
   }));
   if (points.length !== 1) return points;
   // A tiny segment survives the GFont centerline format and renders as a dot.
-  return [points[0], { ...points[0], x: points[0].x + 0.1 }];
+  return [points[0]!, { ...points[0]!, x: points[0]!.x + 0.1 }];
 }
 
 export function nibWidth(point: FontPoint, settings: PenSettings): number {
@@ -98,7 +98,7 @@ export function acceptsPointer(
 
 export function strokeHit(stroke: FontStroke, point: FontPoint, radius: number) {
   return stroke.some((end, index) => {
-    const start = stroke[Math.max(0, index - 1)];
+    const start = stroke[Math.max(0, index - 1)]!;
     const dx = end.x - start.x, dy = end.y - start.y;
     const length = dx * dx + dy * dy;
     const t = length ? Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / length)) : 0;

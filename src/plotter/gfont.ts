@@ -1,3 +1,4 @@
+import { validForms, formGlyph, type LetterForm } from '../font-builder/letterForms';
 const EOCD_SIGNATURE = 0x06054b50;
 const CENTRAL_SIGNATURE = 0x02014b50;
 const LOCAL_SIGNATURE = 0x04034b50;
@@ -279,6 +280,8 @@ export class GFont {
   entries: Map<number, GFontEntry>;
   cache: Map<number, GFontGlyph | null>;
   private penEntries = new Map<number, GFontEntry>();
+  private formEntries = new Map<number, GFontEntry>();
+  private formCache = new Map<number, LetterForm[]>();
 
   constructor(arrayBuffer: ArrayBuffer, name = "Шрифт .gfont") {
     if (arrayBuffer.byteLength > MAX_GFONT_ARCHIVE_BYTES) {
@@ -335,6 +338,8 @@ export class GFont {
       );
       const entryName = new TextDecoder().decode(nameBytes);
       const penMatch = entryName.match(/^openhand\/(\d+)\.pen\.json$/);
+      const formMatch = entryName.match(/^openhand\/(\d+)\.forms\.json$/);
+      if (formMatch && uncompressedSize <= 8 * 1024 * 1024) this.formEntries.set(Number(formMatch[1]), { method, compressedSize, uncompressedSize, localOffset });
       if (penMatch && uncompressedSize <= 8 * 1024 * 1024) {
         this.penEntries.set(Number(penMatch[1]), { method, compressedSize, uncompressedSize, localOffset });
       }
@@ -426,6 +431,29 @@ export class GFont {
     this.cache.set(codePoint, glyph);
     return glyph;
   }
+
+  async getForms(codePoint: number): Promise<LetterForm[]> {
+    const cached = this.formCache.get(codePoint);
+    if (cached) return cached;
+    let forms: LetterForm[] = [];
+    const entry = this.formEntries.get(codePoint);
+    if (entry) {
+      try {
+        const data = JSON.parse(new TextDecoder().decode(await this.readEntry(entry)));
+        if (data?.version === 1) forms = validForms(data.forms);
+      } catch { /* A damaged optional extension does not invalidate the legacy glyph. */ }
+    }
+    if (!forms.length) {
+      const glyph = await this.getGlyph(codePoint);
+      if (glyph) {
+        const strokes: GFontPoint[][] = [];
+        glyph.points.forEach((p, i) => { if (!glyph.flags[i] || !strokes.length) strokes.push([]); strokes.at(-1)!.push({ ...p }); });
+        forms = [{ strokes: strokes.filter(s => s.length > 1), position: 'any' }];
+      }
+    }
+    this.formCache.set(codePoint, forms);
+    return forms;
+  }
 }
 
 export async function loadGFont(source: ArrayBuffer | Blob, name?: string) {
@@ -496,6 +524,13 @@ function createVariantFont(base: GFont, option: BuiltinGFontOption) {
     name: option.label,
     entries: base.entries,
     has: (codePoint: number) => base.has(codePoint),
+    async getForms(codePoint: number) {
+      return (await base.getForms(codePoint)).map(form => {
+        const transformed = transformGlyph(formGlyph(form, codePoint), codePoint, option.transform);
+        let offset = 0;
+        return { ...form, strokes: form.strokes.map(stroke => { const result = transformed.points.slice(offset, offset + stroke.length); offset += stroke.length; return result; }) };
+      });
+    },
     async getGlyph(codePoint: number) {
       if (cache.has(codePoint)) return cache.get(codePoint);
       const glyph = await base.getGlyph(codePoint);

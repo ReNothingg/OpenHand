@@ -18,6 +18,7 @@ import {
 } from "../plotter/job";
 import { PLOTTER_PAGE_BREAK } from "../plotter/richText";
 import { runCalibrationAction } from "../plotter/calibrationRunner";
+import { mergeTrajectoryReports } from '../font-builder/letterForms';
 import {
   configFromDevicePreset,
   createPlotterProfile,
@@ -71,6 +72,7 @@ function combineLogicalLayouts(logicalLayouts, settings, metrics) {
       return {
         page: pageSettingsToMillimeters(settings, metrics, false, "left"),
         strokes: parts.flatMap((part) => part.strokes),
+        trajectoryReport: mergeTrajectoryReports(parts.flatMap(part => part.trajectoryReport || [])),
         missing: [...new Set(parts.flatMap((part) => part.missing))],
         clipped: parts.some((part) => part.clipped),
         clippedItems: [
@@ -256,7 +258,7 @@ export function useIntegratedPlotter({
                 remaining,
                 font,
                 page,
-                layoutConfig,
+                { ...layoutConfig, seed: Number(layoutConfig.seed) + logicalLayouts.length * 9973 },
               );
               const nextText = result.overflowText || "";
               const stalled = Boolean(nextText) && nextText === remaining;

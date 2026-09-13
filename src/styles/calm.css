@@ -1,0 +1,130 @@
+/* The interface has three surfaces: workspace, panels and the active document.
+   Depth comes from their tones and placement, never shadows or gradients. */
+:root {
+  --surface-workspace: #eff1f3;
+  --surface-panel: #f7f7f8;
+  --surface-raised: #ffffff;
+  --control-surface: color-mix(in srgb, var(--surface-raised) 95%, var(--text-primary));
+  --control-hover: color-mix(in srgb, var(--surface-raised) 90%, var(--text-primary));
+  --text-primary: #0d0d0d;
+  --text-secondary: #68686d;
+  --muted: #68686d;
+  --line: #d1d3d7;
+  --panel: var(--surface-panel);
+}
+:root.theme-dark {
+  --surface-workspace: #111111;
+  --surface-panel: #1b1b1b;
+  --surface-raised: #252525;
+  --control-surface: color-mix(in srgb, var(--surface-raised) 95%, var(--text-primary));
+  --control-hover: color-mix(in srgb, var(--surface-raised) 90%, var(--text-primary));
+  --text-primary: #fcfcfc;
+  --text-secondary: #b8b8b8;
+  --muted: #b8b8b8;
+  --line: #3b3b3b;
+  --panel: var(--surface-panel);
+}
+*, *::before, *::after { box-shadow: none !important; text-shadow: none !important; }
+:is(button, input, select, textarea, summary, a):focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+button, a, summary { -webkit-tap-highlight-color: transparent; }
+button, input, select, textarea { transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease; }
+button:disabled { cursor: default; }
+summary { cursor: pointer; }
+.workspace, .preview-panel, .font-studio, .gcode-viewer { background-color: var(--surface-workspace); }
+.font-studio { display: flex; flex-direction: column; height: 100dvh; min-height: 0; }
+.editor-panel, .settings-panel, .font-character-panel, .font-studio-toolbar { background: var(--surface-panel); color: var(--text-primary); }
+.settings-section, .font-character-panel, .font-canvas-panel, .font-live-preview { border: 0; }
+:root .font-studio :is(.font-character-panel, .font-canvas-panel, .font-live-preview) { border: 0; }
+.settings-section { margin: 4px 0; border-radius: 0; background: transparent; }
+.settings-section > summary { padding: 16px; font-size: 13px; font-weight: 650; }
+.settings-section[open] > summary, .settings-section > summary:hover { background: transparent; color: var(--text-primary); }
+.settings-content { padding: 0 16px 20px; }
+.settings-content small, .setting-hint { font-size: 12px; line-height: 1.55; color: var(--text-secondary); }
+.settings-content input:not([type=range]):not([type=checkbox]), .settings-content select { background: var(--surface-raised); border-color: transparent; color: var(--text-primary); }
+.settings-subgroup { border: 0; padding: 16px 0 0; }
+.settings-subgroup h3 { font-size: 13px; }
+.font-studio .font-canvas-panel, .font-studio .font-live-preview { background: var(--surface-raised); color: var(--text-primary); }
+.font-studio .font-character-panel { background: var(--surface-panel); }
+.font-studio .font-character-grid button { border-color: transparent; background: transparent; color: var(--text-primary); }
+.font-studio .font-character-grid button.active { background: var(--accent-soft); color: var(--green-dark); }
+.font-studio .font-studio-main { display: flex; flex-direction: column; overflow: auto; padding-bottom: 24px; }
+.font-studio .font-studio-toolbar { height: auto; min-height: 59px; display: flex; flex-wrap: wrap; gap: 12px 18px; padding-block: 10px; }
+.font-studio .font-name-field { flex: 1 1 200px; max-width: 320px; }
+.font-studio .font-studio-actions { margin-left: auto; flex-wrap: wrap; }
+.font-studio .font-studio-workspace { flex: 1; min-height: 0; height: auto; }
+.font-studio .font-canvas-panel, .font-studio .font-live-preview { flex: 0 0 auto; overflow: visible; }
+.font-studio-actions button, .font-canvas-toolbar button, .studio-detail button { min-height: 34px; }
+.font-studio .font-studio-actions button,
+.font-studio .font-canvas-toolbar button {
+  border: 0;
+  background: transparent;
+}
+.font-studio .font-studio-actions button:hover:not(:disabled),
+.font-studio .font-canvas-toolbar button:hover:not(:disabled) { background: var(--control-surface); }
+.font-studio :is(.font-studio-actions, .font-canvas-toolbar, .font-pen-tools, .variant-toolbar) button:disabled {
+  opacity: .32;
+  color: var(--text-secondary);
+}
+.font-studio .font-studio-actions button.primary { color: var(--green); background: transparent; }
+.font-studio .font-studio-actions button.danger { color: #d4524b; background: transparent; }
+.font-studio .font-drawing-canvas { display: block; margin-inline: auto; }
+.studio-detail { padding: 14px 0; min-width: 0; color: var(--text-primary); }
+.studio-detail > summary { font-weight: 650; font-size: 13px; line-height: 1.5; padding: 4px 0; }
+.studio-detail p { color: var(--text-secondary); font-size: 12px; line-height: 1.6; margin: 12px 0; }
+.studio-detail[open] > :not(summary) { animation: content-enter 180ms ease-out; }
+.font-canvas-panel > .studio-detail { padding: 14px 20px; }
+.studio-control-row { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 12px 0; }
+.studio-control-row label, .studio-detail > label { display: grid; gap: 6px; font-size: 12px; min-width: 0; }
+.studio-control-row input, .studio-control-row select, .studio-detail select { min-height: 34px; max-width: 100%; padding: 6px 10px; border: 0; border-radius: 7px; background: var(--surface-panel); color: var(--text-primary); }
+.studio-control-row input { width: 100px; }
+.studio-control-row button, .studio-detail > button { padding: 8px 12px; border: 0; border-radius: 7px; background: var(--surface-panel); color: var(--text-primary); font-size: 12px; }
+.studio-control-row button[aria-pressed=true] { background: var(--accent-soft); color: var(--green-dark); }
+.variant-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  min-height: 46px;
+  padding: 7px 12px;
+  background: var(--surface-panel);
+}
+.variant-toolbar label { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 10px; font-weight: 650; }
+.variant-toolbar select,
+.variant-toolbar button {
+  height: 30px;
+  min-height: 30px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 10px;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  font-size: 11px;
+  font-weight: 650;
+}
+.variant-toolbar select { min-width: 132px; }
+.variant-actions { display: inline-flex; gap: 6px; padding: 0; background: transparent; }
+.variant-actions button { background: transparent; }
+.variant-actions button:not(:disabled):hover { background: var(--control-hover); }
+.variant-delete:not(:disabled) { color: #b23a35; }
+.variant-position { margin-left: auto; }
+.variant-position select { min-width: 116px; }
+.path-editor { display: block; width: 100%; max-height: 350px; touch-action: none; background: var(--surface-panel); border-radius: 8px; }
+.path-node { fill: var(--surface-raised); stroke: var(--green); stroke-width: 1.2; cursor: grab; }
+.path-node:focus-visible { stroke-width: 3; outline: none; }
+.form-audit { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; line-height: 1.6; }
+.document-preset { display: grid; gap: 5px; width: 100%; padding: 12px; text-align: left; border: 0; border-radius: 8px; background: var(--surface-raised); color: var(--text-primary); margin-block: 8px; }
+.document-preset small { font-weight: 400; }
+.calibration-sheet-preview { display: block; width: 100%; background: #fff; color: #26362b; margin: 12px 0; border-radius: 6px; }
+.settings-panel .font-drawing-canvas { display: block; width: 100%; height: auto; aspect-ratio: 640 / 520; touch-action: none; }
+.gcode-scene canvas { filter: none; }
+@keyframes content-enter { from { opacity: .2; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+@media (max-width: 780px) {
+  .font-studio { height: auto; min-height: 100dvh; }
+  .font-studio .font-studio-toolbar { height: auto; min-height: 60px; padding-block: 12px; }
+  .studio-control-row { gap: 8px; }
+  .variant-toolbar { align-items: center; flex-wrap: wrap; }
+  .variant-position { margin-left: 0; }
+}

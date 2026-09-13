@@ -1,4 +1,5 @@
-import { wordMotion, spaceFactor, shapeVertical, structureValue } from "../handwriting/structure";
+import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
+import { chooseForm, formGlyph, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
 import { layoutFormula } from "./mathLayout";
 import {
   PLOTTER_ALIGN_MARKS,
@@ -18,7 +19,7 @@ const PX_TO_MM = 25.4 / 96;
 const FONT_EM = 400;
 
 type PlotPoint = { x: number; y: number };
-type PlotStroke = PlotPoint[] & { pressure?: number };
+type PlotStroke = PlotPoint[] & { pressure?: number; feedRate?: number };
 
 function seededRandom(seed, key) {
   let value = 2166136261;
@@ -119,11 +120,8 @@ function splitGlyphStrokes(
     0,
     Math.min(1, Number(handwriting?.progress) || 0),
   );
-  const fatigue = handwriting?.fatigueEnabled
-    ? (Math.pow(fatigueProgress, 1.65) *
-        Math.max(0, Math.min(100, Number(handwriting.fatigueStrength) || 0))) /
-      100
-    : 0;
+  const evolution = pageEvolution(fatigueProgress, Boolean(handwriting?.enabled && handwriting?.fatigueEnabled), handwriting?.fatigueStrength);
+  const fatigue = evolution.amount;
   const authorSlant = Math.max(
     -18,
     Math.min(22, Number(handwriting?.authorSlant) || 0),
@@ -139,7 +137,7 @@ function splitGlyphStrokes(
   );
   const motion = handwriting?.motion || { coherence: 0, width: 1, height: 1, slant: 0, baseline: 0 };
   const scaleX =
-    motion.width * authorWidth *
+    motion.width * authorWidth * evolution.width *
     (1 +
       (variant === 1
         ? -0.025
@@ -148,7 +146,7 @@ function splitGlyphStrokes(
           : variant === 3
             ? 0.012
             : 0) +
-      fatigue * 0.025);
+      0);
   const scaleY =
     1 +
     (seededRandom(handwriting?.seed, `${handwriting?.key}:height`) - 0.5) *
@@ -334,6 +332,14 @@ export function createCursiveConnector(start, end, fontSize, strength = 100) {
   );
   const control1 = { x: start.x + handle, y: start.y + bow };
   const control2 = { x: end.x - handle, y: end.y + bow };
+  const followTangent = (point, sign, fallback) => {
+    const t = point.tangent;
+    if (!t || t.x <= 0) return fallback;
+    const length = Math.hypot(t.x, t.y);
+    return length ? { x: point.x + sign * handle * t.x / length, y: point.y + sign * handle * t.y / length } : fallback;
+  };
+  Object.assign(control1, followTangent(start, 1, control1));
+  Object.assign(control2, followTangent(end, -1, control2));
   const connector: PlotStroke = [];
   const steps = Math.max(5, Math.ceil(gap / Math.max(fontSize * 0.055, 0.15)));
 
@@ -367,6 +373,11 @@ export async function layoutText(
   const spaceWidth = page.fontSize * 0.46;
   const letterSpacing = Number(config.letterSpacing || 0);
   const glyphs = new Map<string, any>();
+  const forms = new Map<string, LetterForm[]>();
+  const formGlyphs = new Map<string, ReturnType<typeof formGlyph>[]>();
+  const maximumWidths = new Map<string, number>();
+  const previousForms = new Map<string, number>();
+  const repetition = new Map<string, { character: string; count: number; shapes: Set<string> }>();
   const missing = new Set<string>();
 
   const formulaPattern = new RegExp(
@@ -392,7 +403,16 @@ export async function layoutText(
   const getGlyph = async (char, recordMissing = true) => {
     if (glyphs.has(char)) return glyphs.get(char);
     const glyph = await font.getGlyph(char.codePointAt(0));
-    if (glyph) glyphs.set(char, glyph);
+    if (glyph) {
+      glyphs.set(char, glyph);
+      if (font.getForms) {
+        const variants = await font.getForms(char.codePointAt(0));
+        forms.set(char, variants);
+        const prepared = variants.map(form => formGlyph(form, char.codePointAt(0)));
+        formGlyphs.set(char, prepared);
+        maximumWidths.set(char, Math.max(glyph.bounds.maxX - glyph.bounds.minX, ...prepared.map(g => g.bounds.maxX - g.bounds.minX)));
+      }
+    }
     else if (recordMissing) missing.add(char);
     return glyph || null;
   };
@@ -465,7 +485,7 @@ export async function layoutText(
     );
     return glyph
       ? Math.max(
-          (glyph.bounds.maxX - glyph.bounds.minX) *
+          (maximumWidths.get(char) ?? glyph.bounds.maxX - glyph.bounds.minX) *
             scale *
             widthScale * motionWidth *
             textScale +
@@ -1064,7 +1084,11 @@ export async function layoutText(
           }
         }
         if (clipped) break;
-        const glyph = glyphs.get(char);
+        const variants = forms.get(char) || [];
+        const selected = config.trueHandwriting ? chooseForm(variants, config.seed, glyphOccurrence, visibleIndex === 1 ? 'initial' : visibleIndex === visibleChars.length ? 'final' : 'medial', previousForms.get(char)) : 0;
+        const selectedForm = variants[selected];
+        previousForms.set(char, selected);
+        const glyph = selectedForm?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
         if (glyph) {
           const sourceGlyphStrokes = splitGlyphStrokes(
             glyph,
@@ -1084,7 +1108,7 @@ export async function layoutText(
               authorBaseline: config.authorBaseline,
               fatigueEnabled: config.fatigueEnabled,
               fatigueStrength: config.fatigueStrength,
-              progress: glyphOccurrence / plainCharacterCount,
+              progress: (baseline - (config.evolutionPageTop ?? page.top)) / Math.max(page.lineHeight, (config.evolutionPageBottom ?? page.pageHeight - (page.bottom || 0)) - (config.evolutionPageTop ?? page.top)),
             },
           );
           const glyphStrokes = applyTextStyles(sourceGlyphStrokes);
@@ -1093,8 +1117,24 @@ export async function layoutText(
             sourceGlyphStrokes.length,
           );
           const isLetter = LETTER_PATTERN.test(char);
+          if (isLetter) {
+            const record = repetition.get(char) || { character: char, count: 0, shapes: new Set<string>() };
+            record.count++;
+            record.shapes.add(selectedForm ? trajectoryFingerprint(selectedForm.strokes) : String(char));
+            repetition.set(char, record);
+          }
+          const explicitAnchor = (anchor: JoinAnchor | undefined) => {
+            if (!anchor) return null;
+            const stroke = primaryGlyphStrokes[anchor.stroke];
+            if (!stroke?.length) return null;
+            const point = anchor.end === 'start' ? stroke[0] : stroke.at(-1);
+            const neighbor = anchor.end === 'start' ? stroke[1] : stroke.at(-2);
+            const dx = anchor.end === 'start' ? neighbor.x - point.x : point.x - neighbor.x;
+            const dy = anchor.end === 'start' ? neighbor.y - point.y : point.y - neighbor.y;
+            return { point: { ...point, tangent: { x: dx, y: dy } }, quality: 1, strokeIndex: anchor.stroke, atStart: anchor.end === 'start' };
+          };
           const entryAnchor = isLetter
-            ? findCursiveAnchor(
+            ? explicitAnchor(selectedForm?.entry) || findCursiveAnchor(
                 primaryGlyphStrokes,
                 "entry",
                 baseline,
@@ -1102,7 +1142,7 @@ export async function layoutText(
               )
             : null;
           const exitAnchor = isLetter
-            ? findCursiveAnchor(
+            ? explicitAnchor(selectedForm?.exit) || findCursiveAnchor(
                 primaryGlyphStrokes,
                 "exit",
                 baseline,
@@ -1129,7 +1169,15 @@ export async function layoutText(
               page.fontSize * currentHeadingScale,
               connectionChance,
             );
-            if (connector) strokes.push(...applyTextStyles([connector]));
+            if (connector) {
+              const previousStroke = previousJoin.stroke;
+              const enteringStroke = primaryGlyphStrokes[entryAnchor.strokeIndex];
+              if (previousStroke && strokes.at(-1) === previousStroke && !previousJoin.anchor.atStart && entryAnchor.atStart && entryAnchor.strokeIndex === 0 && !activeTextStyles.size) {
+                previousStroke.push(...connector.slice(1), ...enteringStroke.slice(1));
+                glyphStrokes.shift();
+                primaryGlyphStrokes[0] = previousStroke;
+              } else strokes.push(...applyTextStyles([connector]));
+            }
           }
           if (
             config.trueHandwriting &&
@@ -1158,7 +1206,7 @@ export async function layoutText(
           }
           strokes.push(...glyphStrokes);
           previousJoin = exitAnchor
-            ? { anchor: exitAnchor, charIsLetter: isLetter }
+            ? { anchor: exitAnchor, charIsLetter: isLetter, stroke: primaryGlyphStrokes[exitAnchor.strokeIndex] }
             : null;
           glyphOccurrence += 1;
         } else {
@@ -1217,7 +1265,7 @@ export async function layoutText(
   closeCallout();
   closeQuote();
 
-  return { strokes, missing: [...missing], clipped, overflowText };
+  return { strokes, missing: [...missing], clipped, overflowText, trajectoryReport: [...repetition.values()].map(r => ({ character: r.character, count: r.count, distinct: r.shapes.size, shapes: [...r.shapes] })).sort((a, b) => b.count / b.distinct - a.count / a.distinct) };
 }
 
 export async function layoutBlocks(
@@ -1229,6 +1277,7 @@ export async function layoutBlocks(
   const strokes: PlotStroke[] = [];
   const missing = new Set<string>();
   const clippedItems = [];
+  const reports = [];
   let clipped = false;
 
   for (const [index, block] of blocks.entries()) {
@@ -1266,9 +1315,13 @@ export async function layoutBlocks(
     };
     const result = await layoutText(markedText, font, blockPage, {
       ...config,
+      seed: Number(config.seed) + index * 1009,
+      evolutionPageTop: page.top,
+      evolutionPageBottom: page.pageHeight - (page.bottom || 0),
       noWrap: layout.noWrap,
     });
     result.missing.forEach((char) => missing.add(char));
+    reports.push(...result.trajectoryReport);
 
     const angle = (Number(layout.rotation || 0) * Math.PI) / 180;
     const cosine = Math.cos(angle);
@@ -1320,7 +1373,7 @@ export async function layoutBlocks(
     );
   }
 
-  return { strokes, missing: [...missing], clipped, clippedItems };
+  return { strokes, missing: [...missing], clipped, clippedItems, trajectoryReport: mergeTrajectoryReports(reports) };
 }
 
 function number(value, digits = 3) {
@@ -1359,6 +1412,7 @@ function transformStrokeForMachine(stroke: PlotStroke, config): PlotStroke {
     transformPointForMachine(point, config),
   ) as PlotStroke;
   if (stroke.pressure) transformed.pressure = stroke.pressure;
+  if (stroke.feedRate) transformed.feedRate = stroke.feedRate;
   return transformed;
 }
 
@@ -1439,6 +1493,7 @@ function strokeTravelDistance(strokes) {
 function reversedStroke(stroke: PlotStroke): PlotStroke {
   const reversed = [...stroke].reverse() as PlotStroke;
   if (stroke.pressure) reversed.pressure = stroke.pressure;
+  if (stroke.feedRate) reversed.feedRate = stroke.feedRate;
   return reversed;
 }
 
@@ -1529,6 +1584,7 @@ export function compilePlotJob(strokes, config) {
   const residue = { x: 0, y: 0 };
   let distance = 0;
   let drawDistance = 0;
+  let drawSeconds = 0;
   let travelDistance = 0;
   let penChanges = 0;
   let penLifts = 0;
@@ -1562,13 +1618,15 @@ export function compilePlotJob(strokes, config) {
       const drawn = Math.hypot(point.x - current.x, point.y - current.y);
       distance += drawn;
       drawDistance += drawn;
+      const feedRate = Number.isFinite(stroke.feedRate) && stroke.feedRate > 0 ? stroke.feedRate : config.feedRate;
+      drawSeconds += drawn / Math.max(1, feedRate) * 60;
       if (config.profile === "ebb")
         commands.push(
-          buildEbbMove(current, point, config.feedRate, config, residue),
+          buildEbbMove(current, point, feedRate, config, residue),
         );
       else
         commands.push(
-          `G1X${number(point.x)}Y${number(point.y)}F${config.feedRate}`,
+          `G1X${number(point.x)}Y${number(point.y)}F${feedRate}`,
         );
       current = point;
     }
@@ -1592,7 +1650,7 @@ export function compilePlotJob(strokes, config) {
   commands.push(...parseCustomGcode(config.customEndGcode));
 
   const estimatedSeconds =
-    (drawDistance / Math.max(1, Number(config.feedRate))) * 60 +
+    drawSeconds +
     (travelDistance / Math.max(1, Number(config.jogSpeed))) * 60 +
     (penLifts + 1) * penDelay(true, config) +
     Math.max(0, penChanges - penLifts - 1) * penDelay(false, config);

@@ -1,4 +1,6 @@
 import { nibWidth, DEFAULT_PEN_SETTINGS, type FontStroke, type PenSettings } from "./penInput";
+import { chooseForm, type LetterForms } from './letterForms';
+import { createCursiveConnector } from '../plotter/job';
 
 function glyphWidth(strokes: FontStroke[]) {
   const points = strokes.flat();
@@ -28,24 +30,45 @@ export default function FontPreview({
   glyphs,
   size = 32,
   penSettings = DEFAULT_PEN_SETTINGS,
+  forms = {},
 }: {
   text: string;
   glyphs: Record<string, FontStroke[]>;
   size?: number;
   penSettings?: PenSettings;
+  forms?: LetterForms;
 }) {
   const scale = size / 168;
   const baseline = 118;
   let cursor = 18;
   const paths: React.ReactNode[] = [];
+  const previous = new Map<string, number>();
+  let previousExit: { x: number; y: number } | null = null;
 
   Array.from(text).forEach((character, characterIndex) => {
     if (/\s/u.test(character)) {
       cursor += size * 0.86;
+      previousExit = null;
       return;
     }
-    const strokes = glyphs[character] || [];
+    const variants = forms[character] || [];
+    const position = !characterIndex || /\s/.test(text[characterIndex - 1]) ? 'initial' : characterIndex === text.length - 1 || /\s/.test(text[characterIndex + 1]) ? 'final' : 'medial';
+    const index = chooseForm(variants, 31847, characterIndex, position, previous.get(character));
+    previous.set(character, index);
+    const strokes = variants[index]?.strokes.length ? variants[index].strokes : glyphs[character] || [];
     const metrics = glyphWidth(strokes);
+    const form = variants[index];
+    const anchorPoint = (kind: 'entry' | 'exit') => {
+      const anchor = form?.[kind], stroke = anchor && strokes[anchor.stroke];
+      const p = stroke && (anchor.end === 'start' ? stroke[0] : stroke.at(-1));
+      return p ? { x: cursor + (p.x - metrics.minX) * scale, y: baseline + p.y * scale } : null;
+    };
+    const entry = anchorPoint('entry');
+    if (previousExit && entry) {
+      const join = createCursiveConnector(previousExit, entry, size);
+      if (join) paths.push(<path key={`join-${characterIndex}`} d={join.map((p, i) => `${i ? 'L' : 'M'}${p.x},${p.y}`).join(' ')} />);
+    }
+    previousExit = /\p{L}/u.test(character) ? anchorPoint('exit') : null;
     strokes.forEach((stroke, strokeIndex) => {
       if (stroke.some((point) => point.pressure !== undefined)) {
         stroke.slice(1).forEach((point, index) => {
