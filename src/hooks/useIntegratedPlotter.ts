@@ -356,6 +356,16 @@ export function useIntegratedPlotter({
   const connected =
     plotter.status !== "disconnected" && plotter.status !== "connecting";
   const running = plotter.status === "running" || plotter.status === "paused";
+  useEffect(() => {
+    if (!connected || plotter.machineStatus?.state === "Alarm") {
+      setOriginConfirmed(false);
+      setArmed(false);
+    }
+  }, [connected, plotter.machineStatus?.state]);
+  useEffect(() => {
+    setOriginConfirmed(false);
+    setArmed(false);
+  }, [plotter.controllerEpoch]);
   const progressPercent = plotter.progress.total
     ? (plotter.progress.current / plotter.progress.total) * 100
     : 0;
@@ -814,6 +824,10 @@ export function useIntegratedPlotter({
     discardRecovery: plotter.discardRecovery,
     pause: () => safeAction(plotter.pause),
     resume: () => safeAction(plotter.resume),
-    stop: () => safeAction(plotter.stop),
+    stop: () => {
+      setOriginConfirmed(false);
+      setArmed(false);
+      return safeAction(plotter.stop);
+    },
   };
 }

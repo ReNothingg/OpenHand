@@ -35,6 +35,12 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             handleSerialMessage(message.body)
         case "fileBridge":
             handleFileMessage(message.body)
+        case "themeBridge":
+            if let payload = message.body as? [String: Any], let dark = payload["dark"] as? Bool {
+                let appearance: NSAppearance? = payload["system"] as? Bool == true ? nil : NSAppearance(named: dark ? .darkAqua : .aqua)
+                webView?.appearance = appearance
+                webView?.window?.appearance = appearance
+            }
         default:
             break
         }

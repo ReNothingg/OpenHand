@@ -1,6 +1,7 @@
 import PlotterFooter, { formatDuration } from "../plotter/PlotterFooter";
 import PlotterPaper from "../plotter/PlotterPaper";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Icon from "../Icon";
 import BlockInspector from "./BlockInspector";
 import ManualPageContent from "./ManualPageContent";
@@ -30,6 +31,7 @@ export default function PreviewPanel({
   plotterWorkspace,
   activeSheetIndex,
   onActiveSheetChange,
+  toolbarHost,
 }: any) {
   const [selectedBlock, setSelectedBlock] = useState(null);
   const activeSheetFrameRef = useRef(0);
@@ -106,134 +108,151 @@ export default function PreviewPanel({
 
   return (
     <main className="preview-panel">
-      <div className="preview-toolbar">
-        <div
-          className="preview-leading-actions"
-          role="group"
-          aria-label="Управление редактором"
-        >
-          <button
-            className="preview-icon-button"
-            type="button"
-            aria-label={
-              editorCollapsed ? "Показать поле ввода" : "Свернуть поле ввода"
-            }
-            title={
-              editorCollapsed ? "Показать поле ввода" : "Свернуть поле ввода"
-            }
-            aria-pressed={!editorCollapsed}
-            onClick={() => setEditorCollapsed((value) => !value)}
-          >
-            <Icon
-              name={
-                editorCollapsed ? "panel-left-expand" : "panel-left-collapse"
-              }
-            />
-          </button>
-          <button
-            className="preview-icon-button"
-            type="button"
-            aria-label="Открыть большой редактор"
-            title="Открыть большой редактор"
-            onClick={openExpandedEditor}
-          >
-            <Icon name="window-expand" />
-          </button>
-        </div>
-        <div className="preview-context">
-          <span className="preview-sheet-status">
-            Лист {Math.min(activeSheetIndex + 1, sheetCount)} из {sheetCount}
-            <i aria-hidden="true" />
-            {Math.round(settings.zoom)}%
-          </span>
-          {plotterMode && (
-            <span
-              className={`plotter-status ${plotterWorkspace.plotter.status}`}
+      {toolbarHost &&
+        createPortal(
+          <div className="document-toolbar" aria-label="Управление документом">
+            <div
+              className="preview-leading-actions"
+              role="group"
+              aria-label="Управление редактором"
             >
-              <i />
-              {plotterStatusLabel}
-            </span>
-          )}
-        </div>
-        {plotterMode && (
-          <div
-            className="preview-job-stats"
-            aria-label="Статистика задания плоттера"
-          >
-            <span title="Количество штрихов">
-              <strong>
-                {plotterWorkspace.activeLayout.strokes.length.toLocaleString(
-                  "ru-RU",
+              <button
+                className="preview-icon-button"
+                type="button"
+                aria-label={
+                  editorCollapsed
+                    ? "Показать поле ввода"
+                    : "Свернуть поле ввода"
+                }
+                title={
+                  editorCollapsed
+                    ? "Показать поле ввода"
+                    : "Свернуть поле ввода"
+                }
+                aria-pressed={!editorCollapsed}
+                onClick={() => setEditorCollapsed((value) => !value)}
+              >
+                <Icon
+                  name={
+                    editorCollapsed
+                      ? "panel-left-expand"
+                      : "panel-left-collapse"
+                  }
+                />
+              </button>
+              <button
+                className="preview-icon-button"
+                type="button"
+                aria-label="Открыть большой редактор"
+                title="Открыть большой редактор"
+                onClick={openExpandedEditor}
+              >
+                <Icon name="window-expand" />
+              </button>
+            </div>
+            <div className="preview-context">
+              <span className="preview-sheet-status">
+                Лист {Math.min(activeSheetIndex + 1, sheetCount)} из{" "}
+                {sheetCount}
+                <i aria-hidden="true" />
+                {Math.round(settings.zoom)}%
+              </span>
+              {plotterMode &&
+                (settingsCollapsed ||
+                  plotterWorkspace.config.profile !== "grbl") && (
+                  <span
+                    className={`plotter-status ${plotterWorkspace.plotter.status}`}
+                  >
+                    <i />
+                    {plotterStatusLabel}
+                  </span>
                 )}
-              </strong>
-              <small>штрихов</small>
-            </span>
-            <span title="Количество команд">
-              <strong>
-                {plotterWorkspace.job.commands.length.toLocaleString("ru-RU")}
-              </strong>
-              <small>команд</small>
-            </span>
-            <span title="Длина линий пером">
-              <strong>
-                {(plotterWorkspace.job.drawDistance / 1000).toFixed(2)}
-              </strong>
-              <small>м пером</small>
-            </span>
-            <span title="Расчётное время">
-              <strong>
-                {formatDuration(plotterWorkspace.job.estimatedSeconds)}
-              </strong>
-              <small>расчётно</small>
-            </span>
-          </div>
+            </div>
+            {plotterMode && (
+              <div
+                className="preview-job-stats"
+                aria-label="Статистика задания плоттера"
+              >
+                <span title="Количество штрихов">
+                  <strong>
+                    {plotterWorkspace.activeLayout.strokes.length.toLocaleString(
+                      "ru-RU",
+                    )}
+                  </strong>
+                  <small>штрихов</small>
+                </span>
+                <span title="Количество команд">
+                  <strong>
+                    {plotterWorkspace.job.commands.length.toLocaleString(
+                      "ru-RU",
+                    )}
+                  </strong>
+                  <small>команд</small>
+                </span>
+                <span title="Длина линий пером">
+                  <strong>
+                    {(plotterWorkspace.job.drawDistance / 1000).toFixed(2)}
+                  </strong>
+                  <small>м пером</small>
+                </span>
+                <span title="Расчётное время">
+                  <strong>
+                    {formatDuration(plotterWorkspace.job.estimatedSeconds)}
+                  </strong>
+                  <small>расчётно</small>
+                </span>
+              </div>
+            )}
+            <button
+              className={`button compact placement-toggle ${manualEditing ? "active" : ""}`}
+              type="button"
+              aria-pressed={manualEditing}
+              onClick={() => setManualEditing((value) => !value)}
+            >
+              <span aria-hidden="true">⌁</span>
+              {manualEditing ? "Готово" : "Расставить"}
+            </button>
+            <select
+              className="layout-select"
+              value={viewMode}
+              onChange={(event) => setViewMode(event.target.value)}
+              aria-label="Раскладка страниц"
+            >
+              <option value="single">По 1 листу</option>
+              <option value="spread">По 2 листа</option>
+            </select>
+            {!plotterMode && (
+              <button
+                className="button ghost compact"
+                type="button"
+                onClick={reshuffle}
+              >
+                Перемешать
+              </button>
+            )}
+            <button
+              className="settings-toolbar-toggle"
+              type="button"
+              aria-label={
+                settingsCollapsed ? "Показать настройки" : "Свернуть настройки"
+              }
+              title={
+                settingsCollapsed ? "Показать настройки" : "Свернуть настройки"
+              }
+              aria-pressed={!settingsCollapsed}
+              onClick={() => setSettingsCollapsed((value) => !value)}
+            >
+              <Icon
+                name={
+                  settingsCollapsed
+                    ? "panel-right-expand"
+                    : "panel-right-collapse"
+                }
+              />
+            </button>
+          </div>,
+          toolbarHost,
         )}
-        <button
-          className={`button compact placement-toggle ${manualEditing ? "active" : ""}`}
-          type="button"
-          aria-pressed={manualEditing}
-          onClick={() => setManualEditing((value) => !value)}
-        >
-          <span aria-hidden="true">⌁</span>
-          {manualEditing ? "Готово" : "Расставить"}
-        </button>
-        <select
-          className="layout-select"
-          value={viewMode}
-          onChange={(event) => setViewMode(event.target.value)}
-          aria-label="Раскладка страниц"
-        >
-          <option value="single">По 1 листу</option>
-          <option value="spread">По 2 листа</option>
-        </select>
-        {!plotterMode && (
-          <button
-            className="button ghost compact"
-            type="button"
-            onClick={reshuffle}
-          >
-            Перемешать
-          </button>
-        )}
-        <button
-          className="settings-toolbar-toggle"
-          type="button"
-          aria-label={
-            settingsCollapsed ? "Показать настройки" : "Свернуть настройки"
-          }
-          title={
-            settingsCollapsed ? "Показать настройки" : "Свернуть настройки"
-          }
-          aria-pressed={!settingsCollapsed}
-          onClick={() => setSettingsCollapsed((value) => !value)}
-        >
-          <Icon
-            name={
-              settingsCollapsed ? "panel-right-expand" : "panel-right-collapse"
-            }
-          />
-        </button>
-      </div>
       {manualEditing && (
         <BlockInspector
           selected={selectedBlock}

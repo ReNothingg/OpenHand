@@ -15,7 +15,7 @@ export const PLOTTER_DEVICE_PRESETS = [
     id: "ozon-kdraw-grbl",
     name: "Ozon / KDraw · GRBL",
     description:
-      "Профиль купленного плоттера: 115200 бод, серво 12000/18000, ноль слева сверху.",
+      "Исходный профиль KDraw: 115200 бод, серво 12000/18000. Совместимость и размеры конкретного плоттера нужно проверить.",
     config: {
       profile: "grbl",
       connectionType: "serial",

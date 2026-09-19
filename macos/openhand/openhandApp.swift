@@ -20,6 +20,14 @@ struct openhandApp: App {
         .defaultSize(width: 1440, height: 900)
         .commands {
             CommandGroup(replacing: .newItem) { }
+            CommandMenu("Рабочее пространство") {
+                Button("Документ") {
+                    NotificationCenter.default.post(name: Notification.Name("OpenHandWorkspace"), object: "document")
+                }.keyboardShortcut("1", modifiers: [.command, .shift])
+                Button("Мастерская плоттера") {
+                    NotificationCenter.default.post(name: Notification.Name("OpenHandWorkspace"), object: "workshop")
+                }.keyboardShortcut("2", modifiers: [.command, .shift])
+            }
         }
     }
 }

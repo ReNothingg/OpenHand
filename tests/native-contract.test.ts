@@ -5,6 +5,17 @@ import { describe, expect, it } from "vitest";
 const root = process.cwd();
 
 describe("native shell contract", () => {
+  it("provides native workspace navigation on both platforms", async () => {
+    const [macMenu, macBridge, windows] = await Promise.all([
+      readFile(path.join(root, "macos/openhand/openhandApp.swift"), "utf8"),
+      readFile(path.join(root, "macos/openhand/OpenHandWebView.swift"), "utf8"),
+      readFile(path.join(root, "windows/MainForm.cs"), "utf8"),
+    ]);
+    expect(macMenu).toContain('CommandMenu("Рабочее пространство")');
+    expect(macBridge).toContain("openhand:workspace");
+    expect(windows).toContain("openhand:workspace");
+    expect(windows).toContain("FlatMenuRenderer");
+  });
   it("exposes the same serial actions on macOS and Windows", async () => {
     const [mac, windows] = await Promise.all([
       readFile(path.join(root, "macos/openhand/NativeBridge.swift"), "utf8"),

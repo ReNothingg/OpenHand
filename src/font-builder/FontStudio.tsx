@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import AppearanceControl from "../components/AppearanceControl";
 import { loadGFont } from "../plotter/gfont";
 import { ALL_CHARACTERS, CHARACTER_GROUPS, PREVIEW_TEXT } from "./characters";
 import FontCanvas from "./FontCanvas";
@@ -9,7 +10,6 @@ import { createGFontBlob, safeFontFilename } from "./gfontExport";
 import { downloadBlob } from "../lib/files";
 import { loadStoredObject, saveStoredValues } from "../lib/storage";
 import LiquidRange from "../components/controls/LiquidRange";
-import "./font-studio.css";
 import PathEditor from './PathEditor';
 import { validForms, repeatedForms, type LetterForm, type LetterForms } from './letterForms';
 
@@ -281,6 +281,7 @@ export default function FontStudio() {
             Скачать .gfont
           </button>
         </div>
+        <AppearanceControl />
       </header>
       {notice && (
         <p className="font-studio-notice" role="status">

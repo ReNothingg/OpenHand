@@ -10,6 +10,7 @@ import {
 } from "../../plotter/profiles";
 import PlotterCalibrationWizard from "./PlotterCalibrationWizard";
 import PenCalibrationSheet from './PenCalibrationSheet';
+import MachineMonitor from './MachineMonitor';
 
 function Help({ children }: { children: string }) {
   return (
@@ -34,7 +35,7 @@ function Caption({
   );
 }
 
-export default function PlotterSettings({ workspace }: { workspace: any }) {
+export default function PlotterSettings({ workspace, defaultOpen = false }: { workspace: any; defaultOpen?: boolean }) {
   const fontInputRef = useRef(null);
   const profileInputRef = useRef(null);
   const [manualCommand, setManualCommand] = useState("");
@@ -92,8 +93,9 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
     <div
       className={`integrated-plotter-settings ${enabled ? "enabled" : "disabled"}`}
     >
+      <MachineMonitor workspace={workspace} />
       <fieldset disabled={!enabled || calibrationActive}>
-        <SettingSection title="Плоттер" open={false}>
+        <SettingSection title="Плоттер" open={defaultOpen}>
           <section
             className="settings-subgroup plotter-subgroup"
             aria-labelledby="plotter-profile-title"

@@ -11,11 +11,10 @@
     overflow: visible !important;
   }
   .editor-panel,
-  .settings-panel,
-  .preview-toolbar,
-  .block-inspector,
-  .integrated-plotter-footer,
-  .measure-host {
+.settings-panel,
+.block-inspector,
+.integrated-plotter-footer,
+.measure-host {
     display: none !important;
   }
   .workspace,
@@ -41,7 +40,7 @@
     position: relative !important;
     inset: auto !important;
     transform: none !important;
-    box-shadow: none !important;
+    box-shadow: none;
     outline: 0 !important;
     break-after: page;
     page-break-after: always;

@@ -36,6 +36,24 @@ internal sealed class MainForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         AllowDrop = true;
         Controls.Add(_webView);
+        var menu = new MenuStrip { Renderer = new FlatMenuRenderer() };
+        var workspaceMenu = new ToolStripMenuItem("Рабочее пространство");
+        foreach (var (title, mode, shortcut) in new[] {
+            ("Документ", "document", Keys.Control | Keys.Shift | Keys.D1),
+            ("Мастерская плоттера", "workshop", Keys.Control | Keys.Shift | Keys.D2)
+        })
+        {
+            var item = new ToolStripMenuItem(title) { ShortcutKeys = shortcut };
+            item.Click += async (_, _) => {
+                if (_webView.CoreWebView2 is not null)
+                    await _webView.CoreWebView2.ExecuteScriptAsync(
+                        $"window.dispatchEvent(new CustomEvent('openhand:workspace', {{ detail: '{mode}' }}))");
+            };
+            workspaceMenu.DropDownItems.Add(item);
+        }
+        menu.Items.Add(workspaceMenu);
+        MainMenuStrip = menu;
+        Controls.Add(menu);
 
         LoadApplicationIcon();
         Shown += async (_, _) => await InitializeWebViewAsync();
@@ -392,6 +410,24 @@ internal sealed class MainForm : Form
             return;
         }
 
+        if (MainMenuStrip is { } menu)
+        {
+            menu.BackColor = dark ? Color.FromArgb(27, 27, 27) : Color.FromArgb(247, 247, 248);
+            menu.ForeColor = dark ? Color.FromArgb(252, 252, 252) : Color.FromArgb(13, 13, 13);
+            foreach (ToolStripMenuItem item in menu.Items)
+            {
+                item.BackColor = menu.BackColor;
+                item.ForeColor = menu.ForeColor;
+                item.DropDown.BackColor = menu.BackColor;
+                item.DropDown.ForeColor = menu.ForeColor;
+                foreach (ToolStripItem child in item.DropDownItems)
+                {
+                    child.BackColor = menu.BackColor;
+                    child.ForeColor = menu.ForeColor;
+                }
+            }
+        }
+
         var darkMode = dark ? 1 : 0;
         var darkModeResult = DwmSetWindowAttribute(
             Handle,
@@ -408,13 +444,13 @@ internal sealed class MainForm : Form
         }
 
         var captionColor = dark
-            ? ColorTranslator.ToWin32(Color.FromArgb(23, 23, 23))
+            ? ColorTranslator.ToWin32(Color.FromArgb(27, 27, 27))
             : DwmColorDefault;
         var textColor = dark
             ? ColorTranslator.ToWin32(Color.FromArgb(252, 252, 252))
             : DwmColorDefault;
         var borderColor = dark
-            ? ColorTranslator.ToWin32(Color.FromArgb(23, 23, 23))
+            ? ColorTranslator.ToWin32(Color.FromArgb(27, 27, 27))
             : DwmColorDefault;
 
         DwmSetWindowAttribute(
@@ -481,6 +517,32 @@ internal sealed class MainForm : Form
         int attribute,
         ref int value,
         int valueSize);
+
+    private sealed class FlatMenuRenderer : ToolStripProfessionalRenderer
+    {
+        protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
+        {
+            using var brush = new SolidBrush(e.ToolStrip.BackColor);
+            e.Graphics.FillRectangle(brush, e.AffectedBounds);
+        }
+
+        protected override void OnRenderImageMargin(ToolStripRenderEventArgs e)
+        {
+            using var brush = new SolidBrush(e.ToolStrip.BackColor);
+            e.Graphics.FillRectangle(brush, e.AffectedBounds);
+        }
+
+        protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
+        {
+            var color = e.Item.BackColor;
+            if (e.Item.Selected || e.Item.Pressed)
+                color = color.GetBrightness() < 0.5f ? Color.FromArgb(55, 55, 55) : Color.FromArgb(226, 226, 226);
+            using var brush = new SolidBrush(color);
+            e.Graphics.FillRectangle(brush, new Rectangle(Point.Empty, e.Item.Size));
+        }
+
+        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e) { }
+    }
 
     private sealed record PendingDocument(
         string Name,

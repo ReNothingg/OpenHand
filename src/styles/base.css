@@ -6,16 +6,9 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  color: #0d0d0d;
-  background: #ffffff;
+  color: var(--text-primary);
+  background: var(--surface-raised);
   font-synthesis: none;
-  --line: #e5e7eb;
-  --muted: #6b7280;
-  --green: #248a3d;
-  --green-dark: #1f7534;
-  --accent-soft: #e8f5eb;
-  --accent-border: #77c788;
-  --panel: #ffffff;
 }
 * {
   box-sizing: border-box;
@@ -45,8 +38,8 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  color: #64748b;
-  background: #eceff3;
+  color: var(--text-secondary);
+  background: var(--surface-workspace);
   font: 600 13px/1.4 system-ui, sans-serif;
 }
 button,
@@ -75,7 +68,7 @@ summary:focus-visible,
 }
 .app {
   min-height: 100vh;
-  background: #ffffff;
+  background: var(--surface-raised);
 }
 .save-notice {
   position: fixed;
@@ -84,15 +77,15 @@ summary:focus-visible,
   bottom: 18px;
   max-width: min(420px, calc(100vw - 36px));
   padding: 11px 14px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #fff;
-  color: #334155;
-  box-shadow: 0 10px 24px rgb(15 23 42 / 0.16);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  box-shadow: none;
   font-size: 13px;
 }
-.save-notice.success { border-color: #86efac; color: #166534; }
-.save-notice.error { border-color: #fecaca; color: #991b1b; }
+.save-notice.success { border-color: var(--line); color: var(--green); }
+.save-notice.error { border-color: var(--line); color: var(--danger); }
 .panel-title > div:first-child:not(.source-tabs) {
   display: flex;
   flex-direction: column;
@@ -104,11 +97,11 @@ summary:focus-visible,
   margin-top: 2px;
 }
 .button {
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
   min-height: 36px;
   padding: 0 13px;
-  background: #fff;
+  background: var(--surface-raised);
   cursor: pointer;
   font-size: 12px;
   font-weight: 650;
@@ -118,8 +111,8 @@ summary:focus-visible,
     transform 0.15s;
 }
 .button:hover {
-  border-color: #9ca3af;
-  background: #f9fafb;
+  border-color: var(--line);
+  background: var(--surface-panel);
 }
 .button:active {
   transform: translateY(1px);
@@ -129,7 +122,7 @@ summary:focus-visible,
   cursor: default;
 }
 .button.primary {
-  color: #fff;
+  color: var(--on-accent);
   border-color: var(--green);
   background: var(--green);
 }

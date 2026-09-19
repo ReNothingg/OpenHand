@@ -1,5 +1,4 @@
 import { downloadFile } from "../../lib/files";
-import LiquidRange from "../controls/LiquidRange";
 import { useRef } from "react";
 
 export function formatDuration(seconds: number) {
@@ -98,14 +97,6 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         >
           Сначала
         </button>
-        <LiquidRange
-          min="0"
-          max="1"
-          step="0.001"
-          value={playback.progress}
-          aria-label="Позиция воспроизведения"
-          onChange={(event) => playback.seek(event.target.value)}
-        />
         <select
           value={playback.speed}
           aria-label="Скорость воспроизведения"
@@ -119,13 +110,6 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         <output>{Math.round(playback.progress * 100)}%</output>
       </div>
       <div className="plotter-imported-job" aria-label="Импорт готового G-code">
-        <div>
-          <strong>Готовый G-code</strong>
-          <small>
-            Локальный файл отправляется как есть; координаты профиля к нему не
-            применяются.
-          </small>
-        </div>
         <div className="plotter-imported-actions">
           <button
             className="button ghost compact"
@@ -158,13 +142,14 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         />
         {workspace.importedGcode && (
           <div className="plotter-imported-summary">
+            <small>Файл отправляется как есть. Координаты профиля к нему не применяются.</small>
             <span title={workspace.importedGcode.name}>
               {workspace.importedGcode.name}
             </span>
             <small>
-              {workspace.importedGcode.commands.length.toLocaleString("ru-RU")} команд ·{" "}
-              {workspace.importedGcode.parsed.bounds.width.toFixed(1)} ×{" "}
-              {workspace.importedGcode.parsed.bounds.height.toFixed(1)} мм
+              {workspace.importedGcode.commands.length.toLocaleString("ru-RU")}{" "}
+              команд · {workspace.importedGcode.parsed.bounds.width.toFixed(1)}{" "}
+              × {workspace.importedGcode.parsed.bounds.height.toFixed(1)} мм
             </small>
             {!workspace.importedWithinWorkArea && (
               <p className="plotter-error">

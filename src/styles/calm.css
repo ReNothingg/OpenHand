@@ -1,84 +1,316 @@
 /* The interface has three surfaces: workspace, panels and the active document.
    Depth comes from their tones and placement, never shadows or gradients. */
 :root {
-  --surface-workspace: #eff1f3;
+  --surface-workspace: #ffffff;
   --surface-panel: #f7f7f8;
   --surface-raised: #ffffff;
-  --control-surface: color-mix(in srgb, var(--surface-raised) 95%, var(--text-primary));
-  --control-hover: color-mix(in srgb, var(--surface-raised) 90%, var(--text-primary));
+  --control-surface: color-mix(
+    in srgb,
+    var(--surface-raised) 95%,
+    var(--text-primary)
+  );
+  --control-hover: color-mix(
+    in srgb,
+    var(--surface-raised) 90%,
+    var(--text-primary)
+  );
   --text-primary: #0d0d0d;
   --text-secondary: #68686d;
-  --muted: #68686d;
-  --line: #d1d3d7;
+  --muted: var(--text-secondary);
+  --line: #dedede;
+  --green: #237a35;
+  --green-dark: #1c652b;
+  --accent-soft: #e8f5eb;
+  --accent-border: #77a87e;
+  --on-accent: #ffffff;
+  --danger: #a53232;
+  --danger-soft: #f7e7e5;
+  --warning: #815519;
+  --warning-soft: #f5eddd;
+  --overlay: rgb(0 0 0 / 0.42);
+  --control-radius: 4px;
+  --panel-radius: 0px;
+  --motion-fast: 160ms;
+  --motion-panel: 260ms;
+  --motion-ease: cubic-bezier(0.2, 0.65, 0.3, 1);
   --panel: var(--surface-panel);
 }
 :root.theme-dark {
   --surface-workspace: #111111;
   --surface-panel: #1b1b1b;
   --surface-raised: #252525;
-  --control-surface: color-mix(in srgb, var(--surface-raised) 95%, var(--text-primary));
-  --control-hover: color-mix(in srgb, var(--surface-raised) 90%, var(--text-primary));
+  --control-surface: color-mix(
+    in srgb,
+    var(--surface-raised) 95%,
+    var(--text-primary)
+  );
+  --control-hover: color-mix(
+    in srgb,
+    var(--surface-raised) 90%,
+    var(--text-primary)
+  );
   --text-primary: #fcfcfc;
   --text-secondary: #b8b8b8;
-  --muted: #b8b8b8;
   --line: #3b3b3b;
+  --green: #54b45d;
+  --green-dark: #6ac473;
+  --accent-soft: #1d2d20;
+  --accent-border: #54875b;
+  --on-accent: #0d0d0d;
+  --danger: #f0aaa4;
+  --danger-soft: #472e2c;
+  --warning: #e4c18b;
+  --warning-soft: #413728;
+  --overlay: rgb(0 0 0 / 0.66);
   --panel: var(--surface-panel);
 }
-*, *::before, *::after { box-shadow: none !important; text-shadow: none !important; }
-:is(button, input, select, textarea, summary, a):focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
-button, a, summary { -webkit-tap-highlight-color: transparent; }
-button, input, select, textarea { transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease; }
-button:disabled { cursor: default; }
-summary { cursor: pointer; }
-.workspace, .preview-panel, .font-studio, .gcode-viewer { background-color: var(--surface-workspace); }
-.font-studio { display: flex; flex-direction: column; height: 100dvh; min-height: 0; }
-.editor-panel, .settings-panel, .font-character-panel, .font-studio-toolbar { background: var(--surface-panel); color: var(--text-primary); }
-.settings-section, .font-character-panel, .font-canvas-panel, .font-live-preview { border: 0; }
-:root .font-studio :is(.font-character-panel, .font-canvas-panel, .font-live-preview) { border: 0; }
-.settings-section { margin: 4px 0; border-radius: 0; background: transparent; }
-.settings-section > summary { padding: 16px; font-size: 13px; font-weight: 650; }
-.settings-section[open] > summary, .settings-section > summary:hover { background: transparent; color: var(--text-primary); }
-.settings-content { padding: 0 16px 20px; }
-.settings-content small, .setting-hint { font-size: 12px; line-height: 1.55; color: var(--text-secondary); }
-.settings-content input:not([type=range]):not([type=checkbox]), .settings-content select { background: var(--surface-raised); border-color: transparent; color: var(--text-primary); }
-.settings-subgroup { border: 0; padding: 16px 0 0; }
-.settings-subgroup h3 { font-size: 13px; }
-.font-studio .font-canvas-panel, .font-studio .font-live-preview { background: var(--surface-raised); color: var(--text-primary); }
-.font-studio .font-character-panel { background: var(--surface-panel); }
-.font-studio .font-character-grid button { border-color: transparent; background: transparent; color: var(--text-primary); }
-.font-studio .font-character-grid button.active { background: var(--accent-soft); color: var(--green-dark); }
-.font-studio .font-studio-main { display: flex; flex-direction: column; overflow: auto; padding-bottom: 24px; }
-.font-studio .font-studio-toolbar { height: auto; min-height: 59px; display: flex; flex-wrap: wrap; gap: 12px 18px; padding-block: 10px; }
-.font-studio .font-name-field { flex: 1 1 200px; max-width: 320px; }
-.font-studio .font-studio-actions { margin-left: auto; flex-wrap: wrap; }
-.font-studio .font-studio-workspace { flex: 1; min-height: 0; height: auto; }
-.font-studio .font-canvas-panel, .font-studio .font-live-preview { flex: 0 0 auto; overflow: visible; }
-.font-studio-actions button, .font-canvas-toolbar button, .studio-detail button { min-height: 34px; }
+*,
+*::before,
+*::after {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+:is(button, input, select, textarea, summary, a):focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
+button,
+a,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+input,
+select,
+textarea {
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
+}
+button:disabled {
+  cursor: default;
+}
+summary {
+  cursor: pointer;
+}
+.workspace,
+.preview-panel,
+.font-studio,
+.gcode-viewer {
+  background-color: var(--surface-workspace);
+}
+.font-studio {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+}
+.editor-panel,
+.settings-panel,
+.font-character-panel,
+.font-studio-toolbar {
+  background: var(--surface-panel);
+  color: var(--text-primary);
+}
+.settings-section,
+.font-character-panel,
+.font-canvas-panel,
+.font-live-preview {
+  border: 0;
+}
+:root
+  .font-studio
+  :is(.font-character-panel, .font-canvas-panel, .font-live-preview) {
+  border: 0;
+}
+.settings-section {
+  margin: 4px 0;
+  border-radius: 0;
+  background: transparent;
+}
+.settings-section > summary {
+  padding: 16px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.settings-section[open] > summary,
+.settings-section > summary:hover {
+  background: transparent;
+  color: var(--text-primary);
+}
+.settings-content {
+  padding: 0 16px 20px;
+}
+.settings-content small,
+.setting-hint {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.settings-content input:not([type="range"]):not([type="checkbox"]),
+.settings-content select {
+  background: var(--surface-raised);
+  border-color: transparent;
+  color: var(--text-primary);
+}
+.settings-subgroup {
+  border: 0;
+  padding: 16px 0 0;
+}
+.settings-subgroup h3 {
+  font-size: 13px;
+}
+.font-studio .font-canvas-panel,
+.font-studio .font-live-preview {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.font-studio .font-character-panel {
+  background: var(--surface-panel);
+}
+.font-studio .font-character-grid button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-primary);
+}
+.font-studio .font-character-grid button.active {
+  background: var(--accent-soft);
+  color: var(--green-dark);
+}
+.font-studio .font-studio-main {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding-bottom: 24px;
+}
+.font-studio .font-studio-toolbar {
+  height: auto;
+  min-height: 59px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  padding-block: 10px;
+}
+.font-studio .font-name-field {
+  flex: 1 1 200px;
+  max-width: 320px;
+}
+.font-studio .font-studio-actions {
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.font-studio .font-studio-workspace {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+.font-studio .font-canvas-panel,
+.font-studio .font-live-preview {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+.font-studio-actions button,
+.font-canvas-toolbar button,
+.studio-detail button {
+  min-height: 34px;
+}
 .font-studio .font-studio-actions button,
 .font-studio .font-canvas-toolbar button {
   border: 0;
   background: transparent;
 }
 .font-studio .font-studio-actions button:hover:not(:disabled),
-.font-studio .font-canvas-toolbar button:hover:not(:disabled) { background: var(--control-surface); }
-.font-studio :is(.font-studio-actions, .font-canvas-toolbar, .font-pen-tools, .variant-toolbar) button:disabled {
-  opacity: .32;
+.font-studio .font-canvas-toolbar button:hover:not(:disabled) {
+  background: var(--control-surface);
+}
+.font-studio
+  :is(
+    .font-studio-actions,
+    .font-canvas-toolbar,
+    .font-pen-tools,
+    .variant-toolbar
+  )
+  button:disabled {
+  opacity: 0.32;
   color: var(--text-secondary);
 }
-.font-studio .font-studio-actions button.primary { color: var(--green); background: transparent; }
-.font-studio .font-studio-actions button.danger { color: #d4524b; background: transparent; }
-.font-studio .font-drawing-canvas { display: block; margin-inline: auto; }
-.studio-detail { padding: 14px 0; min-width: 0; color: var(--text-primary); }
-.studio-detail > summary { font-weight: 650; font-size: 13px; line-height: 1.5; padding: 4px 0; }
-.studio-detail p { color: var(--text-secondary); font-size: 12px; line-height: 1.6; margin: 12px 0; }
-.studio-detail[open] > :not(summary) { animation: content-enter 180ms ease-out; }
-.font-canvas-panel > .studio-detail { padding: 14px 20px; }
-.studio-control-row { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 12px 0; }
-.studio-control-row label, .studio-detail > label { display: grid; gap: 6px; font-size: 12px; min-width: 0; }
-.studio-control-row input, .studio-control-row select, .studio-detail select { min-height: 34px; max-width: 100%; padding: 6px 10px; border: 0; border-radius: 7px; background: var(--surface-panel); color: var(--text-primary); }
-.studio-control-row input { width: 100px; }
-.studio-control-row button, .studio-detail > button { padding: 8px 12px; border: 0; border-radius: 7px; background: var(--surface-panel); color: var(--text-primary); font-size: 12px; }
-.studio-control-row button[aria-pressed=true] { background: var(--accent-soft); color: var(--green-dark); }
+.font-studio .font-studio-actions button.primary {
+  color: var(--green);
+  background: transparent;
+}
+.font-studio .font-studio-actions button.danger {
+  color: #d4524b;
+  background: transparent;
+}
+.font-studio .font-drawing-canvas {
+  display: block;
+  margin-inline: auto;
+}
+.studio-detail {
+  padding: 14px 0;
+  min-width: 0;
+  color: var(--text-primary);
+}
+.studio-detail > summary {
+  font-weight: 650;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 4px 0;
+}
+.studio-detail p {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+.studio-detail[open] > :not(summary) {
+  animation: content-enter 180ms ease-out;
+}
+.font-canvas-panel > .studio-detail {
+  padding: 14px 20px;
+}
+.studio-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin: 12px 0;
+}
+.studio-control-row label,
+.studio-detail > label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  min-width: 0;
+}
+.studio-control-row input,
+.studio-control-row select,
+.studio-detail select {
+  min-height: 34px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--control-radius);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+}
+.studio-control-row input {
+  width: 100px;
+}
+.studio-control-row button,
+.studio-detail > button {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--control-radius);
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+.studio-control-row button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--green-dark);
+}
 .variant-toolbar {
   display: flex;
   align-items: center;
@@ -88,43 +320,1599 @@ summary { cursor: pointer; }
   padding: 7px 12px;
   background: var(--surface-panel);
 }
-.variant-toolbar label { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 10px; font-weight: 650; }
+.variant-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 650;
+}
 .variant-toolbar select,
 .variant-toolbar button {
   height: 30px;
   min-height: 30px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--control-radius);
   padding: 0 10px;
   color: var(--text-primary);
   background: var(--surface-raised);
   font-size: 11px;
   font-weight: 650;
 }
-.variant-toolbar select { min-width: 132px; }
-.variant-actions { display: inline-flex; gap: 6px; padding: 0; background: transparent; }
-.variant-actions button { background: transparent; }
-.variant-actions button:not(:disabled):hover { background: var(--control-hover); }
-.variant-delete:not(:disabled) { color: #b23a35; }
-.variant-position { margin-left: auto; }
-.variant-position select { min-width: 116px; }
-.path-editor { display: block; width: 100%; max-height: 350px; touch-action: none; background: var(--surface-panel); border-radius: 8px; }
-.path-node { fill: var(--surface-raised); stroke: var(--green); stroke-width: 1.2; cursor: grab; }
-.path-node:focus-visible { stroke-width: 3; outline: none; }
-.form-audit { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; line-height: 1.6; }
-.document-preset { display: grid; gap: 5px; width: 100%; padding: 12px; text-align: left; border: 0; border-radius: 8px; background: var(--surface-raised); color: var(--text-primary); margin-block: 8px; }
-.document-preset small { font-weight: 400; }
-.calibration-sheet-preview { display: block; width: 100%; background: #fff; color: #26362b; margin: 12px 0; border-radius: 6px; }
-.settings-panel .font-drawing-canvas { display: block; width: 100%; height: auto; aspect-ratio: 640 / 520; touch-action: none; }
-.gcode-scene canvas { filter: none; }
-@keyframes content-enter { from { opacity: .2; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+.variant-toolbar select {
+  min-width: 132px;
+}
+.variant-actions {
+  display: inline-flex;
+  gap: 6px;
+  padding: 0;
+  background: transparent;
+}
+.variant-actions button {
+  background: transparent;
+}
+.variant-actions button:not(:disabled):hover {
+  background: var(--control-hover);
+}
+.variant-delete:not(:disabled) {
+  color: #b23a35;
+}
+.variant-position {
+  margin-left: auto;
+}
+.variant-position select {
+  min-width: 116px;
+}
+.path-editor {
+  display: block;
+  width: 100%;
+  max-height: 350px;
+  touch-action: none;
+  background: var(--surface-panel);
+  border-radius: 0;
+}
+.path-node {
+  fill: var(--surface-raised);
+  stroke: var(--green);
+  stroke-width: 1.2;
+  cursor: grab;
+}
+.path-node:focus-visible {
+  stroke-width: 3;
+  outline: none;
+}
+.form-audit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.document-preset {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 12px;
+  text-align: left;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  margin-block: 8px;
+}
+.document-preset small {
+  font-weight: 400;
+}
+.calibration-sheet-preview {
+  display: block;
+  width: 100%;
+  background: #fff;
+  color: #26362b;
+  margin: 12px 0;
+  border-radius: 0;
+}
+.settings-panel .font-drawing-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 640 / 520;
+  touch-action: none;
+}
+.gcode-scene canvas {
+  filter: none;
+}
+@keyframes content-enter {
+  from {
+    opacity: 0.2;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 @media (max-width: 780px) {
-  .font-studio { height: auto; min-height: 100dvh; }
-  .font-studio .font-studio-toolbar { height: auto; min-height: 60px; padding-block: 12px; }
-  .studio-control-row { gap: 8px; }
-  .variant-toolbar { align-items: center; flex-wrap: wrap; }
-  .variant-position { margin-left: 0; }
+  .font-studio {
+    height: auto;
+    min-height: 100dvh;
+  }
+  .font-studio .font-studio-toolbar {
+    height: auto;
+    min-height: 60px;
+    padding-block: 12px;
+  }
+  .studio-control-row {
+    gap: 8px;
+  }
+  .variant-toolbar {
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .variant-position {
+    margin-left: 0;
+  }
 }
+
+/* Shared visual contract. Component sheets own geometry; this sheet owns
+   surfaces, type hierarchy, control states and motion on every platform. */
+:root {
+  color: var(--text-primary);
+  background: var(--surface-workspace);
+}
+body,
+#root,
+.app {
+  color: var(--text-primary);
+  background: var(--surface-workspace);
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  ) {
+  font-size: 13px;
+  line-height: 1.5;
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  :where(
+    button,
+    select,
+    input:not([type="range"]):not([type="checkbox"]),
+    textarea
+  ) {
+  border-color: transparent;
+  border-radius: var(--control-radius);
+  color: var(--text-primary);
+  background-color: var(--surface-raised);
+  transition:
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    opacity var(--motion-fast) ease;
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  button {
+  border-width: 0;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  button:hover:not(:disabled) {
+  background: var(--control-hover);
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  button:active:not(:disabled) {
+  transform: none;
+  background: var(--control-surface);
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  button:disabled {
+  opacity: 0.46;
+  cursor: default;
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  button.primary {
+  background: var(--green);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  button.primary:hover:not(:disabled) {
+  background: var(--green-dark);
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  button.danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  .text-button {
+  color: var(--green);
+  background: transparent;
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  :is(button, select, input, textarea, summary, a):focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
+:root
+  :is(
+    .settings-panel,
+    .workshop-inspector,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .block-inspector,
+    .calibration-dialog
+  )
+  :is(label, small) {
+  color: var(--text-secondary);
+}
+:root
+  :is(
+    .field,
+    .range-control,
+    .toggle-row,
+    .workshop-field,
+    .workshop-check,
+    .workshop-checklist
+  ) {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+:root
+  :is(
+    .settings-content,
+    .workshop-section,
+    .studio-detail,
+    .photo-import-options
+  )
+  :is(p, small) {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+:root
+  :is(
+    .settings-subgroup h3,
+    .workshop-section h2,
+    .workshop-section summary,
+    .font-character-panel-title strong,
+    .font-canvas-toolbar strong,
+    .control-heading output
+  ) {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-primary);
+}
+:root
+  :is(.font-studio, .gcode-viewer, .expanded-editor, .calibration-dialog)
+  strong {
+  color: var(--text-primary);
+}
+:root
+  :is(.settings-content, .workshop-section)
+  input:not([type="range"]):not([type="checkbox"]),
+:root :is(.settings-content, .workshop-section) select {
+  height: 36px;
+  font-size: 13px;
+  border: 0;
+}
+
+/* Layer 1: continuous navigation and tools. Quiet controls gain a surface
+   only on hover, focus or selection. */
+:root
+  :is(
+    .workspace-navigation,
+    .workshop-toolbar,
+    .workshop-canvas-toolbar,
+    .panel-title,
+    .font-studio-toolbar,
+    .font-canvas-toolbar,
+    .font-preview-toolbar,
+    .gcode-viewer-header,
+    .gcode-preview-toolbar,
+    .gcode-source-panel > header,
+    .settings-drawer-header,
+    .expanded-editor > header,
+    .expanded-editor-toolbar,
+    .expanded-editor > footer
+  ) {
+  border: 0;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+}
+:root
+  :is(
+    .workspace-navigation,
+    .workshop-toolbar,
+    .workshop-canvas-toolbar,
+    .document-toolbar,
+    .font-studio-toolbar,
+    .font-canvas-toolbar,
+    .font-preview-toolbar,
+    .gcode-viewer-header,
+    .gcode-preview-toolbar,
+    .editor-title-actions,
+    .expanded-editor-toolbar
+  )
+  :is(button:where(:not(.primary):not(.danger)), a) {
+  background: transparent;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+:root
+  :is(
+    .workspace-navigation,
+    .workshop-tabs,
+    .source-tabs,
+    .font-pen-tools,
+    .plotter-family-tabs
+  )
+  button:is([aria-pressed="true"], [aria-selected="true"], .active, .selected) {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  font-weight: 600;
+}
+:root .workspace-navigation {
+  gap: 24px;
+  padding-inline: 22px;
+}
+:root .workspace-navigation > strong {
+  font-size: 14px;
+  letter-spacing: -0.3px;
+}
+:root .workspace-navigation button {
+  font-size: 12px;
+  min-height: 32px;
+}
+:root .source-tabs {
+  border: 0;
+  padding: 3px;
+  background: var(--surface-workspace);
+}
+:root .source-tabs button {
+  min-height: 28px;
+  font-size: 12px;
+}
+:root .workshop-toolbar {
+  padding: 18px 24px;
+  min-height: 82px;
+}
+:root .workshop-toolbar input {
+  background: transparent;
+  border: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  padding: 0;
+}
+:root .workshop-toolbar .workshop-buttons {
+  gap: 8px;
+}
+:root .workshop-canvas-toolbar {
+  min-height: 56px;
+  padding-inline: 16px;
+}
+:root .workshop-tabs {
+  padding: 10px 12px;
+  gap: 4px;
+}
+:root .workshop-tabs button {
+  padding-inline: 14px;
+}
+:root .gcode-viewer-header {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  gap: 16px;
+}
+:root .gcode-viewer-actions {
+  margin-left: auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+:root .gcode-viewer-title strong {
+  font-size: 17px;
+}
+:root .gcode-viewer-title span,
+:root .gcode-viewer-stats {
+  font-size: 12px;
+}
+:root .gcode-viewer-stats strong {
+  font-size: 12px;
+}
+:root .font-studio-toolbar {
+  min-height: 76px;
+  padding: 14px 20px;
+  gap: 16px;
+}
+:root .font-studio-toolbar > a {
+  font-size: 13px;
+  font-weight: 500;
+}
+:root .font-name-field {
+  background: transparent;
+  border: 0;
+  height: auto;
+  padding: 0;
+}
+:root .font-name-field span {
+  font-size: 12px;
+  font-weight: 400;
+}
+:root .font-name-field input {
+  background: var(--surface-raised);
+  font-size: 15px;
+  font-weight: 600;
+  height: 36px;
+  padding-inline: 12px;
+}
+:root .font-studio-progress :is(span, strong) {
+  font-size: 12px;
+}
+
+/* Layer 2: inspectors. Space separates groups; no card inside card outlines. */
+:root
+  :is(
+    .editor-panel,
+    .settings-panel,
+    .workshop-inspector,
+    .font-character-panel,
+    .gcode-source-panel
+  ) {
+  border: 0;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+}
+:root
+  :is(
+    .settings-panel .settings-section,
+    .settings-panel .integrated-plotter-settings .settings-section,
+    .workshop-section,
+    .settings-subgroup,
+    .settings-content,
+    .machine-monitor,
+    .font-character-panel-title,
+    .font-character-group + .font-character-group
+  ) {
+  border: 0;
+  background: transparent;
+}
+:root .settings-panel .settings-section {
+  margin: 0;
+}
+:root :is(.settings-panel, .workshop-inspector) .settings-section > summary {
+  padding: 14px 20px;
+  height: auto;
+  min-height: 48px;
+  color: var(--text-primary);
+  font-weight: 600;
+  background: transparent;
+}
+:root .settings-section[open] > summary::before {
+  display: none;
+}
+:root .settings-panel .settings-content {
+  padding: 0 20px 24px;
+  gap: 16px;
+}
+:root .settings-subgroup {
+  gap: 14px;
+  padding-top: 24px;
+}
+:root .workshop-section {
+  padding: 20px;
+}
+:root .workshop-section + .workshop-section {
+  padding-top: 14px;
+}
+:root .settings-panel {
+  top: 12px;
+  bottom: 12px;
+  right: 12px;
+  border-radius: 0;
+}
+:root .settings-drawer-header {
+  border: 0;
+  border-radius: 0;
+}
+:root .editor-panel {
+  padding-bottom: 8px;
+}
+:root .editor-panel .panel-title {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 64px;
+  padding: 12px 16px;
+  gap: 8px;
+}
+:root .editor-title-actions {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+:root .editor-title-actions button {
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  font-size: 12px;
+}
+:root .markdown-editor {
+  margin: 0 10px;
+  width: calc(100% - 20px);
+  padding: 20px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border: 0;
+  border-radius: 0;
+  line-height: 1.75;
+}
+:root .toggle-block,
+:root .toggle-block.is-on {
+  border: 0;
+  background: transparent;
+  padding: 4px 0;
+}
+:root .toggle-row {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+:root .toggle-row i {
+  background: var(--line);
+}
+:root .toggle-row input:checked + i {
+  background: var(--green);
+}
+:root .toggle-row i::after {
+  background: var(--on-accent);
+}
+:root
+  :is(
+    .font-picker-group button,
+    .custom-gfont-grid button,
+    .font-character-grid button
+  ) {
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+}
+:root
+  :is(
+    .font-picker-group button.selected,
+    .custom-gfont-grid button.selected,
+    .font-character-grid button.active
+  ) {
+  background: var(--accent-soft);
+  color: var(--green);
+}
+:root .font-character-grid button {
+  font-size: 18px;
+}
+:root .font-character-group > div:first-child :is(strong, small) {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+:root .font-character-list {
+  padding: 0 16px 16px;
+}
+:root .font-character-panel-title {
+  padding: 16px;
+  height: auto;
+}
+:root .font-character-panel-title span {
+  font-size: 12px;
+}
+:root
+  :is(
+    .naturalness-report,
+    .naturalness-repeats > span,
+    .plotter-imported-job,
+    .plotter-card,
+    .plotter-advanced,
+    .document-preset,
+    .photo-import-options article
+  ) {
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+:root :is(.setting-help, .plotter-help) {
+  border: 0;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+:root :is(.plotter-help > [role="tooltip"], .block-inspector) {
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-radius: 10px;
+}
+:root
+  :is(
+    .plotter-selected-font,
+    .plotter-profile-meta,
+    .plotter-imported-job small,
+    .plotter-caption,
+    .control-heading output
+  ) {
+  color: var(--text-secondary);
+}
+
+/* Layer 3: the work itself, with neutral surroundings and a stable paper. */
+:root
+  :is(
+    .workspace,
+    .preview-panel,
+    .plotter-workshop,
+    .workshop-main,
+    .font-studio-workspace,
+    .font-studio-main,
+    .gcode-preview-panel,
+    .expanded-editor-body
+  ) {
+  background: var(--surface-workspace);
+}
+:root .workshop-body {
+  gap: 0;
+  padding: 0;
+}
+:root .workshop-inspector {
+  border-radius: 0;
+}
+:root .workshop-main {
+  border-radius: 0;
+  overflow: auto;
+}
+:root .workshop-canvas {
+  padding: 28px;
+}
+:root .workshop-canvas svg {
+  color: var(--text-secondary);
+}
+:root
+  :is(
+    .preview-leading-actions,
+    .preview-job-stats,
+    .preview-job-stats > span,
+    .preview-sheet-status > i
+  ) {
+  border: 0;
+  background: transparent;
+}
+:root .preview-job-stats {
+  gap: 12px;
+}
+:root .preview-job-stats > span {
+  min-width: 50px;
+  padding: 0 2px;
+}
+:root .preview-job-stats strong {
+  color: var(--text-primary);
+  font-size: 11px;
+}
+:root .preview-job-stats small {
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+:root .paper {
+  outline: none;
+}
+:root .font-studio-main {
+  gap: 16px;
+  padding: 16px;
+}
+:root :is(.font-canvas-panel, .font-live-preview) {
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+:root .font-canvas-toolbar,
+:root .font-preview-toolbar {
+  padding: 12px 16px;
+  gap: 12px;
+  min-height: 56px;
+}
+:root .variant-toolbar {
+  background: var(--surface-panel);
+  padding: 8px 16px;
+  flex-wrap: wrap;
+}
+:root .variant-toolbar label {
+  font-size: 12px;
+}
+:root .font-preview-svg path {
+  stroke: var(--text-primary);
+}
+:root .font-preview-svg > line {
+  stroke: var(--line);
+}
+:root .gcode-source-panel pre,
+:root .workshop-code {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+}
+:root .gcode-source-panel code:hover {
+  background: var(--control-hover);
+}
+:root .gcode-source-panel code i {
+  color: var(--text-secondary);
+}
+:root .gcode-dropzone {
+  border: 0;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  border-radius: 0;
+}
+:root .gcode-dropzone :is(span, small),
+:root .gcode-empty-preview {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+:root .gcode-preview-toolbar label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+:root .gcode-viewer-workspace {
+  gap: 12px;
+  padding: 0 12px 12px;
+}
+:root :is(.gcode-preview-panel, .gcode-source-panel) {
+  border-radius: 0;
+  overflow: hidden;
+}
+
+/* One execution strip, one report of each state. No badges around metadata. */
+:root
+  :is(
+    .workshop-statistics,
+    .workshop-run,
+    .integrated-plotter-footer,
+    .plotter-console,
+    .plotter-imported-summary
+  ) {
+  border: 0;
+  background: var(--surface-panel);
+}
+:root .workshop-statistics {
+  font-size: 12px;
+  padding: 12px 20px 4px;
+}
+:root .workshop-run {
+  padding: 12px 20px 18px;
+}
+:root .workshop-checklist {
+  gap: 16px;
+  margin-bottom: 16px;
+}
+:root .workshop-run-actions {
+  gap: 8px;
+}
+:root .workshop-run > small {
+  font-size: 12px;
+}
+:root .workshop-run button.danger {
+  margin-left: auto;
+}
+:root .integrated-plotter-footer {
+  border-radius: 0;
+  padding: 16px;
+}
+:root :is(.plotter-note, .gcode-viewer-warning.neutral) {
+  border: 0;
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+}
+:root :is(.plotter-warning, .calibration-warning, .gcode-viewer-warning) {
+  border: 0;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 12px;
+}
+:root :is(.plotter-error, .calibration-error, .save-notice.error) {
+  border: 0;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 12px;
+}
+:root
+  :is(.calibration-verification, .photo-import-status, .save-notice.success) {
+  border: 0;
+  background: var(--accent-soft);
+  color: var(--green);
+}
+
+/* Foreground dialogs are raised by their backdrop and spacing, never blur. */
+:root
+  :is(
+    .expanded-editor-backdrop,
+    .photo-import-backdrop,
+    .calibration-backdrop
+  ) {
+  background: var(--overlay);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root :is(.expanded-editor, .photo-import-dialog, .calibration-dialog) {
+  background: var(--surface-panel);
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-primary);
+  animation: surface-enter var(--motion-panel) var(--motion-ease);
+}
+:root
+  :is(.expanded-editor, .photo-import-dialog, .calibration-dialog)
+  > :is(header, footer) {
+  border: 0;
+}
+:root .expanded-editor-body textarea {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border: 0;
+}
+:root .expanded-editor-body aside {
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+:root
+  :is(
+    .editor-help-heading strong,
+    .editor-help-group h3,
+    .photo-import-options article > b
+  ) {
+  color: var(--text-primary);
+}
+:root :is(.editor-help-list code, .expanded-editor > footer kbd) {
+  border: 0;
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+}
+:root :is(.save-notice, .font-studio-notice) {
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 14px 18px;
+  border-radius: 6px;
+  animation: surface-enter var(--motion-panel) var(--motion-ease);
+}
+:root .view-loading {
+  color: var(--text-secondary);
+  background: var(--surface-workspace);
+}
+
+/* Motion indicates a change of layer. Controls never move away from a pointer. */
+@keyframes surface-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+:root
+  :is(.workshop-section, .settings-section, .studio-detail)[open]
+  > :not(summary) {
+  animation: content-enter 220ms var(--motion-ease);
+}
+:root .preview-icon-button:active {
+  transform: none;
+}
+@media (max-width: 820px) {
+  :root .gcode-viewer-header {
+    gap: 12px;
+  }
+  :root .gcode-viewer-actions {
+    margin-left: 0;
+  }
+  :root .gcode-viewer-workspace {
+    overflow: auto;
+  }
+  :root .font-studio-toolbar {
+    padding: 12px;
+  }
+}
+@media (max-width: 600px) {
+  :root .workspace-navigation {
+    padding-inline: 12px;
+    gap: 10px;
+  }
+  :root .workspace-navigation button {
+    font-size: 11px;
+    padding-inline: 8px;
+  }
+  :root .workshop-toolbar {
+    padding: 16px;
+  }
+  :root .workshop-body {
+    gap: 0;
+    padding: 0;
+  }
+  :root .workshop-canvas {
+    padding: 16px;
+  }
+  :root .workshop-run-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  :root .workshop-run button.danger {
+    margin-left: 0;
+  }
+  :root .workshop-canvas-toolbar {
+    padding: 8px;
+    gap: 8px;
+  }
+  :root .workshop-statistics {
+    gap: 10px;
+  }
+  :root :is(.expanded-editor, .photo-import-dialog, .calibration-dialog) {
+    border-radius: 6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (forced-colors: active) {
+  :root
+    :is(
+      .app,
+      .font-studio,
+      .gcode-viewer,
+      .expanded-editor,
+      .photo-import-dialog,
+      .calibration-dialog
+    )
+    :is(button, input, select, textarea) {
+    border: 1px solid ButtonText;
+  }
+  :root
+    :is(
+      .app,
+      .font-studio,
+      .gcode-viewer,
+      .expanded-editor,
+      .photo-import-dialog,
+      .calibration-dialog
+    )
+    button:is(
+      [aria-pressed="true"],
+      [aria-selected="true"],
+      .active,
+      .selected
+    ) {
+    outline: 2px solid Highlight;
+  }
+}
+:root
+  :is(
+    .app,
+    .font-studio,
+    .gcode-viewer,
+    .expanded-editor,
+    .photo-import-dialog,
+    .calibration-dialog
+  )
+  .appearance-control {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  height: 32px;
+  padding: 4px 8px;
+  max-width: 150px;
+}
+:root .workspace-navigation > .appearance-control {
+  margin-left: auto;
+}
+@media (max-width: 600px) {
+  :root .workspace-navigation {
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+    padding-block: 8px;
+  }
+  :root .workspace-navigation > .appearance-control {
+    max-width: 130px;
+  }
+}
+:root .with-workspace-nav {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+}
+:root .with-workspace-nav > :is(.workspace, .plotter-workshop) {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+}
+:root .workspace-navigation {
+  flex-shrink: 0;
+}
+@media print {
+  :root .with-workspace-nav {
+    display: block;
+    height: auto;
+  }
+}
+:root .plotter-playback-controls {
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+}
+:root .plotter-playback-controls output,
+:root .plotter-arm {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+:root .plotter-preflight {
+  gap: 12px;
+  font-size: 12px;
+}
+:root .plotter-preflight span {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+}
+:root .plotter-preflight .pass {
+  color: var(--green);
+}
+:root .plotter-preflight .warning {
+  color: var(--warning);
+}
+:root .plotter-imported-job strong {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+:root .plotter-imported-job small {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+:root .plotter-console summary {
+  color: var(--text-secondary);
+}
+:root .plotter-console > div {
+  background: var(--surface-raised);
+}
+:root .plotter-console code {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+:root .font-picker-menu {
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+}
+:root .font-picker-trigger {
+  text-align: left;
+}
+:root .font-picker-trigger span {
+  color: var(--text-primary);
+}
+:root .font-picker-menu input {
+  background: var(--surface-panel);
+}
+:root .toggle-row i::after {
+  background: #ffffff;
+}
+:root .workshop-tabs button {
+  background: transparent;
+  color: var(--text-secondary);
+}
+:root .workshop-tabs button[aria-selected="true"] {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+:root .workspace-navigation button[aria-pressed="true"] {
+  background: var(--surface-raised);
+}
+:root .font-pen-tools {
+  background: var(--surface-panel);
+  border: 0;
+  padding: 8px 16px;
+}
+:root .font-studio .font-pen-tools button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--green);
+  border: 0;
+  border-radius: var(--control-radius);
+}
+:root
+  .font-preview-toolbar
+  :is(label, label > span, input:not([type="range"]), output) {
+  font-size: 12px;
+}
+:root .workshop-canvas-toolbar .workshop-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+}
+:root .photo-import-dialog > header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+:root .photo-import-dialog > header {
+  align-items: center;
+  padding-bottom: 0;
+}
+:root .gcode-dropzone {
+  flex: 0 1 360px;
+  min-height: 280px;
+  margin: auto;
+}
+:root .gcode-paper {
+  stroke: none;
+}
+@media (max-width: 780px) {
+  :root .font-studio {
+    height: 100dvh;
+    min-height: 0;
+  }
+  :root .font-studio-workspace {
+    display: block;
+    min-height: 0;
+    overflow: auto;
+  }
+  :root .font-character-panel {
+    max-height: 240px;
+  }
+  :root .font-studio-main {
+    overflow: visible;
+  }
+}
+@media (max-width: 600px) {
+  :root .workshop-body {
+    flex-direction: column;
+  }
+  :root .workshop-main {
+    order: -1;
+  }
+}
+:root
+  :is(.settings-panel, .workshop-inspector)
+  .integrated-plotter-settings
+  > .studio-detail {
+  padding: 16px 20px;
+}
+:root .machine-monitor {
+  padding: 20px;
+}
+
+/* Document controls share the application header; the canvas has no overlay toolbar. */
+:root .workspace-navigation {
+  height: auto;
+  min-height: 56px;
+  flex-wrap: wrap;
+  column-gap: 20px;
+  row-gap: 0;
+  padding-block: 8px;
+}
+:root .workspace-navigation > .appearance-control {
+  order: 2;
+}
+:root .document-toolbar-host {
+  order: 3;
+  flex: 1 1 100%;
+  min-width: 0;
+  padding-top: 6px;
+}
+:root .document-toolbar-host[hidden],
+:root .document-toolbar-host:empty {
+  display: none;
+}
+:root .document-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-height: 40px;
+  padding: 0;
+  color: var(--text-primary);
+  background: transparent;
+}
+:root .document-toolbar .preview-leading-actions {
+  padding: 0;
+  gap: 4px;
+}
+:root .document-toolbar .preview-context {
+  display: flex;
+  gap: 14px;
+  flex: 0 0 auto;
+  margin-right: 0;
+}
+:root .document-toolbar .preview-sheet-status {
+  font-size: 12px;
+}
+:root .document-toolbar .plotter-status {
+  font-size: 12px;
+  gap: 6px;
+}
+:root .document-toolbar .preview-job-stats {
+  flex: 1 1 auto;
+  gap: 18px;
+  padding: 0;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+:root .document-toolbar .preview-job-stats > span {
+  height: auto;
+  min-width: 0;
+  padding: 0;
+  gap: 3px;
+}
+:root .document-toolbar .preview-job-stats strong {
+  font-size: 12px;
+  line-height: 1.25;
+}
+:root .document-toolbar .preview-job-stats small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.25;
+}
+:root .document-toolbar :is(.preview-icon-button, .settings-toolbar-toggle) {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  flex: 0 0 34px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+}
+:root .document-toolbar .placement-toggle {
+  width: auto;
+  font-size: 12px;
+  white-space: nowrap;
+}
+:root .document-toolbar .layout-select {
+  width: auto;
+  min-width: 108px;
+  height: 34px;
+}
+@media (min-width: 1600px) {
+  :root .document-toolbar-host {
+    order: 1;
+    flex: 1 1 700px;
+    padding-top: 0;
+  }
+  :root .workspace-navigation > .appearance-control {
+    margin-left: 0;
+  }
+}
+@media (max-width: 800px) {
+  :root .document-toolbar {
+    gap: 8px;
+  }
+  :root .document-toolbar .preview-context {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  :root .document-toolbar .preview-job-stats {
+    order: 5;
+    flex-basis: 100%;
+    justify-content: flex-start;
+    gap: 20px;
+    padding-bottom: 4px;
+  }
+}
+:root :is(.settings-panel, .workshop-inspector) .pen-calibration-body {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+:root .pen-calibration-body > p {
+  margin: 0;
+}
+:root .pen-calibration-figure {
+  margin: 0;
+  min-width: 0;
+}
+:root .pen-calibration-figure .calibration-sheet-preview {
+  width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 8px;
+  border-radius: 0;
+}
+:root .pen-calibration-figure figcaption {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+:root .pen-calibration-body > button {
+  width: 100%;
+  min-height: 38px;
+}
+:root .pen-calibration-body .field {
+  margin: 0;
+  gap: 8px;
+}
+:root .pen-calibration-notice {
+  color: var(--green);
+  font-size: 12px;
+}
+:root .document-toolbar {
+  width: 100%;
+  min-width: 0;
+}
+:root .with-workspace-nav {
+  overflow: hidden;
+}
+@media print {
+  :root .with-workspace-nav {
+    overflow: visible;
+  }
+}
+
+/* Neutral, square workspace; compact controls retain only a small radius. */
+:root .workshop-body {
+  gap: 0;
+  padding: 0;
+}
+:root .workshop-inspector {
+  border-right: 1px solid var(--line);
+}
+:root .workshop-toolbar {
+  min-height: 48px;
+  padding: 8px 16px;
+  gap: 12px;
+}
+:root .workshop-toolbar input {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  max-width: 280px;
+  padding: 6px 0;
+}
+:root .workshop-toolbar .workshop-buttons {
+  gap: 6px;
+}
+:root .workshop-toolbar .workshop-buttons button {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+:root .workshop-empty {
+  margin: auto;
+  padding: 0;
+}
+:root .source-tabs {
+  padding: 0;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+}
+:root .source-tabs button {
+  min-width: 48px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--control-radius);
+  font-size: 12px;
+  font-weight: 500;
+}
+:root .source-tabs button:not(.active) {
+  color: var(--text-secondary);
+  background: transparent;
+}
+:root .source-tabs button.active {
+  color: var(--text-primary);
+  background: var(--control-hover);
+}
+:root .settings-panel {
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+:root .integrated-plotter-footer {
+  margin-bottom: 0;
+  margin-left: 0;
+  padding: 14px 16px;
+}
+:root .plotter-playback-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+:root .plotter-playback-controls select {
+  width: 64px;
+}
+:root .plotter-playback-controls output {
+  min-width: 40px;
+}
+:root .plotter-imported-job {
+  background: transparent;
+  padding: 12px 0;
+  gap: 12px;
+}
+:root .plotter-note {
+  background: transparent;
+  padding: 4px 0;
+}
+:root :is(.pages-viewport, .integrated-plotter-footer) {
+  scrollbar-width: none;
+}
+:root :is(.pages-viewport, .integrated-plotter-footer)::-webkit-scrollbar {
+  display: none;
+}
+@media (max-width: 600px) {
+  :root .workshop-toolbar > div:first-child {
+    width: auto;
+    flex: 1 1 160px;
+  }
+}
+:root .integrated-plotter-footer .plotter-imported-job { background: transparent; padding: 8px 0; display: flex; flex-direction: column; align-items: stretch; }
+:root .integrated-plotter-footer .plotter-imported-actions { flex-direction: row; justify-content: flex-start; }
+
+/* One shared header for the active workspace. */
+:root .workspace-navigation { min-height: 52px; height: auto; flex-wrap: nowrap; padding: 6px 14px; gap: 12px; }
+:root .workspace-navigation > .workspace-switcher { flex: 0 0 auto; order: 0; gap: 4px; }
+:root .workspace-navigation > .document-toolbar-host { order: 0; flex: 1 1 0; min-width: 0; padding: 0; }
+:root .workspace-navigation > .appearance-control { order: 0; flex: 0 0 auto; margin: 0; max-width: 128px; font-size: 11px; }
+:root .document-toolbar { flex-wrap: nowrap; min-height: 38px; gap: 8px; }
+:root .document-toolbar .preview-context { gap: 8px; }
+:root .document-toolbar .preview-sheet-status { font-size: 11px; }
+:root .document-toolbar .preview-job-stats { flex: 1 1 auto; gap: 12px; }
+:root .document-toolbar .preview-job-stats strong { font-size: 11px; }
+:root .document-toolbar .layout-select { min-width: 96px; }
+:root .document-toolbar-host .workshop-toolbar { min-height: 38px; padding: 0; width: 100%; flex-wrap: nowrap; gap: 12px; }
+:root .document-toolbar-host .workshop-toolbar > div:first-child { flex: 1 1 140px; min-width: 80px; width: auto; }
+:root .document-toolbar-host .workshop-toolbar input { width: 100%; max-width: 240px; }
+:root .document-toolbar-host .workshop-toolbar .workshop-buttons { flex-wrap: nowrap; flex: 0 0 auto; }
+:root .workshop-main, :root .workshop-inspector { margin: 0; padding: 0; }
+:root .workshop-inspector { border-right: 0; }
+:root .workshop-body { column-gap: 0; row-gap: 0; padding: 0; }
+@media (min-width: 1100px) and (max-width: 1350px) {
+  :root .document-toolbar .placement-toggle { width: 30px; min-width: 30px; padding: 0; font-size: 0; }
+  :root .document-toolbar .placement-toggle span { font-size: 16px; }
+  :root .document-toolbar .preview-job-stats { gap: 8px; }
+}
+@media (max-width: 1099px) {
+  :root .workspace-navigation:has(.document-toolbar) { flex-wrap: wrap; }
+  :root .workspace-navigation:has(.document-toolbar) > .appearance-control { order: 1; margin-left: auto; }
+  :root .workspace-navigation:has(.document-toolbar) > .document-toolbar-host { order: 2; flex-basis: 100%; }
+}
+@media (max-width: 800px) {
+  :root .workspace-navigation { flex-wrap: wrap; }
+  :root .workspace-navigation > .appearance-control { order: 1; margin-left: auto; }
+  :root .workspace-navigation > .document-toolbar-host { order: 2; flex-basis: 100%; }
+  :root .document-toolbar { flex-wrap: wrap; }
+  :root .document-toolbar .preview-job-stats { order: 5; flex-basis: 100%; }
+}
+@keyframes workspace-enter { from { opacity: .45; } to { opacity: 1; } }
+:root .with-workspace-nav > :is(.workspace, .plotter-workshop),
+:root .workshop-inspector > :is(fieldset, .integrated-plotter-settings),
+:root :is(.workshop-canvas, .workshop-code) { animation: workspace-enter 200ms var(--motion-ease); }
+:root .document-toolbar, :root .document-toolbar-host .workshop-toolbar { animation: workspace-enter 160ms var(--motion-ease); }
+
+/* Sidebar content and help bubbles must never create a horizontal scroll range. */
+:root :is(.workshop-inspector, .settings-panel) { overflow-x: hidden; overflow-y: auto; min-width: 0; }
+:root :is(.workshop-inspector, .settings-panel) .integrated-plotter-settings { min-width: 0; max-width: 100%; }
+:root .integrated-plotter-settings :is(.field, .range-control, .page-format-field) { position: relative; min-width: 0; }
+:root .integrated-plotter-settings :is(input, select, textarea) { min-width: 0; max-width: 100%; }
+:root .integrated-plotter-settings .plotter-help { position: static; }
+:root .integrated-plotter-settings .plotter-help > [role=tooltip] { display: none; left: 0; right: auto; width: 100%; max-width: 100%; box-sizing: border-box; overflow-wrap: anywhere; }
+:root .integrated-plotter-settings .plotter-help:is(:hover, :focus-visible) > [role=tooltip] { display: block; }
+:root .integrated-plotter-settings .plotter-actions { flex-wrap: wrap; }
+:root .integrated-plotter-settings .plotter-actions > .button { flex: 1 1 96px; min-width: 0; white-space: normal; }
+:root .integrated-plotter-settings .toggle-row { grid-template-columns: minmax(0, 1fr) auto; min-width: 0; }
+:root .integrated-plotter-settings .toggle-row > span { min-width: 0; overflow-wrap: anywhere; }

@@ -1,12 +1,12 @@
 body:has(.font-studio) {
   overflow: hidden;
-  background: #f3f4f6;
+  background: var(--surface-panel);
 }
 
 .font-studio {
   min-height: 100vh;
-  color: #111827;
-  background: #f3f4f6;
+  color: var(--text-primary);
+  background: var(--surface-panel);
 }
 
 .font-studio button,
@@ -22,11 +22,11 @@ body:has(.font-studio) {
   gap: 18px;
   padding: 0 16px;
   border-bottom: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface-raised);
 }
 
 .font-studio-toolbar > a {
-  color: #334155;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 700;
   text-decoration: none;
@@ -43,10 +43,10 @@ body:has(.font-studio) {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 7px;
+  border: 1px solid var(--line);
+  border-radius: 0;
   padding: 0 10px;
-  background: #fff;
+  background: var(--surface-raised);
 }
 
 .font-name-field span,
@@ -62,7 +62,7 @@ body:has(.font-studio) {
   height: 28px;
   border: 0;
   outline: 0;
-  color: #111827;
+  color: var(--text-primary);
   background: transparent;
   font-size: 12px;
   font-weight: 650;
@@ -70,7 +70,7 @@ body:has(.font-studio) {
 
 .font-name-field:focus-within {
   border-color: var(--accent-border);
-  box-shadow: 0 0 0 2px var(--accent-soft);
+  box-shadow: none;
 }
 
 .font-studio-progress {
@@ -81,7 +81,7 @@ body:has(.font-studio) {
 }
 
 .font-studio-progress strong {
-  color: #1e293b;
+  color: var(--text-primary);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -95,11 +95,11 @@ body:has(.font-studio) {
 .font-studio-actions button,
 .font-canvas-toolbar button {
   height: 34px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
   padding: 0 12px;
-  color: #334155;
-  background: #fff;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
   cursor: pointer;
   font-size: 10px;
   font-weight: 700;
@@ -107,18 +107,18 @@ body:has(.font-studio) {
 
 .font-studio-actions button:hover,
 .font-canvas-toolbar button:hover:not(:disabled) {
-  border-color: #9ca3af;
-  background: #f8fafc;
+  border-color: var(--line);
+  background: var(--surface-panel);
 }
 
 .font-studio-actions button.danger {
-  border-color: #fecaca;
-  color: #b91c1c;
+  border-color: var(--line);
+  color: var(--danger);
 }
 
 .font-studio-actions button.danger:hover:not(:disabled) {
-  border-color: #fca5a5;
-  background: #fef2f2;
+  border-color: var(--line);
+  background: var(--danger-soft);
 }
 
 .font-studio-actions button:disabled {
@@ -128,7 +128,7 @@ body:has(.font-studio) {
 
 .font-studio-actions button.primary {
   border-color: var(--green);
-  color: #fff;
+  color: var(--on-accent);
   background: var(--green);
 }
 
@@ -148,7 +148,7 @@ body:has(.font-studio) {
   padding: 10px 12px 10px 14px;
   border: 0;
   border-left: 3px solid var(--green);
-  border-radius: 5px;
+  border-radius: 6px;
   color: var(--text-primary);
   background: var(--surface-raised);
   font-size: 11px;
@@ -175,10 +175,10 @@ body:has(.font-studio) {
 .font-canvas-panel,
 .font-live-preview {
   min-width: 0;
-  border: 1px solid #dce2e8;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 2px 7px rgb(15 23 42 / 0.035);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface-raised);
+  box-shadow: none;
 }
 
 .font-character-panel {
@@ -196,8 +196,8 @@ body:has(.font-studio) {
   justify-content: space-between;
   gap: 12px;
   padding: 0 12px;
-  border-bottom: 1px solid #edf0f3;
-  background: #f8fafc;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-panel);
 }
 
 .font-character-panel-title strong {
@@ -222,7 +222,7 @@ body:has(.font-studio) {
 
 .font-character-group + .font-character-group {
   margin-top: 7px;
-  border-top: 1px solid #dfe4e8;
+  border-top: 1px solid var(--line);
 }
 
 .font-character-group > div:first-child {
@@ -235,7 +235,7 @@ body:has(.font-studio) {
 }
 
 .font-character-group > div:first-child strong {
-  color: #475569;
+  color: var(--text-secondary);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -243,7 +243,7 @@ body:has(.font-studio) {
 }
 
 .font-character-group > div:first-child small {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 8px;
   font-variant-numeric: tabular-nums;
 }
@@ -258,26 +258,26 @@ body:has(.font-studio) {
   position: relative;
   aspect-ratio: 1;
   min-width: 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 5px;
-  color: #475569;
-  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  color: var(--text-secondary);
+  background: var(--surface-raised);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
 }
 
 .font-character-grid button:hover {
-  border-color: #94a3b8;
-  color: #111827;
-  background: #f8fafc;
+  border-color: var(--line);
+  color: var(--text-primary);
+  background: var(--surface-panel);
 }
 
 .font-character-grid button.active {
   border-color: var(--green);
-  color: #fff;
+  color: var(--on-accent);
   background: var(--green);
-  box-shadow: inset 0 0 0 1px var(--green-dark);
+  box-shadow: none;
 }
 
 .font-character-grid button i {
@@ -321,8 +321,8 @@ body:has(.font-studio) {
   justify-content: space-between;
   gap: 16px;
   padding: 0 10px;
-  border-bottom: 1px solid #edf0f3;
-  background: #f8fafc;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-panel);
 }
 
 .font-canvas-toolbar > div {
@@ -393,8 +393,8 @@ body:has(.font-studio) {
   align-items: center;
   gap: 18px;
   padding: 0 12px;
-  border-bottom: 1px solid #edf0f3;
-  background: #f8fafc;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-panel);
 }
 
 .font-preview-toolbar label {
@@ -408,18 +408,18 @@ body:has(.font-studio) {
 .font-preview-toolbar label > input:not([type="range"]) {
   min-width: 0;
   height: 30px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
   padding: 0 9px;
   outline: 0;
-  color: #111827;
-  background: #fff;
+  color: var(--text-primary);
+  background: var(--surface-raised);
   font-size: 10px;
 }
 
 .font-preview-toolbar label > input:not([type="range"]):focus {
   border-color: var(--accent-border);
-  box-shadow: 0 0 0 2px var(--accent-soft);
+  box-shadow: none;
 }
 
 .font-preview-toolbar .font-preview-size {
@@ -432,7 +432,7 @@ body:has(.font-studio) {
 }
 
 .font-preview-size output {
-  color: #334155;
+  color: var(--text-secondary);
   font-size: 9px;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -442,7 +442,7 @@ body:has(.font-studio) {
   height: 156px;
   overflow-x: auto;
   overflow-y: hidden;
-  background: #fff;
+  background: var(--surface-raised);
 }
 
 .font-preview-svg {
@@ -479,10 +479,10 @@ body:has(.font-studio) {
   width: min(760px, 100%);
   max-height: calc(100vh - 48px);
   overflow: auto;
-  border: 1px solid #d7dee8;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 28px 80px rgb(15 23 42 / 0.28);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  box-shadow: none;
 }
 
 .photo-import-dialog > header,
@@ -496,7 +496,7 @@ body:has(.font-studio) {
 
 .photo-import-dialog > header {
   align-items: flex-start;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--line);
 }
 
 .photo-import-dialog > header span {
@@ -516,9 +516,9 @@ body:has(.font-studio) {
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 7px;
-  color: #64748b;
-  background: #f1f5f9;
+  border-radius: var(--control-radius);
+  color: var(--text-secondary);
+  background: var(--surface-panel);
   cursor: pointer;
   font-size: 20px;
 }
@@ -535,20 +535,20 @@ body:has(.font-studio) {
   flex-direction: column;
   gap: 10px;
   padding: 16px;
-  border: 1px solid #dbe2ea;
-  border-radius: 10px;
-  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface-panel);
 }
 
 .photo-import-options article > b {
-  color: #1e293b;
+  color: var(--text-primary);
   font-size: 13px;
 }
 
 .photo-import-options p {
   min-height: 58px;
   margin: 0;
-  color: #64748b;
+  color: var(--text-secondary);
   font-size: 10px;
   line-height: 1.55;
 }
@@ -561,11 +561,11 @@ body:has(.font-studio) {
 .photo-import-options button,
 .photo-import-dialog > footer button {
   min-height: 34px;
-  border: 1px solid #cbd5e1;
-  border-radius: 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
   padding: 0 11px;
-  color: #334155;
-  background: #fff;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
   cursor: pointer;
   font-size: 10px;
   font-weight: 750;
@@ -573,7 +573,7 @@ body:has(.font-studio) {
 
 .photo-import-options button.primary {
   border-color: var(--green);
-  color: #fff;
+  color: var(--on-accent);
   background: var(--green);
 }
 
@@ -581,7 +581,7 @@ body:has(.font-studio) {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #475569;
+  color: var(--text-secondary);
   font-size: 9px;
 }
 
@@ -591,8 +591,8 @@ body:has(.font-studio) {
   margin: 0 20px 18px;
   padding: 10px 12px;
   border: 1px solid var(--accent-border);
-  border-radius: 8px;
-  color: #1e40af;
+  border-radius: 0;
+  color: var(--text-primary);
   background: var(--accent-soft);
   font-size: 10px;
 }
@@ -603,8 +603,8 @@ body:has(.font-studio) {
 }
 
 .photo-import-dialog > footer {
-  border-top: 1px solid #e5e7eb;
-  color: #64748b;
+  border-top: 1px solid var(--line);
+  color: var(--text-secondary);
   font-size: 9px;
 }
 
@@ -676,9 +676,9 @@ body:has(.font-studio) {
   align-items: center;
   gap: 12px;
   padding: 7px 10px;
-  border-bottom: 1px solid #edf0f3;
+  border-bottom: 1px solid var(--line);
   flex: 0 0 auto;
-  color: #334155;
+  color: var(--text-secondary);
   font-size: 11px;
 }
 .font-tool-group {
@@ -692,7 +692,7 @@ body:has(.font-studio) {
 .font-pen-tools summary {
   min-height: 30px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--control-radius);
   padding: 0 10px;
   background: transparent;
   color: inherit;
@@ -702,7 +702,7 @@ body:has(.font-studio) {
 }
 .font-tool-group button {
   border-bottom: 2px solid transparent;
-  border-radius: 0;
+  border-radius: var(--control-radius);
   background: transparent;
 }
 .font-tool-group button:hover:not([aria-pressed="true"]),
@@ -728,7 +728,7 @@ body:has(.font-studio) {
   gap: 12px 24px;
   padding: 14px;
   border: 1px solid var(--line);
-  border-radius: 0 0 8px 8px;
+  border-radius: 0;
   color: var(--text-primary);
   background: var(--surface-raised);
   animation: font-pen-panel-enter 160ms ease-out;
@@ -774,7 +774,7 @@ body:has(.font-studio) {
   .font-pen-options-panel { grid-template-columns: 1fr; gap: 10px; }
   .font-pen-options p { grid-column: 1; }
 }
-.theme-dark .font-pen-tools { color: #d1d5db; border-color: #343434; }
+.theme-dark .font-pen-tools { color: #d1d5db; border-color: var(--line); }
 .theme-dark .font-tool-group { background: transparent; }
 .theme-dark .font-pen-tools button,
 .theme-dark .font-pen-tools select,

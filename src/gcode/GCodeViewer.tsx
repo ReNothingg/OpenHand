@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { downloadFile } from "../lib/files";
+import AppearanceControl from "../components/AppearanceControl";
 import {
   base64DecodedSize,
   MAX_GCODE_FILE_BYTES,
@@ -22,7 +24,9 @@ interface GCodeDocument {
   text: string;
 }
 
-function decodePayload(payload?: OpenHandFilePayload | null): GCodeDocument | null {
+function decodePayload(
+  payload?: OpenHandFilePayload | null,
+): GCodeDocument | null {
   if (!payload) return null;
   if (typeof payload.content === "string") {
     validateGCodeFileSize(new Blob([payload.content]).size);
@@ -111,10 +115,7 @@ function VirtualizedSource({
               : Math.max(lineStart, nextLineStart - 1);
           const line = source.slice(lineStart, lineEnd);
           return (
-            <code
-              key={index}
-              style={{ top: `${index * SOURCE_ROW_HEIGHT}px` }}
-            >
+            <code key={index} style={{ top: `${index * SOURCE_ROW_HEIGHT}px` }}>
               <i>{index + 1}</i>
               <span>{line || " "}</span>
             </code>
@@ -140,6 +141,9 @@ export default function GCodeViewer({
   const [parsing, setParsing] = useState(false);
   const [showTravel, setShowTravel] = useState(true);
   const [zoom, setZoom] = useState(1);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [previous, setPrevious] = useState<GCodeDocument | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -147,6 +151,8 @@ export default function GCodeViewer({
     try {
       const nextDocument = decodePayload(payload);
       if (nextDocument) {
+        setEditing(false);
+        setPrevious(null);
         setDocument(nextDocument);
         setError("");
         setZoom(1);
@@ -225,6 +231,8 @@ export default function GCodeViewer({
     }
     try {
       validateGCodeFileSize(file.size);
+      setEditing(false);
+      setPrevious(null);
       setDocument({
         name: file.name,
         text: normalizeGCodeSource(await file.text()),
@@ -257,7 +265,7 @@ export default function GCodeViewer({
             ← К документу
           </button>
           <div>
-            <strong>Просмотр G-code</strong>
+            <strong>Редактор G-code</strong>
             <span>{document?.name || "Файл не выбран"}</span>
           </div>
         </div>
@@ -279,6 +287,42 @@ export default function GCodeViewer({
           </div>
         )}
         <div className="gcode-viewer-actions">
+          <AppearanceControl />
+          {document && (
+            <>
+              <button
+                className="button compact"
+                disabled={editing}
+                onClick={() => {
+                  setDraft(document.text);
+                  setEditing(true);
+                }}
+              >
+                Редактировать
+              </button>
+              <button
+                className="button compact"
+                disabled={!previous || editing}
+                onClick={() => {
+                  if (previous) {
+                    setDocument(previous);
+                    setPrevious(null);
+                  }
+                }}
+              >
+                Отменить правку
+              </button>
+              <button
+                className="button compact"
+                disabled={editing || parsing}
+                onClick={() =>
+                  void downloadFile(document.name, document.text, "text/plain")
+                }
+              >
+                Сохранить как…
+              </button>
+            </>
+          )}
           <input
             ref={inputRef}
             type="file"
@@ -330,7 +374,8 @@ export default function GCodeViewer({
       )}
       {previewReduced && (
         <p className="gcode-viewer-warning neutral" role="status">
-          Очень большая траектория показана с прореживанием; расстояния и статистика рассчитаны полностью.
+          Очень большая траектория показана с прореживанием; расстояния и
+          статистика рассчитаны полностью.
         </p>
       )}
 
@@ -343,7 +388,8 @@ export default function GCodeViewer({
           <strong>Перетащите сюда файл G-code</strong>
           <span>или нажмите, чтобы выбрать .gcode, .nc или .tap</span>
           <small>
-            Файл обрабатывается только на этом устройстве, максимум {MAX_GCODE_FILE_BYTES / 1024 / 1024} МБ.
+            Файл обрабатывается только на этом устройстве, максимум{" "}
+            {MAX_GCODE_FILE_BYTES / 1024 / 1024} МБ.
           </small>
         </button>
       ) : (
@@ -420,10 +466,56 @@ export default function GCodeViewer({
               <strong>Команды</strong>
               <span>{result.lineCount.toLocaleString("ru-RU")} строк</span>
             </header>
-            <VirtualizedSource
-              source={document.text}
-              offsets={result.lineOffsets}
-            />
+            {editing ? (
+              <div className="gcode-edit-panel">
+                <textarea
+                  aria-label="Редактор команд G-code"
+                  spellCheck={false}
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                />
+                <div>
+                  <button
+                    className="button compact"
+                    onClick={() => {
+                      try {
+                        validateGCodeFileSize(new Blob([draft]).size);
+                        setPrevious(document);
+                        setDocument({
+                          ...document,
+                          text: normalizeGCodeSource(draft),
+                        });
+                        setEditing(false);
+                        setError("");
+                      } catch (reason) {
+                        setError(
+                          reason instanceof Error
+                            ? reason.message
+                            : String(reason),
+                        );
+                      }
+                    }}
+                  >
+                    Применить и проверить
+                  </button>
+                  <button
+                    className="button compact"
+                    onClick={() => setEditing(false)}
+                  >
+                    Отмена
+                  </button>
+                </div>
+                <small>
+                  Правки меняют файл. Перед отправкой на станок проверьте
+                  команды и траекторию.
+                </small>
+              </div>
+            ) : (
+              <VirtualizedSource
+                source={document.text}
+                offsets={result.lineOffsets}
+              />
+            )}
           </aside>
         </div>
       )}

@@ -117,9 +117,10 @@ export default function PhotoFontImporter({
         aria-modal="true"
         aria-label="Импорт почерка по фотографии"
       >
-        {/* <header>
-          <button type="button" aria-label="Закрыть" disabled={busy} onClick={onClose}>×</button>
-        </header> */}
+        <header>
+          <h2>Почерк по фотографии</h2>
+          <button type="button" aria-label="Закрыть импорт фотографии" disabled={busy} onClick={onClose}>×</button>
+        </header>
 
         <div className="photo-import-options">
           <article>

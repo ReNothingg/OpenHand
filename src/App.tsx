@@ -9,6 +9,8 @@ import { SAMPLE_MARKDOWN, SAMPLE_TEX } from "./app/samples";
 import EditorPanel from "./components/editor/EditorPanel";
 import PreviewPanel from "./components/preview/PreviewPanel";
 import SettingsPanel from "./components/settings/SettingsPanel";
+import PlotterWorkshop from "./components/plotter/PlotterWorkshop";
+import AppearanceControl from "./components/AppearanceControl";
 import { useDocumentPersistence } from "./hooks/useDocumentPersistence";
 import { useDebouncedValue } from "./hooks/useDebouncedValue";
 import { useIntegratedPlotter } from "./hooks/useIntegratedPlotter";
@@ -37,6 +39,15 @@ import {
 } from "./handwriting/profiles";
 
 export default function App() {
+  const [workspaceMode, setWorkspaceMode] = useState(() => {
+    try {
+      return sessionStorage.getItem("openhand.workspace") === "workshop"
+        ? "workshop"
+        : "document";
+    } catch {
+      return "document";
+    }
+  });
   const [markdown, setMarkdown] = useState(() =>
     loadStoredText(STORAGE_KEYS.markdown, SAMPLE_MARKDOWN),
   );
@@ -44,9 +55,7 @@ export default function App() {
     loadStoredText(STORAGE_KEYS.tex, SAMPLE_TEX),
   );
   const [sourceMode, setSourceMode] = useState(() =>
-    loadStoredText(STORAGE_KEYS.sourceMode, "") === "tex"
-      ? "tex"
-      : "markdown",
+    loadStoredText(STORAGE_KEYS.sourceMode, "") === "tex" ? "tex" : "markdown",
   );
   const [settings, setSettings] = useState(() =>
     normalizeSettings(loadStoredObject(STORAGE_KEYS.settings, {})),
@@ -56,6 +65,7 @@ export default function App() {
   );
   const [activePreset, setActivePreset] = useState("");
   const [editorCollapsed, setEditorCollapsed] = useState(false);
+  const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
   const [editorExpanded, setEditorExpanded] = useState(false);
   const [settingsCollapsed, setSettingsCollapsed] = useState(
     () => window.matchMedia("(max-width: 1180px)").matches,
@@ -334,14 +344,14 @@ export default function App() {
       settings.authorWidth,
       settings.authorRhythm,
       settings.authorBaseline,
-    settings.wordSpacing,
-    settings.paragraphIndent,
-    settings.paragraphGap,
-    settings.spaceVariation,
-    settings.wordCoherence,
-    settings.endCompression,
-    settings.ascenderScale,
-    settings.descenderScale,
+      settings.wordSpacing,
+      settings.paragraphIndent,
+      settings.paragraphGap,
+      settings.spaceVariation,
+      settings.wordCoherence,
+      settings.endCompression,
+      settings.ascenderScale,
+      settings.descenderScale,
       settings.fatigueEnabled,
       settings.fatigueStrength,
     ],
@@ -649,7 +659,7 @@ export default function App() {
     [hasIntentionalPlacement, plotterPageBlocks],
   );
   const plotterWorkspace = useIntegratedPlotter({
-    enabled: plotterEnabled,
+    enabled: plotterEnabled || workspaceMode === "workshop",
     fontId: settings.plotterFontId,
     customFont: customPlotterFont,
     pageTexts: plotterPageTexts,
@@ -717,9 +727,27 @@ export default function App() {
     [sourceMode],
   );
 
+  useEffect(() => {
+    const switchWorkspace = (event: Event) => {
+      if (plotterWorkspace.running || plotterWorkspace.calibrationActive)
+        return;
+      const mode =
+        (event as CustomEvent).detail === "workshop" ? "workshop" : "document";
+      setWorkspaceMode(mode);
+      try {
+        sessionStorage.setItem("openhand.workspace", mode);
+      } catch {
+        /* optional */
+      }
+    };
+    window.addEventListener("openhand:workspace", switchWorkspace);
+    return () =>
+      window.removeEventListener("openhand:workspace", switchWorkspace);
+  }, [plotterWorkspace.running, plotterWorkspace.calibrationActive]);
+
   return (
     <div
-      className={`app ${editorCollapsed ? "editor-collapsed" : ""} ${settingsCollapsed ? "settings-collapsed" : ""}`}
+      className={`app with-workspace-nav ${editorCollapsed ? "editor-collapsed" : ""} ${settingsCollapsed ? "settings-collapsed" : ""}`}
     >
       {saveNotice && (
         <div className={`save-notice ${saveNotice.kind}`} role="status">
@@ -727,90 +755,124 @@ export default function App() {
         </div>
       )}
       <style>{`@page { size: ${metrics.width}px ${metrics.height}px; margin: 0; }`}</style>
-      <div className="workspace">
-        <EditorPanel
-          sourceMode={sourceMode}
-          setSourceMode={setSourceMode}
-          activeSource={activeSource}
-          setActiveSource={setActiveSource}
-          textareaRef={textareaRef}
-          wordCount={wordCount}
-          characterCount={activeSource.length}
-          expanded={editorExpanded}
-          setExpanded={setEditorExpanded}
-          showPreview={() => setEditorCollapsed(true)}
+      <nav className="workspace-navigation" aria-label="Рабочее пространство">
+        <div className="workspace-switcher">
+          {[
+            ["document", "Документ"],
+            ["workshop", "Мастерская плоттера"],
+          ].map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={workspaceMode === mode}
+              disabled={
+                plotterWorkspace.running || plotterWorkspace.calibrationActive
+              }
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent("openhand:workspace", { detail: mode }),
+                )
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div ref={setToolbarHost} className="document-toolbar-host" />
+        <AppearanceControl />
+      </nav>
+      {workspaceMode === "workshop" ? (
+        <PlotterWorkshop
+          workspace={plotterWorkspace}
+          toolbarHost={toolbarHost}
         />
-        <PreviewPanel
-          pages={displayPages}
-          manualPages={arrangedManualPages}
-          manualEditing={manualEditing}
-          setManualEditing={setManualEditing}
-          onUpdateManualBlock={updateManualBlock}
-          onCommitManualBlock={commitManualBlock}
-          onMeasureManualBlocks={measureManualBlocks}
-          onResetManualBlock={resetManualBlock}
-          settings={settings}
-          metrics={metrics}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          editorCollapsed={editorCollapsed}
-          setEditorCollapsed={setEditorCollapsed}
-          openExpandedEditor={() => setEditorExpanded(true)}
-          settingsCollapsed={settingsCollapsed}
-          setSettingsCollapsed={setSettingsCollapsed}
-          reshuffle={() =>
-            updateSetting("seed", Math.floor(Math.random() * 999999))
-          }
-          previewRef={previewRef}
-          measureRef={measureRef}
-          panHandlers={{
-            onPointerDown: panHandlers.beginPan,
-            onPointerMove: panHandlers.movePan,
-            onPointerUp: panHandlers.endPan,
-            onPointerCancel: panHandlers.endPan,
-          }}
-          plotterWorkspace={plotterWorkspace}
-          activeSheetIndex={activeSheetIndex}
-          onActiveSheetChange={setActiveSheetIndex}
-        />
-        <SettingsPanel
-          settings={settings}
-          metrics={metrics}
-          updateSetting={updateSetting}
-          updateFontSelection={updateFontSelection}
-          customPlotterFonts={customPlotterFonts}
-          uploadCustomFont={uploadCustomFont}
-          updatePageSize={updatePageSize}
-          resetSettings={() => setSettings({ ...DEFAULT_SETTINGS })}
-          togglePoolFont={togglePoolFont}
-          presets={presets}
-          activePreset={activePreset}
-          selectPreset={selectPreset}
-          savePreset={savePreset}
-          deletePreset={deletePreset}
-          sourceMode={sourceMode}
-          openSource={() => sourceImportRef.current?.click()}
-          downloadSource={downloadSource}
-          exportSettings={() =>
-            downloadFile(
-              "handwriting-settings.json",
-              JSON.stringify(settings, null, 2),
-              "application/json",
-            )
-          }
-          importSettings={() => settingsImportRef.current?.click()}
-          plotterWorkspace={plotterWorkspace}
-          naturalnessReport={naturalnessReport}
-          applyNaturalnessFix={() =>
-            updateSettings(naturalnessAutofix(settings))
-          }
-          applyHandwritingProfile={(profileId) =>
-            updateSettings(profilePatch(profileId))
-          }
-          closeSettings={() => setSettingsCollapsed(true)}
-          settingsCollapsed={settingsCollapsed}
-        />
-      </div>
+      ) : (
+        <div className="workspace">
+          <EditorPanel
+            sourceMode={sourceMode}
+            setSourceMode={setSourceMode}
+            activeSource={activeSource}
+            setActiveSource={setActiveSource}
+            textareaRef={textareaRef}
+            wordCount={wordCount}
+            characterCount={activeSource.length}
+            expanded={editorExpanded}
+            setExpanded={setEditorExpanded}
+            showPreview={() => setEditorCollapsed(true)}
+          />
+          <PreviewPanel
+            toolbarHost={toolbarHost}
+            pages={displayPages}
+            manualPages={arrangedManualPages}
+            manualEditing={manualEditing}
+            setManualEditing={setManualEditing}
+            onUpdateManualBlock={updateManualBlock}
+            onCommitManualBlock={commitManualBlock}
+            onMeasureManualBlocks={measureManualBlocks}
+            onResetManualBlock={resetManualBlock}
+            settings={settings}
+            metrics={metrics}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            editorCollapsed={editorCollapsed}
+            setEditorCollapsed={setEditorCollapsed}
+            openExpandedEditor={() => setEditorExpanded(true)}
+            settingsCollapsed={settingsCollapsed}
+            setSettingsCollapsed={setSettingsCollapsed}
+            reshuffle={() =>
+              updateSetting("seed", Math.floor(Math.random() * 999999))
+            }
+            previewRef={previewRef}
+            measureRef={measureRef}
+            panHandlers={{
+              onPointerDown: panHandlers.beginPan,
+              onPointerMove: panHandlers.movePan,
+              onPointerUp: panHandlers.endPan,
+              onPointerCancel: panHandlers.endPan,
+            }}
+            plotterWorkspace={plotterWorkspace}
+            activeSheetIndex={activeSheetIndex}
+            onActiveSheetChange={setActiveSheetIndex}
+          />
+          <SettingsPanel
+            settings={settings}
+            metrics={metrics}
+            updateSetting={updateSetting}
+            updateFontSelection={updateFontSelection}
+            customPlotterFonts={customPlotterFonts}
+            uploadCustomFont={uploadCustomFont}
+            updatePageSize={updatePageSize}
+            resetSettings={() => setSettings({ ...DEFAULT_SETTINGS })}
+            togglePoolFont={togglePoolFont}
+            presets={presets}
+            activePreset={activePreset}
+            selectPreset={selectPreset}
+            savePreset={savePreset}
+            deletePreset={deletePreset}
+            sourceMode={sourceMode}
+            openSource={() => sourceImportRef.current?.click()}
+            downloadSource={downloadSource}
+            exportSettings={() =>
+              downloadFile(
+                "handwriting-settings.json",
+                JSON.stringify(settings, null, 2),
+                "application/json",
+              )
+            }
+            importSettings={() => settingsImportRef.current?.click()}
+            plotterWorkspace={plotterWorkspace}
+            naturalnessReport={naturalnessReport}
+            applyNaturalnessFix={() =>
+              updateSettings(naturalnessAutofix(settings))
+            }
+            applyHandwritingProfile={(profileId) =>
+              updateSettings(profilePatch(profileId))
+            }
+            closeSettings={() => setSettingsCollapsed(true)}
+            settingsCollapsed={settingsCollapsed}
+          />
+        </div>
+      )}
 
       <input
         ref={sourceImportRef}
