@@ -10,6 +10,12 @@ export function useRenderedPages(renderedHtml, settings) {
     let cancelled = false;
     let frame = 0;
     const calculate = async () => {
+      await document.fonts
+        .load(
+          `${settings.fontSize}px ${JSON.stringify(settings.fontFamily)}`,
+          "AaЯя0123=+",
+        )
+        .catch(() => []);
       await document.fonts.ready;
       if (cancelled || !measureRef.current) return;
       frame = requestAnimationFrame(() => {

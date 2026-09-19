@@ -1,5 +1,3 @@
-/* The interface has three surfaces: workspace, panels and the active document.
-   Depth comes from their tones and placement, never shadows or gradients. */
 :root {
   --surface-workspace: #ffffff;
   --surface-panel: #f7f7f8;
@@ -1860,59 +1858,214 @@ body,
     flex: 1 1 160px;
   }
 }
-:root .integrated-plotter-footer .plotter-imported-job { background: transparent; padding: 8px 0; display: flex; flex-direction: column; align-items: stretch; }
-:root .integrated-plotter-footer .plotter-imported-actions { flex-direction: row; justify-content: flex-start; }
+:root .integrated-plotter-footer .plotter-imported-job {
+  background: transparent;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+:root .integrated-plotter-footer .plotter-imported-actions {
+  flex-direction: row;
+  justify-content: flex-start;
+}
 
 /* One shared header for the active workspace. */
-:root .workspace-navigation { min-height: 52px; height: auto; flex-wrap: nowrap; padding: 6px 14px; gap: 12px; }
-:root .workspace-navigation > .workspace-switcher { flex: 0 0 auto; order: 0; gap: 4px; }
-:root .workspace-navigation > .document-toolbar-host { order: 0; flex: 1 1 0; min-width: 0; padding: 0; }
-:root .workspace-navigation > .appearance-control { order: 0; flex: 0 0 auto; margin: 0; max-width: 128px; font-size: 11px; }
-:root .document-toolbar { flex-wrap: nowrap; min-height: 38px; gap: 8px; }
-:root .document-toolbar .preview-context { gap: 8px; }
-:root .document-toolbar .preview-sheet-status { font-size: 11px; }
-:root .document-toolbar .preview-job-stats { flex: 1 1 auto; gap: 12px; }
-:root .document-toolbar .preview-job-stats strong { font-size: 11px; }
-:root .document-toolbar .layout-select { min-width: 96px; }
-:root .document-toolbar-host .workshop-toolbar { min-height: 38px; padding: 0; width: 100%; flex-wrap: nowrap; gap: 12px; }
-:root .document-toolbar-host .workshop-toolbar > div:first-child { flex: 1 1 140px; min-width: 80px; width: auto; }
-:root .document-toolbar-host .workshop-toolbar input { width: 100%; max-width: 240px; }
-:root .document-toolbar-host .workshop-toolbar .workshop-buttons { flex-wrap: nowrap; flex: 0 0 auto; }
-:root .workshop-main, :root .workshop-inspector { margin: 0; padding: 0; }
-:root .workshop-inspector { border-right: 0; }
-:root .workshop-body { column-gap: 0; row-gap: 0; padding: 0; }
+:root .workspace-navigation {
+  min-height: 52px;
+  height: auto;
+  flex-wrap: nowrap;
+  padding: 6px 14px;
+  gap: 12px;
+}
+:root .workspace-navigation > .workspace-switcher {
+  flex: 0 0 auto;
+  order: 0;
+  gap: 4px;
+}
+:root .workspace-navigation > .document-toolbar-host {
+  order: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0;
+}
+:root .workspace-navigation > .appearance-control {
+  order: 0;
+  flex: 0 0 auto;
+  margin: 0;
+  max-width: 128px;
+  font-size: 11px;
+}
+:root .document-toolbar {
+  flex-wrap: nowrap;
+  min-height: 38px;
+  gap: 8px;
+}
+:root .document-toolbar .preview-context {
+  gap: 8px;
+}
+:root .document-toolbar .preview-sheet-status {
+  font-size: 11px;
+}
+:root .document-toolbar .preview-job-stats {
+  flex: 1 1 auto;
+  gap: 12px;
+}
+:root .document-toolbar .preview-job-stats strong {
+  font-size: 11px;
+}
+:root .document-toolbar .layout-select {
+  min-width: 96px;
+}
+:root .document-toolbar-host .workshop-toolbar {
+  min-height: 38px;
+  padding: 0;
+  width: 100%;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+:root .document-toolbar-host .workshop-toolbar > div:first-child {
+  flex: 1 1 140px;
+  min-width: 80px;
+  width: auto;
+}
+:root .document-toolbar-host .workshop-toolbar input {
+  width: 100%;
+  max-width: 240px;
+}
+:root .document-toolbar-host .workshop-toolbar .workshop-buttons {
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+}
+:root .workshop-main,
+:root .workshop-inspector {
+  margin: 0;
+  padding: 0;
+}
+:root .workshop-inspector {
+  border-right: 0;
+}
+:root .workshop-body {
+  column-gap: 0;
+  row-gap: 0;
+  padding: 0;
+}
 @media (min-width: 1100px) and (max-width: 1350px) {
-  :root .document-toolbar .placement-toggle { width: 30px; min-width: 30px; padding: 0; font-size: 0; }
-  :root .document-toolbar .placement-toggle span { font-size: 16px; }
-  :root .document-toolbar .preview-job-stats { gap: 8px; }
+  :root .document-toolbar .placement-toggle {
+    width: 30px;
+    min-width: 30px;
+    padding: 0;
+    font-size: 0;
+  }
+  :root .document-toolbar .placement-toggle span {
+    font-size: 16px;
+  }
+  :root .document-toolbar .preview-job-stats {
+    gap: 8px;
+  }
 }
 @media (max-width: 1099px) {
-  :root .workspace-navigation:has(.document-toolbar) { flex-wrap: wrap; }
-  :root .workspace-navigation:has(.document-toolbar) > .appearance-control { order: 1; margin-left: auto; }
-  :root .workspace-navigation:has(.document-toolbar) > .document-toolbar-host { order: 2; flex-basis: 100%; }
+  :root .workspace-navigation:has(.document-toolbar) {
+    flex-wrap: wrap;
+  }
+  :root .workspace-navigation:has(.document-toolbar) > .appearance-control {
+    order: 1;
+    margin-left: auto;
+  }
+  :root .workspace-navigation:has(.document-toolbar) > .document-toolbar-host {
+    order: 2;
+    flex-basis: 100%;
+  }
 }
 @media (max-width: 800px) {
-  :root .workspace-navigation { flex-wrap: wrap; }
-  :root .workspace-navigation > .appearance-control { order: 1; margin-left: auto; }
-  :root .workspace-navigation > .document-toolbar-host { order: 2; flex-basis: 100%; }
-  :root .document-toolbar { flex-wrap: wrap; }
-  :root .document-toolbar .preview-job-stats { order: 5; flex-basis: 100%; }
+  :root .workspace-navigation {
+    flex-wrap: wrap;
+  }
+  :root .workspace-navigation > .appearance-control {
+    order: 1;
+    margin-left: auto;
+  }
+  :root .workspace-navigation > .document-toolbar-host {
+    order: 2;
+    flex-basis: 100%;
+  }
+  :root .document-toolbar {
+    flex-wrap: wrap;
+  }
+  :root .document-toolbar .preview-job-stats {
+    order: 5;
+    flex-basis: 100%;
+  }
 }
-@keyframes workspace-enter { from { opacity: .45; } to { opacity: 1; } }
+@keyframes workspace-enter {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
 :root .with-workspace-nav > :is(.workspace, .plotter-workshop),
 :root .workshop-inspector > :is(fieldset, .integrated-plotter-settings),
-:root :is(.workshop-canvas, .workshop-code) { animation: workspace-enter 200ms var(--motion-ease); }
-:root .document-toolbar, :root .document-toolbar-host .workshop-toolbar { animation: workspace-enter 160ms var(--motion-ease); }
+:root :is(.workshop-canvas, .workshop-code) {
+  animation: workspace-enter 200ms var(--motion-ease);
+}
+:root .document-toolbar,
+:root .document-toolbar-host .workshop-toolbar {
+  animation: workspace-enter 160ms var(--motion-ease);
+}
 
 /* Sidebar content and help bubbles must never create a horizontal scroll range. */
-:root :is(.workshop-inspector, .settings-panel) { overflow-x: hidden; overflow-y: auto; min-width: 0; }
-:root :is(.workshop-inspector, .settings-panel) .integrated-plotter-settings { min-width: 0; max-width: 100%; }
-:root .integrated-plotter-settings :is(.field, .range-control, .page-format-field) { position: relative; min-width: 0; }
-:root .integrated-plotter-settings :is(input, select, textarea) { min-width: 0; max-width: 100%; }
-:root .integrated-plotter-settings .plotter-help { position: static; }
-:root .integrated-plotter-settings .plotter-help > [role=tooltip] { display: none; left: 0; right: auto; width: 100%; max-width: 100%; box-sizing: border-box; overflow-wrap: anywhere; }
-:root .integrated-plotter-settings .plotter-help:is(:hover, :focus-visible) > [role=tooltip] { display: block; }
-:root .integrated-plotter-settings .plotter-actions { flex-wrap: wrap; }
-:root .integrated-plotter-settings .plotter-actions > .button { flex: 1 1 96px; min-width: 0; white-space: normal; }
-:root .integrated-plotter-settings .toggle-row { grid-template-columns: minmax(0, 1fr) auto; min-width: 0; }
-:root .integrated-plotter-settings .toggle-row > span { min-width: 0; overflow-wrap: anywhere; }
+:root :is(.workshop-inspector, .settings-panel) {
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-width: 0;
+}
+:root :is(.workshop-inspector, .settings-panel) .integrated-plotter-settings {
+  min-width: 0;
+  max-width: 100%;
+}
+:root
+  .integrated-plotter-settings
+  :is(.field, .range-control, .page-format-field) {
+  position: relative;
+  min-width: 0;
+}
+:root .integrated-plotter-settings :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+:root .integrated-plotter-settings .plotter-help {
+  position: static;
+}
+:root .integrated-plotter-settings .plotter-help > [role="tooltip"] {
+  display: none;
+  left: 0;
+  right: auto;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+:root
+  .integrated-plotter-settings
+  .plotter-help:is(:hover, :focus-visible)
+  > [role="tooltip"] {
+  display: block;
+}
+:root .integrated-plotter-settings .plotter-actions {
+  flex-wrap: wrap;
+}
+:root .integrated-plotter-settings .plotter-actions > .button {
+  flex: 1 1 96px;
+  min-width: 0;
+  white-space: normal;
+}
+:root .integrated-plotter-settings .toggle-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+}
+:root .integrated-plotter-settings .toggle-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

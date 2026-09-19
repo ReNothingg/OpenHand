@@ -237,6 +237,10 @@ struct OpenHandWebView: NSViewRepresentable {
         )
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        // The document canvas owns pinch zoom; never magnify the surrounding UI.
+        webView.allowsMagnification = false
+        webView.magnification = 1
+        webView.pageZoom = 1
         webView.underPageBackgroundColor = NSColor(
             name: nil,
             dynamicProvider: { appearance in

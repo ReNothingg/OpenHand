@@ -10,20 +10,37 @@ import { createGFontBlob, safeFontFilename } from "./gfontExport";
 import { downloadBlob } from "../lib/files";
 import { loadStoredObject, saveStoredValues } from "../lib/storage";
 import LiquidRange from "../components/controls/LiquidRange";
-import PathEditor from './PathEditor';
-import { validForms, repeatedForms, type LetterForm, type LetterForms } from './letterForms';
+import PathEditor from "./PathEditor";
+import {
+  validForms,
+  repeatedForms,
+  type LetterForm,
+  type LetterForms,
+} from "./letterForms";
 
-import { normalizePenSettings, type FontPoint, type FontStroke, type PenSettings } from "./penInput";
+import {
+  normalizePenSettings,
+  type FontPoint,
+  type FontStroke,
+  type PenSettings,
+} from "./penInput";
 
 const DRAFT_KEY = "openhand.font-studio.draft.v1";
 
 type GlyphMap = Record<string, FontStroke[]>;
-type FontDraft = { name?: unknown; glyphs?: unknown; penSettings?: PenSettings; forms?: LetterForms };
+type FontDraft = {
+  name?: unknown;
+  glyphs?: unknown;
+  penSettings?: PenSettings;
+  forms?: LetterForms;
+};
 
 function readDraft() {
   const draft = loadStoredObject<FontDraft>(DRAFT_KEY, {});
   return {
-    forms: Object.fromEntries(Object.entries(draft.forms || {}).map(([c, f]) => [c, validForms(f)])),
+    forms: Object.fromEntries(
+      Object.entries(draft.forms || {}).map(([c, f]) => [c, validForms(f)]),
+    ),
     penSettings: normalizePenSettings(draft.penSettings),
     name: typeof draft.name === "string" ? draft.name : "Мой почерк",
     glyphs:
@@ -66,33 +83,72 @@ export default function FontStudio() {
   const [notice, setNotice] = useState("");
   const [photoOpen, setPhotoOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
-  const exportGlyphs = { ...glyphs, ...Object.fromEntries(Object.entries(forms).flatMap(([c, variants]) => { const filled = variants.find(f => f.strokes.some(s => s.length > 1)); return filled ? [[c, filled.strokes]] : []; })) };
+  const exportGlyphs = {
+    ...glyphs,
+    ...Object.fromEntries(
+      Object.entries(forms).flatMap(([c, variants]) => {
+        const filled = variants.find((f) =>
+          f.strokes.some((s) => s.length > 1),
+        );
+        return filled ? [[c, filled.strokes]] : [];
+      }),
+    ),
+  };
   const completedCount = ALL_CHARACTERS.filter((character) =>
     exportGlyphs[character]?.some((stroke) => stroke.length > 1),
   ).length;
   const currentIndex = ALL_CHARACTERS.indexOf(activeCharacter);
-  const characterForms = forms[activeCharacter]?.length ? forms[activeCharacter] : [{ strokes: glyphs[activeCharacter] || [], position: 'any' as const }];
+  const characterForms = forms[activeCharacter]?.length
+    ? forms[activeCharacter]
+    : [{ strokes: glyphs[activeCharacter] || [], position: "any" as const }];
   const currentForm = characterForms[variant] || characterForms[0];
   const currentStrokes = currentForm.strokes;
   const writeCurrent = (strokes: FontStroke[]) => {
-    setForms(current => ({ ...current, [activeCharacter]: characterForms.map((f, i) => i === variant ? { ...f, strokes, entry: undefined, exit: undefined } : f) }));
-    if (!variant) setGlyphs(current => ({ ...current, [activeCharacter]: strokes }));
+    setForms((current) => ({
+      ...current,
+      [activeCharacter]: characterForms.map((f, i) =>
+        i === variant
+          ? { ...f, strokes, entry: undefined, exit: undefined }
+          : f,
+      ),
+    }));
+    if (!variant)
+      setGlyphs((current) => ({ ...current, [activeCharacter]: strokes }));
   };
   const updateForm = (form: LetterForm) => {
     updateGlyph(form.strokes);
-    setForms(current => ({ ...current, [activeCharacter]: characterForms.map((f, i) => i === variant ? form : f) }));
+    setForms((current) => ({
+      ...current,
+      [activeCharacter]: characterForms.map((f, i) =>
+        i === variant ? form : f,
+      ),
+    }));
   };
   const restoreForm = (form: LetterForm) => {
-    setForms(current => ({ ...current, [activeCharacter]: characterForms.map((f, i) => i === variant ? form : f) }));
-    if (!variant) setGlyphs(current => ({ ...current, [activeCharacter]: form.strokes }));
+    setForms((current) => ({
+      ...current,
+      [activeCharacter]: characterForms.map((f, i) =>
+        i === variant ? form : f,
+      ),
+    }));
+    if (!variant)
+      setGlyphs((current) => ({ ...current, [activeCharacter]: form.strokes }));
   };
 
   useEffect(() => {
     const save = () => {
-      if (!saveStoredValues({ [DRAFT_KEY]: JSON.stringify({ name, glyphs, forms, penSettings }) }))
-        setNotice("Черновик шрифта не удалось сохранить локально. Скачайте .gfont, чтобы сохранить работу.");
+      if (
+        !saveStoredValues({
+          [DRAFT_KEY]: JSON.stringify({ name, glyphs, forms, penSettings }),
+        })
+      )
+        setNotice(
+          "Черновик шрифта не удалось сохранить локально. Скачайте .gfont, чтобы сохранить работу.",
+        );
     };
-    const hide = () => { if (document.hidden) save(); };
+    const hide = () => {
+      if (document.hidden) save();
+    };
     const timer = window.setTimeout(save, 300);
     window.addEventListener("pagehide", save);
     document.addEventListener("visibilitychange", hide);
@@ -114,9 +170,11 @@ export default function FontStudio() {
     options: { previous?: FontStroke[] } = {},
   ) => {
     setHistory((current) => [
-        ...current.slice(-29),
-        options.previous ? { ...currentForm, strokes: options.previous } : currentForm,
-      ]);
+      ...current.slice(-29),
+      options.previous
+        ? { ...currentForm, strokes: options.previous }
+        : currentForm,
+    ]);
     setRedoHistory([]);
     writeCurrent(strokes);
   };
@@ -140,10 +198,15 @@ export default function FontStudio() {
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
-      if (event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]")) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest("input, textarea, select, [contenteditable]")
+      )
+        return;
       if (event.key.toLowerCase() === "z") {
         event.preventDefault();
-        if (event.shiftKey) redo(); else undo();
+        if (event.shiftKey) redo();
+        else undo();
       } else if (event.key.toLowerCase() === "y") {
         event.preventDefault();
         redo();
@@ -206,7 +269,10 @@ export default function FontStudio() {
       for (const character of ALL_CHARACTERS) {
         const glyph = await font.getGlyph(character.codePointAt(0));
         if (glyph) imported[character] = splitGlyph(glyph);
-        if (glyph) importedForms[character] = await font.getForms(character.codePointAt(0));
+        if (glyph)
+          importedForms[character] = await font.getForms(
+            character.codePointAt(0),
+          );
       }
       setHistory([]);
       setRedoHistory([]);
@@ -228,7 +294,15 @@ export default function FontStudio() {
   };
 
   const importPhotoSheet = (imported, { replaceExisting = false } = {}) => {
-    setForms(current => Object.fromEntries(Object.entries(current).filter(([character]) => !imported[character] || (!replaceExisting && glyphs[character]?.length))));
+    setForms((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(
+          ([character]) =>
+            !imported[character] ||
+            (!replaceExisting && glyphs[character]?.length),
+        ),
+      ),
+    );
     setVariant(0);
     setGlyphs((current) => {
       if (replaceExisting) return { ...current, ...imported };
@@ -322,7 +396,7 @@ export default function FontStudio() {
                           setActiveCharacter(character);
                           setVariant(0);
                           setHistory([]);
-    setRedoHistory([]);
+                          setRedoHistory([]);
                         }}
                         aria-label={`Редактировать символ ${character}`}
                       >
@@ -364,7 +438,13 @@ export default function FontStudio() {
                 <button type="button" disabled={!history.length} onClick={undo}>
                   Отменить
                 </button>
-                <button type="button" disabled={!redoHistory.length} onClick={redo}>Повторить</button>
+                <button
+                  type="button"
+                  disabled={!redoHistory.length}
+                  onClick={redo}
+                >
+                  Повторить
+                </button>
                 <button
                   type="button"
                   disabled={!currentStrokes.length}
@@ -374,14 +454,92 @@ export default function FontStudio() {
                 </button>
               </div>
             </div>
-            <PenTools settings={penSettings} onChange={setPenSettings} tool={tool} onToolChange={setTool} />
-            <div className="variant-toolbar" role="group" aria-label="Начертания буквы">
-              <label><span>Начертание</span><select value={variant} onChange={e => { setVariant(Number(e.target.value)); setHistory([]); setRedoHistory([]); }}>{characterForms.map((_, i) => <option value={i} key={i}>{i + 1}{i === 0 ? ' · основное' : ''}</option>)}</select></label>
+            <PenTools
+              settings={penSettings}
+              onChange={setPenSettings}
+              tool={tool}
+              onToolChange={setTool}
+            />
+            <div
+              className="variant-toolbar"
+              role="group"
+              aria-label="Начертания буквы"
+            >
+              <label>
+                <span>Начертание</span>
+                <select
+                  value={variant}
+                  onChange={(e) => {
+                    setVariant(Number(e.target.value));
+                    setHistory([]);
+                    setRedoHistory([]);
+                  }}
+                >
+                  {characterForms.map((_, i) => (
+                    <option value={i} key={i}>
+                      {i + 1}
+                      {i === 0 ? " · основное" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="variant-actions">
-                <button type="button" disabled={characterForms.length >= 6 || !currentStrokes.length} onClick={() => { setForms(current => ({ ...current, [activeCharacter]: [...characterForms, { strokes: [], position: 'any' }] })); setVariant(characterForms.length); setHistory([]); setRedoHistory([]); }}>Добавить</button>
-                <button className="variant-delete" type="button" disabled={!variant} onClick={() => { setForms(current => ({ ...current, [activeCharacter]: characterForms.filter((_, i) => i !== variant) })); setVariant(0); setHistory([]); setRedoHistory([]); }}>Удалить</button>
+                <button
+                  type="button"
+                  disabled={
+                    characterForms.length >= 6 || !currentStrokes.length
+                  }
+                  onClick={() => {
+                    setForms((current) => ({
+                      ...current,
+                      [activeCharacter]: [
+                        ...characterForms,
+                        { strokes: [], position: "any" },
+                      ],
+                    }));
+                    setVariant(characterForms.length);
+                    setHistory([]);
+                    setRedoHistory([]);
+                  }}
+                >
+                  Добавить
+                </button>
+                <button
+                  className="variant-delete"
+                  type="button"
+                  disabled={!variant}
+                  onClick={() => {
+                    setForms((current) => ({
+                      ...current,
+                      [activeCharacter]: characterForms.filter(
+                        (_, i) => i !== variant,
+                      ),
+                    }));
+                    setVariant(0);
+                    setHistory([]);
+                    setRedoHistory([]);
+                  }}
+                >
+                  Удалить
+                </button>
               </div>
-              <label className="variant-position"><span>Позиция в слове</span><select value={currentForm.position || 'any'} onChange={e => updateForm({ ...currentForm, position: e.target.value as LetterForm['position'] })}><option value="any">Любая</option><option value="initial">Начало</option><option value="medial">Середина</option><option value="final">Конец</option></select></label>
+              <label className="variant-position">
+                <span>Позиция в слове</span>
+                <select
+                  value={currentForm.position || "any"}
+                  onChange={(e) =>
+                    updateForm({
+                      ...currentForm,
+                      position: e.target.value as LetterForm["position"],
+                    })
+                  }
+                >
+                  <option value="any">Любая</option>
+                  <option value="initial">Начало</option>
+                  <option value="medial">Середина</option>
+                  <option value="final">Конец</option>
+                </select>
+              </label>
             </div>
             <FontCanvas
               key={`${activeCharacter}:${variant}`}
@@ -392,7 +550,11 @@ export default function FontStudio() {
               strokes={currentStrokes}
               onChange={updateGlyph}
             />
-            <PathEditor key={`nodes:${activeCharacter}:${variant}`} form={currentForm} onChange={updateForm} />
+            <PathEditor
+              key={`nodes:${activeCharacter}:${variant}`}
+              form={currentForm}
+              onChange={updateForm}
+            />
           </section>
 
           <section className="font-live-preview">
@@ -427,7 +589,29 @@ export default function FontStudio() {
               size={previewSize}
             />
           </section>
-          <details className="studio-detail"><summary>Повторяемость начертаний</summary><p>Сравниваются формы штрихов с точностью 0,1 единицы, без учёта переноса буквы. Различия наклона и размера не заменяют записанные варианты.</p><div className="form-audit">{repeatedForms({ ...Object.fromEntries(Object.entries(glyphs).map(([c, strokes]) => [c, [{ strokes }]])), ...forms }).map(item => <span key={item.character}>{item.character}: {item.distinct} уник. из {item.count}</span>)}</div></details>
+          <details className="studio-detail">
+            <summary>Повторяемость начертаний</summary>
+            <p>
+              Сравниваются формы штрихов с точностью 0,1 единицы, без учёта
+              переноса буквы. Различия наклона и размера не заменяют записанные
+              варианты.
+            </p>
+            <div className="form-audit">
+              {repeatedForms({
+                ...Object.fromEntries(
+                  Object.entries(glyphs).map(([c, strokes]) => [
+                    c,
+                    [{ strokes }],
+                  ]),
+                ),
+                ...forms,
+              }).map((item) => (
+                <span key={item.character}>
+                  {item.character}: {item.distinct} уник. из {item.count}
+                </span>
+              ))}
+            </div>
+          </details>
         </div>
       </div>
 

@@ -36,6 +36,10 @@ function makeMeasurePage(host, settings) {
   page.style.width = `${metrics.width}px`;
   page.style.height = `${metrics.height}px`;
   page.style.fontFamily = `'${settings.fontFamily}'`;
+  page.style.setProperty(
+    "--document-font",
+    JSON.stringify(settings.fontFamily),
+  );
   page.style.fontSize = `${settings.fontSize}px`;
   page.style.lineHeight = String(settings.lineHeight);
   const content = document.createElement("div");
@@ -49,7 +53,13 @@ function makeMeasurePage(host, settings) {
 
 function getSplitUnits(element) {
   const words = [...element.querySelectorAll(".hw-word")];
-  return words.length > 1 ? words : [...element.querySelectorAll(".hw-letter")];
+  // A formula is indivisible: include it in the same ordered sequence as text,
+  // otherwise a trailing formula can be appended after the last fitting word.
+  return [
+    ...element.querySelectorAll(
+      words.length > 1 ? ".hw-word, .katex" : ".hw-letter, .katex",
+    ),
+  ];
 }
 
 function cloneThroughUnit(element, unit) {

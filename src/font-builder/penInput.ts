@@ -22,15 +22,26 @@ export const DEFAULT_PEN_SETTINGS: PenSettings = {
   tiltEnabled: false,
 };
 
-export function finiteClamp(value: unknown, min: number, max: number, fallback: number) {
+export function finiteClamp(
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number,
+) {
   return typeof value === "number" && Number.isFinite(value)
-    ? Math.max(min, Math.min(max, value)) : fallback;
+    ? Math.max(min, Math.min(max, value))
+    : fallback;
 }
 
-export function normalizePenSettings(value: Partial<PenSettings> = {}): PenSettings {
+export function normalizePenSettings(
+  value: Partial<PenSettings> = {},
+): PenSettings {
   if (!value || typeof value !== "object") value = {};
   return {
-    inputMode: value.inputMode === 'pen' || value.inputMode === 'all' ? value.inputMode : "auto",
+    inputMode:
+      value.inputMode === "pen" || value.inputMode === "all"
+        ? value.inputMode
+        : "auto",
     pressureEnabled: value.pressureEnabled !== false,
     pressureResponse: finiteClamp(value.pressureResponse, 0.4, 2, 1),
     smoothing: finiteClamp(value.smoothing, 0, 70, 25),
@@ -55,14 +66,32 @@ export function penPoint(
   };
 }
 
-export function appendSample(stroke: FontStroke, point: FontPoint, smoothing: number, final = false) {
+export function appendSample(
+  stroke: FontStroke,
+  point: FontPoint,
+  smoothing: number,
+  final = false,
+) {
   const previous = stroke.at(-1);
-  if (!previous) { stroke.push(point); return; }
+  if (!previous) {
+    stroke.push(point);
+    return;
+  }
   const distance = Math.hypot(point.x - previous.x, point.y - previous.y);
-  if (distance < 0.12 && Math.abs((point.pressure ?? 0.5) - (previous.pressure ?? 0.5)) < 0.015) return;
+  if (
+    distance < 0.12 &&
+    Math.abs((point.pressure ?? 0.5) - (previous.pressure ?? 0.5)) < 0.015
+  )
+    return;
   // Reduce filtering at speed; preserve the actual lift-off endpoint.
-  const alpha = final ? 1 : 1 - finiteClamp(smoothing, 0, 70, 25) / 100 * Math.exp(-distance / 8);
-  stroke.push({ ...point, x: previous.x + (point.x - previous.x) * alpha, y: previous.y + (point.y - previous.y) * alpha });
+  const alpha = final
+    ? 1
+    : 1 - (finiteClamp(smoothing, 0, 70, 25) / 100) * Math.exp(-distance / 8);
+  stroke.push({
+    ...point,
+    x: previous.x + (point.x - previous.x) * alpha,
+    y: previous.y + (point.y - previous.y) * alpha,
+  });
 }
 
 export function completeStroke(stroke: FontStroke): FontStroke {
@@ -70,7 +99,9 @@ export function completeStroke(stroke: FontStroke): FontStroke {
     ...point,
     x: Math.round(point.x * 100) / 100,
     y: Math.round(point.y * 100) / 100,
-    ...(point.pressure === undefined ? {} : { pressure: Math.round(point.pressure * 10000) / 10000 }),
+    ...(point.pressure === undefined
+      ? {}
+      : { pressure: Math.round(point.pressure * 10000) / 10000 }),
     ...(point.time === undefined ? {} : { time: Math.round(point.time) }),
   }));
   if (points.length !== 1) return points;
@@ -79,29 +110,61 @@ export function completeStroke(stroke: FontStroke): FontStroke {
 }
 
 export function nibWidth(point: FontPoint, settings: PenSettings): number {
-  const pressure = settings.pressureEnabled && point.pressure !== undefined
-    ? Math.pow(finiteClamp(point.pressure, 0, 1, 0.5), settings.pressureResponse) : 0.5;
-  const tilt = settings.tiltEnabled && point.tiltX !== undefined
-    ? Math.min(1, Math.hypot(point.tiltX, point.tiltY || 0) / 90) : 0;
+  const pressure =
+    settings.pressureEnabled && point.pressure !== undefined
+      ? Math.pow(
+          finiteClamp(point.pressure, 0, 1, 0.5),
+          settings.pressureResponse,
+        )
+      : 0.5;
+  const tilt =
+    settings.tiltEnabled && point.tiltX !== undefined
+      ? Math.min(1, Math.hypot(point.tiltX, point.tiltY || 0) / 90)
+      : 0;
   return (1.2 + pressure * 5.6) * (1 + tilt * 0.65);
 }
 
 export function acceptsPointer(
   inputMode: PenSettings["inputMode"],
-  event: Pick<PointerEvent, "pointerType" | "button" | "isPrimary" | "width" | "height">,
+  event: Pick<
+    PointerEvent,
+    "pointerType" | "button" | "isPrimary" | "width" | "height"
+  >,
   penSeen: boolean,
 ) {
-  if (event.pointerType === "pen") return event.button === 0 || event.button === 5;
-  if (inputMode === "pen" || event.button !== 0 || !event.isPrimary) return false;
-  return event.pointerType !== "touch" || inputMode === "all" || (!penSeen && Math.max(event.width, event.height) <= 28);
+  if (event.pointerType === "pen")
+    return event.button === 0 || event.button === 5;
+  if (inputMode === "pen" || event.button !== 0 || !event.isPrimary)
+    return false;
+  return (
+    event.pointerType !== "touch" ||
+    inputMode === "all" ||
+    (!penSeen && Math.max(event.width, event.height) <= 28)
+  );
 }
 
-export function strokeHit(stroke: FontStroke, point: FontPoint, radius: number) {
+export function strokeHit(
+  stroke: FontStroke,
+  point: FontPoint,
+  radius: number,
+) {
   return stroke.some((end, index) => {
     const start = stroke[Math.max(0, index - 1)]!;
-    const dx = end.x - start.x, dy = end.y - start.y;
+    const dx = end.x - start.x,
+      dy = end.y - start.y;
     const length = dx * dx + dy * dy;
-    const t = length ? Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / length)) : 0;
-    return Math.hypot(point.x - start.x - dx * t, point.y - start.y - dy * t) <= radius;
+    const t = length
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            ((point.x - start.x) * dx + (point.y - start.y) * dy) / length,
+          ),
+        )
+      : 0;
+    return (
+      Math.hypot(point.x - start.x - dx * t, point.y - start.y - dy * t) <=
+      radius
+    );
   });
 }

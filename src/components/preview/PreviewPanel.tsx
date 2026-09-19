@@ -298,6 +298,7 @@ export default function PreviewPanel({
                     backgroundColor: settings.pageColor,
                     color: settings.inkColor,
                     fontFamily: `'${settings.fontFamily}'`,
+                    "--document-font": JSON.stringify(settings.fontFamily),
                     fontSize: settings.fontSize,
                     lineHeight: settings.lineHeight,
                     "--rule-size": `${settings.fontSize * settings.lineHeight}px`,

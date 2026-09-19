@@ -40,7 +40,9 @@ body {
   place-items: center;
   color: var(--text-secondary);
   background: var(--surface-workspace);
-  font: 600 13px/1.4 system-ui, sans-serif;
+  font:
+    600 13px/1.4 system-ui,
+    sans-serif;
 }
 button,
 input,
@@ -84,8 +86,14 @@ summary:focus-visible,
   box-shadow: none;
   font-size: 13px;
 }
-.save-notice.success { border-color: var(--line); color: var(--green); }
-.save-notice.error { border-color: var(--line); color: var(--danger); }
+.save-notice.success {
+  border-color: var(--line);
+  color: var(--green);
+}
+.save-notice.error {
+  border-color: var(--line);
+  color: var(--danger);
+}
 .panel-title > div:first-child:not(.source-tabs) {
   display: flex;
   flex-direction: column;

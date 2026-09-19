@@ -376,15 +376,29 @@
   position: relative;
   display: inline-block;
   margin-right: var(--glyph-join, 0);
-  transform: skewX(var(--glyph-slant, 0deg)) scale(var(--glyph-width, 1), var(--glyph-height, 1));
+  transform: skewX(var(--glyph-slant, 0deg))
+    scale(var(--glyph-width, 1), var(--glyph-height, 1));
   transform-origin: 50% 78%;
   text-shadow: none;
 }
-.hw-natural .hw-glyph-variant.variant-1 { transform: translateY(-0.015em) skewX(var(--glyph-slant, 0deg)) scale(calc(var(--glyph-width, 1) * 0.985), var(--glyph-height, 1)); }
-.hw-natural .hw-glyph-variant.variant-2 { transform: translateY(0.018em) skewX(calc(var(--glyph-slant, 0deg) + 1deg)) scale(calc(var(--glyph-width, 1) * 1.018), var(--glyph-height, 1)); }
-.hw-natural .hw-glyph-variant.variant-3 { transform: translateX(0.012em) skewX(calc(var(--glyph-slant, 0deg) - 0.8deg)) scale(calc(var(--glyph-width, 1) * 0.995), var(--glyph-height, 1)); }
-.hw-natural .hw-glyph-variant.word-start { transform-origin: left 78%; }
-.hw-natural .hw-glyph-variant.word-end { transform-origin: right 78%; }
+.hw-natural .hw-glyph-variant.variant-1 {
+  transform: translateY(-0.015em) skewX(var(--glyph-slant, 0deg))
+    scale(calc(var(--glyph-width, 1) * 0.985), var(--glyph-height, 1));
+}
+.hw-natural .hw-glyph-variant.variant-2 {
+  transform: translateY(0.018em) skewX(calc(var(--glyph-slant, 0deg) + 1deg))
+    scale(calc(var(--glyph-width, 1) * 1.018), var(--glyph-height, 1));
+}
+.hw-natural .hw-glyph-variant.variant-3 {
+  transform: translateX(0.012em) skewX(calc(var(--glyph-slant, 0deg) - 0.8deg))
+    scale(calc(var(--glyph-width, 1) * 0.995), var(--glyph-height, 1));
+}
+.hw-natural .hw-glyph-variant.word-start {
+  transform-origin: left 78%;
+}
+.hw-natural .hw-glyph-variant.word-end {
+  transform-origin: right 78%;
+}
 .hw-word.hw-correction::after {
   content: "";
   position: absolute;
@@ -412,15 +426,24 @@
   text-underline-offset: 0.16em;
   text-decoration-thickness: 1.25px;
 }
-.markdown-body .underline-wavy { text-decoration-line: underline; text-decoration-style: wavy; }
-.markdown-body .underline-double { text-decoration-line: underline; text-decoration-style: double; }
+.markdown-body .underline-wavy {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+}
+.markdown-body .underline-double {
+  text-decoration-line: underline;
+  text-decoration-style: double;
+}
 .markdown-body mark {
   padding: 0 0.12em;
   color: inherit;
   background: #fef08a;
   box-decoration-break: clone;
 }
-.markdown-body del { opacity: 0.68; text-decoration-thickness: 1.2px; }
+.markdown-body del {
+  opacity: 0.68;
+  text-decoration-thickness: 1.2px;
+}
 .markdown-body .katex-display {
   margin: 0.65em 0 0.9em;
   padding-left: 0.14em;
@@ -444,8 +467,7 @@
 .markdown-body strong .hw-glyph-variant,
 .markdown-body b .hw-glyph-variant,
 .markdown-body .bf .hw-glyph-variant {
-  text-shadow:
-    none;
+  text-shadow: none;
 }
 .markdown-body em,
 .markdown-body i,
@@ -593,4 +615,32 @@
 .tex-error pre {
   margin: 0.5em 0 0;
   white-space: pre-wrap;
+}
+.markdown-body
+  .katex
+  :is(.mathnormal, .mathit, .mathrm, .textnormal, .textit, .mathbf, .textbf),
+.markdown-body
+  .katex
+  :is(.mord, .mbin, .mrel, .mpunct, .mopen, .mclose):not(:has(*)):not(
+    .amsrm
+  ):not(.mathbb):not(.mathcal):not(.mathfrak):not(.delimsizing):not(
+    .op-symbol
+  ) {
+  font-family: var(--document-font), KaTeX_Main, serif;
+}
+.markdown-body .katex .mathnormal {
+  font-style: normal;
+}
+
+.manual-page-content
+  > .manual-block:first-child:not(.is-positioned)
+  > .manual-block-body
+  > :first-child {
+  margin-top: 0 !important;
+}
+.manual-page-content
+  > .manual-block:last-child:not(.is-positioned)
+  > .manual-block-body
+  > :last-child {
+  margin-bottom: 0 !important;
 }

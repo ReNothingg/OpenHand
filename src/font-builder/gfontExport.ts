@@ -1,7 +1,7 @@
 const encoder = new TextEncoder();
 
 import type { FontStroke } from "./penInput";
-import type { LetterForms } from './letterForms';
+import type { LetterForms } from "./letterForms";
 
 function crc32(bytes: Uint8Array) {
   let crc = 0xffffffff;
@@ -65,7 +65,10 @@ function concatBytes(chunks) {
   return result;
 }
 
-export function createGFontBlob(glyphs: Record<string, FontStroke[]>, forms: LetterForms = {}) {
+export function createGFontBlob(
+  glyphs: Record<string, FontStroke[]>,
+  forms: LetterForms = {},
+) {
   const localChunks: Uint8Array[] = [];
   const centralChunks: Uint8Array[] = [];
   let localOffset = 0;
@@ -77,49 +80,74 @@ export function createGFontBlob(glyphs: Record<string, FontStroke[]>, forms: Let
     .forEach(([character, strokes]) => {
       const codePoint = character.codePointAt(0);
       const kept = strokes.filter((stroke) => stroke.length > 1);
-      entries.push({ filename: String(codePoint), data: encodeGlyph(codePoint, kept) });
-      if (forms[character]?.length) entries.push({ filename: `openhand/${codePoint}.forms.json`, data: encoder.encode(JSON.stringify({ version: 1, forms: forms[character] })) });
-      if (kept.some((stroke) => stroke.some((point) => point.pressure !== undefined))) {
+      entries.push({
+        filename: String(codePoint),
+        data: encodeGlyph(codePoint, kept),
+      });
+      if (forms[character]?.length)
+        entries.push({
+          filename: `openhand/${codePoint}.forms.json`,
+          data: encoder.encode(
+            JSON.stringify({ version: 1, forms: forms[character] }),
+          ),
+        });
+      if (
+        kept.some((stroke) =>
+          stroke.some((point) => point.pressure !== undefined),
+        )
+      ) {
         entries.push({
           filename: `openhand/${codePoint}.pen.json`,
-          data: encoder.encode(JSON.stringify({ version: 1, points: kept.flat().map(({ pressure, tiltX, tiltY, time }) => ({ pressure, tiltX, tiltY, time })) })),
+          data: encoder.encode(
+            JSON.stringify({
+              version: 1,
+              points: kept
+                .flat()
+                .map(({ pressure, tiltX, tiltY, time }) => ({
+                  pressure,
+                  tiltX,
+                  tiltY,
+                  time,
+                })),
+            }),
+          ),
         });
       }
     });
   entries.forEach(({ filename, data }) => {
-      const name = encoder.encode(filename);
-      const checksum = crc32(data);
+    const name = encoder.encode(filename);
+    const checksum = crc32(data);
 
-      const localHeader = new Uint8Array(30 + name.length);
-      const localView = new DataView(localHeader.buffer);
-      writeUint32(localView, 0, 0x04034b50);
-      writeUint16(localView, 4, 20);
-      writeUint16(localView, 6, 0);
-      writeUint16(localView, 8, 0);
-      writeUint32(localView, 14, checksum);
-      writeUint32(localView, 18, data.length);
-      writeUint32(localView, 22, data.length);
-      writeUint16(localView, 26, name.length);
-      localHeader.set(name, 30);
-      localChunks.push(localHeader, data);
+    const localHeader = new Uint8Array(30 + name.length);
+    const localView = new DataView(localHeader.buffer);
+    writeUint32(localView, 0, 0x04034b50);
+    writeUint16(localView, 4, 20);
+    writeUint16(localView, 6, 0);
+    writeUint16(localView, 8, 0);
+    writeUint32(localView, 14, checksum);
+    writeUint32(localView, 18, data.length);
+    writeUint32(localView, 22, data.length);
+    writeUint16(localView, 26, name.length);
+    localHeader.set(name, 30);
+    localChunks.push(localHeader, data);
 
-      const centralHeader = new Uint8Array(46 + name.length);
-      const centralView = new DataView(centralHeader.buffer);
-      writeUint32(centralView, 0, 0x02014b50);
-      writeUint16(centralView, 4, 20);
-      writeUint16(centralView, 6, 20);
-      writeUint16(centralView, 8, 0);
-      writeUint16(centralView, 10, 0);
-      writeUint32(centralView, 16, checksum);
-      writeUint32(centralView, 20, data.length);
-      writeUint32(centralView, 24, data.length);
-      writeUint16(centralView, 28, name.length);
-      writeUint32(centralView, 42, localOffset);
-      centralHeader.set(name, 46);
-      centralChunks.push(centralHeader);
+    const centralHeader = new Uint8Array(46 + name.length);
+    const centralView = new DataView(centralHeader.buffer);
+    writeUint32(centralView, 0, 0x02014b50);
+    writeUint16(centralView, 4, 20);
+    writeUint16(centralView, 6, 20);
+    writeUint16(centralView, 8, 0);
+    writeUint16(centralView, 10, 0);
+    writeUint32(centralView, 16, checksum);
+    writeUint32(centralView, 20, data.length);
+    writeUint32(centralView, 24, data.length);
+    writeUint16(centralView, 28, name.length);
+    writeUint32(centralView, 42, localOffset);
+    centralHeader.set(name, 46);
+    centralChunks.push(centralHeader);
 
-      localOffset += localHeader.length + data.length;
-    });
+    localOffset += localHeader.length + data.length;
+  });
 
   const localData = concatBytes(localChunks);
   const centralData = concatBytes(centralChunks);

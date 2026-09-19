@@ -1,6 +1,11 @@
-import { nibWidth, DEFAULT_PEN_SETTINGS, type FontStroke, type PenSettings } from "./penInput";
-import { chooseForm, type LetterForms } from './letterForms';
-import { createCursiveConnector } from '../plotter/job';
+import {
+  nibWidth,
+  DEFAULT_PEN_SETTINGS,
+  type FontStroke,
+  type PenSettings,
+} from "./penInput";
+import { chooseForm, type LetterForms } from "./letterForms";
+import { createCursiveConnector } from "../plotter/job";
 
 function glyphWidth(strokes: FontStroke[]) {
   const points = strokes.flat();
@@ -52,30 +57,73 @@ export default function FontPreview({
       return;
     }
     const variants = forms[character] || [];
-    const position = !characterIndex || /\s/.test(text[characterIndex - 1]) ? 'initial' : characterIndex === text.length - 1 || /\s/.test(text[characterIndex + 1]) ? 'final' : 'medial';
-    const index = chooseForm(variants, 31847, characterIndex, position, previous.get(character));
+    const position =
+      !characterIndex || /\s/.test(text[characterIndex - 1])
+        ? "initial"
+        : characterIndex === text.length - 1 ||
+            /\s/.test(text[characterIndex + 1])
+          ? "final"
+          : "medial";
+    const index = chooseForm(
+      variants,
+      31847,
+      characterIndex,
+      position,
+      previous.get(character),
+    );
     previous.set(character, index);
-    const strokes = variants[index]?.strokes.length ? variants[index].strokes : glyphs[character] || [];
+    const strokes = variants[index]?.strokes.length
+      ? variants[index].strokes
+      : glyphs[character] || [];
     const metrics = glyphWidth(strokes);
     const form = variants[index];
-    const anchorPoint = (kind: 'entry' | 'exit') => {
-      const anchor = form?.[kind], stroke = anchor && strokes[anchor.stroke];
-      const p = stroke && (anchor.end === 'start' ? stroke[0] : stroke.at(-1));
-      return p ? { x: cursor + (p.x - metrics.minX) * scale, y: baseline + p.y * scale } : null;
+    const anchorPoint = (kind: "entry" | "exit") => {
+      const anchor = form?.[kind],
+        stroke = anchor && strokes[anchor.stroke];
+      const p = stroke && (anchor.end === "start" ? stroke[0] : stroke.at(-1));
+      return p
+        ? {
+            x: cursor + (p.x - metrics.minX) * scale,
+            y: baseline + p.y * scale,
+          }
+        : null;
     };
-    const entry = anchorPoint('entry');
+    const entry = anchorPoint("entry");
     if (previousExit && entry) {
       const join = createCursiveConnector(previousExit, entry, size);
-      if (join) paths.push(<path key={`join-${characterIndex}`} d={join.map((p, i) => `${i ? 'L' : 'M'}${p.x},${p.y}`).join(' ')} />);
+      if (join)
+        paths.push(
+          <path
+            key={`join-${characterIndex}`}
+            d={join.map((p, i) => `${i ? "L" : "M"}${p.x},${p.y}`).join(" ")}
+          />,
+        );
     }
-    previousExit = /\p{L}/u.test(character) ? anchorPoint('exit') : null;
+    previousExit = /\p{L}/u.test(character) ? anchorPoint("exit") : null;
     strokes.forEach((stroke, strokeIndex) => {
       if (stroke.some((point) => point.pressure !== undefined)) {
         stroke.slice(1).forEach((point, index) => {
           const previous = stroke[index];
-          paths.push(<path key={`${characterIndex}-${strokeIndex}-${index}`}
-            d={strokePath([previous, point], cursor, metrics.minX, scale, baseline)}
-            style={{ strokeWidth: (nibWidth(previous, penSettings) + nibWidth(point, penSettings)) / 2 * scale / 1.14 }} />);
+          paths.push(
+            <path
+              key={`${characterIndex}-${strokeIndex}-${index}`}
+              d={strokePath(
+                [previous, point],
+                cursor,
+                metrics.minX,
+                scale,
+                baseline,
+              )}
+              style={{
+                strokeWidth:
+                  (((nibWidth(previous, penSettings) +
+                    nibWidth(point, penSettings)) /
+                    2) *
+                    scale) /
+                  1.14,
+              }}
+            />,
+          );
         });
         return;
       }

@@ -120,7 +120,9 @@ internal sealed class MainForm : Form
         core.Settings.IsScriptEnabled = true;
         core.Settings.AreDefaultScriptDialogsEnabled = true;
         core.Settings.AreDefaultContextMenusEnabled = true;
-        core.Settings.IsZoomControlEnabled = true;
+        core.Settings.IsZoomControlEnabled = false;
+        core.Settings.IsPinchZoomEnabled = false;
+        _webView.ZoomFactor = 1.0;
 #if DEBUG
         core.Settings.AreDevToolsEnabled = true;
 #else

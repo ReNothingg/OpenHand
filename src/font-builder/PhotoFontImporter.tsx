@@ -119,7 +119,14 @@ export default function PhotoFontImporter({
       >
         <header>
           <h2>Почерк по фотографии</h2>
-          <button type="button" aria-label="Закрыть импорт фотографии" disabled={busy} onClick={onClose}>×</button>
+          <button
+            type="button"
+            aria-label="Закрыть импорт фотографии"
+            disabled={busy}
+            onClick={onClose}
+          >
+            ×
+          </button>
         </header>
 
         <div className="photo-import-options">

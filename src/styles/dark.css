@@ -1,3 +1,6 @@
-/* Both palettes are defined together in calm.css. */
-:root { color-scheme: light; }
-:root.theme-dark { color-scheme: dark; }
+:root {
+  color-scheme: light;
+}
+:root.theme-dark {
+  color-scheme: dark;
+}

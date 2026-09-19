@@ -1,6 +1,20 @@
-/* Native typography and scrollbars only. Shared surfaces live in calm.css. */
-.platform-macos { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }
-.platform-windows { font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { min-height: 36px; border: 3px solid transparent; border-radius: 10px; background: var(--line); background-clip: padding-box; }
+.platform-macos {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+}
+.platform-windows {
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  border: 3px solid transparent;
+  border-radius: 10px;
+  background: var(--line);
+  background-clip: padding-box;
+}

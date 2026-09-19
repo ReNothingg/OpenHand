@@ -18,8 +18,15 @@
   font-weight: 700;
   user-select: none;
 }
-.settings-section > summary:hover { background: var(--surface-panel); border-radius: 0; }
-.settings-section[open] > summary { color: var(--text-primary); background: var(--surface-panel); border-radius: 0; }
+.settings-section > summary:hover {
+  background: var(--surface-panel);
+  border-radius: 0;
+}
+.settings-section[open] > summary {
+  color: var(--text-primary);
+  background: var(--surface-panel);
+  border-radius: 0;
+}
 .settings-section[open] > summary::before {
   content: "";
   position: absolute;
@@ -170,15 +177,26 @@
   background: var(--surface-raised);
   cursor: pointer;
 }
-.orientation-toggle:hover { border-color: var(--line); background: var(--surface-panel); }
+.orientation-toggle:hover {
+  border-color: var(--line);
+  background: var(--surface-panel);
+}
 .orientation-toggle span {
   display: block;
   border: 1.5px solid currentColor;
   border-radius: 0;
-  transition: width 0.15s, height 0.15s;
+  transition:
+    width 0.15s,
+    height 0.15s;
 }
-.orientation-toggle span.portrait { width: 12px; height: 17px; }
-.orientation-toggle span.landscape { width: 18px; height: 12px; }
+.orientation-toggle span.portrait {
+  width: 12px;
+  height: 17px;
+}
+.orientation-toggle span.landscape {
+  width: 18px;
+  height: 12px;
+}
 .range-control {
   display: flex;
   flex-direction: column;
@@ -211,7 +229,10 @@
   border-radius: 50%;
   color: var(--text-secondary);
   cursor: help;
-  font: 700 8px/1 ui-sans-serif, system-ui, sans-serif;
+  font:
+    700 8px/1 ui-sans-serif,
+    system-ui,
+    sans-serif;
 }
 .setting-help:focus-visible {
   outline: 2px solid var(--accent-border);
@@ -437,16 +458,24 @@
   font-weight: 700;
   text-decoration: none;
 }
-.font-studio-link:hover { text-decoration: underline; }
+.font-studio-link:hover {
+  text-decoration: underline;
+}
 .font-picker-trigger span.plotter-font-name,
 .font-picker-group button span.plotter-font-name {
-  font: 650 12px/1.25 ui-sans-serif, system-ui, sans-serif;
+  font:
+    650 12px/1.25 ui-sans-serif,
+    system-ui,
+    sans-serif;
 }
 .font-kind-badge {
   flex: 0 0 auto;
   padding: 3px 6px;
   border-radius: 0;
-  font: 700 8px/1 ui-sans-serif, system-ui, sans-serif;
+  font:
+    700 8px/1 ui-sans-serif,
+    system-ui,
+    sans-serif;
   white-space: nowrap;
 }
 .font-kind-badge.plotter,
@@ -541,7 +570,10 @@
   color: var(--text-secondary);
   cursor: pointer;
   text-align: left;
-  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .custom-gfont-grid button:hover {
@@ -728,7 +760,9 @@
   margin-top: 4px;
   border-top: 1px solid var(--line);
 }
-.unified-font-group { margin-top: 7px; }
+.unified-font-group {
+  margin-top: 7px;
+}
 .screen-font-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -777,7 +811,11 @@
   font-size: 10px;
   line-height: 1.4;
 }
-.font-compat-warning { color: var(--danger); background: var(--danger-soft); border: 1px solid var(--line); }
+.font-compat-warning {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--line);
+}
 .font-compat-warning b {
   width: 16px;
   height: 16px;
@@ -788,7 +826,9 @@
   color: var(--on-accent);
   font-size: 10px;
 }
-.font-compat-warning b { background: #dc2626; }
+.font-compat-warning b {
+  background: #dc2626;
+}
 .handwriting-profile-field > small {
   color: var(--text-secondary);
   font-size: 9px;
@@ -829,10 +869,21 @@
   font-size: 17px;
 }
 
-.naturalness-report.medium .naturalness-score strong { color: #a16207; }
-.naturalness-report.risk .naturalness-score strong { color: var(--danger); }
-.naturalness-score strong i { font-size: 8px; font-style: normal; font-weight: 600; }
-.naturalness-score meter { width: 100%; height: 7px; }
+.naturalness-report.medium .naturalness-score strong {
+  color: #a16207;
+}
+.naturalness-report.risk .naturalness-score strong {
+  color: var(--danger);
+}
+.naturalness-score strong i {
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 600;
+}
+.naturalness-score meter {
+  width: 100%;
+  height: 7px;
+}
 
 .naturalness-repeats {
   display: flex;
@@ -867,7 +918,10 @@
   left: 0;
   bottom: -8px;
   color: var(--text-secondary);
-  font: 6px/1 ui-sans-serif, system-ui, sans-serif;
+  font:
+    6px/1 ui-sans-serif,
+    system-ui,
+    sans-serif;
   white-space: nowrap;
 }
 

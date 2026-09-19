@@ -11,10 +11,10 @@
     overflow: visible !important;
   }
   .editor-panel,
-.settings-panel,
-.block-inspector,
-.integrated-plotter-footer,
-.measure-host {
+  .settings-panel,
+  .block-inspector,
+  .integrated-plotter-footer,
+  .measure-host {
     display: none !important;
   }
   .workspace,

@@ -157,8 +157,14 @@ body:has(.font-studio) {
 }
 
 @keyframes font-notice-enter {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .font-studio-workspace {
@@ -663,9 +669,16 @@ body:has(.font-studio) {
     padding: 8px 10px;
   }
 
-  .photo-import-backdrop { padding: 8px; }
-  .photo-import-options { grid-template-columns: 1fr; padding: 12px; }
-  .photo-import-options p { min-height: 0; }
+  .photo-import-backdrop {
+    padding: 8px;
+  }
+  .photo-import-options {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+  .photo-import-options p {
+    min-height: 0;
+  }
 }
 
 .font-pen-tools {
@@ -706,17 +719,37 @@ body:has(.font-studio) {
   background: transparent;
 }
 .font-tool-group button:hover:not([aria-pressed="true"]),
-.font-pen-options > summary:hover { color: var(--text-primary); background: transparent; }
+.font-pen-options > summary:hover {
+  color: var(--text-primary);
+  background: transparent;
+}
 .font-pen-tools button[aria-pressed="true"] {
   border-bottom-color: var(--green);
   background: transparent;
   color: var(--green);
 }
-.font-pen-tools label { display: flex; align-items: center; gap: 7px; }
-.font-pen-input > span { color: var(--muted); font-weight: 650; }
-.font-pen-input select { min-width: 88px; background: var(--control-surface, #f3f4f6); }
-.font-pen-options { position: static; flex: 0 1 auto; min-width: 92px; }
-.font-pen-options > summary { list-style-position: inside; background: transparent; }
+.font-pen-tools label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.font-pen-input > span {
+  color: var(--muted);
+  font-weight: 650;
+}
+.font-pen-input select {
+  min-width: 88px;
+  background: var(--control-surface, #f3f4f6);
+}
+.font-pen-options {
+  position: static;
+  flex: 0 1 auto;
+  min-width: 92px;
+}
+.font-pen-options > summary {
+  list-style-position: inside;
+  background: transparent;
+}
 .font-pen-options-panel {
   position: absolute;
   z-index: 40;
@@ -742,8 +775,15 @@ body:has(.font-studio) {
   gap: 12px;
   min-height: 30px;
 }
-.font-pen-options .liquid-range { width: 100%; }
-.font-pen-options input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--green); }
+.font-pen-options .liquid-range {
+  width: 100%;
+}
+.font-pen-options input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--green);
+}
 .font-pen-options p {
   grid-column: 1 / -1;
   margin: 0;
@@ -752,36 +792,97 @@ body:has(.font-studio) {
   line-height: 1.45;
 }
 @keyframes font-pen-panel-enter {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.font-canvas-panel { overflow-y: auto; }
-.font-drawing-canvas { flex: 0 0 auto; aspect-ratio: 640 / 520; }
+.font-canvas-panel {
+  overflow-y: auto;
+}
+.font-drawing-canvas {
+  flex: 0 0 auto;
+  aspect-ratio: 640 / 520;
+}
 @media (pointer: coarse) {
-  .font-canvas-toolbar { min-height: 54px; height: auto; flex-wrap: wrap; gap: 8px; padding: 6px 10px; }
-  .font-canvas-toolbar button { min-height: 44px; }
-  .font-canvas-toolbar > div:first-child button { width: 44px; }
+  .font-canvas-toolbar {
+    min-height: 54px;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 6px 10px;
+  }
+  .font-canvas-toolbar button {
+    min-height: 44px;
+  }
+  .font-canvas-toolbar > div:first-child button {
+    width: 44px;
+  }
   .font-pen-tools button,
   .font-pen-tools select,
-  .font-pen-tools summary { min-height: 38px; }
-  .font-studio-workspace { height: calc(100dvh - 59px); }
+  .font-pen-tools summary {
+    min-height: 38px;
+  }
+  .font-studio-workspace {
+    height: calc(100dvh - 59px);
+  }
 }
 @media (max-width: 780px) {
-  .font-studio-workspace { height: auto; }
-  .font-canvas-toolbar { height: auto; min-height: 47px; flex-wrap: wrap; padding-block: 6px; gap: 6px; }
+  .font-studio-workspace {
+    height: auto;
+  }
+  .font-canvas-toolbar {
+    height: auto;
+    min-height: 47px;
+    flex-wrap: wrap;
+    padding-block: 6px;
+    gap: 6px;
+  }
 }
 @media (max-width: 520px) {
-  .font-pen-options-panel { grid-template-columns: 1fr; gap: 10px; }
-  .font-pen-options p { grid-column: 1; }
+  .font-pen-options-panel {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .font-pen-options p {
+    grid-column: 1;
+  }
 }
-.theme-dark .font-pen-tools { color: #d1d5db; border-color: var(--line); }
-.theme-dark .font-tool-group { background: transparent; }
+.theme-dark .font-pen-tools {
+  color: #d1d5db;
+  border-color: var(--line);
+}
+.theme-dark .font-tool-group {
+  background: transparent;
+}
 .theme-dark .font-pen-tools button,
 .theme-dark .font-pen-tools select,
-.theme-dark .font-pen-tools summary { color: #d1d5db; background-color: transparent; }
-.theme-dark .font-pen-input select { background-color: var(--control-surface); }
-.theme-dark .font-pen-tools button[aria-pressed="true"] { border-bottom-color: var(--green); background: transparent; color: var(--green); }
-.theme-dark .font-pen-options p { color: #a1a1aa; }
+.theme-dark .font-pen-tools summary {
+  color: #d1d5db;
+  background-color: transparent;
+}
+.theme-dark .font-pen-input select {
+  background-color: var(--control-surface);
+}
+.theme-dark .font-pen-tools button[aria-pressed="true"] {
+  border-bottom-color: var(--green);
+  background: transparent;
+  color: var(--green);
+}
+.theme-dark .font-pen-options p {
+  color: #a1a1aa;
+}
 /* Keep logical glyph proportions even when the available panel is narrow. */
-.font-drawing-canvas { width: min(100%, 51.69vh, 615px); height: auto; }
-@media (max-width: 780px) { .font-drawing-canvas { width: 100%; } }
+.font-drawing-canvas {
+  width: min(100%, 51.69vh, 615px);
+  height: auto;
+}
+@media (max-width: 780px) {
+  .font-drawing-canvas {
+    width: 100%;
+  }
+}

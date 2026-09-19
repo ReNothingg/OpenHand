@@ -486,6 +486,7 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [manualLayouts, showLocalSaveError]);
   const panHandlers = usePreviewInteractions({
+    active: workspaceMode === "document",
     previewRef,
     zoom: settings.zoom,
     setZoom,

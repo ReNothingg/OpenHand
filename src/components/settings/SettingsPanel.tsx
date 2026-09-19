@@ -8,8 +8,8 @@ import SettingSection from "./controls/SettingSection";
 import Toggle from "./controls/Toggle";
 import NaturalnessReport from "./NaturalnessReport";
 import { HANDWRITING_PROFILES } from "../../handwriting/profiles";
-import HandwritingSamples from './HandwritingSamples';
-import { DOCUMENT_PRESETS } from '../../handwriting/documentPresets';
+import HandwritingSamples from "./HandwritingSamples";
+import { DOCUMENT_PRESETS } from "../../handwriting/documentPresets";
 
 export default function SettingsPanel({
   settings,
@@ -60,7 +60,28 @@ export default function SettingsPanel({
         </button>
       </div>
       <SettingSection title="Текст и страница">
-        <details className="studio-detail"><summary>Оформление конспекта</summary><p>Применяет размер текста и интервалы. Заголовки, списки и формулы задаются в редакторе.</p>{DOCUMENT_PRESETS.map(p => <button className="document-preset" type="button" key={p.id} onClick={() => Object.entries(p.settings).forEach(([key, value]) => updateSetting(key, value))}><strong>{p.label}</strong><small>{p.description}</small></button>)}</details>
+        <details className="studio-detail">
+          <summary>Оформление конспекта</summary>
+          <p>
+            Применяет размер текста и интервалы. Заголовки, списки и формулы
+            задаются в редакторе.
+          </p>
+          {DOCUMENT_PRESETS.map((p) => (
+            <button
+              className="document-preset"
+              type="button"
+              key={p.id}
+              onClick={() =>
+                Object.entries(p.settings).forEach(([key, value]) =>
+                  updateSetting(key, value),
+                )
+              }
+            >
+              <strong>{p.label}</strong>
+              <small>{p.description}</small>
+            </button>
+          ))}
+        </details>
         <FontPicker
           fontType={settings.fontType}
           value={settings.fontFamily}
@@ -316,19 +337,58 @@ export default function SettingsPanel({
             <div className="settings-subgroup">
               <h3>Структура письма</h3>
               {STRUCTURE_CONTROLS.map((control) => (
-                <RangeControl key={control.key} label={control.label} value={settings[control.key] ?? control.initial} min={control.min} max={control.max} suffix="%"
-                  disabled={"plotterOnly" in control && settings.fontType !== "plotter"}
-                  hint={control.hint} onChange={(value) => updateSetting(control.key, value)} />
+                <RangeControl
+                  key={control.key}
+                  label={control.label}
+                  value={settings[control.key] ?? control.initial}
+                  min={control.min}
+                  max={control.max}
+                  suffix="%"
+                  disabled={
+                    "plotterOnly" in control && settings.fontType !== "plotter"
+                  }
+                  hint={control.hint}
+                  onChange={(value) => updateSetting(control.key, value)}
+                />
               ))}
-              <RangeControl label="Колебание строки" value={settings.authorBaseline} min={0} max={100} suffix="%"
-                hint="Плавный ход строки без резких скачков отдельных букв." onChange={(value) => updateSetting("authorBaseline", value)} />
+              <RangeControl
+                label="Колебание строки"
+                value={settings.authorBaseline}
+                min={0}
+                max={100}
+                suffix="%"
+                hint="Плавный ход строки без резких скачков отдельных букв."
+                onChange={(value) => updateSetting("authorBaseline", value)}
+              />
             </div>
             <NaturalnessReport
               report={naturalnessReport}
               onAutofix={applyNaturalnessFix}
             />
-            <HandwritingSamples onApply={patch => Object.entries(patch).forEach(([key, value]) => updateSetting(key, value))} />
-            {plotterWorkspace?.activeLayout?.trajectoryReport?.length > 0 && <details className="studio-detail"><summary>Траектории на странице</summary><p>Сколько исходных начертаний использовано для повторяющихся букв. Геометрические искажения отдельно не считаются новым начертанием.</p><div className="form-audit">{plotterWorkspace.activeLayout.trajectoryReport.map(r => <span key={r.character}>{r.character}: {r.distinct} форм на {r.count} букв</span>)}</div></details>}
+            <HandwritingSamples
+              onApply={(patch) =>
+                Object.entries(patch).forEach(([key, value]) =>
+                  updateSetting(key, value),
+                )
+              }
+            />
+            {plotterWorkspace?.activeLayout?.trajectoryReport?.length > 0 && (
+              <details className="studio-detail">
+                <summary>Траектории на странице</summary>
+                <p>
+                  Сколько исходных начертаний использовано для повторяющихся
+                  букв. Геометрические искажения отдельно не считаются новым
+                  начертанием.
+                </p>
+                <div className="form-audit">
+                  {plotterWorkspace.activeLayout.trajectoryReport.map((r) => (
+                    <span key={r.character}>
+                      {r.character}: {r.distinct} форм на {r.count} букв
+                    </span>
+                  ))}
+                </div>
+              </details>
+            )}
           </>
         )}
         <RangeControl
