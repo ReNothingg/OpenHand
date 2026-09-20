@@ -1,3 +1,5 @@
+import PanelResizeHandle from "../PanelResizeHandle";
+import usePanelWidth from "../../hooks/usePanelWidth";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -90,6 +92,8 @@ export default function PlotterWorkshop({
   workspace: any;
   toolbarHost?: HTMLElement | null;
 }) {
+  const [footerCollapsed, setFooterCollapsed] = useState(false);
+  const [panelWidth, setPanelWidth] = usePanelWidth("openhand.workshop-width");
   const [document, setDocument] = useState(load);
   const [history, setHistory] = useState<(typeof document)[]>([]);
   const [future, setFuture] = useState<(typeof document)[]>([]);
@@ -274,7 +278,7 @@ export default function PlotterWorkshop({
           </div>,
           toolbarHost,
         )}
-      <div className="workshop-body">
+      <div className="workshop-body" style={{ "--inspector-width": `min(${panelWidth}px, 65vw)` } as React.CSSProperties}>
         <aside className="workshop-inspector">
           <div
             className="workshop-tabs"
@@ -509,6 +513,7 @@ export default function PlotterWorkshop({
             </fieldset>
           )}
         </aside>
+        <PanelResizeHandle side="left" width={panelWidth} onChange={setPanelWidth} />
         <main className="workshop-main">
           <div className="workshop-canvas-toolbar">
             <div
@@ -671,6 +676,11 @@ export default function PlotterWorkshop({
             </label>
           </div>
           <footer className="workshop-run">
+            <div className="plotter-footer-heading">
+              <button type="button" aria-expanded={!footerCollapsed} onClick={() => setFooterCollapsed(value => !value)}>{footerCollapsed ? "▸" : "▾"} Управление рисунком</button>
+              {footerCollapsed && workspace.running && <button className="button danger" onClick={workspace.stop}>Стоп</button>}
+            </div>
+            <div className="workshop-run-body" hidden={footerCollapsed}>
             {(error || workspace.error) && (
               <p role="alert" className="plotter-error">
                 {error || workspace.error}
@@ -791,6 +801,7 @@ export default function PlotterWorkshop({
                   .join("\n") || "Команды ещё не отправлялись."}
               </pre>
             </details>
+          </div>
           </footer>
         </main>
       </div>

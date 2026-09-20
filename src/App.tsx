@@ -1,3 +1,5 @@
+import PanelResizeHandle from "./components/PanelResizeHandle";
+import usePanelWidth from "./hooks/usePanelWidth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_SETTINGS,
@@ -71,6 +73,7 @@ export default function App() {
     () => window.matchMedia("(max-width: 1180px)").matches,
   );
   const [viewMode, setViewMode] = useState("single");
+  const [panelWidth, setPanelWidth] = usePanelWidth("openhand.settings-width");
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
   useEffect(() => {
     if (settings.writingStartEnabled) setActiveSheetIndex(settings.pageSize === "NotebookSpread" ? Math.floor(settings.writingStartPage / 2) : settings.writingStartPage);
@@ -805,7 +808,8 @@ export default function App() {
           toolbarHost={toolbarHost}
         />
       ) : (
-        <div className="workspace">
+        <div className="workspace" style={{ "--settings-panel-size": `min(${panelWidth}px, 65vw)` } as React.CSSProperties}>
+          {!settingsCollapsed && <PanelResizeHandle className="document-resize-handle" width={panelWidth} onChange={setPanelWidth} />}
           <EditorPanel
             locked={plotterWorkspace.running}
             sourceMode={sourceMode}

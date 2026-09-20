@@ -12,6 +12,7 @@ export function formatDuration(seconds: number) {
 
 export default function PlotterFooter({ workspace }: { workspace: any }) {
   const gcodeInputRef = useRef<HTMLInputElement | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
   const [scope, setScope] = useState("remaining");
   const [notificationNotice, setNotificationNotice] = useState("");
   if (!workspace.enabled) return null;
@@ -35,13 +36,20 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
 
   return (
     <section
-      className="integrated-plotter-footer"
+      className={`integrated-plotter-footer ${collapsed ? "is-collapsed" : ""}`}
       aria-label="Управление и запуск плоттера"
     >
       <PaperChangeDialog
         key={plotter.paperChange?.nextSheet ?? "idle"}
         workspace={workspace}
       />
+      <div className="plotter-footer-heading">
+        <button type="button" aria-expanded={!collapsed} onClick={() => setCollapsed(value => !value)}>
+          <span aria-hidden="true">{collapsed ? "▸" : "▾"}</span> Запись и предпросмотр
+        </button>
+        {collapsed && running && <button className="button danger" onClick={workspace.stop}>Стоп</button>}
+      </div>
+      <div className="plotter-footer-body" hidden={collapsed}>
       <div className="plotter-sheet-options">
         <label>
           Записать
@@ -405,6 +413,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           Очистить
         </button>
       </details>
+      </div>
     </section>
   );
 }
