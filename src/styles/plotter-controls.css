@@ -1,0 +1,36 @@
+/* Footer layout: three task groups instead of a vertical stack of loose controls. */
+:root .app .integrated-plotter-footer { max-height: min(420px, 56vh); padding: 8px 12px 12px; container-type: inline-size; background: var(--surface-panel); }
+:root .app .integrated-plotter-footer.is-collapsed { padding-bottom: 8px; }
+:root .app .plotter-footer-body { gap: 8px; padding-top: 6px; }
+.plotter-control-grid { display: grid; grid-template-columns: minmax(260px, 1.3fr) minmax(210px, 1fr) minmax(210px, 1fr); gap: 10px; }
+:root .app .plotter-control-card { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; min-width: 0; border-radius: 4px; background: var(--surface-raised); }
+:root .app .plotter-control-card h3 { font-size: 12px; line-height: 1.4; margin: 0; font-weight: 650; }
+:root .app .control-card-caption { font-size: 11px; color: var(--text-secondary); margin: 0; line-height: 1.45; }
+:root .app .plotter-control-card :is(.plotter-sheet-options, .plotter-footer-actions, .plotter-imported-job, .plotter-imported-actions) { margin: 0; padding: 0; background: transparent; border: 0; }
+:root .app .plotter-sheet-options > label { width: 100%; display: flex; align-items: center; gap: 8px; font-size: 11px; }
+:root .app .plotter-sheet-options select { flex: 1; min-width: 0; width: auto; }
+:root .app .plotter-control-card :is(button, select) { min-height: 32px; font-size: 12px; }
+:root .app .plotter-control-card select { border: 1px solid var(--line); background: var(--control-surface); padding: 5px 8px; border-radius: 4px; }
+:root .app .plotter-control-card .plotter-footer-actions { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+:root .app .plotter-control-card .plotter-arm { font-size: 11px; line-height: 1.4; }
+:root .app .plotter-control-card .plotter-runbar { display: flex; flex-wrap: wrap; gap: 8px; }
+:root .app .plotter-control-card .plotter-runbar > button { flex: 1; }
+:root .app .plotter-control-card .plotter-playback-controls { margin: 0; padding: 0; gap: 6px; }
+:root .app .plotter-control-card .plotter-playback-controls output { font-size: 11px; min-width: 30px; }
+.plotter-file-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+:root .app .plotter-job-details { padding: 8px 10px; background: var(--surface-raised); border-radius: 4px; font-size: 11px; }
+:root .app .plotter-job-details summary { cursor: pointer; line-height: 1.5; }
+:root .app .plotter-job-details > :not(summary) { margin: 8px 0 0; }
+:root .app .integrated-plotter-footer .plotter-console { margin: 0; padding: 0 2px; font-size: 11px; }
+@container (max-width: 760px) { .plotter-control-grid { grid-template-columns: 1fr 1fr; } .recording-card { grid-column: 1 / -1; } }
+@container (max-width: 400px) { .plotter-control-grid { grid-template-columns: 1fr; } }
+
+:root .app .recording-card .plotter-footer-actions { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
+:root .app .recording-card .plotter-arm { flex: 1 1 150px; margin: 0; }
+:root .app .recording-card .plotter-runbar { flex: 1 1 200px; }
+:root .app .plotter-control-card .plotter-playback-controls > button { padding: 6px 8px; }
+
+:root .app .recording-card .plotter-footer-actions { flex-direction: column; align-items: stretch; gap: 6px; }
+:root .app .recording-card .plotter-arm { flex: none; min-height: 0; padding: 0; }
+:root .app .recording-card .plotter-runbar { flex: none; width: 100%; }
+@container (max-width: 760px) { .control-card-caption { display: none; } }

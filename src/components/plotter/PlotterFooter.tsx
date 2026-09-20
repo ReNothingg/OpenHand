@@ -50,44 +50,8 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         {collapsed && running && <button className="button danger" onClick={workspace.stop}>Стоп</button>}
       </div>
       <div className="plotter-footer-body" hidden={collapsed}>
-      <div className="plotter-sheet-options">
-        <label>
-          Записать
-          <select
-            aria-label="Какие листы записать"
-            value={config.profile === "ebb" ? "current" : scope}
-            disabled={running || calibrationActive || config.profile === "ebb"}
-            onChange={(e) => setScope(e.target.value)}
-          >
-            <option value="current">Текущий лист</option>
-            <option value="remaining">
-              С текущего до конца ·{" "}
-              {Math.max(0, workspace.layouts.length - workspace.activeIndex)}{" "}
-              листов
-            </option>
-          </select>
-        </label>
-        <button
-          className="text-button"
-          type="button"
-          disabled={running}
-          onClick={async () => {
-            try {
-              setNotificationNotice(
-                (await enablePlotterNotifications())
-                  ? "Системные уведомления включены."
-                  : "Системные уведомления недоступны. Напоминание появится в приложении.",
-              );
-            } catch {
-              setNotificationNotice(
-                "Напоминание о смене бумаги появится в приложении.",
-              );
-            }
-          }}
-        >
-          Включить уведомления
-        </button>
-      </div>
+      <details className="plotter-job-details">
+        <summary>{preflight.canStart ? "Проверка задания · готово" : `Проверка задания · ${preflight.blockers[0] || "нужна подготовка"}`}</summary>
       {notificationNotice && (
         <p className="plotter-note" role="status">
           {notificationNotice}
@@ -112,7 +76,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           {(job.optimizationSaved / 1000).toFixed(2)} м.
         </p>
       )}
-      {error && <p className="plotter-error">{error}</p>}
+
       <div className="plotter-preflight" aria-label="Проверка перед запуском">
         <span className={preflight.calibrated ? "pass" : "warning"}>
           {preflight.calibrated ? "✓ Калибровка" : "• Нужна калибровка"}
@@ -132,116 +96,28 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           {originConfirmed ? "✓ Ноль задан" : "• Проверьте ноль"}
         </span>
       </div>
-      <div
-        className="plotter-playback-controls"
-        aria-label="Живое воспроизведение траектории"
-      >
-        <button
-          className="button compact"
-          type="button"
-          disabled={!job.strokes?.length || running}
-          onClick={playback.playing ? playback.pause : playback.play}
-        >
-          {playback.playing
-            ? "Пауза анимации"
-            : playback.progress < 0.999
-              ? "Продолжить анимацию"
-              : "▶ Воспроизвести"}
-        </button>
-        <button
-          className="button ghost compact"
-          type="button"
-          disabled={!job.strokes?.length || running}
-          onClick={playback.reset}
-        >
-          Сначала
-        </button>
-        <select
-          value={playback.speed}
-          disabled={running}
-          aria-label="Скорость воспроизведения"
-          onChange={(event) => playback.setSpeed(Number(event.target.value))}
-        >
-          <option value="1">1×</option>
-          <option value="4">4×</option>
-          <option value="8">8×</option>
-          <option value="16">16×</option>
-        </select>
-        <output>{Math.round(playback.progress * 100)}%</output>
-      </div>
-      <div className="plotter-imported-job" aria-label="Импорт готового G-code">
-        <div className="plotter-imported-actions">
-          <button
-            className="button ghost compact"
-            type="button"
-            disabled={running}
-            onClick={() => gcodeInputRef.current?.click()}
+      </details>
+      <div className="plotter-control-grid">
+        <section className="plotter-control-card recording-card" aria-label="Запись на бумаге">
+          <h3>Запись на бумаге</h3>
+      <div className="plotter-sheet-options">
+        <label>
+          Записать
+          <select
+            aria-label="Какие листы записать"
+            value={config.profile === "ebb" ? "current" : scope}
+            disabled={running || calibrationActive || config.profile === "ebb"}
+            onChange={(e) => setScope(e.target.value)}
           >
-            Открыть .gcode
-          </button>
-          {workspace.importedGcode && (
-            <button
-              className="text-button"
-              type="button"
-              disabled={running}
-              onClick={workspace.clearImportedGcode}
-            >
-              Убрать
-            </button>
-          )}
-        </div>
-        <input
-          ref={gcodeInputRef}
-          type="file"
-          accept=".gcode,.nc,.tap,.cnc,.txt,text/plain"
-          hidden
-          onChange={(event) => {
-            void workspace.importGcode(event.target.files?.[0]);
-            event.target.value = "";
-          }}
-        />
-        {workspace.importedGcode && (
-          <div className="plotter-imported-summary">
-            <small>
-              Файл отправляется как есть. Координаты профиля к нему не
-              применяются.
-            </small>
-            <span title={workspace.importedGcode.name}>
-              {workspace.importedGcode.name}
-            </span>
-            <small>
-              {workspace.importedGcode.commands.length.toLocaleString("ru-RU")}{" "}
-              команд · {workspace.importedGcode.parsed.bounds.width.toFixed(1)}{" "}
-              × {workspace.importedGcode.parsed.bounds.height.toFixed(1)} мм
-            </small>
-            {!workspace.importedWithinWorkArea && (
-              <p className="plotter-error">
-                Траектория выходит за рабочую область профиля.
-              </p>
-            )}
-            {workspace.importedGcode.warnings.map((warning) => (
-              <p className="plotter-warning" key={warning}>
-                {warning}
-              </p>
-            ))}
-            <button
-              className="button primary compact"
-              type="button"
-              disabled={
-                calibrationActive ||
-                !connected ||
-                running ||
-                !armed ||
-                !originConfirmed ||
-                !workspace.importedWithinWorkArea ||
-                config.profile === "ebb"
-              }
-              onClick={workspace.runImportedGcode}
-            >
-              Отправить файл
-            </button>
-          </div>
-        )}
+            <option value="current">Текущий лист</option>
+            <option value="remaining">
+              С текущего до конца ·{" "}
+              {Math.max(0, workspace.layouts.length - workspace.activeIndex)}{" "}
+              {(() => { const n = Math.max(0, workspace.layouts.length - workspace.activeIndex); return n % 10 === 1 && n % 100 !== 11 ? "лист" : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? "листа" : "листов"; })()}
+            </option>
+          </select>
+        </label>
+
       </div>
       <div className="plotter-footer-actions">
         <label className="plotter-arm">
@@ -254,21 +130,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           <span>Перо и нулевая точка проверены.</span>
         </label>
         <div className="plotter-runbar">
-          <button
-            className="button compact"
-            type="button"
-            disabled={!job.commands.length || busy}
-            onClick={() => {
-              const currentJob = workspace.createJob();
-              downloadFile(
-                `openhand-page-${workspace.activeIndex + 1}.${config.profile === "ebb" ? "ebb.txt" : "gcode"}`,
-                `${currentJob.commands.join("\n")}\n`,
-                "text/plain;charset=utf-8",
-              );
-            }}
-          >
-            Скачать команды
-          </button>
+
           <button
             className="button ghost compact"
             type="button"
@@ -374,6 +236,163 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           )}
         </div>
       </div>
+        </section>
+        <section className="plotter-control-card" aria-label="Предпросмотр движения">
+          <h3>Предпросмотр</h3>
+          <p className="control-card-caption">Проверить движение пера на экране</p>
+      <div
+        className="plotter-playback-controls"
+        aria-label="Живое воспроизведение траектории"
+      >
+        <button
+          className="button compact"
+          type="button"
+          disabled={!job.strokes?.length || running}
+          onClick={playback.playing ? playback.pause : playback.play}
+        >
+          {playback.playing
+            ? "Пауза анимации"
+            : playback.progress < 0.999
+              ? "Продолжить анимацию"
+              : "▶ Воспроизвести"}
+        </button>
+        <button
+          className="button ghost compact"
+          type="button"
+          disabled={!job.strokes?.length || running}
+          onClick={playback.reset}
+        >
+          Сначала
+        </button>
+        <select
+          value={playback.speed}
+          disabled={running}
+          aria-label="Скорость воспроизведения"
+          onChange={(event) => playback.setSpeed(Number(event.target.value))}
+        >
+          <option value="1">1×</option>
+          <option value="4">4×</option>
+          <option value="8">8×</option>
+          <option value="16">16×</option>
+        </select>
+        <output>{Math.round(playback.progress * 100)}%</output>
+      </div>
+        </section>
+        <section className="plotter-control-card" aria-label="Файлы и уведомления">
+          <h3>Файлы и уведомления</h3>
+          <div className="plotter-file-buttons">
+          <button
+            className="button compact"
+            type="button"
+            disabled={!job.commands.length || busy}
+            onClick={() => {
+              const currentJob = workspace.createJob();
+              downloadFile(
+                `openhand-page-${workspace.activeIndex + 1}.${config.profile === "ebb" ? "ebb.txt" : "gcode"}`,
+                `${currentJob.commands.join("\n")}\n`,
+                "text/plain;charset=utf-8",
+              );
+            }}
+          >
+            Скачать G-code
+          </button>        <button
+          className="button compact"
+          type="button"
+          disabled={running}
+          onClick={async () => {
+            try {
+              setNotificationNotice(
+                (await enablePlotterNotifications())
+                  ? "Системные уведомления включены."
+                  : "Системные уведомления недоступны. Напоминание появится в приложении.",
+              );
+            } catch {
+              setNotificationNotice(
+                "Напоминание о смене бумаги появится в приложении.",
+              );
+            }
+          }}
+        >
+          Уведомления
+        </button>          </div>
+      <div className="plotter-imported-job" aria-label="Импорт готового G-code">
+        <div className="plotter-imported-actions">
+          <button
+            className="button ghost compact"
+            type="button"
+            disabled={running}
+            onClick={() => gcodeInputRef.current?.click()}
+          >
+            Открыть .gcode
+          </button>
+          {workspace.importedGcode && (
+            <button
+              className="text-button"
+              type="button"
+              disabled={running}
+              onClick={workspace.clearImportedGcode}
+            >
+              Убрать
+            </button>
+          )}
+        </div>
+        <input
+          ref={gcodeInputRef}
+          type="file"
+          accept=".gcode,.nc,.tap,.cnc,.txt,text/plain"
+          hidden
+          onChange={(event) => {
+            void workspace.importGcode(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
+        {workspace.importedGcode && (
+          <div className="plotter-imported-summary">
+            <small>
+              Файл отправляется как есть. Координаты профиля к нему не
+              применяются.
+            </small>
+            <span title={workspace.importedGcode.name}>
+              {workspace.importedGcode.name}
+            </span>
+            <small>
+              {workspace.importedGcode.commands.length.toLocaleString("ru-RU")}{" "}
+              команд · {workspace.importedGcode.parsed.bounds.width.toFixed(1)}{" "}
+              × {workspace.importedGcode.parsed.bounds.height.toFixed(1)} мм
+            </small>
+            {!workspace.importedWithinWorkArea && (
+              <p className="plotter-error">
+                Траектория выходит за рабочую область профиля.
+              </p>
+            )}
+            {workspace.importedGcode.warnings.map((warning) => (
+              <p className="plotter-warning" key={warning}>
+                {warning}
+              </p>
+            ))}
+            <button
+              className="button primary compact"
+              type="button"
+              disabled={
+                calibrationActive ||
+                !connected ||
+                running ||
+                !armed ||
+                !originConfirmed ||
+                !workspace.importedWithinWorkArea ||
+                config.profile === "ebb"
+              }
+              onClick={workspace.runImportedGcode}
+            >
+              Отправить файл
+            </button>
+          </div>
+        )}
+      </div>
+        </section>
+      </div>
+      {error && <p className="plotter-error" role="alert">{error}</p>}
+
       {recoveryAvailable && !originConfirmed && (
         <p className="plotter-warning">
           Для продолжения: выполните homing на контроллере, верните перо в
