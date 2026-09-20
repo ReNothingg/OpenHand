@@ -11,3 +11,9 @@
 
 .scene-order-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 :root .app .scene-order-actions button { font-size: 11px; padding: 5px 8px; }
+
+:root .app .scene-toolstrip button { width: 34px; height: 34px; padding: 7px; display: inline-flex; align-items: center; justify-content: center; }
+.scene-toolstrip .svg-icon { width: 18px; height: 18px; }
+.scene-tool-divider { height: 20px; width: 1px; margin: 0 4px; background: var(--line); }
+:root .app .workshop-body.inspector-collapsed { grid-template-columns: minmax(0,1fr); }
+:root .app .workshop-body.inspector-collapsed > .workshop-inspector { display: none; }

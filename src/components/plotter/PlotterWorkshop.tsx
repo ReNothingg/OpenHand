@@ -13,7 +13,6 @@ import {
   parseCoordinateCSV,
   parseHPGL,
   parseWorkshop,
-  repeat,
   serializeWorkshop,
   shape,
   transform,
@@ -82,6 +81,7 @@ export default function PlotterWorkshop({
   const [fitRequest, setFitRequest] = useState(0);
   const imageInput = useRef<HTMLInputElement>(null);
   const [footerCollapsed, setFooterCollapsed] = useState(false);
+  const [inspectorCollapsed,setInspectorCollapsed] = useState(false);
   const [panelWidth, setPanelWidth] = usePanelWidth("openhand.workshop-width");
   const [document, setDocument] = useState(load);
   const [selected, setSelected] = useState<string[]>(() => document.objects.slice(0,1).map(o=>o.id));
@@ -95,13 +95,6 @@ export default function PlotterWorkshop({
   const [kind, setKind] = useState("rectangle");
   const [width, setWidth] = useState(60),
     [height, setHeight] = useState(40);
-  const [scale, setScale] = useState(100),
-    [angle, setAngle] = useState(0);
-  const [dx, setDx] = useState(0),
-    [dy, setDy] = useState(0);
-  const [columns, setColumns] = useState(2),
-    [rows, setRows] = useState(2),
-    [gap, setGap] = useState(5);
   const [spacing, setSpacing] = useState(2),
     [hatchAngle, setHatchAngle] = useState(45);
   const [travel, setTravel] = useState(false),
@@ -295,8 +288,8 @@ export default function PlotterWorkshop({
           </div>,
           toolbarHost,
         )}
-      <div className="workshop-body" style={{ "--inspector-width": `min(${panelWidth}px, 65vw)` } as React.CSSProperties}>
-        <aside className="workshop-inspector">
+      <div className={`workshop-body ${inspectorCollapsed?"inspector-collapsed":""}`} style={{ "--inspector-width": `min(${panelWidth}px, 65vw)` } as React.CSSProperties}>
+        <aside className="workshop-inspector" inert={inspectorCollapsed} aria-hidden={inspectorCollapsed}>
           <div
             className="workshop-tabs"
             role="tablist"
@@ -381,63 +374,7 @@ export default function PlotterWorkshop({
 
 
               </section>
-              <details className="workshop-section" open>
-                <summary>Размер и положение</summary>
-                <div className="workshop-pair">
-                  <Numeric
-                    label="Масштаб, %"
-                    value={scale}
-                    set={setScale}
-                    min={1}
-                    max={10000}
-                  />
-                  <Numeric
-                    label="Поворот, °"
-                    value={angle}
-                    set={setAngle}
-                    min={-360}
-                    max={360}
-                  />
-                  <Numeric label="Сдвиг X, мм" value={dx} set={setDx} />
-                  <Numeric label="Сдвиг Y, мм" value={dy} set={setDy} />
-                </div>
-                <button
-                  disabled={!document.strokes.length}
-                  onClick={() =>
-                    edit((strokes) =>
-                      transform(strokes, {
-                        scale: scale / 100,
-                        angle,
-                        x: dx,
-                        y: dy,
-                      }),
-                    )
-                  }
-                >
-                  Применить к рисунку
-                </button>
-                <div className="workshop-buttons">
-                  <button
-                    onClick={() =>
-                      edit((strokes) => transform(strokes, { mirrorX: true }))
-                    }
-                  >
-                    Зеркало X
-                  </button>
-                  <button
-                    onClick={() =>
-                      edit((strokes) => transform(strokes, { mirrorY: true }))
-                    }
-                  >
-                    Зеркало Y
-                  </button>
-                </div>
-                <button
-                  onClick={() => edit((strokes) => alignToOrigin(strokes))}
-                >
-                  К началу · отступ 10 мм
-                </button>
-              </details>
+
               <details className="workshop-section">
                 <summary>Штриховка</summary>
                 <div className="workshop-pair">
@@ -467,39 +404,7 @@ export default function PlotterWorkshop({
                   Добавить штриховку
                 </button>
               </details>
-              <details className="workshop-section">
-                <summary>Повторить сеткой</summary>
-                <div className="workshop-pair">
-                  <Numeric
-                    label="Столбцы"
-                    value={columns}
-                    set={setColumns}
-                    min={1}
-                    max={20}
-                  />
-                  <Numeric
-                    label="Строки"
-                    value={rows}
-                    set={setRows}
-                    min={1}
-                    max={20}
-                  />
-                  <Numeric
-                    label="Интервал, мм"
-                    value={gap}
-                    set={setGap}
-                    min={0}
-                    max={1000}
-                  />
-                </div>
-                <button
-                  onClick={() =>
-                    edit((strokes) => repeat(strokes, columns, rows, gap))
-                  }
-                >
-                  Повторить рисунок
-                </button>
-              </details>
+
               <section className="workshop-section">
                 <label className="workshop-check">
                   <input
@@ -525,7 +430,7 @@ export default function PlotterWorkshop({
             </fieldset>
           )}
         </aside>
-        <PanelResizeHandle side="left" width={panelWidth} onChange={setPanelWidth} />
+        {!inspectorCollapsed && <PanelResizeHandle side="left" width={panelWidth} onChange={setPanelWidth} />}
         <main className="workshop-main">
           <div className="workshop-canvas-toolbar">
             <div
@@ -580,13 +485,17 @@ export default function PlotterWorkshop({
               </button>
             </div>
           </div>
-          {view === "drawing" && <div className="scene-toolstrip" role="toolbar" aria-label="Инструменты сцены">
-            {([ ["move","Перемещение","V"], ["rotate","Вращение","R"], ["scale","Масштаб","S"], ["warp","Warp","W"], ["pan","Обзор","H"] ] as const).map(([id,label,key])=>
-              <button key={id} aria-pressed={tool===id} disabled={locked&&id!=="pan"} title={`${label} · ${key}${id==="move"?" · Shift: шаг 1 мм":id==="rotate"?" · Shift: шаг 15°":id==="scale"?" · Shift: свободные пропорции":""}`} onClick={()=>setTool(id)}>{label}</button>)}
-            <button onClick={()=>setFitRequest(value=>value+1)} title="Вписать выделение или сцену · F">Вписать</button>
-            <button disabled={locked||!selected.length} onClick={duplicateSelected}>Дублировать</button>
-            <button disabled={locked||!selected.length} onClick={deleteSelected}>Удалить</button>
-          </div>}
+          <div className="scene-toolstrip" role="toolbar" aria-label="Инструменты сцены">
+            <button aria-label={inspectorCollapsed?"Показать инспектор":"Свернуть инспектор"} title={inspectorCollapsed?"Показать инспектор":"Свернуть инспектор"} onClick={()=>setInspectorCollapsed(v=>!v)}><Icon name={inspectorCollapsed?"panel-left-expand":"panel-left-collapse"}/></button>
+            {view === "drawing" && <>
+            {([ ["move","Перемещение","V"], ["rotate","Вращение","E"], ["scale","Масштаб","R"], ["warp","Warp","T"], ["pan","Обзор","H"] ] as const).map(([id,label,key])=>
+              <button key={id} aria-label={label} aria-pressed={tool===id} disabled={locked&&id!=="pan"} title={`${label} · ${key}`} onClick={()=>setTool(id)}><Icon name={`scene-${id}`} /></button>)}
+            <span className="scene-tool-divider" />
+            <button onClick={()=>setFitRequest(value=>value+1)} aria-label="Вписать" title="Вписать · F"><Icon name="window-expand" /></button>
+            <button disabled={locked||!selected.length} onClick={duplicateSelected} aria-label="Дублировать" title="Дублировать · ⌘/Ctrl D"><Icon name="scene-duplicate" /></button>
+            <button disabled={locked||!selected.length} onClick={deleteSelected} aria-label="Удалить" title="Удалить · Delete"><Icon name="scene-delete" /></button>
+            </>}
+          </div>
           {view === "code" ? (
             <pre className="workshop-code" tabIndex={0}>
               {job.commands.join("\n")}
