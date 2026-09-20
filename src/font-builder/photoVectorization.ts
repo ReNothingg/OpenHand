@@ -41,7 +41,7 @@ function simplify(points, tolerance = 1.25) {
   ];
 }
 
-function otsuThreshold(grayscale) {
+function otsuThreshold(grayscale, maximum = 168) {
   const histogram = new Uint32Array(256);
   grayscale.forEach((value) => {
     histogram[value] += 1;
@@ -70,7 +70,7 @@ function otsuThreshold(grayscale) {
       threshold = index;
     }
   }
-  return clamp(threshold, 72, 168);
+  return clamp(threshold, 72, maximum);
 }
 
 function removeSmallComponents(binary, width, height, minimum = 5) {
@@ -628,15 +628,41 @@ export async function vectorizePhotoSheet(
 }
 
 /** Directed pixel boundaries preserve closed outlines, holes and disconnected shapes. */
-export function traceImageContours(imageData: ImageData, threshold = 128) {
+export function traceImageContours(imageData: ImageData, threshold: number | null = null) {
   const { width, height, data } = imageData;
   const mask = new Uint8Array(width * height);
+  const grayscale = new Uint8Array(mask.length), chroma = new Uint8Array(mask.length);
+  let colored = 0;
   for (let i = 0; i < mask.length; i++) {
     const alpha = data[i*4+3] / 255;
-    const gray = (data[i*4]*.299 + data[i*4+1]*.587 + data[i*4+2]*.114)*alpha + 255*(1-alpha);
-    mask[i] = gray < clamp(threshold, 1, 254) ? 1 : 0;
+    const r = data[i*4]*alpha + 255*(1-alpha), g = data[i*4+1]*alpha + 255*(1-alpha), b = data[i*4+2]*alpha + 255*(1-alpha);
+    grayscale[i] = Math.round(r*.299 + g*.587 + b*.114);
+    chroma[i] = Math.max(r,g,b)-Math.min(r,g,b);
+    if (chroma[i] > 36) colored++;
   }
-  removeSmallComponents(mask, width, height, 4);
+  const colorful = threshold === null && colored > mask.length*.003;
+  const cutoff = threshold === null ? Math.min(colorful ? 110 : 235, otsuThreshold(grayscale,235)) : clamp(threshold,1,254);
+  for (let i=0; i<mask.length; i++) mask[i] = grayscale[i] < cutoff || (colorful && chroma[i] > 36) ? 1 : 0;
+  if (threshold === null) {
+    // Close one-pixel highlight seams without filling the main interior cutouts.
+    const dilated = mask.slice();
+    for (let y=1; y<height-1; y++) for (let x=1; x<width-1; x++) {
+      let value = 0;
+      for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++) value |= mask[(y+dy)*width+x+dx];
+      dilated[y*width+x] = value;
+    }
+    for (let y=1; y<height-1; y++) for (let x=1; x<width-1; x++) {
+      let value = 1;
+      for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++) value &= dilated[(y+dy)*width+x+dx];
+      mask[y*width+x] = value;
+    }
+  }
+  // Remove specks and pinholes without thinning the foreground or closing real holes.
+  const minimum = Math.max(6, Math.round(mask.length*.00002));
+  removeSmallComponents(mask, width, height, minimum);
+  const holes = mask.map(value => 1-value);
+  removeSmallComponents(holes, width, height, minimum);
+  for (let i=0; i<mask.length; i++) if (!holes[i]) mask[i]=1;
   const stride = width + 1;
   const edges: { start: number; end: number; direction: number; used: boolean }[] = [];
   const outgoing = new Map<number, number[]>();
@@ -669,14 +695,23 @@ export function traceImageContours(imageData: ImageData, threshold = 128) {
     }
     if (loop.length < 5 || loop.at(-1)!.x !== loop[0].x || loop.at(-1)!.y !== loop[0].y) continue;
     // Simplify two open halves so the identical endpoints cannot collapse a ring.
+    if (threshold === null) {
+      let area = 0, perimeter = 0;
+      for (let i=1; i<loop.length; i++) {
+        area += loop[i-1].x*loop[i].y-loop[i].x*loop[i-1].y;
+        perimeter += Math.hypot(loop[i].x-loop[i-1].x, loop[i].y-loop[i-1].y);
+      }
+      if (area < 0 && -area/2 < mask.length*.001 && (-area/2)/perimeter < 1.5) continue;
+    }
     const split = Math.floor((loop.length-1)/2);
-    const contour = [...simplify(loop.slice(0,split+1), .55).slice(0,-1), ...simplify(loop.slice(split), .55)];
+    const tolerance = threshold === null ? 1 : .55;
+    const contour = [...simplify(loop.slice(0,split+1), tolerance).slice(0,-1), ...simplify(loop.slice(split), tolerance)];
     if (contour.length >= 4) result.push(contour);
   }
   return result;
 }
 
-export async function vectorizePlotterImage(file: File, threshold: number, widthMm: number, maxHeightMm: number, mode: "contour" | "centerline" = "contour") {
+export async function vectorizePlotterImage(file: File, threshold: number | null, widthMm: number, maxHeightMm: number, mode: "contour" | "centerline" = "contour") {
   if (!/\.(png|jpe?g|webp)$/i.test(file.name)) throw new Error("Выберите PNG, JPG или WebP.");
   if (file.size > 16 * 1024 * 1024) throw new Error("Изображение больше 16 МБ.");
   const bitmap = await bitmapFromFile(file);
@@ -688,7 +723,7 @@ export async function vectorizePlotterImage(file: File, threshold: number, width
     context.fillStyle = "white"; context.fillRect(0, 0, canvas.width, canvas.height);
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
     const strokes = mode === "contour" ? traceImageContours(pixels, threshold) : vectorizeImageData(pixels, {
-      threshold, keepBorder: true, targetWidth: 1000, targetHeight: 1000, baseline: 0,
+      threshold: threshold ?? undefined, keepBorder: true, targetWidth: 1000, targetHeight: 1000, baseline: 0,
     });
     let minX = Infinity, minY = Infinity, maxY = -Infinity, maxX = 0;
     for (const stroke of strokes) for (const p of stroke) { minX = Math.min(minX,p.x); minY = Math.min(minY,p.y); maxY = Math.max(maxY,p.y); maxX = Math.max(maxX,p.x); }
