@@ -10,6 +10,12 @@ export function formatDuration(seconds: number) {
   return `${Math.floor(rounded / 60)} мин. ${rounded % 60} сек.`;
 }
 
+export const timingExplanation = "Расчёт по длине пути, заданным скоростям и паузам пера. Без разгона, торможения, задержек связи и пользовательских G-code-команд. Реальное время не измерено.";
+export function formatNominalDuration(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "—";
+  return `≈ ${formatDuration(Math.ceil(seconds / 5) * 5)}`;
+}
+
 export default function PlotterFooter({ workspace }: { workspace: any }) {
   const gcodeInputRef = useRef<HTMLInputElement | null>(null);
   const [collapsed, setCollapsed] = useState(false);

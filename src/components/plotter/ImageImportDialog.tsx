@@ -39,7 +39,7 @@ export default function ImageImportDialog({ file, maxWidth, maxHeight, onClose, 
       <label>Ширина, мм<input type="number" min="1" max={maxWidth} value={width} onChange={e=>setWidth(Math.max(1,Math.min(maxWidth,Number(e.target.value)||1)))} /></label>
     </div>
 
-    <p role="status">{busy ? "Строю линии…" : error || (strokes.length ? `Штрихов: ${strokes.length}` : "Линии не найдены. Увеличьте порог.")}</p>
+    <p role="status">{busy ? "Строю линии…" : error || (strokes.length ? `Проходов пера: ${strokes.length} · Отрезков: ${strokes.reduce((sum, stroke) => sum + Math.max(0, stroke.length - 1), 0)}` : "Линии не найдены. Увеличьте порог.")}</p>
     <footer><button onClick={onClose}>Отмена</button><button className="primary" disabled={busy || !!error || !strokes.length} onClick={()=>onApply(strokes)}>Добавить в рисунок</button></footer>
   </dialog>, document.body);
 }

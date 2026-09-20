@@ -24,7 +24,7 @@ import {
 import { compilePlotJob, createDryRunCommands } from "../../plotter/job";
 import { downloadFile } from "../../lib/files";
 import PlotterSettings from "./PlotterSettings";
-import { formatDuration } from "./PlotterFooter";
+import { formatNominalDuration, timingExplanation } from "./PlotterFooter";
 
 const STORAGE_KEY = "openhand.workshop.v1";
 const EMPTY = { name: "Новый рисунок", strokes: [] as Stroke[], objects: [] as SceneObject[] };
@@ -526,15 +526,18 @@ export default function PlotterWorkshop({
             </div>
           )}
           <div className="workshop-statistics">
-            <span>
-              Штрихов: {document.strokes.length.toLocaleString("ru-RU")}
+            <span title="Непрерывные проходы с опущенным пером; каждый может состоять из множества отрезков.">
+              Проходов пера: {document.strokes.length.toLocaleString("ru-RU")}
             </span>
             <span>
               {box.width.toFixed(1)} × {box.height.toFixed(1)} мм
             </span>
-            <span>
+            <span title="Суммарная длина линий с опущенным пером">
+              {(job.drawDistance / 1000).toFixed(2)} м пером
+            </span>
+            <span title={timingExplanation}>
               {document.strokes.length
-                ? `≈ ${formatDuration(job.estimatedSeconds)}`
+                ? `Без разгона: ${formatNominalDuration(job.estimatedSeconds)}`
                 : "—"}
             </span>
             <label className="workshop-check">

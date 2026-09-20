@@ -1,4 +1,4 @@
-import PlotterFooter, { formatDuration } from "../plotter/PlotterFooter";
+import PlotterFooter, { formatNominalDuration, timingExplanation } from "../plotter/PlotterFooter";
 import PlotterPaper from "../plotter/PlotterPaper";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -194,13 +194,13 @@ export default function PreviewPanel({
                 className="preview-job-stats"
                 aria-label="Статистика задания плоттера"
               >
-                <span title="Количество штрихов">
+                <span title="Непрерывные проходы пера, а не число отдельных отрезков">
                   <strong>
                     {plotterWorkspace.activeLayout.strokes.length.toLocaleString(
                       "ru-RU",
                     )}
                   </strong>
-                  <small>штрихов</small>
+                  <small>проходов</small>
                 </span>
                 <span title="Количество команд">
                   <strong>
@@ -216,11 +216,11 @@ export default function PreviewPanel({
                   </strong>
                   <small>м пером</small>
                 </span>
-                <span title="Расчётное время">
+                <span title={timingExplanation}>
                   <strong>
-                    {formatDuration(plotterWorkspace.job.estimatedSeconds)}
+                    {formatNominalDuration(plotterWorkspace.job.estimatedSeconds)}
                   </strong>
-                  <small>расчётно</small>
+                  <small>без разгона</small>
                 </span>
               </div>
             )}
