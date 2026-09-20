@@ -38,6 +38,9 @@ struct openhandApp: App {
         }
         .defaultSize(width: 1440, height: 900)
         .commands {
+            CommandGroup(replacing: .help) {
+                Link("Связаться с разработчиком", destination: URL(string: "https://renothingg.github.io/?contact")!)
+            }
             CommandGroup(replacing: .newItem) {
                 Button("Открыть G-code…") { state.command("open") }
                     .keyboardShortcut("o").disabled(!state.ready || state.locked)

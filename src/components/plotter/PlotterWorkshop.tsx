@@ -1,3 +1,4 @@
+import ImageImportDialog from "./ImageImportDialog";
 import Icon from "../Icon";
 import PanelResizeHandle from "../PanelResizeHandle";
 import usePanelWidth from "../../hooks/usePanelWidth";
@@ -71,6 +72,8 @@ export default function PlotterWorkshop({
   workspace: any;
   toolbarHost?: HTMLElement | null;
 }) {
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const imageInput = useRef<HTMLInputElement>(null);
   const [footerCollapsed, setFooterCollapsed] = useState(false);
   const [panelWidth, setPanelWidth] = usePanelWidth("openhand.workshop-width");
   const [document, setDocument] = useState(load);
@@ -188,6 +191,7 @@ export default function PlotterWorkshop({
   const open = (file?: File) =>
     void attempt(async () => {
       if (!file || locked) return;
+      if (/\.(png|jpe?g|webp)$/i.test(file.name)) { setImageFile(file); return; }
       if (file.size > 8_000_000) throw new Error("Файл больше 8 МБ.");
       const text = await file.text();
       if (/\.json$/i.test(file.name)) {
@@ -209,6 +213,8 @@ export default function PlotterWorkshop({
   };
   return (
     <section className="plotter-workshop" aria-label="Мастерская плоттера">
+      {imageFile && <ImageImportDialog file={imageFile} maxWidth={Math.max(1, config.workAreaWidth-20)} maxHeight={Math.max(1, config.workAreaHeight-20)} onClose={()=>setImageFile(null)} onApply={strokes => { commit([...document.strokes, ...strokes], document.strokes.length ? document.name : imageFile.name); setImageFile(null); }} />}
+      <input type="file" hidden ref={imageInput} accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" onChange={e=>{ if (e.target.files?.[0] && !locked) setImageFile(e.target.files[0]); e.target.value=""; }} />
       {toolbarHost &&
         createPortal(
           <div className="workshop-toolbar" aria-label="Файл мастерской">
@@ -248,7 +254,7 @@ export default function PlotterWorkshop({
               ref={input}
               type="file"
               hidden
-              accept=".hpgl,.plt,.csv,.tsv,.json"
+              accept=".hpgl,.plt,.csv,.tsv,.json,.png,.jpg,.jpeg,.webp"
               onChange={(e) => {
                 open(e.target.files?.[0]);
                 e.target.value = "";
@@ -285,6 +291,7 @@ export default function PlotterWorkshop({
             <fieldset disabled={locked}>
               <section className="workshop-section">
                 <h2>Добавить</h2>
+                <button disabled={locked} onClick={()=>imageInput.current?.click()}>Изображение PNG / JPG</button>
                 <label className="workshop-field">
                   <span>Фигура</span>
                   <select

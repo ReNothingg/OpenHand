@@ -67,6 +67,10 @@ internal sealed class MainForm : Form
         workspaceMenu.DropDownItems.Add(themeMenu);
         menu.Items.Add(workspaceMenu);
         UpdateMenu();
+        var helpMenu = new ToolStripMenuItem("Справка");
+        var contact = new ToolStripMenuItem("Связаться с разработчиком");
+        contact.Click += (_, _) => Process.Start(new ProcessStartInfo("https://renothingg.github.io/?contact") { UseShellExecute = true });
+        helpMenu.DropDownItems.Add(contact); menu.Items.Add(helpMenu);
         MainMenuStrip = menu;
         Controls.Add(menu);
 

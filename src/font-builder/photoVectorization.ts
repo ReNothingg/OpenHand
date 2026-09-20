@@ -231,6 +231,8 @@ function traceSkeleton(binary, width, height) {
 }
 
 interface VectorizeOptions {
+  threshold?: number;
+  keepBorder?: boolean;
   thresholdOffset?: number;
   targetHeight?: number;
   targetWidth?: number;
@@ -251,15 +253,12 @@ function vectorizeImageData(
         data[offset + 2] * 0.114,
     );
   }
-  const threshold = Math.min(
-    150,
-    otsuThreshold(grayscale) + Number(options.thresholdOffset || 0),
-  );
+  const threshold = options.threshold === undefined ? Math.min(150, otsuThreshold(grayscale) + Number(options.thresholdOffset || 0)) : clamp(options.threshold, 1, 254);
   const binary = new Uint8Array(grayscale.length);
   for (let index = 0; index < binary.length; index += 1) {
     binary[index] = grayscale[index] < threshold ? 1 : 0;
   }
-  const border = Math.max(2, Math.round(Math.min(width, height) * 0.035));
+  const border = options.keepBorder ? 0 : Math.max(2, Math.round(Math.min(width, height) * 0.035));
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       if (
@@ -283,10 +282,11 @@ function vectorizeImageData(
     .filter((stroke) => stroke.length > 1);
   const allPoints = traced.flat();
   if (!allPoints.length) return [];
-  const minX = Math.min(...allPoints.map((point) => point.x));
-  const maxX = Math.max(...allPoints.map((point) => point.x));
-  const minY = Math.min(...allPoints.map((point) => point.y));
-  const maxY = Math.max(...allPoints.map((point) => point.y));
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const point of allPoints) {
+    minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y);
+  }
   const inkHeight = Math.max(1, maxY - minY);
   const inkWidth = Math.max(1, maxX - minX);
   const targetHeight = options.targetHeight || 300;
@@ -625,4 +625,25 @@ export async function vectorizePhotoSheet(
     glyphs,
     markerCorrection: Boolean(corners),
   };
+}
+
+export async function vectorizePlotterImage(file: File, threshold: number, widthMm: number, maxHeightMm: number) {
+  if (!/\.(png|jpe?g|webp)$/i.test(file.name)) throw new Error("Выберите PNG, JPG или WebP.");
+  if (file.size > 16 * 1024 * 1024) throw new Error("Изображение больше 16 МБ.");
+  const bitmap = await bitmapFromFile(file);
+  try {
+    const canvas = drawScaled(bitmap, 700);
+    const context = canvas.getContext("2d", { willReadFrequently: true })!;
+    // Transparent PNG pixels must become paper, not black ink.
+    context.globalCompositeOperation = "destination-over";
+    context.fillStyle = "white"; context.fillRect(0, 0, canvas.width, canvas.height);
+    const strokes = vectorizeImageData(context.getImageData(0, 0, canvas.width, canvas.height), {
+      threshold, keepBorder: true, targetWidth: 1000, targetHeight: 1000, baseline: 0,
+    });
+    let minY = Infinity, maxY = -Infinity, maxX = 0;
+    for (const stroke of strokes) for (const p of stroke) { minY = Math.min(minY,p.y); maxY = Math.max(maxY,p.y); maxX = Math.max(maxX,p.x); }
+    if (!strokes.length) return [];
+    const scale = Math.min(widthMm / Math.max(maxX, 1), maxHeightMm / Math.max(maxY-minY, 1));
+    return strokes.map(stroke => stroke.map(p => ({ x: p.x*scale + 10, y: (p.y-minY)*scale + 10 })));
+  } finally { if ("close" in bitmap) bitmap.close(); }
 }
