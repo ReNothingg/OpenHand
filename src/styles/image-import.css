@@ -2,7 +2,7 @@
 .drawing-image-dialog::backdrop { background: var(--overlay); }
 .drawing-image-dialog header, .drawing-image-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .drawing-image-dialog h2 { margin: 0; font-size: 18px; }
-.drawing-image-dialog button, .drawing-image-dialog input { padding: 8px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-raised); color: var(--text-primary); }
+.drawing-image-dialog button, .drawing-image-dialog input, .drawing-image-dialog select { padding: 8px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-raised); color: var(--text-primary); }
 .drawing-image-dialog button.primary { background: var(--green); color: var(--on-accent); }
 .drawing-image-previews { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
 .drawing-image-previews figure { margin: 0; min-width: 0; }

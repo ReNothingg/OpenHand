@@ -627,7 +627,56 @@ export async function vectorizePhotoSheet(
   };
 }
 
-export async function vectorizePlotterImage(file: File, threshold: number, widthMm: number, maxHeightMm: number) {
+/** Directed pixel boundaries preserve closed outlines, holes and disconnected shapes. */
+export function traceImageContours(imageData: ImageData, threshold = 128) {
+  const { width, height, data } = imageData;
+  const mask = new Uint8Array(width * height);
+  for (let i = 0; i < mask.length; i++) {
+    const alpha = data[i*4+3] / 255;
+    const gray = (data[i*4]*.299 + data[i*4+1]*.587 + data[i*4+2]*.114)*alpha + 255*(1-alpha);
+    mask[i] = gray < clamp(threshold, 1, 254) ? 1 : 0;
+  }
+  removeSmallComponents(mask, width, height, 4);
+  const stride = width + 1;
+  const edges: { start: number; end: number; direction: number; used: boolean }[] = [];
+  const outgoing = new Map<number, number[]>();
+  const add = (x: number, y: number, ex: number, ey: number, direction: number) => {
+    const start = y*stride+x, end = ey*stride+ex, index = edges.length;
+    edges.push({ start, end, direction, used: false });
+    const group = outgoing.get(start); if (group) group.push(index); else outgoing.set(start,[index]);
+  };
+  const ink = (x: number, y: number) => x>=0 && y>=0 && x<width && y<height && mask[y*width+x];
+  for (let y=0; y<height; y++) for (let x=0; x<width; x++) if (ink(x,y)) {
+    if (!ink(x,y-1)) add(x,y,x+1,y,0);
+    if (!ink(x+1,y)) add(x+1,y,x+1,y+1,1);
+    if (!ink(x,y+1)) add(x+1,y+1,x,y+1,2);
+    if (!ink(x-1,y)) add(x,y+1,x,y,3);
+  }
+  const point = (key: number) => ({ x: key%stride, y: Math.floor(key/stride) });
+  const result: { x: number; y: number }[][] = [];
+  for (let index=0; index<edges.length; index++) {
+    if (edges[index].used) continue;
+    const start = edges[index].start, loop = [point(start)];
+    let current = index;
+    while (!edges[current].used) {
+      const edge = edges[current]; edge.used = true; loop.push(point(edge.end));
+      if (edge.end === start) break;
+      const candidates = (outgoing.get(edge.end) || []).filter(i=>!edges[i].used);
+      // At diagonal contacts, turn towards the same foreground component.
+      candidates.sort((a,b)=>[1,0,3,2].indexOf((edges[a].direction-edge.direction+4)%4)-[1,0,3,2].indexOf((edges[b].direction-edge.direction+4)%4));
+      if (!candidates.length) break;
+      current = candidates[0];
+    }
+    if (loop.length < 5 || loop.at(-1)!.x !== loop[0].x || loop.at(-1)!.y !== loop[0].y) continue;
+    // Simplify two open halves so the identical endpoints cannot collapse a ring.
+    const split = Math.floor((loop.length-1)/2);
+    const contour = [...simplify(loop.slice(0,split+1), .55).slice(0,-1), ...simplify(loop.slice(split), .55)];
+    if (contour.length >= 4) result.push(contour);
+  }
+  return result;
+}
+
+export async function vectorizePlotterImage(file: File, threshold: number, widthMm: number, maxHeightMm: number, mode: "contour" | "centerline" = "contour") {
   if (!/\.(png|jpe?g|webp)$/i.test(file.name)) throw new Error("Выберите PNG, JPG или WebP.");
   if (file.size > 16 * 1024 * 1024) throw new Error("Изображение больше 16 МБ.");
   const bitmap = await bitmapFromFile(file);
@@ -637,13 +686,14 @@ export async function vectorizePlotterImage(file: File, threshold: number, width
     // Transparent PNG pixels must become paper, not black ink.
     context.globalCompositeOperation = "destination-over";
     context.fillStyle = "white"; context.fillRect(0, 0, canvas.width, canvas.height);
-    const strokes = vectorizeImageData(context.getImageData(0, 0, canvas.width, canvas.height), {
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    const strokes = mode === "contour" ? traceImageContours(pixels, threshold) : vectorizeImageData(pixels, {
       threshold, keepBorder: true, targetWidth: 1000, targetHeight: 1000, baseline: 0,
     });
-    let minY = Infinity, maxY = -Infinity, maxX = 0;
-    for (const stroke of strokes) for (const p of stroke) { minY = Math.min(minY,p.y); maxY = Math.max(maxY,p.y); maxX = Math.max(maxX,p.x); }
+    let minX = Infinity, minY = Infinity, maxY = -Infinity, maxX = 0;
+    for (const stroke of strokes) for (const p of stroke) { minX = Math.min(minX,p.x); minY = Math.min(minY,p.y); maxY = Math.max(maxY,p.y); maxX = Math.max(maxX,p.x); }
     if (!strokes.length) return [];
-    const scale = Math.min(widthMm / Math.max(maxX, 1), maxHeightMm / Math.max(maxY-minY, 1));
-    return strokes.map(stroke => stroke.map(p => ({ x: p.x*scale + 10, y: (p.y-minY)*scale + 10 })));
+    const scale = Math.min(widthMm / Math.max(maxX-minX, 1), maxHeightMm / Math.max(maxY-minY, 1));
+    return strokes.map(stroke => stroke.map(p => ({ x: (p.x-minX)*scale + 10, y: (p.y-minY)*scale + 10 })));
   } finally { if ("close" in bitmap) bitmap.close(); }
 }
