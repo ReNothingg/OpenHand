@@ -59,7 +59,7 @@ export default function SettingsPanel({
           ×
         </button>
       </div>
-      <SettingSection title="Текст и страница">
+      <SettingSection title="Шрифт и текст">
         <details className="studio-detail">
           <summary>Оформление конспекта</summary>
           <p>
@@ -139,12 +139,8 @@ export default function SettingsPanel({
               : undefined
           }
         />
-        <div
-          className="settings-subgroup"
-          role="group"
-          aria-labelledby="page-settings-title"
-        >
-          <h3 id="page-settings-title">Страница и поля</h3>
+      </SettingSection>
+      <SettingSection title="Страница и поля" open={false}>
           <div className="page-format-field">
             <div className="page-format-row">
               <select
@@ -227,10 +223,9 @@ export default function SettingsPanel({
             suffix=" px"
             onChange={(value) => updateSetting("marginBottom", value)}
           />
-        </div>
       </SettingSection>
       <PlotterSettings workspace={plotterWorkspace} />
-      <SettingSection title="Живой почерк">
+      <SettingSection title="Почерк" open={false}>
         <label className="field handwriting-profile-field">
           <span>Профиль автора</span>
           <select
@@ -260,6 +255,7 @@ export default function SettingsPanel({
         </Toggle>
         {settings.trueHandwriting && (
           <>
+            <SettingSection title="Изменение почерка по странице" open={false}>
             <Toggle
               checked={settings.fatigueEnabled}
               onChange={(value) => updateSetting("fatigueEnabled", value)}
@@ -280,6 +276,8 @@ export default function SettingsPanel({
                 onChange={(value) => updateSetting("fatigueStrength", value)}
               />
             )}
+            </SettingSection>
+            <SettingSection title="Форма букв и соединения" open={false}>
             <RangeControl
               label="Наклон автора"
               value={settings.authorSlant}
@@ -342,8 +340,8 @@ export default function SettingsPanel({
               onChange={(value) => updateSetting("pressureVariation", value)}
               hint="Слегка меняет толщину предпросмотра и усилие пера между штрихами."
             />
-            <div className="settings-subgroup">
-              <h3>Структура письма</h3>
+            </SettingSection>
+            <SettingSection title="Абзацы, интервалы и строки" open={false}>
               {STRUCTURE_CONTROLS.map((control) => (
                 <RangeControl
                   key={control.key}
@@ -368,7 +366,8 @@ export default function SettingsPanel({
                 hint="Плавный ход строки без резких скачков отдельных букв."
                 onChange={(value) => updateSetting("authorBaseline", value)}
               />
-            </div>
+            </SettingSection>
+            <SettingSection title="Проверка и образцы почерка" open={false}>
             <NaturalnessReport
               report={naturalnessReport}
               onAutofix={applyNaturalnessFix}
@@ -397,8 +396,10 @@ export default function SettingsPanel({
                 </div>
               </details>
             )}
+            </SettingSection>
           </>
         )}
+        <SettingSection title="Случайные вариации" open={false}>
         <RangeControl
           label="Случайное направление"
           value={settings.directionChance}
@@ -524,6 +525,7 @@ export default function SettingsPanel({
             </button>
           </span>
         </label>
+        </SettingSection>
       </SettingSection>
       <SettingSection title="Пресеты и файлы" open={false}>
         <label className="field">

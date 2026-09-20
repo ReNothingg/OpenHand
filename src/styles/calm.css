@@ -2095,3 +2095,21 @@ body,
 :root .writing-start-toggle input[role="switch"]:checked { background: #359447; }
 :root .writing-start-toggle input[role="switch"]:checked::after { transform: translateX(12px); }
 @media (prefers-reduced-motion: reduce) { :root .writing-start-toggle input[role="switch"]::after { transition: none; } }
+
+/* One visual surface per settings group, not per individual control. */
+:root .settings-panel.settings-panel .settings-section {
+  margin: 8px 10px;
+  background: var(--surface-raised);
+  border-radius: 4px;
+  overflow: hidden;
+}
+:root .settings-panel.settings-panel .settings-section > summary { padding: 14px 16px; }
+:root .settings-panel.settings-panel .settings-section > .settings-content { padding: 4px 16px 18px; gap: 14px; }
+:root .settings-panel.settings-panel .settings-content .settings-section {
+  margin: 2px 0;
+  background: var(--surface-panel);
+}
+:root .settings-panel.settings-panel .settings-content .settings-section > summary { font-size: 13px; padding: 12px; min-height: 40px; }
+:root .settings-panel.settings-panel .settings-content .settings-section > .settings-content { padding: 2px 12px 16px; }
+:root .pages-viewport { background: #e9e9eb; }
+:root.theme-dark .pages-viewport { background: #111111; }

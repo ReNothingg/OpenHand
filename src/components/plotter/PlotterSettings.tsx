@@ -93,14 +93,12 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
     <div
       className={`integrated-plotter-settings ${enabled ? "enabled" : "disabled"}`}
     >
-      <MachineMonitor workspace={workspace} />
+      <SettingSection title="Состояние плоттера" open={false}>
+        <MachineMonitor workspace={workspace} />
+      </SettingSection>
       <fieldset disabled={!enabled || calibrationActive}>
         <SettingSection title="Плоттер" open={defaultOpen}>
-          <section
-            className="settings-subgroup plotter-subgroup"
-            aria-labelledby="plotter-profile-title"
-          >
-            <h3 id="plotter-profile-title">Профиль устройства</h3>
+          <SettingSection title="Профиль устройства" open={false}>
             <label className="field">
               <Caption help="Готовые локальные параметры, восстановленные из KDraw. Применение заменит механику и координаты активного профиля.">
                 Совместимость
@@ -215,13 +213,9 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
             >
               Калибровать
             </button>
-          </section>
+          </SettingSection>
 
-          <section
-            className="settings-subgroup plotter-subgroup"
-            aria-labelledby="plotter-controller-title"
-          >
-            <h3 id="plotter-controller-title">Подключение</h3>
+          <SettingSection title="Подключение" open={false}>
             <label className="field">
               <Caption help="USB и Bluetooth используют системный последовательный порт. TCP подключается к сетевому модулю плоттера по адресу и порту.">
                 Транспорт
@@ -435,13 +429,9 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
                   работает в приложениях OpenHand для macOS и Windows.
                 </p>
               )}
-          </section>
+          </SettingSection>
 
-          <section
-            className="settings-subgroup plotter-subgroup"
-            aria-labelledby="plotter-mechanics-title"
-          >
-            <h3 id="plotter-mechanics-title">Механика</h3>
+          <SettingSection title="Механика" open={false}>
             <div className="plotter-reset-row">
               <button
                 className="text-button"
@@ -803,13 +793,9 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
                 event.target.value = "";
               }}
             />
-          </section>
+          </SettingSection>
 
-          <section
-            className="settings-subgroup plotter-subgroup"
-            aria-labelledby="plotter-manual-title"
-          >
-            <h3 id="plotter-manual-title">Ручная проверка</h3>
+          <SettingSection title="Ручная проверка" open={false}>
             <div className="jog-control">
               <button
                 type="button"
@@ -932,7 +918,7 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
                 Отправить
               </button>
             </form>
-          </section>
+          </SettingSection>
         </SettingSection>
       </fieldset>
       {calibrationActive && <PlotterCalibrationWizard workspace={workspace} />}
