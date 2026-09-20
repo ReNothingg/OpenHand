@@ -1,0 +1,13 @@
+:root .app .workshop-canvas { position: relative; overflow: hidden; min-height: 180px; touch-action: none; }
+:root .app .workshop-canvas > svg.scene-canvas { display: block; width: 100%; height: 100%; min-width: 0; max-width: none; min-height: 180px; outline-offset: -2px; touch-action: none; }
+.scene-canvas [data-scene-object] { cursor: move; }
+.scene-canvas .scene-gizmo rect, .scene-canvas .scene-gizmo circle { cursor: crosshair; }
+.scene-toolstrip { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 12px; background: var(--surface-panel); }
+:root .app .scene-toolstrip button { padding: 6px 10px; min-height: 32px; border: 1px solid var(--line); background: var(--surface-raised); border-radius: 4px; font-size: 12px; }
+:root .app .scene-toolstrip button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--green); color: var(--green); }
+.scene-object-list { display: grid; gap: 4px; max-height: 190px; overflow-y: auto; }
+:root .app .scene-object-list button { text-align: left; padding: 7px 9px; background: var(--surface-panel); border: 1px solid transparent; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:root .app .scene-object-list button[aria-selected="true"] { background: var(--accent-soft); border-color: var(--green); }
+
+.scene-order-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+:root .app .scene-order-actions button { font-size: 11px; padding: 5px 8px; }

@@ -370,35 +370,30 @@ export function parseCoordinateCSV(source: string): Stroke[] {
   return validateStrokes(result);
 }
 
-export function serializeWorkshop(strokes: Stroke[], name: string) {
-  const safe = validateStrokes(strokes);
-  return JSON.stringify({
-    format: "openhand-workshop",
-    version: 1,
-    name: name.slice(0, 120),
-    strokes: safe,
-    strokeSettings: safe.map((s) => ({
-      pressure: s.pressure,
-      feedRate: s.feedRate,
-    })),
-  });
+export type SceneObject = { id: string; name: string; strokes: Stroke[] };
+export function sceneObject(strokes: Stroke[], name = "Рисунок"): SceneObject {
+  return { id: crypto.randomUUID(), name: name.slice(0,120), strokes: validateStrokes(strokes) };
+}
+export function serializeWorkshop(strokes: Stroke[], name: string, objects?: SceneObject[]) {
+  const items = objects || (strokes.length ? [sceneObject(strokes, name)] : []);
+  validateStrokes(items.flatMap(item => item.strokes));
+  return JSON.stringify({ format: "openhand-workshop", version: 2, name: name.slice(0,120),
+    objects: items.map(item => ({ ...item, strokeSettings: item.strokes.map(s=>({pressure:s.pressure,feedRate:s.feedRate})) })) });
 }
 export function parseWorkshop(source: string) {
   if (source.length > 8_000_000) throw new Error("Проект больше 8 МБ.");
   const value = JSON.parse(source);
-  if (value?.format !== "openhand-workshop" || value.version !== 1)
-    throw new Error("Неизвестный формат проекта.");
-  const strokes = validateStrokes(value.strokes);
-  if (Array.isArray(value.strokeSettings))
-    strokes.forEach((s, i) => {
-      const settings = value.strokeSettings[i];
-      if (settings) {
-        s.pressure = settings.pressure;
-        s.feedRate = settings.feedRate;
-      }
-    });
-  return {
-    name: String(value.name || "Без названия").slice(0, 120),
-    strokes: validateStrokes(strokes),
+  if (value?.format !== "openhand-workshop" || ![1,2].includes(value.version)) throw new Error("Неизвестный формат проекта.");
+  const readStrokes = (item: any) => {
+    const strokes = validateStrokes(item.strokes);
+    if (Array.isArray(item.strokeSettings)) strokes.forEach((s,i)=>{ const settings = item.strokeSettings[i]; if(settings) { s.pressure=settings.pressure; s.feedRate=settings.feedRate; } });
+    return validateStrokes(strokes);
   };
+  if (value.version === 2 && (!Array.isArray(value.objects) || value.objects.length > 1000)) throw new Error("Некорректный список объектов.");
+  const objects: SceneObject[] = value.version === 1 ? [sceneObject(readStrokes(value), value.name)] : value.objects.map((item:any)=>({
+    id: crypto.randomUUID(), name: String(item.name || "Рисунок").slice(0,120), strokes: readStrokes(item),
+  }));
+  const nonempty = objects.filter(item=>item.strokes.length);
+  const strokes = validateStrokes(nonempty.flatMap(item=>item.strokes));
+  return { name: String(value.name || "Без названия").slice(0,120), objects: nonempty, strokes };
 }

@@ -1,3 +1,5 @@
+import SceneCanvas from "./SceneCanvas";
+import { mapSceneObjects, type SceneTool } from "../../plotter/scene";
 import ImageImportDialog from "./ImageImportDialog";
 import Icon from "../Icon";
 import PanelResizeHandle from "../PanelResizeHandle";
@@ -17,6 +19,8 @@ import {
   transform,
   validateStrokes,
   type Stroke,
+  type SceneObject,
+  sceneObject,
 } from "../../plotter/workshop";
 import { compilePlotJob, createDryRunCommands } from "../../plotter/job";
 import { downloadFile } from "../../lib/files";
@@ -24,7 +28,7 @@ import PlotterSettings from "./PlotterSettings";
 import { formatDuration } from "./PlotterFooter";
 
 const STORAGE_KEY = "openhand.workshop.v1";
-const EMPTY = { name: "Новый рисунок", strokes: [] as Stroke[] };
+const EMPTY = { name: "Новый рисунок", strokes: [] as Stroke[], objects: [] as SceneObject[] };
 function load() {
   try {
     const source = localStorage.getItem(STORAGE_KEY);
@@ -73,10 +77,15 @@ export default function PlotterWorkshop({
   toolbarHost?: HTMLElement | null;
 }) {
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const dropPoint = useRef<{x:number;y:number}|null>(null);
+  const [fitRequest, setFitRequest] = useState(0);
   const imageInput = useRef<HTMLInputElement>(null);
   const [footerCollapsed, setFooterCollapsed] = useState(false);
   const [panelWidth, setPanelWidth] = usePanelWidth("openhand.workshop-width");
   const [document, setDocument] = useState(load);
+  const [selected, setSelected] = useState<string[]>(() => document.objects.slice(0,1).map(o=>o.id));
+  const [tool, setTool] = useState<SceneTool>("move");
   const [history, setHistory] = useState<(typeof document)[]>([]);
   const [future, setFuture] = useState<(typeof document)[]>([]);
   const [tab, setTab] = useState("prepare");
@@ -147,7 +156,7 @@ export default function PlotterWorkshop({
       try {
         localStorage.setItem(
           STORAGE_KEY,
-          serializeWorkshop(document.strokes, document.name),
+          serializeWorkshop(document.strokes, document.name, document.objects),
         );
       } catch {
         setError("Не удалось сохранить черновик. Сохраните проект в файл.");
@@ -163,17 +172,39 @@ export default function PlotterWorkshop({
     try {
       await action();
     } catch (e) {
+      dropPoint.current = null;
       setError(e instanceof Error ? e.message : String(e));
     }
   };
-  const commit = (strokes: Stroke[], name = document.name) => {
+  const commitObjects = (objects: SceneObject[], name = document.name) => {
     if (lockedRef.current) return;
-    const safe = validateStrokes(strokes);
-    setHistory((items) => [...items.slice(-11), document]);
-    setFuture([]);
-    setDocument({ name, strokes: safe });
+    objects=objects.filter(o=>o.strokes.length);
+    if(objects.length>1000)throw new Error("Лимит сцены — 1000 объектов.");
+    const strokes = validateStrokes(objects.flatMap(o=>o.strokes));
+    setHistory(items=>[...items.slice(-29),document]); setFuture([]);
+    setDocument({name, objects, strokes});
+    setSelected(ids=>ids.filter(id=>objects.some(o=>o.id===id)));
   };
-  const edit = (action: () => Stroke[]) => void attempt(() => commit(action()));
+  const addObject = (strokes: Stroke[], name: string) => void attempt(() => {
+    if(lockedRef.current)return;
+    const target=dropPoint.current;dropPoint.current=null;
+    const b=bounds(strokes);
+    const placed=target ? transform(strokes,{x:target.x-b.minX,y:target.y-b.minY}) : strokes;
+    const object=sceneObject(placed,name);commitObjects([...document.objects,object]);setSelected([object.id]);setTab("prepare");setView("drawing");
+  });
+  const edit = (action: (strokes: Stroke[]) => Stroke[]) => void attempt(() => {
+    if(!selected.length)throw new Error("Выберите объект на сцене.");
+    commitObjects(document.objects.map(o=>selected.includes(o.id)?{...o,strokes:validateStrokes(action(o.strokes))}:o));
+  });
+  const deleteSelected = () => void attempt(()=>commitObjects(document.objects.filter(o=>!selected.includes(o.id))));
+  const duplicateSelected = () => void attempt(()=>{
+    const copies = mapSceneObjects(document.objects.filter(o=>selected.includes(o.id)), selected, p=>({x:p.x+10,y:p.y+10})).map(o=>({...o,id:crypto.randomUUID(),name:o.name+" · копия"}));
+    if(!copies.length)return;commitObjects([...document.objects,...copies]);setSelected(copies.map(o=>o.id));
+  });
+  const reorderSelected = (front: boolean) => void attempt(()=>{
+    const chosen=document.objects.filter(o=>selected.includes(o.id)), rest=document.objects.filter(o=>!selected.includes(o.id));
+    if(chosen.length)commitObjects(front?[...rest,...chosen]:[...chosen,...rest]);
+  });
   const undo = () => {
     const last = history.at(-1);
     if (!last || locked) return;
@@ -196,11 +227,12 @@ export default function PlotterWorkshop({
       const text = await file.text();
       if (/\.json$/i.test(file.name)) {
         const project = parseWorkshop(text);
-        commit(project.strokes, project.name);
+        dropPoint.current=null;
+        commitObjects(project.objects, project.name); setSelected(project.objects.slice(0,1).map(o=>o.id));
       } else if (/\.(hpgl|plt)$/i.test(file.name))
-        commit(alignToOrigin(parseHPGL(text)), file.name);
+        addObject(alignToOrigin(parseHPGL(text)), file.name);
       else if (/\.(csv|tsv)$/i.test(file.name))
-        commit(parseCoordinateCSV(text), file.name);
+        addObject(parseCoordinateCSV(text), file.name);
       else
         throw new Error(
           "Откройте HPGL, CSV координат или проект JSON. SVG и DXF добавляются через редактор документа.",
@@ -213,7 +245,7 @@ export default function PlotterWorkshop({
   };
   return (
     <section className="plotter-workshop" aria-label="Мастерская плоттера">
-      {imageFile && <ImageImportDialog file={imageFile} maxWidth={Math.max(1, config.workAreaWidth-20)} maxHeight={Math.max(1, config.workAreaHeight-20)} onClose={()=>setImageFile(null)} onApply={strokes => { commit([...document.strokes, ...strokes], document.strokes.length ? document.name : imageFile.name); setImageFile(null); }} />}
+      {imageFile && <ImageImportDialog file={imageFile} maxWidth={Math.max(1, config.workAreaWidth-20)} maxHeight={Math.max(1, config.workAreaHeight-20)} onClose={()=>{setImageFile(null);dropPoint.current=null;}} onApply={strokes => { addObject(strokes, imageFile.name); setImageFile(null); }} />}
       <input type="file" hidden ref={imageInput} accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" onChange={e=>{ if (e.target.files?.[0] && !locked) setImageFile(e.target.files[0]); e.target.value=""; }} />
       {toolbarHost &&
         createPortal(
@@ -238,7 +270,7 @@ export default function PlotterWorkshop({
                   void attempt(() =>
                     downloadFile(
                       `${document.name || "drawing"}.json`,
-                      serializeWorkshop(document.strokes, document.name),
+                      serializeWorkshop(document.strokes, document.name, document.objects),
                       "application/json",
                     ),
                   )
@@ -290,6 +322,15 @@ export default function PlotterWorkshop({
           ) : (
             <fieldset disabled={locked}>
               <section className="workshop-section">
+                <h2>Объекты</h2>
+                <div className="scene-object-list" role="listbox" aria-label="Объекты рисунка" aria-multiselectable="true">
+                  {document.objects.map(o=><button key={o.id} role="option" aria-selected={selected.includes(o.id)} onClick={e=>setSelected(ids=>e.shiftKey?(ids.includes(o.id)?ids.filter(id=>id!==o.id):[...ids,o.id]):[o.id])}>{o.name}</button>)}
+                </div>
+                {selected.length===1 && <label className="workshop-field">Название объекта<input value={document.objects.find(o=>o.id===selected[0])?.name || ""} onChange={e=>{const name=e.target.value;setDocument(d=>({...d,objects:d.objects.map(o=>o.id===selected[0]?{...o,name}:o)}));}} /></label>}
+                <div className="scene-order-actions">
+                  <button disabled={!selected.length} onClick={()=>reorderSelected(true)}>На передний план</button>
+                  <button disabled={!selected.length} onClick={()=>reorderSelected(false)}>На задний план</button>
+                </div>
                 <h2>Добавить</h2>
                 <button disabled={locked} onClick={()=>imageInput.current?.click()}>Изображение PNG / JPG</button>
                 <label className="workshop-field">
@@ -322,10 +363,7 @@ export default function PlotterWorkshop({
                 </div>
                 <button
                   onClick={() =>
-                    edit(() => [
-                      ...document.strokes,
-                      ...shape(kind, width, height),
-                    ])
+                    addObject(shape(kind, width, height), kind === "rectangle" ? "Прямоугольник" : kind === "ellipse" ? "Эллипс" : kind === "triangle" ? "Треугольник" : "Линия")
                   }
                 >
                   Добавить фигуру
@@ -335,10 +373,7 @@ export default function PlotterWorkshop({
                     !workspace.activeLayout?.strokes?.length || workspace.busy
                   }
                   onClick={() =>
-                    edit(() => [
-                      ...document.strokes,
-                      ...workspace.activeLayout.strokes,
-                    ])
+                    addObject(workspace.activeLayout.strokes, "Из документа")
                   }
                 >
                   Взять штрихи из документа
@@ -369,8 +404,8 @@ export default function PlotterWorkshop({
                 <button
                   disabled={!document.strokes.length}
                   onClick={() =>
-                    edit(() =>
-                      transform(document.strokes, {
+                    edit((strokes) =>
+                      transform(strokes, {
                         scale: scale / 100,
                         angle,
                         x: dx,
@@ -384,21 +419,21 @@ export default function PlotterWorkshop({
                 <div className="workshop-buttons">
                   <button
                     onClick={() =>
-                      edit(() => transform(document.strokes, { mirrorX: true }))
+                      edit((strokes) => transform(strokes, { mirrorX: true }))
                     }
                   >
                     Зеркало X
                   </button>
                   <button
                     onClick={() =>
-                      edit(() => transform(document.strokes, { mirrorY: true }))
+                      edit((strokes) => transform(strokes, { mirrorY: true }))
                     }
                   >
                     Зеркало Y
                   </button>
                 </div>
                 <button
-                  onClick={() => edit(() => alignToOrigin(document.strokes))}
+                  onClick={() => edit((strokes) => alignToOrigin(strokes))}
                 >
                   К началу · отступ 10 мм
                 </button>
@@ -423,9 +458,9 @@ export default function PlotterWorkshop({
 
                 <button
                   onClick={() =>
-                    edit(() => [
-                      ...document.strokes,
-                      ...hatch(document.strokes, spacing, hatchAngle),
+                    edit((strokes) => [
+                      ...strokes,
+                      ...hatch(strokes, spacing, hatchAngle),
                     ])
                   }
                 >
@@ -459,7 +494,7 @@ export default function PlotterWorkshop({
                 </div>
                 <button
                   onClick={() =>
-                    edit(() => repeat(document.strokes, columns, rows, gap))
+                    edit((strokes) => repeat(strokes, columns, rows, gap))
                   }
                 >
                   Повторить рисунок
@@ -482,7 +517,7 @@ export default function PlotterWorkshop({
                 </p>
                 <button
                   disabled={!document.strokes.length}
-                  onClick={() => edit(() => [])}
+                  onClick={() => void attempt(()=>commitObjects([]))}
                 >
                   Очистить рисунок
                 </button>
@@ -539,12 +574,19 @@ export default function PlotterWorkshop({
               </button>
               <button
                 aria-label="Увеличить масштаб"
-                onClick={() => setZoom((z) => Math.min(4, z * 1.25))}
+                onClick={() => setZoom((z) => Math.min(8, z * 1.25))}
               >
                 +
               </button>
             </div>
           </div>
+          {view === "drawing" && <div className="scene-toolstrip" role="toolbar" aria-label="Инструменты сцены">
+            {([ ["move","Перемещение","V"], ["rotate","Вращение","R"], ["scale","Масштаб","S"], ["warp","Warp","W"], ["pan","Обзор","H"] ] as const).map(([id,label,key])=>
+              <button key={id} aria-pressed={tool===id} disabled={locked&&id!=="pan"} title={`${label} · ${key}${id==="move"?" · Shift: шаг 1 мм":id==="rotate"?" · Shift: шаг 15°":id==="scale"?" · Shift: свободные пропорции":""}`} onClick={()=>setTool(id)}>{label}</button>)}
+            <button onClick={()=>setFitRequest(value=>value+1)} title="Вписать выделение или сцену · F">Вписать</button>
+            <button disabled={locked||!selected.length} onClick={duplicateSelected}>Дублировать</button>
+            <button disabled={locked||!selected.length} onClick={deleteSelected}>Удалить</button>
+          </div>}
           {view === "code" ? (
             <pre className="workshop-code" tabIndex={0}>
               {job.commands.join("\n")}
@@ -552,6 +594,7 @@ export default function PlotterWorkshop({
           ) : (
             <div
               className={`workshop-canvas ${drag ? "dragging" : ""}`}
+              ref={stageRef}
               onDragOver={(e) => {
                 e.preventDefault();
                 setDrag(true);
@@ -560,75 +603,17 @@ export default function PlotterWorkshop({
               onDrop={(e) => {
                 e.preventDefault();
                 setDrag(false);
+                if(locked)return;
+                const matrix=stageRef.current?.querySelector("svg")?.getScreenCTM();
+                if(matrix){const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse());dropPoint.current={x:p.x,y:p.y};}
                 open(e.dataTransfer.files[0]);
               }}
             >
-              {document.strokes.length === 0 ? (
-                <div className="workshop-empty">
-                  <button onClick={() => input.current?.click()}>
-                    Открыть рисунок
-                  </button>
-                </div>
-              ) : (
-                <svg
-                  role="img"
-                  aria-label="Предпросмотр рисунка в рабочей области плоттера"
-                  viewBox={`${previewX} ${previewY} ${previewWidth - previewX + 8} ${previewHeight - previewY + 8}`}
-                  style={{
-                    width: `${zoom * 100}%`,
-                    minWidth: `${zoom * 100}%`,
-                  }}
-                >
-                  <defs>
-                    <pattern
-                      id="workshop-grid"
-                      width="10"
-                      height="10"
-                      patternUnits="userSpaceOnUse"
-                    >
-                      <path
-                        d="M10 0H0V10"
-                        fill="none"
-                        stroke="#dde2e1"
-                        strokeWidth="0.15"
-                      />
-                    </pattern>
-                  </defs>
-                  <rect
-                    width={config.workAreaWidth}
-                    height={config.workAreaHeight}
-                    fill="white"
-                  />
-                  <rect
-                    width={config.workAreaWidth}
-                    height={config.workAreaHeight}
-                    fill="url(#workshop-grid)"
-                    stroke="#a2aaa6"
-                    strokeWidth="0.3"
-                  />
-                  {travel && (
-                    <path
-                      d={travelPath}
-                      fill="none"
-                      stroke="#bd8d53"
-                      strokeDasharray="1.2 1.2"
-                      strokeWidth="0.3"
-                    />
-                  )}
-                  <path
-                    d={path}
-                    fill="none"
-                    stroke={job.withinWorkArea ? "#226347" : "#b43b32"}
-                    strokeWidth="0.35"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="0" cy="0" r="1" fill="#226347" />
-                  <text x="2" y="-2" fontSize="3" fill="currentColor">
-                    0 · мм
-                  </text>
-                </svg>
-              )}
+              <SceneCanvas objects={document.objects} selected={selected} onSelect={setSelected}
+                onCommit={objects=>void attempt(()=>commitObjects(objects))} tool={tool} setTool={setTool} locked={locked}
+                width={config.workAreaWidth} height={config.workAreaHeight} fitRequest={fitRequest} zoom={zoom} onZoom={setZoom}
+                onUndo={undo} onRedo={redo} onDuplicate={duplicateSelected} onDelete={deleteSelected}
+                travelPath={travel?travelPath:undefined} />
             </div>
           )}
           <div className="workshop-statistics">
