@@ -2156,3 +2156,37 @@ body,
 :root .preview-panel {
   background: var(--surface-panel);
 }
+
+/* Presets are actions: keep them visually distinct from explanatory copy. */
+:root .settings-panel.settings-panel .studio-detail:has(> .document-preset) {
+  padding: 12px;
+  background: var(--surface-panel);
+  border-radius: 4px;
+}
+:root .settings-panel.settings-panel button.document-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+:root .settings-panel.settings-panel button.document-preset:hover {
+  background: var(--control-hover);
+  border-color: var(--text-secondary);
+}
+:root .settings-panel.settings-panel button.document-preset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:root .settings-panel.settings-panel button.document-preset:active { background: var(--accent-soft); }
+:root .settings-panel.settings-panel button.document-preset strong { font-size: 13px; font-weight: 600; }
+:root .settings-panel.settings-panel button.document-preset small { font-size: 12px; line-height: 1.45; color: var(--text-secondary); }

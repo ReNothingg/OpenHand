@@ -1,4 +1,8 @@
-import { wordMotion, spaceFactor, structureValue } from "./handwriting/structure";
+import {
+  wordMotion,
+  spaceFactor,
+  structureValue,
+} from "./handwriting/structure";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import markedKatex from "marked-katex-extension";
@@ -312,11 +316,17 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
     const indent = structureValue(settings, "paragraphIndent");
     const gap = structureValue(settings, "paragraphGap");
     let alignment = "";
-    for (let parent: HTMLElement | null = paragraph; parent && !alignment; parent = parent.parentElement) {
+    for (
+      let parent: HTMLElement | null = paragraph;
+      parent && !alignment;
+      parent = parent.parentElement
+    ) {
       alignment = parent.style.textAlign || parent.getAttribute("align") || "";
     }
-    if (indent && !["center", "right"].includes(alignment)) paragraph.style.textIndent = `${indent / 100}em`;
-    if (gap) paragraph.style.marginBottom = `${0.72 + gap / 100 * Number(settings.lineHeight || 1.55)}em`;
+    if (indent && !["center", "right"].includes(alignment))
+      paragraph.style.textIndent = `${indent / 100}em`;
+    if (gap)
+      paragraph.style.marginBottom = `${0.72 + (gap / 100) * Number(settings.lineHeight || 1.55)}em`;
   });
   enhanceDocumentTables(root, documentNode);
   const walker = documentNode.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -454,7 +464,12 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
                   randomFor(settings.seed, `letter:${letterIndex}:variant`) * 4,
                 )
               : 0;
-          const motion = wordMotion(settings, `${wordIndex}:${part}`, characterIndex, wordCharacters.length);
+          const motion = wordMotion(
+            settings,
+            `${wordIndex}:${part}`,
+            characterIndex,
+            wordCharacters.length,
+          );
           const authorSlant = Number(settings.authorSlant || 0);
           const rhythm = Math.max(
             0,
@@ -463,12 +478,15 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
           const slant =
             authorSlant +
             (randomFor(settings.seed, `letter:${letterIndex}:slant`) - 0.5) *
-              (variation * 0.05 + rhythm * 0.025) * (1 - motion.coherence * 0.85) + motion.slant +
+              (variation * 0.05 + rhythm * 0.025) *
+              (1 - motion.coherence * 0.85) +
+            motion.slant +
             fatigue * 3.2;
           const scaleY =
             1 +
             (randomFor(settings.seed, `letter:${letterIndex}:height`) - 0.5) *
-              variation * (1 - motion.coherence * 0.85) *
+              variation *
+              (1 - motion.coherence * 0.85) *
               0.0024;
           const scaleX = Math.max(
             0.78,
@@ -488,9 +506,18 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
           if (characterIndex === 0) letter.classList.add("word-start");
           if (characterIndex === wordCharacters.length - 1)
             letter.classList.add("word-end");
-          letter.style.setProperty("--glyph-slant", `${(-slant).toFixed(2)}deg`);
-          letter.style.setProperty("--glyph-height", (scaleY * motion.height).toFixed(3));
-          letter.style.setProperty("--glyph-width", (scaleX * motion.width).toFixed(3));
+          letter.style.setProperty(
+            "--glyph-slant",
+            `${(-slant).toFixed(2)}deg`,
+          );
+          letter.style.setProperty(
+            "--glyph-height",
+            (scaleY * motion.height).toFixed(3),
+          );
+          letter.style.setProperty(
+            "--glyph-width",
+            (scaleX * motion.width).toFixed(3),
+          );
           letter.style.setProperty("--glyph-pressure", pressure.toFixed(3));
           letter.style.setProperty(
             "--glyph-join",
@@ -510,7 +537,17 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
               `letter:${letterIndex}:spacing`,
             )
           : 0;
-        const compressionSpacing = settings.trueHandwriting ? (wordMotion(settings, `${wordIndex}:${part}`, characterIndex, wordCharacters.length).width - 1) * Number(settings.fontSize || 27) * 0.45 : 0;
+        const compressionSpacing = settings.trueHandwriting
+          ? (wordMotion(
+              settings,
+              `${wordIndex}:${part}`,
+              characterIndex,
+              wordCharacters.length,
+            ).width -
+              1) *
+            Number(settings.fontSize || 27) *
+            0.45
+          : 0;
         const widthSpacing =
           (Number(settings.authorWidth || 100) - 100) * 0.012;
         const rhythmSpacing = settings.trueHandwriting
