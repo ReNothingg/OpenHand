@@ -2148,3 +2148,11 @@ body,
 :root .workshop-tabs button { min-height: 34px; font-size: 13px; }
 
 :root .integrated-plotter-footer .plotter-footer-heading { position: sticky; top: -8px; z-index: 2; background: var(--surface-panel); }
+
+/* The footer meets the sidebar at the same edge as the canvas. */
+:root .integrated-plotter-footer {
+  margin-right: var(--settings-panel-width, 0px);
+}
+:root .preview-panel {
+  background: var(--surface-panel);
+}
