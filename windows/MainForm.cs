@@ -23,6 +23,13 @@ internal sealed class MainForm : Form
     private readonly string? _initialDocument;
     private NativeBridge? _nativeBridge;
     private PendingDocument? _pendingDocument;
+    private readonly Dictionary<string, ToolStripMenuItem> _menuItems = new();
+    private string _menuWorkspace = "document";
+    private bool _menuLocked;
+    private bool _menuReady;
+    private bool _menuEditor = true;
+    private bool _menuSettings = true;
+    private string _menuAppearance = "system";
     private bool _runtimeReady;
     private bool _loadingErrorShown;
 
@@ -37,21 +44,29 @@ internal sealed class MainForm : Form
         AllowDrop = true;
         Controls.Add(_webView);
         var menu = new MenuStrip { Renderer = new FlatMenuRenderer() };
-        var workspaceMenu = new ToolStripMenuItem("Рабочее пространство");
-        foreach (var (title, mode, shortcut) in new[] {
-            ("Документ", "document", Keys.Control | Keys.Shift | Keys.D1),
-            ("Мастерская плоттера", "workshop", Keys.Control | Keys.Shift | Keys.D2)
-        })
-        {
-            var item = new ToolStripMenuItem(title) { ShortcutKeys = shortcut };
-            item.Click += async (_, _) => {
-                if (_webView.CoreWebView2 is not null)
-                    await _webView.CoreWebView2.ExecuteScriptAsync(
-                        $"window.dispatchEvent(new CustomEvent('openhand:workspace', {{ detail: '{mode}' }}))");
-            };
-            workspaceMenu.DropDownItems.Add(item);
+        ToolStripMenuItem Add(ToolStripMenuItem parent, string label, string action, Keys shortcut = Keys.None) {
+            var item = new ToolStripMenuItem(label) { ShortcutKeys = shortcut };
+            item.Click += async (_, _) => await RunMenuCommand(action);
+            parent.DropDownItems.Add(item); _menuItems[action] = item; return item;
         }
+        var fileMenu = new ToolStripMenuItem("Файл");
+        Add(fileMenu, "Открыть G-code…", "open", Keys.Control | Keys.O);
+        Add(fileMenu, "Печать…", "print", Keys.Control | Keys.P);
+        menu.Items.Add(fileMenu);
+        var workspaceMenu = new ToolStripMenuItem("Рабочее пространство");
+        Add(workspaceMenu, "Документ", "document", Keys.Control | Keys.Shift | Keys.D1);
+        Add(workspaceMenu, "Мастерская плоттера", "workshop", Keys.Control | Keys.Shift | Keys.D2);
+        workspaceMenu.DropDownItems.Add(new ToolStripSeparator());
+        Add(workspaceMenu, "Редактор текста", "editor", Keys.Control | Keys.Alt | Keys.E);
+        Add(workspaceMenu, "Панель настроек", "settings", Keys.Control | Keys.Alt | Keys.S);
+        workspaceMenu.DropDownItems.Add(new ToolStripSeparator());
+        var themeMenu = new ToolStripMenuItem("Оформление");
+        Add(themeMenu, "Как в системе", "appearance:system");
+        Add(themeMenu, "Светлое", "appearance:light");
+        Add(themeMenu, "Тёмное", "appearance:dark");
+        workspaceMenu.DropDownItems.Add(themeMenu);
         menu.Items.Add(workspaceMenu);
+        UpdateMenu();
         MainMenuStrip = menu;
         Controls.Add(menu);
 
@@ -59,6 +74,43 @@ internal sealed class MainForm : Form
         Shown += async (_, _) => await InitializeWebViewAsync();
         DragEnter += HandleDragEnter;
         DragDrop += HandleDragDrop;
+    }
+
+    private void ReceiveMenuState(object? sender, CoreWebView2WebMessageReceivedEventArgs args) {
+        try {
+            using var doc = JsonDocument.Parse(args.WebMessageAsJson);
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("bridge", out var bridge) || bridge.GetString() != "menu") return;
+            if (root.TryGetProperty("workspace", out var workspace)) { _menuWorkspace = workspace.GetString() ?? "document"; _menuReady = true; }
+            if (root.TryGetProperty("locked", out var locked)) _menuLocked = locked.GetBoolean();
+            if (root.TryGetProperty("editor", out var editor)) _menuEditor = editor.GetBoolean();
+            if (root.TryGetProperty("settings", out var settings)) _menuSettings = settings.GetBoolean();
+            if (root.TryGetProperty("appearance", out var appearance)) _menuAppearance = appearance.GetString() ?? "system";
+            UpdateMenu();
+        } catch (JsonException) { }
+    }
+    private void UpdateMenu() {
+        foreach (var (action, item) in _menuItems) {
+            item.Enabled = _menuReady && (!_menuLocked || action.StartsWith("appearance:"));
+            if (action is "editor" or "settings" or "print") item.Enabled &= _menuWorkspace == "document";
+            item.Checked = action switch {
+                "document" => _menuWorkspace == "document", "workshop" => _menuWorkspace == "workshop",
+                "editor" => _menuEditor, "settings" => _menuSettings,
+                _ => action == "appearance:" + _menuAppearance
+            };
+        }
+    }
+    private async Task RunMenuCommand(string action) {
+        var core = _webView.CoreWebView2;
+        if (core is null) return;
+        if (action == "open") {
+            using var dialog = new OpenFileDialog { Filter = "G-code|*.gcode;*.nc;*.tap", Multiselect = false };
+            if (dialog.ShowDialog(this) == DialogResult.OK) await OpenDocumentAsync(dialog.FileName);
+        } else if (action == "print") core.ShowPrintUI(CoreWebView2PrintDialogKind.Browser);
+        else {
+            var eventName = action is "document" or "workshop" ? "openhand:workspace" : "openhand:menu-command";
+            await core.ExecuteScriptAsync($"window.dispatchEvent(new CustomEvent('{eventName}',{{detail:{JsonSerializer.Serialize(action)}}}));");
+        }
     }
 
     private async Task InitializeWebViewAsync()
@@ -100,6 +152,7 @@ internal sealed class MainForm : Form
         ConfigureWebView(core, webRoot);
         _nativeBridge = new NativeBridge(this, core, ApplyWindowTheme);
         core.WebMessageReceived += _nativeBridge.HandleWebMessage;
+        core.WebMessageReceived += ReceiveMenuState;
         await core.AddScriptToExecuteOnDocumentCreatedAsync(
             NativeScripts.SerialShim);
         core.Navigate($"https://{ApplicationHost}/index.html");

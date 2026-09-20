@@ -10,6 +10,8 @@ struct OpenDocumentRequest: Equatable {
 
 private let serialShim = #"""
 (() => {
+  window.addEventListener("openhand:menu-state", event => window.webkit.messageHandlers.menuBridge.postMessage(event.detail));
+  window.addEventListener("openhand:menu-appearance", event => window.webkit.messageHandlers.menuBridge.postMessage({ appearance: event.detail }));
   window.addEventListener("openhand:theme", (event) => {
     window.webkit.messageHandlers.themeBridge.postMessage({ dark: Boolean(event.detail?.dark), system: Boolean(event.detail?.system) });
   });
@@ -237,6 +239,7 @@ struct OpenHandWebView: NSViewRepresentable {
         configuration.userContentController.add(context.coordinator.bridge, name: "serialBridge")
         configuration.userContentController.add(context.coordinator.bridge, name: "fileBridge")
         configuration.userContentController.add(context.coordinator.bridge, name: "themeBridge")
+        configuration.userContentController.add(context.coordinator.bridge, name: "menuBridge")
         configuration.setURLSchemeHandler(
             context.coordinator.assetHandler,
             forURLScheme: "openhand"
@@ -268,6 +271,7 @@ struct OpenHandWebView: NSViewRepresentable {
         context.coordinator.bridge.webView = webView
         context.coordinator.webView = webView
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.changeWorkspace(_:)), name: Notification.Name("OpenHandWorkspace"), object: nil)
+        NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.menuCommand(_:)), name: Notification.Name("OpenHandMenuCommand"), object: nil)
         context.coordinator.loadApplication()
         return webView
     }
@@ -280,10 +284,12 @@ struct OpenHandWebView: NSViewRepresentable {
 
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
         NotificationCenter.default.removeObserver(coordinator, name: Notification.Name("OpenHandWorkspace"), object: nil)
+        NotificationCenter.default.removeObserver(coordinator, name: Notification.Name("OpenHandMenuCommand"), object: nil)
         let controller = webView.configuration.userContentController
         controller.removeScriptMessageHandler(forName: "serialBridge")
         controller.removeScriptMessageHandler(forName: "fileBridge")
         controller.removeScriptMessageHandler(forName: "themeBridge")
+        controller.removeScriptMessageHandler(forName: "menuBridge")
     }
 
     @MainActor
@@ -300,6 +306,23 @@ struct OpenHandWebView: NSViewRepresentable {
                   let mode = notification.object as? String,
                   mode == "document" || mode == "workshop" else { return }
             webView.evaluateJavaScript("window.dispatchEvent(new CustomEvent('openhand:workspace', { detail: '\(mode)' }))", completionHandler: nil)
+        }
+
+        @objc func menuCommand(_ notification: Notification) {
+            guard let webView, let window = webView.window, window.isKeyWindow,
+                  let action = notification.object as? String else { return }
+            if action == "open" {
+                let panel = NSOpenPanel()
+                panel.allowedContentTypes = ["gcode", "nc", "tap"].compactMap { UTType(filenameExtension: $0) }
+                panel.allowsMultipleSelection = false
+                panel.beginSheetModal(for: window) { [weak self] response in
+                    if response == .OK, let url = panel.url { self?.openDocument(OpenDocumentRequest(url: url)) }
+                }
+            } else if action == "print" {
+                webView.printOperation(with: NSPrintInfo.shared).run()
+            } else if ["editor", "settings", "appearance:system", "appearance:light", "appearance:dark"].contains(action) {
+                webView.evaluateJavaScript("window.dispatchEvent(new CustomEvent('openhand:menu-command',{detail:'\(action)'}));", completionHandler: nil)
+            }
         }
 
         func loadApplication() {

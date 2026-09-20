@@ -26,6 +26,7 @@ let nativeSystemDark: boolean | undefined;
 
 const syncPlatformTheme = () => {
   const root = document.documentElement;
+  window.dispatchEvent(new CustomEvent("openhand:menu-appearance", { detail: appearance }));
   root.classList.toggle("platform-macos", nativePlatform === "macos");
   root.classList.toggle("platform-windows", nativePlatform === "windows");
   // Keep the existing selector name limited to the actual macOS shell.
@@ -50,7 +51,17 @@ window.addEventListener("openhand:system-theme", (event: Event) => {
   const dark = Boolean((event as CustomEvent).detail.dark);
   if (nativeSystemDark !== dark) { nativeSystemDark = dark; syncPlatformTheme(); }
 });
+window.addEventListener("openhand:menu-command", (event: Event) => {
+  const command = (event as CustomEvent).detail;
+  if (typeof command === "string" && command.startsWith("appearance:")) {
+    const next = command.slice(11);
+    if (!["system", "light", "dark"].includes(next)) return;
+    try { localStorage.setItem("openhand.appearance", next); } catch { /* Optional preference. */ }
+    window.dispatchEvent(new CustomEvent("openhand:appearance", { detail: next }));
+  }
+});
 colorScheme.addEventListener("change", () => { nativeSystemDark = undefined; syncPlatformTheme(); });
+window.addEventListener("focus", syncPlatformTheme);
 syncPlatformTheme();
 
 window.__openhandReceiveFile = (payload) => {
@@ -97,6 +108,12 @@ function Root() {
     window.addEventListener("openhand:workspace", showWorkspace);
     return () =>
       window.removeEventListener("openhand:workspace", showWorkspace);
+  }, [activeView]);
+
+  useEffect(() => {
+    if (activeView !== "document") window.dispatchEvent(new CustomEvent("openhand:menu-state", { detail: {
+      workspace: activeView, editor: false, settings: false, locked: false,
+    } }));
   }, [activeView]);
 
   if (activeView === "font")

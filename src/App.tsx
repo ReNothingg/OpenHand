@@ -766,6 +766,23 @@ export default function App() {
       window.removeEventListener("openhand:workspace", switchWorkspace);
   }, [plotterWorkspace.running, plotterWorkspace.calibrationActive]);
 
+  useEffect(() => {
+    const publish = () => window.dispatchEvent(new CustomEvent("openhand:menu-state", { detail: {
+      workspace: workspaceMode, editor: !editorCollapsed, settings: !settingsCollapsed,
+      locked: plotterWorkspace.running || plotterWorkspace.calibrationActive,
+    } }));
+    const command = (event: Event) => {
+      const action = (event as CustomEvent).detail;
+      if (plotterWorkspace.running || plotterWorkspace.calibrationActive) return;
+      if (action === "editor") setEditorCollapsed(value => !value);
+      if (action === "settings") setSettingsCollapsed(value => !value);
+    };
+    publish();
+    window.addEventListener("focus", publish);
+    window.addEventListener("openhand:menu-command", command);
+    return () => { window.removeEventListener("focus", publish); window.removeEventListener("openhand:menu-command", command); };
+  }, [workspaceMode, editorCollapsed, settingsCollapsed, plotterWorkspace.running, plotterWorkspace.calibrationActive]);
+
   return (
     <div
       className={`app with-workspace-nav ${editorCollapsed ? "editor-collapsed" : ""} ${settingsCollapsed ? "settings-collapsed" : ""}`}

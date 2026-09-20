@@ -36,6 +36,8 @@ internal static class NativeScripts
             host.postMessage({ bridge, ...payload });
           }
 
+          window.addEventListener("openhand:menu-state", event => post("menu", event.detail));
+          window.addEventListener("openhand:menu-appearance", event => post("menu", { appearance: event.detail }));
           const colorScheme = matchMedia("(prefers-color-scheme: dark)");
           const syncWindowTheme = () =>
             post("theme", { dark: colorScheme.matches });
