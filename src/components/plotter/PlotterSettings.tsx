@@ -612,14 +612,14 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
                 onChange={(value) => workspace.updateConfig("invertX", value)}
                 label="Инвертировать X"
               >
-                <small>Меняет знак выходных команд X.</small>
+
               </Toggle>
               <Toggle
                 checked={Boolean(config.invertY)}
                 onChange={(value) => workspace.updateConfig("invertY", value)}
                 label="Инвертировать Y"
               >
-                <small>Меняет знак выходных команд Y.</small>
+
               </Toggle>
             </div>
             <Toggle
@@ -638,7 +638,7 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
               }
               label="Возвращаться в ноль после задания"
             >
-              <small>По завершении перо поднимется и каретка вернётся в 0,0.</small>
+
             </Toggle>
             <div className="plotter-row two">
               <label className="field">

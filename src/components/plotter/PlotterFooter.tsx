@@ -236,7 +236,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         </section>
         <section className="plotter-control-card" aria-label="Предпросмотр движения">
           <h3>Предпросмотр</h3>
-          <p className="control-card-caption">Проверить движение пера на экране</p>
+
       <div
         className="plotter-playback-controls"
         aria-label="Живое воспроизведение траектории"

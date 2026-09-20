@@ -343,14 +343,8 @@ export default function PlotterWorkshop({
                 >
                   Взять штрихи из документа
                 </button>
-                <p>
-                  SVG, DXF и почерк подготовьте в «Документе», затем перенесите
-                  сюда. HPGL и CSV координат можно перетащить прямо на холст.
-                </p>
-                <p>
-                  HPGL: один цвет, 40 единиц/мм. Скорость и перо берутся из
-                  профиля устройства.
-                </p>
+
+
               </section>
               <details className="workshop-section" open>
                 <summary>Размер и положение</summary>
@@ -426,10 +420,7 @@ export default function PlotterWorkshop({
                     set={setHatchAngle}
                   />
                 </div>
-                <p>
-                  Заполняет замкнутые контуры и сохраняет отверстия. Исходный
-                  контур остаётся.
-                </p>
+
                 <button
                   onClick={() =>
                     edit(() => [

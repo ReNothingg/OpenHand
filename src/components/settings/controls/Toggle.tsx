@@ -1,6 +1,6 @@
 import { useId } from "react";
 
-export default function Toggle({ label, checked, onChange, children }) {
+export default function Toggle({ label, checked, onChange, children = null }) {
   const inputId = useId();
 
   return (

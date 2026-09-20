@@ -62,10 +62,7 @@ export default function SettingsPanel({
       <SettingSection title="Шрифт и текст">
         <details className="studio-detail">
           <summary>Оформление конспекта</summary>
-          <p>
-            Применяет размер текста и интервалы. Заголовки, списки и формулы
-            задаются в редакторе.
-          </p>
+
           {DOCUMENT_PRESETS.map((p) => (
             <button
               className="document-preset"
@@ -241,10 +238,7 @@ export default function SettingsPanel({
           onChange={(value) => updateSetting("trueHandwriting", value)}
           label="Настоящий почерк"
         >
-          <small>
-            Варианты глифов, контекстные соединения, начала и окончания слов,
-            давление и редкие исправления.
-          </small>
+
         </Toggle>
         {settings.trueHandwriting && (
           <>
@@ -254,10 +248,7 @@ export default function SettingsPanel({
               onChange={(value) => updateSetting("fatigueEnabled", value)}
               label="Изменение письма по странице"
             >
-              <small>
-                К низу страницы буквы постепенно сужаются, наклон и давление
-                меняются. На новом листе изменение начинается заново.
-              </small>
+
             </Toggle>
             {settings.fatigueEnabled && (
               <RangeControl
@@ -375,11 +366,7 @@ export default function SettingsPanel({
             {plotterWorkspace?.activeLayout?.trajectoryReport?.length > 0 && (
               <details className="studio-detail">
                 <summary>Траектории на странице</summary>
-                <p>
-                  Сколько исходных начертаний использовано для повторяющихся
-                  букв. Геометрические искажения отдельно не считаются новым
-                  начертанием.
-                </p>
+
                 <div className="form-audit">
                   {plotterWorkspace.activeLayout.trajectoryReport.map((r) => (
                     <span key={r.character}>

@@ -34,7 +34,7 @@ export default function ImageImportDialog({ file, maxWidth, maxHeight, onClose, 
       <label>Порог чёрного · 1–254<input type="number" min="1" max="254" value={threshold} onChange={e=>setThreshold(Math.max(1,Math.min(254,Number(e.target.value)||1)))} /></label>
       <label>Ширина, мм<input type="number" min="1" max={maxWidth} value={width} onChange={e=>setWidth(Math.max(1,Math.min(maxWidth,Number(e.target.value)||1)))} /></label>
     </div>
-    <p>Выше порог — больше деталей станет чёрными. Заливки преобразуются в осевые линии; размер ограничен рабочей областью с отступом 10 мм.</p>
+
     <p role="status">{busy ? "Строю линии…" : error || (strokes.length ? `Штрихов: ${strokes.length}` : "Линии не найдены. Увеличьте порог.")}</p>
     <footer><button onClick={onClose}>Отмена</button><button className="primary" disabled={busy || !!error || !strokes.length} onClick={()=>onApply(strokes)}>Добавить в рисунок</button></footer>
   </dialog>, document.body);
