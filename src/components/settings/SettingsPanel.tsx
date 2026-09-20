@@ -47,7 +47,7 @@ export default function SettingsPanel({
     <aside
       className="settings-panel panel"
       aria-hidden={settingsCollapsed}
-      inert={settingsCollapsed}
+      inert={settingsCollapsed || plotterWorkspace.running}
     >
       <div className="settings-drawer-header">
         <strong>Настройки</strong>

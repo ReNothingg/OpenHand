@@ -26,6 +26,9 @@ export const DEFAULT_SETTINGS = {
   textWidth: 620,
   lineHeight: 1.55,
   marginTop: 74,
+  writingStartEnabled: false,
+  writingStartPage: 0,
+  writingStartPositions: {} as Record<string, number>,
   marginLeft: 76,
   marginLeftEven: 94,
   marginBottom: 0,
@@ -83,6 +86,23 @@ export function normalizeSettings(
   incoming: Record<string, any> = {},
 ): AppSettings {
   const settings: AppSettings = { ...DEFAULT_SETTINGS, ...incoming };
+  settings.writingStartEnabled = incoming.writingStartEnabled === true;
+  settings.writingStartPage = Math.max(0, Math.min(99, Math.floor(Number(incoming.writingStartPage) || 0)));
+  const starts = incoming.writingStartPositions;
+  settings.writingStartPositions = {};
+  if (starts && typeof starts === "object" && !Array.isArray(starts)) {
+    for (const [key, value] of Object.entries(starts).slice(0, 1000)) {
+      if (
+        /^\d{1,3}$/.test(key) &&
+        typeof value === "number" &&
+        Number.isFinite(value)
+      )
+        settings.writingStartPositions[key] = Math.max(
+          0,
+          Math.min(5000, value),
+        );
+    }
+  }
 
   if (settings.pageSize === "Notebook" || !PAGE_SIZES[settings.pageSize]) {
     settings.pageSize = "NotebookSpread";
@@ -129,7 +149,8 @@ export function normalizeSettings(
     "randomLineIndent",
   ].forEach((key) => delete settings[key]);
 
-  for (const control of STRUCTURE_CONTROLS) settings[control.key] = structureValue(settings, control.key);
+  for (const control of STRUCTURE_CONTROLS)
+    settings[control.key] = structureValue(settings, control.key);
   return settings;
 }
 

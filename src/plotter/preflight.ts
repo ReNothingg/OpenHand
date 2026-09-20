@@ -2,6 +2,7 @@ export interface PlotterLayoutSafety {
   strokes?: unknown[];
   missing?: unknown[];
   clipped?: boolean;
+  startLineSafe?: boolean;
 }
 
 export interface PlotterPreflight {
@@ -37,6 +38,8 @@ export function assessPlotterPreflight(
     blockers.push("В выбранном GFont отсутствуют символы из документа.");
   if (clipped)
     blockers.push("Часть документа выходит за пределы выбранного листа.");
+  if (layout?.startLineSafe === false)
+    blockers.push("Есть штрихи выше линии начала письма. Измените разметку перед запуском.");
   if (!withinWorkArea)
     blockers.push(
       "Траектория выходит за настроенную рабочую область плоттера.",

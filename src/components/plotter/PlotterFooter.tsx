@@ -1,5 +1,7 @@
 import { downloadFile } from "../../lib/files";
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { enablePlotterNotifications } from "../../lib/notifications";
+import PaperChangeDialog from "./PaperChangeDialog";
 
 export function formatDuration(seconds: number) {
   if (!Number.isFinite(seconds)) return "—";
@@ -10,6 +12,8 @@ export function formatDuration(seconds: number) {
 
 export default function PlotterFooter({ workspace }: { workspace: any }) {
   const gcodeInputRef = useRef<HTMLInputElement | null>(null);
+  const [scope, setScope] = useState("remaining");
+  const [notificationNotice, setNotificationNotice] = useState("");
   if (!workspace.enabled) return null;
   const {
     activeLayout: layout,
@@ -34,6 +38,53 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
       className="integrated-plotter-footer"
       aria-label="Управление и запуск плоттера"
     >
+      <PaperChangeDialog
+        key={plotter.paperChange?.nextSheet ?? "idle"}
+        workspace={workspace}
+      />
+      <div className="plotter-sheet-options">
+        <label>
+          Записать
+          <select
+            aria-label="Какие листы записать"
+            value={config.profile === "ebb" ? "current" : scope}
+            disabled={running || calibrationActive || config.profile === "ebb"}
+            onChange={(e) => setScope(e.target.value)}
+          >
+            <option value="current">Текущий лист</option>
+            <option value="remaining">
+              С текущего до конца ·{" "}
+              {Math.max(0, workspace.layouts.length - workspace.activeIndex)}{" "}
+              листов
+            </option>
+          </select>
+        </label>
+        <button
+          className="text-button"
+          type="button"
+          disabled={running}
+          onClick={async () => {
+            try {
+              setNotificationNotice(
+                (await enablePlotterNotifications())
+                  ? "Системные уведомления включены."
+                  : "Системные уведомления недоступны. Напоминание появится в приложении.",
+              );
+            } catch {
+              setNotificationNotice(
+                "Напоминание о смене бумаги появится в приложении.",
+              );
+            }
+          }}
+        >
+          Включить уведомления
+        </button>
+      </div>
+      {notificationNotice && (
+        <p className="plotter-note" role="status">
+          {notificationNotice}
+        </p>
+      )}
       {layout.missing.length > 0 && (
         <p className="plotter-note">
           Нет глифов: {layout.missing.slice(0, 24).join(" ")}
@@ -80,7 +131,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         <button
           className="button compact"
           type="button"
-          disabled={!job.strokes?.length}
+          disabled={!job.strokes?.length || running}
           onClick={playback.playing ? playback.pause : playback.play}
         >
           {playback.playing
@@ -92,13 +143,14 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         <button
           className="button ghost compact"
           type="button"
-          disabled={!job.strokes?.length}
+          disabled={!job.strokes?.length || running}
           onClick={playback.reset}
         >
           Сначала
         </button>
         <select
           value={playback.speed}
+          disabled={running}
           aria-label="Скорость воспроизведения"
           onChange={(event) => playback.setSpeed(Number(event.target.value))}
         >
@@ -142,7 +194,10 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         />
         {workspace.importedGcode && (
           <div className="plotter-imported-summary">
-            <small>Файл отправляется как есть. Координаты профиля к нему не применяются.</small>
+            <small>
+              Файл отправляется как есть. Координаты профиля к нему не
+              применяются.
+            </small>
             <span title={workspace.importedGcode.name}>
               {workspace.importedGcode.name}
             </span>
@@ -233,9 +288,24 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
                 busy
               }
               title={preflight.canStart ? undefined : preflight.blockers[0]}
-              onClick={workspace.run}
+              onClick={() =>
+                config.profile === "ebb"
+                  ? workspace.run()
+                  : workspace.runSheets(
+                      scope === "current"
+                        ? [workspace.activeIndex]
+                        : Array.from(
+                            {
+                              length:
+                                workspace.layouts.length -
+                                workspace.activeIndex,
+                            },
+                            (_, i) => workspace.activeIndex + i,
+                          ),
+                    )
+              }
             >
-              Запустить
+              Начать запись
             </button>
           )}
           {!running && recoveryAvailable && (

@@ -2,6 +2,8 @@ import PlotterFooter, { formatDuration } from "../plotter/PlotterFooter";
 import PlotterPaper from "../plotter/PlotterPaper";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import WritingStartLine from "../plotter/WritingStartLine";
+import { writingStartY } from "../../plotter/writingStart";
 import Icon from "../Icon";
 import BlockInspector from "./BlockInspector";
 import ManualPageContent from "./ManualPageContent";
@@ -32,6 +34,8 @@ export default function PreviewPanel({
   activeSheetIndex,
   onActiveSheetChange,
   toolbarHost,
+  onWritingStartChange,
+  onWritingStartSettings,
 }: any) {
   const [selectedBlock, setSelectedBlock] = useState(null);
   const activeSheetFrameRef = useRef(0);
@@ -78,6 +82,7 @@ export default function PreviewPanel({
     connected: "Подключён",
     running: "Печать",
     paused: "Пауза",
+    "waiting-paper": "Смените бумагу",
   }[plotterWorkspace.plotter.status];
 
   const detectActiveSheet = (event: React.UIEvent<HTMLElement>) => {
@@ -168,6 +173,17 @@ export default function PreviewPanel({
                   </span>
                 )}
             </div>
+            <label className="writing-start-toggle">
+              <input type="checkbox" role="switch" checked={settings.writingStartEnabled}
+                disabled={plotterWorkspace.running || manualEditing}
+                onChange={event => onWritingStartSettings({ writingStartEnabled: event.target.checked })} />
+              Начало записи
+            </label>
+            {settings.writingStartEnabled && <label className="writing-start-page">Страница
+              <input type="number" min="1" max="100" aria-label="Страница начала записи"
+                value={settings.writingStartPage + 1} disabled={plotterWorkspace.running || manualEditing}
+                onChange={event => onWritingStartSettings({ writingStartPage: Math.max(0, Math.min(99, Number(event.target.value) - 1 || 0)) })} />
+            </label>}
             {plotterMode && (
               <div
                 className="preview-job-stats"
@@ -205,6 +221,7 @@ export default function PreviewPanel({
             )}
             <button
               className={`button compact placement-toggle ${manualEditing ? "active" : ""}`}
+              disabled={plotterWorkspace.running}
               type="button"
               aria-pressed={manualEditing}
               onClick={() => setManualEditing((value) => !value)}
@@ -336,10 +353,15 @@ export default function PreviewPanel({
                         onCommit={onCommitManualBlock}
                         onMeasure={onMeasureManualBlocks}
                         contentStyle={{
-                          top: settings.marginTop,
+                          top: writingStartY(settings, metrics.height, firstPageIndex),
                           left,
                           width: metrics.contentWidth,
-                          height: metrics.contentHeight,
+                          height: Math.max(
+                            20,
+                            metrics.height -
+                              writingStartY(settings, metrics.height, firstPageIndex) -
+                              settings.marginBottom,
+                          ),
                           transform: `rotate(${settings.textRotation}deg)`,
                         }}
                       />
@@ -355,10 +377,15 @@ export default function PreviewPanel({
                           onCommit={onCommitManualBlock}
                           onMeasure={onMeasureManualBlocks}
                           contentStyle={{
-                            top: settings.marginTop,
+                            top: writingStartY(settings, metrics.height, firstPageIndex + 1),
                             left: metrics.width / 2 + settings.marginLeftEven,
                             width: metrics.contentWidth,
-                            height: metrics.contentHeight,
+                            height: Math.max(
+                              20,
+                              metrics.height -
+                                writingStartY(settings, metrics.height, firstPageIndex + 1) -
+                                settings.marginBottom,
+                            ),
                             transform: `rotate(${settings.textRotation}deg)`,
                           }}
                         />
@@ -366,6 +393,18 @@ export default function PreviewPanel({
                     </>
                   )}
                 </article>
+                  {!manualEditing && settings.writingStartEnabled && Math.floor(settings.writingStartPage / (isNotebookSpread ? 2 : 1)) === index && (
+                    <WritingStartLine
+                      settings={settings}
+                      metrics={metrics}
+                      sheet={settings.writingStartPage}
+                      disabled={
+                        plotterWorkspace.running ||
+                        (plotterMode && plotterWorkspace.busy)
+                      }
+                      onChange={onWritingStartChange}
+                    />
+                  )}
               </div>
             );
           })}

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { notifyPlotter } from "../lib/notifications";
+import type { PaperChange } from "../plotter/sheetQueue";
 import {
   GRBL_REALTIME,
   parseGrblStatus,
@@ -37,6 +39,16 @@ export function usePlotter() {
   const [status, setStatus] = useState("disconnected");
   const [logs, setLogs] = useState([]);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [paperChange, setPaperChange] = useState<PaperChange | null>(null);
+  const [printingSheet, setPrintingSheet] = useState<number | null>(null);
+  const [sheetProgress, setSheetProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
+  const paperWaiterRef = useRef<{
+    resolve: () => void;
+    reject: (reason: Error) => void;
+  } | null>(null);
   const [machineStatus, setMachineStatus] = useState<GrblStatus | null>(null);
   const [controllerEpoch, setControllerEpoch] = useState(0);
   const operationRef = useRef(false);
@@ -52,6 +64,27 @@ export function usePlotter() {
   const pausedRef = useRef(false);
   const pauseWaitersRef = useRef([]);
   const commandTimeoutRef = useRef(12000);
+
+  const cancelPaperWait = useCallback(
+    (message = "Очередь листов остановлена.") => {
+      const waiter = paperWaiterRef.current;
+      paperWaiterRef.current = null;
+      setPaperChange(null);
+      waiter?.reject(new DOMException(message, "AbortError"));
+    },
+    [],
+  );
+
+  const continuePaper = useCallback(() => {
+    if (!writerRef.current || abortRef.current || desynchronizedRef.current)
+      return;
+    const waiter = paperWaiterRef.current;
+    if (!waiter) return;
+    paperWaiterRef.current = null;
+    setPaperChange(null);
+    setStatus("running");
+    waiter.resolve();
+  }, []);
 
   const saveRecovery = useCallback((value) => {
     if (!value) {
@@ -101,6 +134,17 @@ export function usePlotter() {
             const line = rawLine.trim();
             if (!line) continue;
             if (line.startsWith("<")) {
+              if (/^<Alarm(?:\||>)/.test(line)) {
+                abortRef.current = true;
+                desynchronizedRef.current = true;
+                cancelPaperWait("Авария контроллера.");
+                pausedRef.current = false;
+                pauseWaitersRef.current.splice(0).forEach((resume) => resume());
+                for (const pending of pendingRef.current.splice(0)) {
+                  clearTimeout(pending.timeout);
+                  pending.reject(new Error("Авария контроллера."));
+                }
+              }
               setMachineStatus(
                 (previous) => parseGrblStatus(line, previous) || previous,
               );
@@ -112,6 +156,7 @@ export function usePlotter() {
               setMachineStatus(null);
             }
             if (/^(ALARM|Grbl\s)/i.test(line) && operationRef.current) {
+              cancelPaperWait("Контроллер сброшен или сообщил об аварии.");
               abortRef.current = true;
               desynchronizedRef.current = true;
               pausedRef.current = false;
@@ -131,6 +176,7 @@ export function usePlotter() {
         if (readerRef.current === reader) log("error", error.message);
       } finally {
         if (readerRef.current === reader) {
+          cancelPaperWait("Соединение с плоттером потеряно.");
           abortRef.current = true;
           pausedRef.current = false;
           pauseWaitersRef.current.splice(0).forEach((resume) => resume());
@@ -166,7 +212,7 @@ export function usePlotter() {
         }
       }
     },
-    [log, settlePending, status],
+    [cancelPaperWait, log, settlePending, status],
   );
 
   const writeRaw = useCallback(
@@ -369,6 +415,7 @@ export function usePlotter() {
   }, [realtime, status]);
 
   const disconnect = useCallback(async () => {
+    cancelPaperWait();
     abortRef.current = true;
     pausedRef.current = false;
     pauseWaitersRef.current.splice(0).forEach((resume) => resume());
@@ -397,12 +444,13 @@ export function usePlotter() {
     setStatus("disconnected");
     setMachineStatus(null);
     log("system", "Соединение закрыто");
-  }, [log]);
+  }, [cancelPaperWait, log]);
 
   useEffect(() => {
     if (!supported || typeof navigator.serial.addEventListener !== "function")
       return undefined;
     const handleDeviceDisconnect = () => {
+      cancelPaperWait("Устройство отключено.");
       abortRef.current = true;
       pausedRef.current = false;
       pauseWaitersRef.current.splice(0).forEach((resume) => resume());
@@ -433,7 +481,7 @@ export function usePlotter() {
         "disconnect",
         handleDeviceDisconnect,
       );
-  }, [log, supported]);
+  }, [cancelPaperWait, log, supported]);
 
   const waitWhilePaused = useCallback(() => {
     if (!pausedRef.current) return Promise.resolve();
@@ -459,6 +507,10 @@ export function usePlotter() {
           }
         : jobOrCommands;
       const commands = job?.commands || [];
+      const paperChanges = new Map<number, PaperChange>(
+        (job.paperChanges || []).map((item) => [item.after, item.change]),
+      );
+      const barriers = new Set<number>(job.barriers || []);
       const recoverable = job?.recoverable !== false;
       const startIndex = Math.max(
         0,
@@ -469,6 +521,8 @@ export function usePlotter() {
       abortRef.current = false;
       pausedRef.current = false;
       setStatus("running");
+      setPrintingSheet(null);
+      setSheetProgress(null);
       setProgress({ current: startIndex, total: commands.length });
       if (recoverable) {
         saveRecovery({
@@ -477,17 +531,40 @@ export function usePlotter() {
           total: commands.length,
           profile: profileRef.current,
         });
-      }
+      } else saveRecovery(null);
       try {
+        let sheetRangeIndex = 0;
         for (const command of options.prefix || []) await sendCommand(command);
         for (let index = startIndex; index < commands.length; index += 1) {
+          const ranges = job.sheetRanges || [];
+          while (
+            ranges[sheetRangeIndex] &&
+            index >= ranges[sheetRangeIndex].end
+          )
+            sheetRangeIndex++;
+          const range = ranges[sheetRangeIndex];
+          if (range) {
+            setPrintingSheet(range.sheet);
+            setSheetProgress({
+              current: index - range.start,
+              total: range.end - range.start,
+            });
+          }
           if (abortRef.current)
             throw new DOMException("Задание остановлено.", "AbortError");
           await waitWhilePaused();
           if (abortRef.current)
             throw new DOMException("Задание остановлено.", "AbortError");
-          await sendCommand(commands[index]);
+          await sendCommand(
+            commands[index],
+            barriers.has(index + 1) ? 60000 : commandTimeoutRef.current,
+          );
           setProgress({ current: index + 1, total: commands.length });
+          if (range)
+            setSheetProgress({
+              current: index + 1 - range.start,
+              total: range.end - range.start,
+            });
           if (recoverable && checkpoints.has(index + 1)) {
             safeCheckpoint = index + 1;
             saveRecovery({
@@ -496,6 +573,30 @@ export function usePlotter() {
               total: commands.length,
               profile: profileRef.current,
             });
+          }
+          const change = paperChanges.get(index + 1);
+          if (change) {
+            await waitWhilePaused();
+            if (abortRef.current)
+              throw new DOMException("Очередь остановлена.", "AbortError");
+            // The boundary command is a planner barrier after lifting the pen.
+            // Keep exclusive ownership of the stream throughout the paper swap.
+            const waiting = new Promise<void>((resolve, reject) => {
+              paperWaiterRef.current = { resolve, reject };
+            });
+            setPaperChange(change);
+            setStatus("waiting-paper");
+            log(
+              "system",
+              `Завершено: ${change.completedLabel.toLowerCase()}. Переверните бумагу: далее ${change.nextLabel.toLowerCase()}.`,
+            );
+            void notifyPlotter(
+              "Переверните страницу",
+              `Завершено: ${change.completedLabel.toLowerCase()}. Подготовьте ${change.nextLabel.toLowerCase()} и нажмите «Продолжить» в OpenHand.`,
+            ).catch(() => {});
+            await waiting;
+            if (abortRef.current)
+              throw new DOMException("Очередь остановлена.", "AbortError");
           }
         }
         // An ok acknowledges parsing, not completed motion. Drain the planner
@@ -508,6 +609,11 @@ export function usePlotter() {
         setStatus("connected");
         log("system", "Задание завершено");
         saveRecovery(null);
+        if (job.totalSheets)
+          void notifyPlotter(
+            "Конспект готов",
+            `Все выбранные листы (${job.totalSheets}) завершены. Перо поднято.`,
+          ).catch(() => {});
       } catch (error) {
         setStatus(writerRef.current ? "connected" : "disconnected");
         if (error.name !== "AbortError") {
@@ -517,10 +623,20 @@ export function usePlotter() {
           throw error;
         }
       } finally {
+        cancelPaperWait();
+        setPrintingSheet(null);
+        setSheetProgress(null);
         operationRef.current = false;
       }
     },
-    [log, saveRecovery, sendCommand, waitWhilePaused, writeRaw],
+    [
+      cancelPaperWait,
+      log,
+      saveRecovery,
+      sendCommand,
+      waitWhilePaused,
+      writeRaw,
+    ],
   );
 
   const recover = useCallback(
@@ -555,6 +671,7 @@ export function usePlotter() {
   }, [status, writeRaw]);
 
   const stop = useCallback(async () => {
+    cancelPaperWait();
     abortRef.current = true;
     pausedRef.current = false;
     pauseWaitersRef.current.splice(0).forEach((resolve) => resolve());
@@ -575,7 +692,7 @@ export function usePlotter() {
       "system",
       "Отправлена аварийная остановка. Перед следующим заданием переподключите плоттер и проверьте ноль.",
     );
-  }, [log, saveRecovery, writeRaw]);
+  }, [cancelPaperWait, log, saveRecovery, writeRaw]);
 
   const sendCommands = useCallback(
     async (commands) => {
@@ -597,6 +714,8 @@ export function usePlotter() {
 
   useEffect(
     () => () => {
+      cancelPaperWait();
+      abortRef.current = true;
       try {
         readerRef.current?.cancel();
       } catch {
@@ -622,6 +741,10 @@ export function usePlotter() {
     status,
     logs,
     progress,
+    paperChange,
+    printingSheet,
+    sheetProgress,
+    continuePaper,
     machineStatus,
     controllerEpoch,
     realtime,

@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import WebKit
+import UserNotifications
 
 @MainActor
 final class NativeBridge: NSObject, WKScriptMessageHandler {
@@ -55,6 +56,24 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
 
         let id = requestID.intValue
         switch action {
+        case "enableNotifications":
+            Task {
+                do {
+                    let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+                    resolve(id, result: ["granted": granted])
+                } catch { resolve(id, result: ["granted": false]) }
+            }
+        case "notify":
+            let title = String((payload["title"] as? String ?? "OpenHand").prefix(160))
+            let body = String((payload["body"] as? String ?? "").prefix(500))
+            NSApp.requestUserAttention(.informationalRequest)
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .default
+            UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "openhand-paper", content: content, trigger: nil)) { [weak self] error in
+                Task { @MainActor in self?.resolve(id, result: ["delivered": error == nil]) }
+            }
         case "requestPort":
             do {
                 let port = try choosePort()

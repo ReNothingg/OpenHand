@@ -196,6 +196,12 @@ private let serialShim = #"""
     configurable: false,
     writable: false,
   });
+  Object.defineProperty(window, "__openhandNotificationBridge", {
+    value: {
+      enable: () => bridge.call("enableNotifications"),
+      show: (title, body) => bridge.call("notify", { title, body }),
+    },
+  });
   Object.defineProperty(window, "__openhandFileBridge", {
     value: fileBridge,
     configurable: false,

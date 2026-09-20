@@ -18,7 +18,7 @@ import {
 } from "../plotter/job";
 import { PLOTTER_PAGE_BREAK } from "../plotter/richText";
 import { runCalibrationAction } from "../plotter/calibrationRunner";
-import { mergeTrajectoryReports } from '../font-builder/letterForms';
+import { mergeTrajectoryReports } from "../font-builder/letterForms";
 import {
   configFromDevicePreset,
   createPlotterProfile,
@@ -29,6 +29,12 @@ import {
 } from "../plotter/profiles";
 import { assessPlotterPreflight } from "../plotter/preflight";
 import { prepareImportedGcode } from "../plotter/gcodeImport";
+import { createSheetQueue } from "../plotter/sheetQueue";
+import {
+  minStrokeY,
+  physicalSheetIndex,
+  writingStartY,
+} from "../plotter/writingStart";
 
 export function mechanicsDefaults(profile) {
   return {
@@ -51,6 +57,14 @@ export function mechanicsDefaults(profile) {
 }
 
 function pageForLogicalIndex(settings, metrics, index) {
+  settings = {
+    ...settings,
+    marginTop: writingStartY(
+      settings,
+      metrics.height,
+      index,
+    ),
+  };
   if (settings.pageSize === "NotebookSpread") {
     const right = index % 2 === 1;
     return pageSettingsToMillimeters(
@@ -63,6 +77,22 @@ function pageForLogicalIndex(settings, metrics, index) {
   return pageSettingsToMillimeters(settings, metrics, index % 2 === 1);
 }
 
+async function layoutBelowStart(text, font, page, config) {
+  let adjustedPage = page;
+  let result;
+  for (let pass = 0; pass < 3; pass++) {
+    result = await layoutText(text, font, adjustedPage, config);
+    const minimum = minStrokeY(result.strokes);
+    if (minimum >= page.top - 0.001) return { ...result, startLineSafe: true };
+    // Reflow, rather than translating a full page and clipping its last line.
+    adjustedPage = {
+      ...adjustedPage,
+      top: adjustedPage.top + page.top - minimum + 0.05,
+    };
+  }
+  return { ...result, startLineSafe: false };
+}
+
 function combineLogicalLayouts(logicalLayouts, settings, metrics) {
   if (settings.pageSize !== "NotebookSpread") return logicalLayouts;
   return Array.from(
@@ -70,11 +100,14 @@ function combineLogicalLayouts(logicalLayouts, settings, metrics) {
     (_, index) => {
       const parts = logicalLayouts.slice(index * 2, index * 2 + 2);
       return {
-        page: pageSettingsToMillimeters(settings, metrics, false, "left"),
+        page: pageForLogicalIndex(settings, metrics, index * 2),
         strokes: parts.flatMap((part) => part.strokes),
-        trajectoryReport: mergeTrajectoryReports(parts.flatMap(part => part.trajectoryReport || [])),
+        trajectoryReport: mergeTrajectoryReports(
+          parts.flatMap((part) => part.trajectoryReport || []),
+        ),
         missing: [...new Set(parts.flatMap((part) => part.missing))],
         clipped: parts.some((part) => part.clipped),
+        startLineSafe: parts.every((part) => part.startLineSafe !== false),
         clippedItems: [
           ...new Set(parts.flatMap((part) => part.clippedItems || [])),
         ],
@@ -219,6 +252,12 @@ export function useIntegratedPlotter({
         fatigueStrength: settings.fatigueStrength,
       };
       const logicalLayouts = [];
+      // Manually placed pages already include their leading blank pages.
+      if (settings.writingStartEnabled && !pageBlocks.some(blocks => blocks.some(block => block.defaultLayout || block.layout?.dirty))) {
+        for (let i = 0; i < settings.writingStartPage; i++) logicalLayouts.push({
+          page: pageForLogicalIndex(settings, metrics, i), strokes: [], missing: [], clipped: false, startLineSafe: true,
+        });
+      }
       for (
         let sourceIndex = 0;
         sourceIndex < pageTexts.length;
@@ -235,9 +274,11 @@ export function useIntegratedPlotter({
             metrics,
             logicalLayouts.length,
           );
+          const result = await layoutBlocks(blocks, font, page, layoutConfig);
           logicalLayouts.push({
             page,
-            ...(await layoutBlocks(blocks, font, page, layoutConfig)),
+            ...result,
+            startLineSafe: minStrokeY(result.strokes) >= page.top - 0.001,
           });
           setLayouts(combineLogicalLayouts(logicalLayouts, settings, metrics));
           await new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -254,12 +295,10 @@ export function useIntegratedPlotter({
                 metrics,
                 logicalLayouts.length,
               );
-              const result = await layoutText(
-                remaining,
-                font,
-                page,
-                { ...layoutConfig, seed: Number(layoutConfig.seed) + logicalLayouts.length * 9973 },
-              );
+              const result = await layoutBelowStart(remaining, font, page, {
+                ...layoutConfig,
+                seed: Number(layoutConfig.seed) + logicalLayouts.length * 9973,
+              });
               const nextText = result.overflowText || "";
               const stalled = Boolean(nextText) && nextText === remaining;
               logicalLayouts.push({
@@ -297,6 +336,9 @@ export function useIntegratedPlotter({
     metrics,
     settings.pageSize,
     settings.marginTop,
+    settings.writingStartEnabled,
+    settings.writingStartPage,
+    settings.writingStartPositions,
     settings.marginLeft,
     settings.marginLeftEven,
     settings.marginBottom,
@@ -327,7 +369,7 @@ export function useIntegratedPlotter({
   ]);
 
   const activeIndex = Math.min(
-    Math.max(0, activeSheetIndex || 0),
+    Math.max(0, plotter.printingSheet ?? activeSheetIndex ?? 0),
     Math.max(0, layouts.length - 1),
   );
   const activeLayout = layouts[activeIndex] || {
@@ -355,7 +397,9 @@ export function useIntegratedPlotter({
   );
   const connected =
     plotter.status !== "disconnected" && plotter.status !== "connecting";
-  const running = plotter.status === "running" || plotter.status === "paused";
+  const running = ["running", "paused", "waiting-paper"].includes(
+    plotter.status,
+  );
   useEffect(() => {
     if (!connected || plotter.machineStatus?.state === "Alarm") {
       setOriginConfirmed(false);
@@ -371,10 +415,10 @@ export function useIntegratedPlotter({
     : 0;
   const recoveryAvailable = Boolean(
     job.recoverable &&
-    plotter.recovery &&
-    plotter.recovery.jobId === job.id &&
-    plotter.recovery.total === job.commands.length &&
-    plotter.recovery.current < plotter.recovery.total,
+      plotter.recovery &&
+      plotter.recovery.jobId === job.id &&
+      plotter.recovery.total === job.commands.length &&
+      plotter.recovery.current < plotter.recovery.total,
   );
   const preflight = assessPlotterPreflight(activeLayout, {
     calibrated: Boolean(activeProfile.calibratedAt),
@@ -383,7 +427,7 @@ export function useIntegratedPlotter({
   });
   const playback = usePlotterPlayback(job, {
     status: plotter.status,
-    progress: plotter.progress,
+    progress: plotter.sheetProgress || plotter.progress,
   });
   const importedWithinWorkArea = useMemo(() => {
     if (!importedGcode) return true;
@@ -780,7 +824,15 @@ export function useIntegratedPlotter({
       return safeAction(() => plotter.run(importedGcode));
     },
     run: () => {
-      if (calibrationActive) return Promise.resolve(false);
+      if (
+        calibrationActive ||
+        running ||
+        !connected ||
+        !armed ||
+        busy ||
+        pending
+      )
+        return Promise.resolve(false);
       if (!preflight.canStart) {
         setError(preflight.blockers[0]);
         return Promise.resolve(false);
@@ -788,11 +840,20 @@ export function useIntegratedPlotter({
       return safeAction(() => plotter.run(createJob()));
     },
     runSheets: (indices) => {
-      if (calibrationActive) return Promise.resolve(false);
-      if (!indices.length) {
+      if (
+        calibrationActive ||
+        running ||
+        !connected ||
+        !armed ||
+        busy ||
+        pending
+      )
+        return Promise.resolve(false);
+      if (!Array.isArray(indices) || !indices.length) {
         setError("Выберите хотя бы один лист для запуска.");
         return Promise.resolve(false);
       }
+      indices = indices.filter(index => layouts[index]?.strokes.length);
       const unsafeLayout = indices
         .map((index) => layouts[index])
         .map((layout) =>
@@ -809,15 +870,14 @@ export function useIntegratedPlotter({
         return Promise.resolve(false);
       }
       return safeAction(() => {
-        const jobs = indices.map((index) => createJob(index));
-        const commands = jobs.flatMap((item) => item.commands);
-        return plotter.run({
-          id: jobs.map((item) => item.id).join(":"),
-          commands,
-          resumePoints: [],
-          resumePrefix: jobs[0]?.resumePrefix || [],
-          recoverable: false,
-        });
+        return plotter.run(
+          createSheetQueue(
+            createJobs(),
+            indices,
+            config,
+            settings.pageSize === "NotebookSpread",
+          ),
+        );
       });
     },
     recover,

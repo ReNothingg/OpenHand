@@ -15,6 +15,10 @@ interface OpenHandSaveResult {
 }
 
 interface Window {
+  __openhandNotificationBridge?: {
+    enable: () => Promise<{ granted: boolean }>;
+    show: (title: string, body: string) => Promise<unknown>;
+  };
   __openhandNativePlatform?: "macos" | "windows";
   __openhandFileBridge?: {
     save?: (file: {

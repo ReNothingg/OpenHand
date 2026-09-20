@@ -2069,3 +2069,29 @@ body,
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+ .writing-start-guide { position: absolute; left: -30px; width: 30px; height: 0; z-index: 6; pointer-events: none; }
+:root .writing-start-guide > button { position: absolute; width: 28px; border: 0; padding: 4px; color: var(--accent, #359447); pointer-events: auto; cursor: ns-resize; touch-action: none; }
+.writing-start-toggle, .writing-start-page { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px; }
+.writing-start-page input { width: 52px; min-width: 0; }
+
+.plotter-sheet-options { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 16px; margin-bottom: 10px; }
+.plotter-sheet-options label { display: grid; gap: 4px; color: var(--text-secondary); font-size: 12px; }
+.plotter-sheet-options select { padding: 6px 8px; min-height: 32px; }
+.paper-change-dialog { width: min(460px, calc(100vw - 32px)); border: 1px solid var(--line); padding: 24px; color: var(--text-primary); background: var(--surface-panel); font: 13px/1.6 system-ui, sans-serif; }
+.paper-change-dialog::backdrop { background: var(--overlay); }
+.paper-change-dialog h2 { margin: 0 0 14px; font-size: 20px; }
+.paper-change-dialog p { margin: 10px 0; }
+.paper-change-dialog label { display: flex; align-items: start; gap: 10px; margin: 20px 0; }
+.paper-change-dialog label input { flex-shrink: 0; margin-top: 5px; }
+.paper-change-dialog > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.paper-change-dialog button { background: var(--surface-raised); color: var(--text-primary); border: 0; border-radius: 4px; }
+.paper-change-dialog button.primary { background: var(--green); color: var(--on-accent); }
+@media print { .writing-start-guide, .paper-change-dialog { display: none !important; } }
+
+:root .document-toolbar { flex-wrap: wrap; }
+:root .writing-start-toggle input[role="switch"] { appearance: none; width: 28px; height: 16px; min-height: 0; border: 0; border-radius: 8px; background: #777; position: relative; cursor: pointer; }
+:root .writing-start-toggle input[role="switch"]::after { content: ""; position: absolute; width: 12px; height: 12px; top: 2px; left: 2px; border-radius: 50%; background: white; transition: transform 160ms ease; }
+:root .writing-start-toggle input[role="switch"]:checked { background: #359447; }
+:root .writing-start-toggle input[role="switch"]:checked::after { transform: translateX(12px); }
+@media (prefers-reduced-motion: reduce) { :root .writing-start-toggle input[role="switch"]::after { transition: none; } }

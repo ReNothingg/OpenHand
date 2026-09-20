@@ -277,6 +277,9 @@ export default function App() {
       textWidth: settings.textWidth,
       lineHeight: settings.lineHeight,
       marginTop: settings.marginTop,
+      writingStartEnabled: settings.writingStartEnabled,
+      writingStartPage: settings.writingStartPage,
+      writingStartPositions: settings.writingStartPositions,
       marginLeft: settings.marginLeft,
       marginLeftEven: settings.marginLeftEven,
       marginBottom: settings.marginBottom,
@@ -323,6 +326,9 @@ export default function App() {
       settings.marginLeftEven,
       settings.marginBottom,
       settings.pageSize,
+      settings.writingStartEnabled,
+    settings.writingStartPage,
+    settings.writingStartPositions,
       settings.pageOrientation,
       settings.seed,
       settings.directionChance,
@@ -670,6 +676,14 @@ export default function App() {
     activeSheetIndex,
     pending: calculationPending,
   });
+  useEffect(() => {
+    if (plotterWorkspace.running) {
+      setEditorExpanded(false);
+      setManualEditing(false);
+    }
+    if (plotterWorkspace.plotter.printingSheet !== null)
+      setActiveSheetIndex(plotterWorkspace.plotter.printingSheet);
+  }, [plotterWorkspace.running, plotterWorkspace.plotter.printingSheet]);
   const updateManualBlock = useCallback((originPage, blockId, patch) => {
     setManualLayouts((current) => ({
       ...current,
@@ -790,6 +804,7 @@ export default function App() {
       ) : (
         <div className="workspace">
           <EditorPanel
+            locked={plotterWorkspace.running}
             sourceMode={sourceMode}
             setSourceMode={setSourceMode}
             activeSource={activeSource}
@@ -802,6 +817,23 @@ export default function App() {
             showPreview={() => setEditorCollapsed(true)}
           />
           <PreviewPanel
+            onWritingStartSettings={(patch) => {
+              if (plotterWorkspace.running) return;
+              plotterWorkspace.setArmed(false);
+              if (patch.writingStartPage !== undefined) setActiveSheetIndex(settings.pageSize === "NotebookSpread" ? Math.floor(patch.writingStartPage / 2) : patch.writingStartPage);
+              setSettings(current => ({ ...current, ...patch }));
+            }}
+            onWritingStartChange={(sheet, top) => {
+              if (plotterWorkspace.running) return;
+              plotterWorkspace.setArmed(false);
+              setActiveSheetIndex(settings.pageSize === "NotebookSpread" ? Math.floor(sheet / 2) : sheet);
+              setSettings((current) => {
+                const positions = { ...current.writingStartPositions };
+                if (top === null) delete positions[sheet];
+                else positions[sheet] = top;
+                return { ...current, writingStartPositions: positions };
+              });
+            }}
             toolbarHost={toolbarHost}
             pages={displayPages}
             manualPages={arrangedManualPages}

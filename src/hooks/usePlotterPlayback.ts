@@ -37,7 +37,7 @@ export function usePlotterPlayback(job, hardware) {
 
   useEffect(() => {
     const hardwareActive =
-      hardware?.status === "running" || hardware?.status === "paused";
+      ["running", "paused", "waiting-paper"].includes(hardware?.status);
     if (!hardwareActive || !hardware.progress?.total) return;
     setMode("hardware");
     setPlaying(false);

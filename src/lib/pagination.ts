@@ -1,4 +1,5 @@
 import { PAGE_SIZES } from "../app/config";
+import { physicalSheetIndex, writingStartY } from "../plotter/writingStart";
 
 export function getPageMetrics(settings) {
   const page = PAGE_SIZES[settings.pageSize];
@@ -29,7 +30,7 @@ export function getPageMetrics(settings) {
   };
 }
 
-function makeMeasurePage(host, settings) {
+function makeMeasurePage(host, settings, pageIndex: number) {
   const metrics = getPageMetrics(settings);
   const page = document.createElement("div");
   page.className = "paper measure-paper";
@@ -45,7 +46,8 @@ function makeMeasurePage(host, settings) {
   const content = document.createElement("div");
   content.className = "page-content markdown-body";
   content.style.width = `${metrics.contentWidth}px`;
-  content.style.height = `${metrics.contentHeight}px`;
+  const start = writingStartY(settings, metrics.height, pageIndex);
+  content.style.height = `${Math.max(20, metrics.height - start - settings.marginBottom)}px`;
   page.append(content);
   host.append(page);
   return { page, content };
@@ -235,10 +237,12 @@ export function paginateHtml(html, settings, host, finalizePages) {
     });
   const pages = [];
   const createPage = () => {
-    const measured = makeMeasurePage(host, settings);
+    const measured = makeMeasurePage(host, settings, pages.length);
     pages.push(measured);
     return measured.content;
   };
+  if (settings.writingStartEnabled)
+    for (let i = 0; i < settings.writingStartPage; i++) createPage();
   let content = createPage();
   const nodes = [...template.content.children];
   nodes.forEach((sourceNode) => {

@@ -215,6 +215,7 @@ interface EditorTool {
 }
 
 interface EditorPanelProps {
+  locked?: boolean;
   sourceMode: string;
   setSourceMode: (mode: string) => void;
   activeSource: string;
@@ -245,6 +246,7 @@ function cleanSvg(source) {
 }
 
 export default function EditorPanel({
+  locked = false,
   sourceMode,
   setSourceMode,
   activeSource,
@@ -458,7 +460,7 @@ export default function EditorPanel({
   };
 
   return (
-    <section className="editor-panel panel">
+    <section className="editor-panel panel" inert={locked}>
       <div className="panel-title editor-title">
         <div
           className="source-tabs"

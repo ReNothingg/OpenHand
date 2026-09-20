@@ -13,6 +13,7 @@ internal sealed class NativeBridge : IDisposable
     private readonly NetworkConnection _network = new();
     private string? _selectedPortPath;
     private string? _activeTransport;
+    private NotifyIcon? _notification;
 
     public NativeBridge(
         Form owner,
@@ -101,6 +102,27 @@ internal sealed class NativeBridge : IDisposable
             var action = GetRequiredString(payload, "action");
             switch (action)
             {
+                case "enableNotifications":
+                    Resolve(id, new { granted = true });
+                    break;
+                case "notify":
+                {
+                    if (_notification is null)
+                    {
+                        _notification = new NotifyIcon { Icon = _owner.Icon ?? System.Drawing.SystemIcons.Information, Text = "OpenHand", Visible = true };
+                        _notification.BalloonTipClicked += (_, _) => {
+                            if (_owner.IsDisposed) return;
+                            if (_owner.WindowState == FormWindowState.Minimized) _owner.WindowState = FormWindowState.Normal;
+                            _owner.Show();
+                            _owner.Activate();
+                        };
+                    }
+                    var title = GetOptionalString(payload, "title", "OpenHand");
+                    var body = GetOptionalString(payload, "body", "");
+                    _notification.ShowBalloonTip(15000, title[..Math.Min(title.Length, 63)], body[..Math.Min(body.Length, 500)], ToolTipIcon.Info);
+                    Resolve(id, new { delivered = true });
+                    break;
+                }
                 case "requestPort":
                 {
                     var port = ChoosePort();
@@ -426,6 +448,7 @@ internal sealed class NativeBridge : IDisposable
 
     public void Dispose()
     {
+        _notification?.Dispose();
         _serial.Dispose();
         _network.Dispose();
     }

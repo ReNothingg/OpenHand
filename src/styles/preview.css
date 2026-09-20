@@ -217,8 +217,7 @@
 .page-shell {
   flex: 0 0 auto;
   position: relative;
-  contain: layout paint style;
-  content-visibility: auto;
+  contain: layout style;
 }
 .paper {
   position: absolute;
