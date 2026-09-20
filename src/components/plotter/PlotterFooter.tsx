@@ -14,6 +14,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
   const gcodeInputRef = useRef<HTMLInputElement | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [scope, setScope] = useState("remaining");
+  const [notificationPending, setNotificationPending] = useState(false);
   const [notificationNotice, setNotificationNotice] = useState("");
   if (!workspace.enabled) return null;
   const {
@@ -52,11 +53,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
       <div className="plotter-footer-body" hidden={collapsed}>
       <details className="plotter-job-details">
         <summary>{preflight.canStart ? "Проверка задания · готово" : `Проверка задания · ${preflight.blockers[0] || "нужна подготовка"}`}</summary>
-      {notificationNotice && (
-        <p className="plotter-note" role="status">
-          {notificationNotice}
-        </p>
-      )}
+
       {layout.missing.length > 0 && (
         <p className="plotter-note">
           Нет глифов: {layout.missing.slice(0, 24).join(" ")}
@@ -298,23 +295,31 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           </button>        <button
           className="button compact"
           type="button"
-          disabled={running}
+          disabled={running || notificationPending}
           onClick={async () => {
+            setNotificationPending(true);
+            setNotificationNotice("Ожидаю разрешение на уведомления…");
+            let timeout: ReturnType<typeof setTimeout>;
             try {
               setNotificationNotice(
-                (await enablePlotterNotifications())
+                (await Promise.race([enablePlotterNotifications(), new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error("timeout")), 15000); })]))
                   ? "Системные уведомления включены."
-                  : "Системные уведомления недоступны. Напоминание появится в приложении.",
+                  : "Разрешение не получено. Проверьте уведомления для этого сайта в настройках браузера. Напоминание о бумаге останется в приложении.",
               );
             } catch {
               setNotificationNotice(
-                "Напоминание о смене бумаги появится в приложении.",
+                "Браузер не подтвердил разрешение. Проверьте его запрос или настройки сайта. Напоминание о бумаге останется в приложении.",
               );
-            }
+            } finally { clearTimeout(timeout!); setNotificationPending(false); }
           }}
         >
-          Уведомления
+          {notificationPending ? "Ожидание…" : "Уведомления"}
         </button>          </div>
+      {notificationNotice && (
+        <p className="plotter-note" role="status">
+          {notificationNotice}
+        </p>
+      )}
       <div className="plotter-imported-job" aria-label="Импорт готового G-code">
         <div className="plotter-imported-actions">
           <button

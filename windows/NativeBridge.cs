@@ -54,9 +54,14 @@ internal sealed class NativeBridge : IDisposable
             var bridge = GetRequiredString(root, "bridge");
             if (bridge == "theme")
             {
-                _applyWindowTheme(
-                    root.TryGetProperty("dark", out var dark) &&
-                    dark.ValueKind == JsonValueKind.True);
+                var useSystem = root.TryGetProperty("system", out var system) && system.ValueKind == JsonValueKind.True;
+                var isDark = root.TryGetProperty("dark", out var dark) && dark.ValueKind == JsonValueKind.True;
+                if (useSystem) {
+                    var light = Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1);
+                    isDark = Convert.ToInt32(light) == 0;
+                    await _webView.ExecuteScriptAsync($"window.dispatchEvent(new CustomEvent('openhand:system-theme',{{detail:{{dark:{(isDark ? "true" : "false")}}}}}));");
+                }
+                _applyWindowTheme(isDark);
                 return;
             }
             if (bridge == "file")

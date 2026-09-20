@@ -6,7 +6,12 @@ export async function enablePlotterNotifications(): Promise<boolean> {
   if (!("Notification" in window)) return false;
   if (Notification.permission === "granted") return true;
   if (Notification.permission === "denied") return false;
-  return (await Notification.requestPermission()) === "granted";
+  const permission = await new Promise<NotificationPermission>((resolve, reject) => {
+    // Older Safari exposes the callback API; newer browsers return a Promise.
+    const request = Notification.requestPermission(resolve);
+    request?.then(resolve, reject);
+  });
+  return permission === "granted";
 }
 
 export async function notifyPlotter(title: string, body: string) {

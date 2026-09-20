@@ -22,6 +22,7 @@ const nativePlatform =
 const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
 const view = searchParams.get("view");
 let appearance = readAppearance();
+let nativeSystemDark: boolean | undefined;
 
 const syncPlatformTheme = () => {
   const root = document.documentElement;
@@ -30,7 +31,7 @@ const syncPlatformTheme = () => {
   // Keep the existing selector name limited to the actual macOS shell.
   root.classList.toggle("macos-native", nativePlatform === "macos");
   const dark =
-    appearance === "dark" || (appearance === "system" && colorScheme.matches);
+    appearance === "dark" || (appearance === "system" && (nativeSystemDark ?? colorScheme.matches));
   root.classList.toggle("theme-dark", dark);
   root.dataset.platform = nativePlatform || "web";
   root.dataset.theme = dark ? "dark" : "light";
@@ -45,7 +46,11 @@ window.addEventListener("openhand:appearance", (event: Event) => {
   appearance = value === "light" || value === "dark" ? value : "system";
   syncPlatformTheme();
 });
-colorScheme.addEventListener("change", syncPlatformTheme);
+window.addEventListener("openhand:system-theme", (event: Event) => {
+  const dark = Boolean((event as CustomEvent).detail.dark);
+  if (nativeSystemDark !== dark) { nativeSystemDark = dark; syncPlatformTheme(); }
+});
+colorScheme.addEventListener("change", () => { nativeSystemDark = undefined; syncPlatformTheme(); });
 syncPlatformTheme();
 
 window.__openhandReceiveFile = (payload) => {

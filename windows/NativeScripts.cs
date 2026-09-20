@@ -41,7 +41,7 @@ internal static class NativeScripts
             post("theme", { dark: colorScheme.matches });
           colorScheme.addEventListener("change", syncWindowTheme);
           window.addEventListener("openhand:theme", (event) =>
-            post("theme", { dark: Boolean(event.detail?.dark) }));
+            post("theme", { dark: Boolean(event.detail?.dark), system: Boolean(event.detail?.system) }));
           syncWindowTheme();
 
           const bridge = {

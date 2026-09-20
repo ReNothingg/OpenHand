@@ -41,6 +41,10 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 let appearance: NSAppearance? = payload["system"] as? Bool == true ? nil : NSAppearance(named: dark ? .darkAqua : .aqua)
                 webView?.appearance = appearance
                 webView?.window?.appearance = appearance
+                if payload["system"] as? Bool == true {
+                    let systemDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                    webView?.evaluateJavaScript("window.dispatchEvent(new CustomEvent('openhand:system-theme',{detail:{dark:\(systemDark ? "true" : "false")}}));", completionHandler: nil)
+                }
             }
         default:
             break
