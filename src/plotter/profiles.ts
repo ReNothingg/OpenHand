@@ -242,6 +242,7 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
       20,
       DEFAULT_PLOTTER_CONFIG.letterSpacing,
     ),
+    compactPaths: boolean(incoming.compactPaths, true),
     optimizePath: boolean(
       incoming.optimizePath,
       DEFAULT_PLOTTER_CONFIG.optimizePath,

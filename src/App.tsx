@@ -72,6 +72,9 @@ export default function App() {
   );
   const [viewMode, setViewMode] = useState("single");
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
+  useEffect(() => {
+    if (settings.writingStartEnabled) setActiveSheetIndex(settings.pageSize === "NotebookSpread" ? Math.floor(settings.writingStartPage / 2) : settings.writingStartPage);
+  }, [settings.writingStartEnabled, settings.writingStartPage, settings.pageSize]);
   const [manualEditing, setManualEditing] = useState(false);
   const [manualLayouts, setManualLayouts] = useState(() =>
     loadStoredObject(STORAGE_KEYS.manualLayout, {}),
@@ -817,12 +820,6 @@ export default function App() {
             showPreview={() => setEditorCollapsed(true)}
           />
           <PreviewPanel
-            onWritingStartSettings={(patch) => {
-              if (plotterWorkspace.running) return;
-              plotterWorkspace.setArmed(false);
-              if (patch.writingStartPage !== undefined) setActiveSheetIndex(settings.pageSize === "NotebookSpread" ? Math.floor(patch.writingStartPage / 2) : patch.writingStartPage);
-              setSettings(current => ({ ...current, ...patch }));
-            }}
             onWritingStartChange={(sheet, top) => {
               if (plotterWorkspace.running) return;
               plotterWorkspace.setArmed(false);

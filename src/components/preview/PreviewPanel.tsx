@@ -35,7 +35,6 @@ export default function PreviewPanel({
   onActiveSheetChange,
   toolbarHost,
   onWritingStartChange,
-  onWritingStartSettings,
 }: any) {
   const [selectedBlock, setSelectedBlock] = useState(null);
   const activeSheetFrameRef = useRef(0);
@@ -173,17 +172,6 @@ export default function PreviewPanel({
                   </span>
                 )}
             </div>
-            <label className="writing-start-toggle">
-              <input type="checkbox" role="switch" checked={settings.writingStartEnabled}
-                disabled={plotterWorkspace.running || manualEditing}
-                onChange={event => onWritingStartSettings({ writingStartEnabled: event.target.checked })} />
-              Начало записи
-            </label>
-            {settings.writingStartEnabled && <label className="writing-start-page">Страница
-              <input type="number" min="1" max="100" aria-label="Страница начала записи"
-                value={settings.writingStartPage + 1} disabled={plotterWorkspace.running || manualEditing}
-                onChange={event => onWritingStartSettings({ writingStartPage: Math.max(0, Math.min(99, Number(event.target.value) - 1 || 0)) })} />
-            </label>}
             {plotterMode && (
               <div
                 className="preview-job-stats"

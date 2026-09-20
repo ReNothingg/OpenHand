@@ -187,6 +187,14 @@ export default function SettingsPanel({
               </button>
             </div>
           </div>
+          <Toggle label="Начало записи" checked={settings.writingStartEnabled}
+            onChange={value => { plotterWorkspace.setArmed(false); updateSetting("writingStartEnabled", value); }}>
+            <label className="field">Страница начала записи
+              <input type="number" min="1" max="100" value={settings.writingStartPage + 1}
+                onChange={event => { plotterWorkspace.setArmed(false); updateSetting("writingStartPage", Math.max(0, Math.min(99, Math.floor(Number(event.target.value) || 1) - 1))); }} />
+            </label>
+            <small>Перетащите стрелку за краем листа, чтобы начать ниже готовых записей.</small>
+          </Toggle>
           <RangeControl
             label="Отступ сверху"
             value={settings.marginTop}

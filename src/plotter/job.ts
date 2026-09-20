@@ -62,6 +62,7 @@ export const DEFAULT_PLOTTER_CONFIG = {
   penDownDelay: 0.2,
   letterSpacing: 0.5,
   optimizePath: false,
+  compactPaths: true,
   startPosition: "left-bottom",
   swapAxes: false,
   invertX: false,
@@ -1558,6 +1559,32 @@ function fingerprintCommands(commands) {
   return `${commands.length}-${(hash >>> 0).toString(36)}`;
 }
 
+// Iterative RDP in machine millimetres: bounded deviation, exact endpoints,
+// no joining strokes or changing their pressure, speed or drawing order.
+export function compactStroke(stroke: PlotStroke, tolerance = 0.02): PlotStroke {
+  if (stroke.length < 3) return stroke;
+  const keep = new Uint8Array(stroke.length);
+  keep[0] = keep[stroke.length - 1] = 1;
+  const stack = [[0, stroke.length - 1]];
+  while (stack.length) {
+    const [first, last] = stack.pop()!;
+    const a = stroke[first], b = stroke[last];
+    const dx = b.x - a.x, dy = b.y - a.y, length2 = dx * dx + dy * dy;
+    let farthest = -1, maximum = tolerance * tolerance;
+    for (let i = first + 1; i < last; i++) {
+      const point = stroke[i];
+      const t = length2 ? Math.max(0, Math.min(1, ((point.x-a.x)*dx + (point.y-a.y)*dy)/length2)) : 0;
+      const distance2 = (point.x-a.x-t*dx)**2 + (point.y-a.y-t*dy)**2;
+      if (distance2 > maximum) { maximum = distance2; farthest = i; }
+    }
+    if (farthest >= 0) { keep[farthest] = 1; stack.push([first, farthest], [farthest, last]); }
+  }
+  const result = stroke.filter((_, index) => keep[index]) as PlotStroke;
+  if (stroke.pressure !== undefined) result.pressure = stroke.pressure;
+  if (stroke.feedRate !== undefined) result.feedRate = stroke.feedRate;
+  return result;
+}
+
 export function compilePlotJob(strokes, config) {
   // EBB jobs are emitted as relative step deltas. After a controller reset we
   // cannot safely infer the physical origin, so resuming in the middle of such
@@ -1569,7 +1596,9 @@ export function compilePlotJob(strokes, config) {
     ? optimizeStrokeOrder(sourceStrokes)
     : sourceStrokes;
   const machineStrokes = preparedStrokes.map((stroke) =>
-    transformStrokeForMachine(stroke, config),
+    config.compactPaths !== false
+      ? compactStroke(transformStrokeForMachine(stroke, config))
+      : transformStrokeForMachine(stroke, config),
   );
   const commands = [];
   const resumePoints = [];

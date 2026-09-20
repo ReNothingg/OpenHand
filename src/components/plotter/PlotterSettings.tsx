@@ -691,6 +691,11 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
                 onChange={number("calibrationStep", 0.1, 5)}
               />
             </label>
+            <Toggle checked={config.compactPaths !== false}
+              onChange={value => workspace.updateConfig("compactPaths", value)}
+              label="Ускорить обработку траектории">
+              <small>Убирает лишние точки с отклонением до 0,02 мм. Меньше команд и остановок на микросегментах; скорость моторов и задержки пера сохраняются.</small>
+            </Toggle>
             <Toggle
               checked={Boolean(config.optimizePath)}
               onChange={(value) =>
