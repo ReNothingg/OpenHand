@@ -1,97 +1,90 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import Icon from "../Icon";
 import { writingStartLimit, writingStartY } from "../../plotter/writingStart";
 
-export default function WritingStartLine({
-  settings,
-  metrics,
-  sheet,
-  disabled,
-  onChange,
-}: any) {
-  const [draft, setDraft] = useState<number | null>(null);
-  const dragging = useRef(false);
+type Target = { page: number; y: number; left: number; top: number; width: number; right: boolean };
+
+export default function WritingStartLine({ settings, metrics, sheet, disabled, onChange }: any) {
+  const [draft, setDraft] = useState<Target | null>(null);
+  const drag = useRef<{ x: number; y: number; viewport: HTMLElement } | null>(null);
+  const frame = useRef(0);
   const value = writingStartY(settings, metrics.height, sheet);
   const limit = writingStartLimit(settings, metrics.height);
+  const spread = settings.pageSize === "NotebookSpread";
   const scale = Math.max(0.1, settings.zoom / 100);
-  const clamp = (y: number) =>
-    Math.max(0, Math.min(limit, Math.round(y * 100) / 100));
-  const position = (event) => {
-    const paper = event.currentTarget.closest(".page-shell").getBoundingClientRect();
-    return clamp((event.clientY - paper.top) / (paper.height / metrics.height));
+  const clamp = (y: number) => Math.max(0, Math.min(limit, Math.round(y * 100) / 100));
+
+  const locate = (x: number, y: number, viewport: HTMLElement): Target => {
+    const shells = Array.from(viewport.querySelectorAll<HTMLElement>(".page-shell"));
+    let chosen = shells[0];
+    let best = Infinity;
+    for (const shell of shells) {
+      const r = shell.getBoundingClientRect();
+      const distance = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+      if (distance < best) { best = distance; chosen = shell; }
+    }
+    const r = chosen.getBoundingClientRect();
+    const right = spread && x >= r.left + r.width / 2;
+    let page = Number(chosen.dataset.pageIndex) + (right ? 1 : 0);
+    let start = clamp((y - r.top) * metrics.height / r.height);
+    // Beyond the last sheet, dropping creates the next page through reflow.
+    if (chosen === shells.at(-1) && y > r.bottom + 12 && page < 99) {
+      page += 1;
+      start = Math.max(0, Number(settings.marginTop) || 0);
+    }
+    const targetRight = spread && page % 2 === 1;
+    return { page: Math.min(99, page), y: clamp(start), left: targetRight ? r.right : r.left - 28,
+      top: r.top + clamp(start) * r.height / metrics.height, width: r.width / (spread ? 2 : 1), right: targetRight };
   };
-  const y = draft ?? value;
-  return (
-    <div className="writing-start-guide" style={{ top: y * scale, left: settings.pageSize === "NotebookSpread" && sheet % 2 === 1 ? "100%" : undefined }}>
-      <button
-        type="button"
-        role="slider"
-        title="Перетащите линию. Стрелки — 1 мм, Shift — 10 мм. Двойной щелчок — вернуть отступ страницы."
-        aria-label={`Начало письма на листе ${sheet + 1}`}
-        aria-valuemin={0}
-        aria-valuemax={Math.round((limit * 25.4) / 96)}
-        aria-valuenow={Math.round((y * 25.4) / 96)}
-        aria-valuetext={`${((y * 25.4) / 96).toFixed(1)} мм от верхнего края`}
-        disabled={disabled}
-        style={{
-          top: -14,
-          height: 28,
-          minHeight: 0,
-          fontSize: 18,
-          background: "transparent",
-        }}
-        onPointerDown={(event) => {
+  const update = () => {
+    const pointer = drag.current;
+    if (!pointer) return;
+    const r = pointer.viewport.getBoundingClientRect();
+    const dy = pointer.y > r.bottom - 48 ? Math.min(18, (pointer.y-r.bottom+48)/3)
+      : pointer.y < r.top+48 ? -Math.min(18, (r.top+48-pointer.y)/3) : 0;
+    const dx = pointer.x > r.right - 32 ? 10 : pointer.x < r.left + 32 ? -10 : 0;
+    if (dy || dx) pointer.viewport.scrollBy(dx, dy);
+    setDraft(locate(pointer.x, pointer.y, pointer.viewport));
+    frame.current = requestAnimationFrame(update);
+  };
+  const stop = () => { drag.current = null; cancelAnimationFrame(frame.current); setDraft(null); };
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  useEffect(() => { if (disabled) stop(); }, [disabled]);
+  const movePage = (delta: number) => onChange(Math.max(0, Math.min(99, sheet + delta)), value);
+  return <>
+    <div className="writing-start-guide" style={{ top: value * scale, left: spread && sheet % 2 === 1 ? "100%" : undefined }}>
+      <button type="button" role="slider" className={spread && sheet % 2 === 1 ? "points-left" : ""}
+        title="Перетащите на нужную страницу. Page Up / Page Down — сменить страницу. Двойной щелчок — начать сначала."
+        aria-label={`Начало письма на странице ${sheet + 1}`} aria-valuemin={0} aria-valuemax={Math.round(limit * 25.4 / 96)}
+        aria-valuenow={Math.round(value * 25.4 / 96)} disabled={disabled}
+        onPointerDown={event => {
           if (disabled) return;
-          event.preventDefault();
-          event.stopPropagation();
-          dragging.current = true;
-          event.currentTarget.setPointerCapture(event.pointerId);
-          setDraft(position(event));
+          event.preventDefault(); event.stopPropagation();
+          const viewport = event.currentTarget.closest(".pages-viewport") as HTMLElement;
+          drag.current = { x: event.clientX, y: event.clientY, viewport };
+          event.currentTarget.setPointerCapture(event.pointerId); update();
         }}
-        onPointerMove={(event) => {
-          if (dragging.current && !disabled) setDraft(position(event));
+        onPointerMove={event => { if (drag.current) { event.stopPropagation(); drag.current.x = event.clientX; drag.current.y = event.clientY; } }}
+        onPointerUp={event => {
+          if (!drag.current) return;
+          const target = locate(event.clientX, event.clientY, drag.current.viewport);
+          stop();
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+          if (!disabled) onChange(target.page, target.y);
         }}
-        onPointerUp={(event) => {
-          if (!dragging.current) return;
-          dragging.current = false;
-          if (event.currentTarget.hasPointerCapture(event.pointerId))
-            event.currentTarget.releasePointerCapture(event.pointerId);
-          if (!disabled) onChange(sheet, position(event));
-          setDraft(null);
-        }}
-        onPointerCancel={() => {
-          dragging.current = false;
-          setDraft(null);
-        }}
-        onLostPointerCapture={() => {
-          if (dragging.current) {
-            dragging.current = false;
-            setDraft(null);
+        onPointerCancel={stop} onLostPointerCapture={stop}
+        onDoubleClick={() => { if (!disabled) onChange(0, null); }}
+        onKeyDown={event => {
+          if (disabled) return;
+          if (["PageDown", "PageUp", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+            event.preventDefault(); event.stopPropagation(); movePage(["PageDown", "ArrowRight"].includes(event.key) ? 1 : -1); return;
           }
-        }}
-        onDoubleClick={() => {
-          if (!disabled) onChange(sheet, null);
-        }}
-        onKeyDown={(event) => {
-          const delta = ((event.shiftKey ? 10 : 1) * 96) / 25.4;
-          const next =
-            event.key === "ArrowUp"
-              ? value - delta
-              : event.key === "ArrowDown"
-                ? value + delta
-                : event.key === "Home"
-                  ? 0
-                  : event.key === "End"
-                    ? limit
-                    : null;
-          if (next !== null && !disabled) {
-            event.preventDefault();
-            event.stopPropagation();
-            onChange(sheet, clamp(next));
-          }
-        }}
-      >
-        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" style={{ transform: settings.pageSize === "NotebookSpread" && sheet % 2 === 1 ? "rotate(180deg)" : undefined }}><path d="M3 10h13M11 5l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      </button>
+          const delta = (event.shiftKey ? 10 : 1) * 96 / 25.4;
+          const next = event.key === "ArrowUp" ? value-delta : event.key === "ArrowDown" ? value+delta : event.key === "Home" ? 0 : event.key === "End" ? limit : null;
+          if (next !== null) { event.preventDefault(); event.stopPropagation(); onChange(sheet, clamp(next)); }
+        }}><Icon name="writing-start" /></button>
     </div>
-  );
+    {draft && createPortal(<div className={`writing-start-drop ${draft.right ? "points-left" : ""}`} style={{ left: draft.left, top: draft.top, "--drop-width": `${draft.width}px` } as React.CSSProperties} aria-hidden="true"><Icon name="writing-start" /><i /></div>, document.body)}
+  </>;
 }

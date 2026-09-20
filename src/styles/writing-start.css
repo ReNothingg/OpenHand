@@ -1,0 +1,9 @@
+.writing-start-guide { position: absolute; left: -30px; width: 30px; height: 0; z-index: 6; pointer-events: none; }
+:root .writing-start-guide > button { position: absolute; top: -14px; width: 28px; height: 28px; min-height: 0; border: 0; padding: 4px; background: transparent; color: var(--green); pointer-events: auto; cursor: grab; touch-action: none; }
+.writing-start-guide .svg-icon, .writing-start-drop .svg-icon { width: 20px; height: 20px; }
+.points-left .svg-icon { transform: rotate(180deg); }
+.writing-start-drop { position: fixed; z-index: 1000; pointer-events: none; color: var(--green); width: 28px; height: 0; }
+.writing-start-drop .svg-icon { position: absolute; top: -10px; left: 4px; }
+.writing-start-drop i { position: absolute; top: 0; left: 28px; width: var(--drop-width); border-top: 1px dashed currentColor; }
+.writing-start-drop.points-left i { left: auto; right: 28px; }
+@media print { .writing-start-guide, .writing-start-drop { display: none !important; } }

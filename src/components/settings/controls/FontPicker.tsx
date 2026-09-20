@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import LiquidRange from "../../controls/LiquidRange";
 import { fonts } from "../../../fonts";
 import {
   BUILTIN_GFONT_FAMILIES,
@@ -114,7 +113,7 @@ export default function FontPicker({
   };
 
   return (
-    <div className="font-picker" ref={rootRef}>
+    <div className="font-picker" ref={rootRef} onKeyDown={event => { if (event.key === "Escape") { setOpen(false); rootRef.current?.querySelector("button")?.focus(); } }}>
       <div className="font-picker-row">
         <button
           className="font-picker-trigger"
@@ -168,6 +167,7 @@ export default function FontPicker({
             type="search"
             value={query}
             placeholder="Найти шрифт…"
+            aria-label="Поиск шрифта"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Escape") setOpen(false);
@@ -266,19 +266,6 @@ export default function FontPicker({
                       (family) => family.id === activeFamily.id,
                     ) && (
                       <div className="font-variant-panel">
-                        <LiquidRange
-                          className="font-variant-range"
-                          min="0"
-                          max={activeFamily.variants.length - 1}
-                          step="1"
-                          value={activeVariantIndex}
-                          aria-label={`Вариант шрифта ${activeFamily.label}`}
-                          onChange={(event) =>
-                            chooseVariant(
-                              activeFamily.variants[Number(event.target.value)],
-                            )
-                          }
-                        />
                         <div
                           className="font-variant-labels"
                           style={{

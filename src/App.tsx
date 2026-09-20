@@ -829,10 +829,9 @@ export default function App() {
               plotterWorkspace.setArmed(false);
               setActiveSheetIndex(settings.pageSize === "NotebookSpread" ? Math.floor(sheet / 2) : sheet);
               setSettings((current) => {
-                const positions = { ...current.writingStartPositions };
-                if (top === null) delete positions[sheet];
-                else positions[sheet] = top;
-                return { ...current, writingStartPositions: positions };
+                return { ...current, writingStartEnabled: top !== null,
+                  writingStartPage: top === null ? 0 : sheet,
+                  writingStartPositions: top === null ? {} : { [sheet]: top } };
               });
             }}
             toolbarHost={toolbarHost}

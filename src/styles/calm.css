@@ -764,13 +764,11 @@ body,
   min-height: 32px;
 }
 :root .source-tabs {
-  border: 0;
   padding: 3px;
   background: var(--surface-workspace);
 }
 :root .source-tabs button {
   min-height: 28px;
-  font-size: 12px;
 }
 :root .workshop-toolbar {
   padding: 18px 24px;
@@ -1049,10 +1047,6 @@ body,
     .expanded-editor-body
   ) {
   background: var(--surface-workspace);
-}
-:root .workshop-body {
-  gap: 0;
-  padding: 0;
 }
 :root .workshop-inspector {
   border-radius: 0;
@@ -1487,19 +1481,6 @@ body,
   color: var(--text-primary);
   font-size: 12px;
 }
-:root .font-picker-menu {
-  border: 1px solid var(--line);
-  background: var(--surface-raised);
-}
-:root .font-picker-trigger {
-  text-align: left;
-}
-:root .font-picker-trigger span {
-  color: var(--text-primary);
-}
-:root .font-picker-menu input {
-  background: var(--surface-panel);
-}
 :root .toggle-row i::after {
   background: #ffffff;
 }
@@ -1590,7 +1571,6 @@ body,
 
 /* Document controls share the application header; the canvas has no overlay toolbar. */
 :root .workspace-navigation {
-  height: auto;
   min-height: 56px;
   flex-wrap: wrap;
   column-gap: 20px;
@@ -1613,7 +1593,6 @@ body,
 :root .document-toolbar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px 16px;
   min-height: 40px;
   padding: 0;
@@ -1638,7 +1617,6 @@ body,
   gap: 6px;
 }
 :root .document-toolbar .preview-job-stats {
-  flex: 1 1 auto;
   gap: 18px;
   padding: 0;
   margin-left: auto;
@@ -1758,7 +1736,6 @@ body,
 /* Neutral, square workspace; compact controls retain only a small radius. */
 :root .workshop-body {
   gap: 0;
-  padding: 0;
 }
 :root .workshop-inspector {
   border-right: 1px solid var(--line);
@@ -1942,9 +1919,6 @@ body,
   margin: 0;
   padding: 0;
 }
-:root .workshop-inspector {
-  border-right: 0;
-}
 :root .workshop-body {
   column-gap: 0;
   row-gap: 0;
@@ -2070,11 +2044,6 @@ body,
   overflow-wrap: anywhere;
 }
 
- .writing-start-guide { position: absolute; left: -30px; width: 30px; height: 0; z-index: 6; pointer-events: none; }
-:root .writing-start-guide > button { position: absolute; width: 28px; border: 0; padding: 4px; color: var(--accent, #359447); pointer-events: auto; cursor: ns-resize; touch-action: none; }
-.writing-start-toggle, .writing-start-page { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px; }
-.writing-start-page input { width: 52px; min-width: 0; }
-
 .plotter-sheet-options { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 16px; margin-bottom: 10px; }
 .plotter-sheet-options label { display: grid; gap: 4px; color: var(--text-secondary); font-size: 12px; }
 .plotter-sheet-options select { padding: 6px 8px; min-height: 32px; }
@@ -2087,14 +2056,9 @@ body,
 .paper-change-dialog > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .paper-change-dialog button { background: var(--surface-raised); color: var(--text-primary); border: 0; border-radius: 4px; }
 .paper-change-dialog button.primary { background: var(--green); color: var(--on-accent); }
-@media print { .writing-start-guide, .paper-change-dialog { display: none !important; } }
+@media print { .paper-change-dialog { display: none !important; } }
 
 :root .document-toolbar { flex-wrap: wrap; }
-:root .writing-start-toggle input[role="switch"] { appearance: none; width: 28px; height: 16px; min-height: 0; border: 0; border-radius: 8px; background: #777; position: relative; cursor: pointer; }
-:root .writing-start-toggle input[role="switch"]::after { content: ""; position: absolute; width: 12px; height: 12px; top: 2px; left: 2px; border-radius: 50%; background: white; transition: transform 160ms ease; }
-:root .writing-start-toggle input[role="switch"]:checked { background: #359447; }
-:root .writing-start-toggle input[role="switch"]:checked::after { transform: translateX(12px); }
-@media (prefers-reduced-motion: reduce) { :root .writing-start-toggle input[role="switch"]::after { transition: none; } }
 
 /* One visual surface per settings group, not per individual control. */
 :root :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector) .settings-section {
@@ -2184,7 +2148,7 @@ body,
   border-color: var(--text-secondary);
 }
 :root .settings-panel.settings-panel button.document-preset:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--green);
   outline-offset: 2px;
 }
 :root .settings-panel.settings-panel button.document-preset:active { background: var(--accent-soft); }

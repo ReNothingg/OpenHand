@@ -54,6 +54,23 @@ export default function PreviewPanel({
           : pages.map((page) => [page]),
     [isNotebookSpread, pages, plotterMode, plotterWorkspace.layouts.length],
   );
+  const startPage = settings.writingStartEnabled ? settings.writingStartPage : 0;
+  const navigatedStart = useRef(startPage);
+  useEffect(() => {
+    if (navigatedStart.current === startPage || (plotterMode && plotterWorkspace.busy)) return;
+    const frame = requestAnimationFrame(() => {
+      const viewport = previewRef.current;
+      const physical = isNotebookSpread ? Math.floor(startPage / 2) : startPage;
+      const shell = viewport?.querySelector(`[data-sheet-index="${physical}"]`) as HTMLElement | null;
+      if (!shell) return;
+      const y = writingStartY(settings, metrics.height, startPage) * settings.zoom / 100;
+      viewport.scrollTo({ top: Math.max(0, shell.offsetTop + y - 80),
+        left: Math.max(0, shell.offsetLeft + (isNotebookSpread && startPage % 2 ? shell.offsetWidth / 2 : 0) - 40) });
+      onActiveSheetChange(physical);
+      navigatedStart.current = startPage;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [startPage, plotterMode, plotterWorkspace.busy, displayedPages.length, isNotebookSpread]);
   useEffect(() => {
     if (!manualEditing) setSelectedBlock(null);
   }, [manualEditing]);
@@ -381,11 +398,11 @@ export default function PreviewPanel({
                     </>
                   )}
                 </article>
-                  {!manualEditing && settings.writingStartEnabled && Math.floor(settings.writingStartPage / (isNotebookSpread ? 2 : 1)) === index && (
+                  {!manualEditing && Math.floor((settings.writingStartEnabled ? settings.writingStartPage : 0) / (isNotebookSpread ? 2 : 1)) === index && (
                     <WritingStartLine
                       settings={settings}
                       metrics={metrics}
-                      sheet={settings.writingStartPage}
+                      sheet={settings.writingStartEnabled ? settings.writingStartPage : 0}
                       disabled={
                         plotterWorkspace.running ||
                         (plotterMode && plotterWorkspace.busy)

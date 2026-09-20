@@ -1,3 +1,4 @@
+import Icon from "../Icon";
 import PanelResizeHandle from "../PanelResizeHandle";
 import usePanelWidth from "../../hooks/usePanelWidth";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,28 +24,6 @@ import { formatDuration } from "./PlotterFooter";
 
 const STORAGE_KEY = "openhand.workshop.v1";
 const EMPTY = { name: "Новый рисунок", strokes: [] as Stroke[] };
-function HistoryIcon({ redo = false }: { redo?: boolean }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <g transform={redo ? "translate(24 0) scale(-1 1)" : undefined}>
-        <path
-          d="M8 5 3 10l5 5M3 10h11a6 6 0 0 1 0 12"
-          transform="translate(0 -2)"
-        />
-      </g>
-    </svg>
-  );
-}
 function load() {
   try {
     const source = localStorage.getItem(STORAGE_KEY);
@@ -542,14 +521,14 @@ export default function PlotterWorkshop({
                 disabled={!history.length || locked}
                 onClick={undo}
               >
-                <HistoryIcon />
+                <Icon name="undo" />
               </button>
               <button
                 aria-label="Повторить изменение рисунка"
                 disabled={!future.length || locked}
                 onClick={redo}
               >
-                <HistoryIcon redo />
+                <Icon name="redo" />
               </button>
               <button
                 aria-label="Уменьшить масштаб"
