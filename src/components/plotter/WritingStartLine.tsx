@@ -9,6 +9,7 @@ export default function WritingStartLine({ settings, metrics, sheet, disabled, o
   const [draft, setDraft] = useState<Target | null>(null);
   const drag = useRef<{ x: number; y: number; viewport: HTMLElement } | null>(null);
   const frame = useRef(0);
+  const ghost = useRef<HTMLDivElement | null>(null);
   const value = writingStartY(settings, metrics.height, sheet);
   const limit = writingStartLimit(settings, metrics.height);
   const spread = settings.pageSize === "NotebookSpread";
@@ -45,7 +46,15 @@ export default function WritingStartLine({ settings, metrics, sheet, disabled, o
       : pointer.y < r.top+48 ? -Math.min(18, (r.top+48-pointer.y)/3) : 0;
     const dx = pointer.x > r.right - 32 ? 10 : pointer.x < r.left + 32 ? -10 : 0;
     if (dy || dx) pointer.viewport.scrollBy(dx, dy);
-    setDraft(locate(pointer.x, pointer.y, pointer.viewport));
+    const target = locate(pointer.x, pointer.y, pointer.viewport);
+    if (ghost.current) {
+      ghost.current.style.transform = `translate3d(${pointer.x - 14}px, ${pointer.y}px, 0)`;
+      ghost.current.classList.toggle("points-left", target.right);
+      const line = ghost.current.querySelector("i")!;
+      line.style.left = `${(target.right ? target.left - target.width : target.left + 28) - pointer.x + 14}px`;
+      line.style.top = `${target.top - pointer.y}px`;
+      line.style.width = `${target.width}px`;
+    }
     frame.current = requestAnimationFrame(update);
   };
   const stop = () => { drag.current = null; cancelAnimationFrame(frame.current); setDraft(null); };
@@ -53,7 +62,8 @@ export default function WritingStartLine({ settings, metrics, sheet, disabled, o
   useEffect(() => { if (disabled) stop(); }, [disabled]);
   const movePage = (delta: number) => onChange(Math.max(0, Math.min(99, sheet + delta)), value);
   return <>
-    <div className="writing-start-guide" style={{ top: value * scale, left: spread && sheet % 2 === 1 ? "100%" : undefined }}>
+    <div className={`writing-start-guide ${spread && sheet % 2 === 1 ? "points-left" : ""}`} style={{ opacity: draft ? 0 : 1, "--guide-width": `${metrics.width * scale / (spread ? 2 : 1)}px`, top: value * scale, left: spread && sheet % 2 === 1 ? "100%" : undefined } as React.CSSProperties}>
+      <i aria-hidden="true" />
       <button type="button" role="slider" className={spread && sheet % 2 === 1 ? "points-left" : ""}
         title="Перетащите на нужную страницу. Page Up / Page Down — сменить страницу. Двойной щелчок — начать сначала."
         aria-label={`Начало письма на странице ${sheet + 1}`} aria-valuemin={0} aria-valuemax={Math.round(limit * 25.4 / 96)}
@@ -63,7 +73,8 @@ export default function WritingStartLine({ settings, metrics, sheet, disabled, o
           event.preventDefault(); event.stopPropagation();
           const viewport = event.currentTarget.closest(".pages-viewport") as HTMLElement;
           drag.current = { x: event.clientX, y: event.clientY, viewport };
-          event.currentTarget.setPointerCapture(event.pointerId); update();
+          setDraft(locate(event.clientX, event.clientY, viewport));
+          event.currentTarget.setPointerCapture(event.pointerId); frame.current = requestAnimationFrame(update);
         }}
         onPointerMove={event => { if (drag.current) { event.stopPropagation(); drag.current.x = event.clientX; drag.current.y = event.clientY; } }}
         onPointerUp={event => {
@@ -85,6 +96,6 @@ export default function WritingStartLine({ settings, metrics, sheet, disabled, o
           if (next !== null) { event.preventDefault(); event.stopPropagation(); onChange(sheet, clamp(next)); }
         }}><Icon name="writing-start" /></button>
     </div>
-    {draft && createPortal(<div className={`writing-start-drop ${draft.right ? "points-left" : ""}`} style={{ left: draft.left, top: draft.top, "--drop-width": `${draft.width}px` } as React.CSSProperties} aria-hidden="true"><Icon name="writing-start" /><i /></div>, document.body)}
+    {draft && createPortal(<div ref={ghost} style={{ transform: `translate3d(${(drag.current?.x ?? draft.left) - 14}px, ${drag.current?.y ?? draft.top}px, 0)` }} className={`writing-start-drop ${draft.right ? "points-left" : ""}`} aria-hidden="true"><Icon name="writing-start" /><i /></div>, document.body)}
   </>;
 }

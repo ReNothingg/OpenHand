@@ -1,9 +1,12 @@
 .writing-start-guide { position: absolute; left: -30px; width: 30px; height: 0; z-index: 6; pointer-events: none; }
-:root .writing-start-guide > button { position: absolute; top: -14px; width: 28px; height: 28px; min-height: 0; border: 0; padding: 4px; background: transparent; color: var(--green); pointer-events: auto; cursor: grab; touch-action: none; }
+:root .app .writing-start-guide > button,
+:root .app .writing-start-guide > button:is(:hover, :active, :focus-visible, :disabled) { position: absolute; top: -14px; width: 28px; height: 28px; min-height: 0; border: 0; border-radius: 0; box-shadow: none; outline: none; padding: 4px; background: transparent; color: var(--green); pointer-events: auto; cursor: grab; touch-action: none; transition: none; }
+:root .app .writing-start-guide > button:focus-visible .svg-icon { color: var(--text-primary); }
 .writing-start-guide .svg-icon, .writing-start-drop .svg-icon { width: 20px; height: 20px; }
 .points-left .svg-icon { transform: rotate(180deg); }
-.writing-start-drop { position: fixed; z-index: 1000; pointer-events: none; color: var(--green); width: 28px; height: 0; }
+.writing-start-guide > i { position: absolute; left: 30px; width: var(--guide-width); border-top: 1px dashed var(--green); opacity: .55; pointer-events: none; }
+.writing-start-guide.points-left > i { left: auto; right: 30px; }
+.writing-start-drop { position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none; color: var(--green); width: 28px; height: 0; will-change: transform; }
 .writing-start-drop .svg-icon { position: absolute; top: -10px; left: 4px; }
-.writing-start-drop i { position: absolute; top: 0; left: 28px; width: var(--drop-width); border-top: 1px dashed currentColor; }
-.writing-start-drop.points-left i { left: auto; right: 28px; }
+.writing-start-drop i { position: absolute; border-top: 1px dashed currentColor; }
 @media print { .writing-start-guide, .writing-start-drop { display: none !important; } }

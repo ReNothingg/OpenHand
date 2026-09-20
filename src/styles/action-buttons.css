@@ -1,0 +1,11 @@
+/* Action buttons share one visible surface across document and workshop. */
+:root .app :is(.workshop-section, .plotter-footer-body, .workshop-run-body, .settings-content) button:not([role]):not(.selected):not([aria-pressed="true"]):not(.primary):not(.danger):not(.text-button):not(.font-picker-trigger):not(.document-preset) {
+  background-color: var(--control-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  min-height: 34px;
+  padding: 7px 12px;
+  color: var(--text-primary);
+}
+:root .app :is(.workshop-section, .plotter-footer-body, .workshop-run-body, .settings-content) button:not([role]):not(.selected):not([aria-pressed="true"]):not(.primary):not(.danger):not(.text-button):not(.document-preset):hover:not(:disabled) { background-color: var(--control-hover); border-color: var(--text-secondary); }
+:root .app :is(.workshop-section, .plotter-footer-body, .workshop-run-body, .settings-content) button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
