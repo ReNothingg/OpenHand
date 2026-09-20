@@ -374,10 +374,10 @@ export type SceneObject = { id: string; name: string; strokes: Stroke[] };
 export function sceneObject(strokes: Stroke[], name = "Рисунок"): SceneObject {
   return { id: crypto.randomUUID(), name: name.slice(0,120), strokes: validateStrokes(strokes) };
 }
-export function serializeWorkshop(strokes: Stroke[], name: string, objects?: SceneObject[]) {
+export function serializeWorkshop(strokes: Stroke[], name: string, objects?: SceneObject[], paperRotated = false) {
   const items = objects || (strokes.length ? [sceneObject(strokes, name)] : []);
   validateStrokes(items.flatMap(item => item.strokes));
-  return JSON.stringify({ format: "openhand-workshop", version: 2, name: name.slice(0,120),
+  return JSON.stringify({ format: "openhand-workshop", version: 2, name: name.slice(0,120), paperRotated,
     objects: items.map(item => ({ ...item, strokeSettings: item.strokes.map(s=>({pressure:s.pressure,feedRate:s.feedRate})) })) });
 }
 export function parseWorkshop(source: string) {
@@ -395,5 +395,5 @@ export function parseWorkshop(source: string) {
   }));
   const nonempty = objects.filter(item=>item.strokes.length);
   const strokes = validateStrokes(nonempty.flatMap(item=>item.strokes));
-  return { name: String(value.name || "Без названия").slice(0,120), objects: nonempty, strokes };
+  return { name: String(value.name || "Без названия").slice(0,120), objects: nonempty, strokes, paperRotated: value.paperRotated === true };
 }

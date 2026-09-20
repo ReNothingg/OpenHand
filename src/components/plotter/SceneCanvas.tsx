@@ -10,7 +10,6 @@ export default function SceneCanvas({ objects, selected, onSelect, onCommit, too
   const svg = useRef<SVGSVGElement>(null);
   const [pixelScale,setPixelScale] = useState(1);
   const [pan,setPan] = useState({x:-10,y:-10});
-  const [matrix,setMatrix] = useState<string | null>(null);
   const [draft,setDraft] = useState<SceneObject[] | null>(null);
   const [marquee,setMarquee] = useState<{a:Point;b:Point}|null>(null);
   const space = useRef(false);
@@ -27,6 +26,7 @@ export default function SceneCanvas({ objects, selected, onSelect, onCommit, too
     const update=()=>setPixelScale(el.getScreenCTM()?.a || 1);
     update();const observer=new ResizeObserver(update);observer.observe(el);return()=>observer.disconnect();
   },[zoom,width,height]);
+  useEffect(()=>{setPan({x:-10,y:-10});onZoom(1);},[width,height]);
   const handle = 9/pixelScale;
   const fit = () => {
     const b=bounds(objects.filter(o=>!selected.length||selected.includes(o.id)).flatMap(o=>o.strokes));
@@ -35,15 +35,17 @@ export default function SceneCanvas({ objects, selected, onSelect, onCommit, too
   };
   useEffect(()=>{ if(fitRequest)fit(); },[fitRequest]);
   const point = (x:number,y:number):Point => {
-    const matrix=svg.current?.getScreenCTM(); if(!matrix) return {x:0,y:0};
-    const p=new DOMPoint(x,y).matrixTransform(matrix.inverse()); return {x:p.x,y:p.y};
+    const inverse=drag.current?.kind!=="pan" && drag.current?.inverse ? drag.current.inverse : svg.current?.getScreenCTM()?.inverse(); if(!inverse) return {x:0,y:0};
+    const p=new DOMPoint(x,y).matrixTransform(inverse); return {x:p.x,y:p.y};
   };
-  const cancel = () => { drag.current=null; pending.current=null; cancelAnimationFrame(frame.current); setDraft(null); setMatrix(null); setMarquee(null); };
+  const cancel = () => { drag.current=null; pending.current=null; cancelAnimationFrame(frame.current); frame.current=0;
+    svg.current?.querySelectorAll("[data-preview-transform]").forEach(node=>{node.removeAttribute("transform");node.removeAttribute("data-preview-transform");});
+    setDraft(null); setMarquee(null); };
   useEffect(()=>()=>cancelAnimationFrame(frame.current),[]);
   useEffect(()=>{if(locked)cancel();},[locked]);
   useEffect(()=>{
     const el=svg.current;if(!el)return;
-    const wheel=(e:WheelEvent)=>{e.preventDefault();const p=point(e.clientX,e.clientY),next=Math.max(.2,Math.min(8,zoom*Math.exp(-e.deltaY*.002)));const ratio=zoom/next;setPan({x:p.x-(p.x-pan.x)*ratio,y:p.y-(p.y-pan.y)*ratio});onZoom(next);};
+    const wheel=(e:WheelEvent)=>{e.preventDefault();if(drag.current)return;const p=point(e.clientX,e.clientY),next=Math.max(.2,Math.min(8,zoom*Math.exp(-e.deltaY*.002)));const ratio=zoom/next;setPan({x:p.x-(p.x-pan.x)*ratio,y:p.y-(p.y-pan.y)*ratio});onZoom(next);};
     el.addEventListener("wheel",wheel,{passive:false});return()=>el.removeEventListener("wheel",wheel);
   },[zoom,pan,width,height]);
   const mapping=(p:Point,shift=false):((q:Point)=>Point)=>{
@@ -70,9 +72,9 @@ export default function SceneCanvas({ objects, selected, onSelect, onCommit, too
   };
   const compute=(p:Point,shift=false,preview=false)=>mapSceneObjects(preview?lightObjects:drag.current.objects,drag.current.ids,mapping(p,shift));
   const begin=(e:React.PointerEvent,kind:string,ids=selected,corner=0)=>{
-    e.preventDefault();e.stopPropagation();svg.current?.focus();
+    e.preventDefault();e.stopPropagation();svg.current?.focus({preventScroll:true});
     if(locked&&kind!=="pan")return;
-    drag.current={kind,ids,corner,start:point(e.clientX,e.clientY),screen:{x:e.clientX,y:e.clientY},pan,objects,box:selectionBounds(objects,ids),shift:e.shiftKey};
+    drag.current={kind,ids,corner,inverse:svg.current?.getScreenCTM()?.inverse(),start:point(e.clientX,e.clientY),screen:{x:e.clientX,y:e.clientY},pan,objects,box:selectionBounds(objects,ids),shift:e.shiftKey};
     svg.current?.setPointerCapture(e.pointerId);
   };
   return <svg ref={svg} className="scene-canvas" tabIndex={0} role="application" aria-label="Редактор сцены плоттера" viewBox={`${pan.x} ${pan.y} ${viewWidth} ${viewHeight}`}
@@ -84,7 +86,12 @@ export default function SceneCanvas({ objects, selected, onSelect, onCommit, too
       pending.current=point(e.clientX,e.clientY);d.shift=e.shiftKey;
       if(frame.current)return;frame.current=requestAnimationFrame(()=>{frame.current=0;if(!drag.current||!pending.current)return;if(d.kind==="marquee")setMarquee({a:d.start,b:pending.current});else if(d.kind==="warp")setDraft(compute(pending.current,d.shift,true));else {
         const fn=mapping(pending.current,d.shift),a=fn({x:0,y:0}),b=fn({x:1,y:0}),c=fn({x:0,y:1});
-        setMatrix(`matrix(${b.x-a.x} ${b.y-a.y} ${c.x-a.x} ${c.y-a.y} ${a.x} ${a.y})`);
+        const matrix=`matrix(${b.x-a.x} ${b.y-a.y} ${c.x-a.x} ${c.y-a.y} ${a.x} ${a.y})`;
+        svg.current?.querySelectorAll<SVGGElement>("[data-scene-node], .scene-gizmo").forEach(node=>{
+          if(node.classList.contains("scene-gizmo") || d.ids.includes(node.dataset.sceneNode)) {
+            node.setAttribute("transform",matrix);node.setAttribute("data-preview-transform","");
+          }
+        });
       }});
     }}
     onPointerUp={e=>{
@@ -109,7 +116,7 @@ export default function SceneCanvas({ objects, selected, onSelect, onCommit, too
     <rect x={0} y={0} width={width} height={height} fill="white" stroke="#a0a0a0" strokeWidth=".3" />
     <path d={[...Array.from({length:Math.floor(width/10)},(_,i)=>`M${(i+1)*10} 0V${height}`),...Array.from({length:Math.floor(height/10)},(_,i)=>`M0 ${(i+1)*10}H${width}`)].join(" ")} stroke="#e6e6e6" strokeWidth=".15" fill="none" pointerEvents="none" />
     {travelPath&&!draft&&<path d={travelPath} fill="none" stroke="#b28650" strokeWidth=".25" strokeDasharray="1 1"/>}
-    {rendered.map(o=>{const b=boxes.get(o.id)!;return <g key={o.id} transform={selected.includes(o.id)?matrix||undefined:undefined} aria-label={o.name}>
+    {rendered.map(o=>{const b=boxes.get(o.id)!;return <g key={o.id} data-scene-node={o.id} aria-label={o.name}>
       <path d={draft && selected.includes(o.id) ? path(o) : cachedPaths.get(o.id)} fill="none" stroke={b.minX<0||b.minY<0||b.maxX>width||b.maxY>height?"#b43b32":selected.includes(o.id)?"#237a35":"#222"} strokeWidth=".35" pointerEvents="none" />
       <rect data-scene-object={o.id} x={b.minX} y={b.minY} width={Math.max(.8,b.width)} height={Math.max(.8,b.height)} fill="transparent" onPointerDown={e=>{
         if(space.current||tool==="pan"||e.button===1){begin(e,"pan");return;}
@@ -117,7 +124,7 @@ export default function SceneCanvas({ objects, selected, onSelect, onCommit, too
         begin(e,"move",ids);
       }} />
     </g>;})}
-    {selected.length>0&&objects.some(o=>selected.includes(o.id))&&<g className="scene-gizmo" transform={matrix||undefined}>
+    {selected.length>0&&objects.some(o=>selected.includes(o.id))&&<g className="scene-gizmo">
       <rect x={box.minX} y={box.minY} width={Math.max(.1,box.width)} height={Math.max(.1,box.height)} fill="none" stroke="#237a35" strokeWidth=".35" strokeDasharray="2 1" pointerEvents="none" />
       {tool==="rotate"&&<><line x1={(box.minX+box.maxX)/2} y1={box.minY} x2={(box.minX+box.maxX)/2} y2={box.minY-24/pixelScale} stroke="#237a35" strokeWidth=".35"/><circle aria-label="Вращение выделения" cx={(box.minX+box.maxX)/2} cy={box.minY-24/pixelScale} r={handle/2} fill="white" stroke="#237a35" strokeWidth=".4" onPointerDown={e=>begin(e,"rotate")}/></>}
       {(tool==="scale"||tool==="warp")&&[{x:box.minX,y:box.minY},{x:box.maxX,y:box.minY},{x:box.maxX,y:box.maxY},{x:box.minX,y:box.maxY}].map((p,i)=><rect key={i} data-scene-handle={i} aria-label={`${tool==="warp"?"Warp":"Масштаб"} · угол ${i+1}`} x={p.x-handle/2} y={p.y-handle/2} width={handle} height={handle} fill={tool==="warp"?"#e8f5eb":"white"} stroke="#237a35" strokeWidth=".4" onPointerDown={e=>begin(e,tool,selected,i)}/>)}

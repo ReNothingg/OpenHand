@@ -27,7 +27,7 @@ import PlotterSettings from "./PlotterSettings";
 import { formatNominalDuration, timingExplanation } from "./PlotterFooter";
 
 const STORAGE_KEY = "openhand.workshop.v1";
-const EMPTY = { name: "Новый рисунок", strokes: [] as Stroke[], objects: [] as SceneObject[] };
+const EMPTY = { name: "Новый рисунок", strokes: [] as Stroke[], objects: [] as SceneObject[], paperRotated: false };
 function load() {
   try {
     const source = localStorage.getItem(STORAGE_KEY);
@@ -109,6 +109,9 @@ export default function PlotterWorkshop({
     [document.strokes, config],
   );
   const box = useMemo(() => bounds(document.strokes), [document.strokes]);
+  const paperWidth = document.paperRotated ? config.workAreaHeight : config.workAreaWidth;
+  const paperHeight = document.paperRotated ? config.workAreaWidth : config.workAreaHeight;
+  const withinPaper = box.minX >= 0 && box.minY >= 0 && box.maxX <= paperWidth && box.maxY <= paperHeight;
   const canRun =
     connected &&
     !locked &&
@@ -116,6 +119,7 @@ export default function PlotterWorkshop({
     workspace.originConfirmed &&
     workspace.activeProfile.calibratedAt &&
     job.withinWorkArea &&
+    withinPaper &&
     document.strokes.length > 0;
   const path = useMemo(
     () =>
@@ -149,7 +153,7 @@ export default function PlotterWorkshop({
       try {
         localStorage.setItem(
           STORAGE_KEY,
-          serializeWorkshop(document.strokes, document.name, document.objects),
+          serializeWorkshop(document.strokes, document.name, document.objects, document.paperRotated),
         );
       } catch {
         setError("Не удалось сохранить черновик. Сохраните проект в файл.");
@@ -169,13 +173,13 @@ export default function PlotterWorkshop({
       setError(e instanceof Error ? e.message : String(e));
     }
   };
-  const commitObjects = (objects: SceneObject[], name = document.name) => {
+  const commitObjects = (objects: SceneObject[], name = document.name, paperRotated = document.paperRotated) => {
     if (lockedRef.current) return;
     objects=objects.filter(o=>o.strokes.length);
     if(objects.length>1000)throw new Error("Лимит сцены — 1000 объектов.");
     const strokes = validateStrokes(objects.flatMap(o=>o.strokes));
     setHistory(items=>[...items.slice(-29),document]); setFuture([]);
-    setDocument({name, objects, strokes});
+    setDocument({name, objects, strokes, paperRotated});
     setSelected(ids=>ids.filter(id=>objects.some(o=>o.id===id)));
   };
   const addObject = (strokes: Stroke[], name: string) => void attempt(() => {
@@ -221,7 +225,7 @@ export default function PlotterWorkshop({
       if (/\.json$/i.test(file.name)) {
         const project = parseWorkshop(text);
         dropPoint.current=null;
-        commitObjects(project.objects, project.name); setSelected(project.objects.slice(0,1).map(o=>o.id));
+        commitObjects(project.objects, project.name, project.paperRotated); setSelected(project.objects.slice(0,1).map(o=>o.id));
       } else if (/\.(hpgl|plt)$/i.test(file.name))
         addObject(alignToOrigin(parseHPGL(text)), file.name);
       else if (/\.(csv|tsv)$/i.test(file.name))
@@ -263,7 +267,7 @@ export default function PlotterWorkshop({
                   void attempt(() =>
                     downloadFile(
                       `${document.name || "drawing"}.json`,
-                      serializeWorkshop(document.strokes, document.name, document.objects),
+                      serializeWorkshop(document.strokes, document.name, document.objects, document.paperRotated),
                       "application/json",
                     ),
                   )
@@ -491,6 +495,7 @@ export default function PlotterWorkshop({
             {([ ["move","Перемещение","V"], ["rotate","Вращение","E"], ["scale","Масштаб","R"], ["warp","Warp","T"], ["pan","Обзор","H"] ] as const).map(([id,label,key])=>
               <button key={id} aria-label={label} aria-pressed={tool===id} disabled={locked&&id!=="pan"} title={`${label} · ${key}`} onClick={()=>setTool(id)}><Icon name={`scene-${id}`} /></button>)}
             <span className="scene-tool-divider" />
+            <button disabled={locked} aria-label="Повернуть лист" title="Повернуть лист на 90°" onClick={()=>void attempt(()=>commitObjects(document.objects,document.name,!document.paperRotated))}><Icon name="paper-rotate" /></button>
             <button onClick={()=>setFitRequest(value=>value+1)} aria-label="Вписать" title="Вписать · F"><Icon name="window-expand" /></button>
             <button disabled={locked||!selected.length} onClick={duplicateSelected} aria-label="Дублировать" title="Дублировать · ⌘/Ctrl D"><Icon name="scene-duplicate" /></button>
             <button disabled={locked||!selected.length} onClick={deleteSelected} aria-label="Удалить" title="Удалить · Delete"><Icon name="scene-delete" /></button>
@@ -520,17 +525,18 @@ export default function PlotterWorkshop({
             >
               <SceneCanvas objects={document.objects} selected={selected} onSelect={setSelected}
                 onCommit={objects=>void attempt(()=>commitObjects(objects))} tool={tool} setTool={setTool} locked={locked}
-                width={config.workAreaWidth} height={config.workAreaHeight} fitRequest={fitRequest} zoom={zoom} onZoom={setZoom}
+                width={paperWidth} height={paperHeight} fitRequest={fitRequest} zoom={zoom} onZoom={setZoom}
                 onUndo={undo} onRedo={redo} onDuplicate={duplicateSelected} onDelete={deleteSelected}
                 travelPath={travel?travelPath:undefined} />
             </div>
           )}
           <div className="workshop-statistics">
+            <span>Лист: {paperWidth} × {paperHeight} мм</span>
             <span title="Непрерывные проходы с опущенным пером; каждый может состоять из множества отрезков.">
               Проходов пера: {document.strokes.length.toLocaleString("ru-RU")}
             </span>
             <span>
-              {box.width.toFixed(1)} × {box.height.toFixed(1)} мм
+              Рисунок: {box.width.toFixed(1)} × {box.height.toFixed(1)} мм
             </span>
             <span title="Суммарная длина линий с опущенным пером">
               {(job.drawDistance / 1000).toFixed(2)} м пером
@@ -550,6 +556,7 @@ export default function PlotterWorkshop({
             </label>
           </div>
           <footer className="workshop-run">
+            {!withinPaper && <p className="plotter-warning">Рисунок выходит за границы листа.</p>}
             <div className="plotter-footer-heading">
               <button type="button" aria-expanded={!footerCollapsed} onClick={() => setFooterCollapsed(value => !value)}>{footerCollapsed ? "▸" : "▾"} Управление рисунком</button>
               {footerCollapsed && workspace.running && <button className="button danger" onClick={workspace.stop}>Стоп</button>}
