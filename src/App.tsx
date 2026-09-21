@@ -864,7 +864,6 @@ export default function App() {
           <PreviewPanel
             onWritingStartChange={(sheet, top) => {
               if (plotterWorkspace.running) return;
-              plotterWorkspace.setArmed(false);
               setActiveSheetIndex(settings.pageSize === "NotebookSpread" ? Math.floor(sheet / 2) : sheet);
               setSettings((current) => {
                 return { ...current, writingStartEnabled: top !== null,

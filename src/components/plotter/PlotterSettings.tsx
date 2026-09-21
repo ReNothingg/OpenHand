@@ -507,15 +507,6 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               </Toggle>
             </div>
             <Toggle
-              checked={Boolean(config.autoSetOrigin)}
-              onChange={(value) =>
-                workspace.updateConfig("autoSetOrigin", value)
-              }
-              label="Фиксировать текущую точку как ноль перед заданием"
-            >
-              <small>Не заменяет ручную проверку положения пера на листе.</small>
-            </Toggle>
-            <Toggle
               checked={Boolean(config.returnToOrigin)}
               onChange={(value) =>
                 workspace.updateConfig("returnToOrigin", value)

@@ -379,7 +379,8 @@ export function parseGCode(
     }
 
     const hasPlanarMove =
-      coordinates.x !== undefined || coordinates.y !== undefined;
+      coordinates.x !== undefined || coordinates.y !== undefined ||
+      ((motion === 2 || motion === 3) && (coordinates.i !== undefined || coordinates.j !== undefined));
     if (hasPlanarMove && motion !== null && !hasUnsupportedMotion) {
       const arcCoordinates = arcCenterAbsolute
         ? {

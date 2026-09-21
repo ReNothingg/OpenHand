@@ -104,3 +104,39 @@ Verification completed without physical hardware:
 
 Still not a completed goal: job readiness/streaming/import/recovery path audit, native
 transport lifetime edge cases, consolidated diagnostics and whole-application UI pass remain.
+
+
+## Unified launch checkpoint
+
+All UI launch paths now route through the workspace hardware gate: connection, current
+operation, setup, STOP latch, fresh GRBL Idle, taught pen pair, live pen reference and sheet
+origin. Removed the independently checkable `armed` state and its duplicate UI controls.
+Workshop no longer calls the transport run method directly. Run and recovery compile once,
+validate that exact command array and pass that same payload to the transport; preview
+configuration may be debounced and must not authorize a different freshly compiled job.
+
+Added execution validation for imported and generated programs (including custom macros):
+settings/firmware commands, unmodelled coordinate changes, unknown syntax/movement,
+unanchored relative coordinates, wrong pen axes and motion beyond the taught pen range
+block streaming. Viewer access is retained for unsupported imports. Workspace bounds use
+the same coordinate transform as the generator. Full-circle IJ arcs are now included in
+preview bounds. Servo pressure variation is clamped to configured endpoints. Legacy automatic
+zeroing is disabled in profile normalization and removed from generator/UI.
+
+Verification (no hardware): shared readiness matrix; valid generated jobs, test sheets and
+multi-page queues for GRBL/Marlin/EBB modes; compact-token M104, $1, $N, G53/G92/G28,
+relative-first motion, units/Z-range violations and custom macros outside bounds rejected;
+full-circle arc bounds captured. Actual UI: document and workshop show the same disconnected
+reason and device link, launch disabled, readiness checkbox absent.
+
+Remaining: stop/transport lifecycle completion, imported modal edge cases, diagnostics and
+build identity, job progress/recovery/paper-change UI review and final acceptance audit.
+
+Follow-up findings in this checkpoint:
+- Hardware gate requires the persisted directions/work-area check on every launch path.
+  Pen mechanism/height edits no longer invalidate that independent axes check.
+- Standalone S words cannot bypass the configured tool range after a prior M3.
+- Generator restores G21/G90 and the raised pen after custom macros so their modal state
+  cannot silently turn the document's absolute trajectory into relative/inch moves.
+- Generated jobs, calibration sheets and queues passed the policy across applicable modes.
+  Final web/macOS bundle parity: 153 files; Windows build succeeded.

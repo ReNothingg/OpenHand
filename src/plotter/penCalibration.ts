@@ -2,7 +2,7 @@ import { compilePlotJob } from './job';
 
 export function calibrationCandidates(config) {
   const variablePressure = config.penMode === 'servo' && config.profile !== 'ebb';
-  return [0.6, 0.8, 1].flatMap((speed, row) => (variablePressure ? [.85, 1, 1.15] : [1]).map((pressure, col) => ({
+  return [0.6, 0.8, 1].flatMap((speed, row) => (variablePressure ? [.75, .875, 1] : [1]).map((pressure, col) => ({
     id: `${row + 1}.${col + 1}`, row, col, pressure,
     feedRate: Math.max(1, Math.round(config.feedRate * speed)),
     penDown: Math.round(Math.max(0, Math.min(config.profile === 'marlin' ? 180 : 32767, config.penUp + (config.penDown - config.penUp) * pressure))),

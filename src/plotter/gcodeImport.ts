@@ -1,12 +1,10 @@
+import { importedCommandBlockers } from "./importSafety";
 import { normalizeGCodeSource, parseGCode } from "../gcode/parser";
 
 export const MAX_IMPORTED_GCODE_BYTES = 16 * 1024 * 1024;
 export const MAX_IMPORTED_GCODE_COMMANDS = 250_000;
 
-const UNSAFE_MACHINE_COMMAND =
-  /(?:^|\s)M(?:104|109|112|140|190|303|500|501|502|997|999)(?=[^0-9.]|$)/i;
-const UNSAFE_GRBL_COMMAND = /^\$(?:RST|N)(?:=|$)/i;
-const TOOL_POWER_COMMAND = /(?:^|\s)M(?:3|4)(?=[^0-9.]|$)/i;
+const TOOL_POWER_COMMAND = /M\s*0?[34](?=[^0-9.]|$)/i;
 
 function cleanCommand(rawLine: string) {
   return rawLine
@@ -55,14 +53,6 @@ export function prepareImportedGcode(
   const oversized = commands.find((line) => line.length > 256);
   if (oversized) throw new Error("В G-code есть строка длиннее 256 символов.");
 
-  const unsafe = commands.find(
-    (line) => UNSAFE_MACHINE_COMMAND.test(line) || UNSAFE_GRBL_COMMAND.test(line),
-  );
-  if (unsafe)
-    throw new Error(
-      `Команда «${unsafe.slice(0, 48)}» меняет прошивку, нагрев или память и заблокирована.`,
-    );
-
   const parsed = parseGCode(normalized, {
     includeLines: false,
     maxSegmentsPerKind: 40_000,
@@ -75,10 +65,9 @@ export function prepareImportedGcode(
     Math.max(Math.abs(parsed.bounds.minY), Math.abs(parsed.bounds.maxY)) <=
       height + 0.01;
   const warnings: string[] = [];
+  const launchBlockers = importedCommandBlockers(commands);
   if (parsed.unsupportedMotionLines.length)
-    warnings.push(
-      `Не удалось показать ${parsed.unsupportedMotionLines.length.toLocaleString("ru-RU")} движений; контроллер всё равно получит их.`,
-    );
+    launchBlockers.push(`Не удалось проверить ${parsed.unsupportedMotionLines.length.toLocaleString("ru-RU")} движений. Файл доступен для просмотра, но не для отправки.`);
   if (commands.some((line) => TOOL_POWER_COMMAND.test(line)))
     warnings.push(
       "Файл содержит M3/M4: для сервопривода это нормально, но при подключённом лазере команда включает излучатель.",
@@ -93,6 +82,7 @@ export function prepareImportedGcode(
     recoverable: false,
     parsed,
     warnings,
+    launchBlockers,
     withinWorkArea,
   };
 }

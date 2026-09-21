@@ -10,8 +10,10 @@ import {
   createHomingCommands,
   createPageJogCommands,
   createOriginCommands,
+  createPenCommand,
   createReturnToOriginCommands,
   DEFAULT_PLOTTER_CONFIG,
+  isWithinWorkArea,
   layoutBlocks,
   layoutText,
   pageSettingsToMillimeters,
@@ -30,7 +32,8 @@ import {
   updateProfileConfig,
 } from "../plotter/profiles";
 import { hasVerifiedPenPositions } from "../plotter/penLift";
-import { assessPlotterPreflight } from "../plotter/preflight";
+import { assessDeviceReadiness, assessPlotterPreflight } from "../plotter/preflight";
+import { preparedProgramBlockers } from "../plotter/importSafety";
 import { prepareImportedGcode } from "../plotter/gcodeImport";
 import { createSheetQueue } from "../plotter/sheetQueue";
 import {
@@ -138,7 +141,6 @@ export function useIntegratedPlotter({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [stopNotice, setStopNotice] = useState("");
-  const [armed, setArmed] = useState(false);
   const [originConfirmed, setOriginConfirmed] = useState(false);
   const [calibrationActive, setCalibrationActive] = useState(false);
   const [importedGcode, setImportedGcode] = useState(null);
@@ -178,7 +180,6 @@ export function useIntegratedPlotter({
       setFont(null);
       setLayouts([]);
       setFontStatus("Выберите однолинейный GFont");
-      setArmed(false);
       return undefined;
     }
     let cancelled = false;
@@ -403,19 +404,17 @@ export function useIntegratedPlotter({
     config, profileId: activeProfile.id, connected, running,
     stopped: plotter.emergencyStopped, controllerEpoch: plotter.controllerEpoch,
     machineState: plotter.machineStatus?.state, statusReceivedAt: plotter.machineStatus?.receivedAt,
-    setConfig, sendCommands: plotter.sendCommands, disarm: () => setArmed(false),
+    setConfig, sendCommands: plotter.sendCommands,
   });
   const penReferenceConfirmed = penControl.referenced;
   const penSetupPosition = penControl.position;
   useEffect(() => {
     if (!connected || plotter.machineStatus?.state === "Alarm") {
       setOriginConfirmed(false);
-      setArmed(false);
     }
   }, [connected, plotter.machineStatus?.state]);
   useEffect(() => {
     setOriginConfirmed(false);
-    setArmed(false);
   }, [plotter.controllerEpoch]);
   const progressPercent = plotter.progress.total
     ? (plotter.progress.current / plotter.progress.total) * 100
@@ -427,13 +426,27 @@ export function useIntegratedPlotter({
       plotter.recovery.total === job.commands.length &&
       plotter.recovery.current < plotter.recovery.total,
   );
-  const preflight = assessPlotterPreflight(activeLayout, {
-    calibrated: Boolean(activeProfile.calibratedAt),
-    originConfirmed,
-    withinWorkArea: job.withinWorkArea,
-    penReferenceConfirmed: !needsPenReference || penReferenceConfirmed,
-    penPositionsVerified,
-  });
+  const assessDevice = useCallback(() => assessDeviceReadiness({
+    connected, running, busy: busy || pending || penControl.busy, calibrationActive,
+    emergencyStopped: plotter.emergencyStopped, profile: config.profile,
+    machineState: plotter.machineStatus?.state, statusReceivedAt: plotter.machineStatus?.receivedAt,
+    originConfirmed, penReferenceConfirmed: !needsPenReference || penReferenceConfirmed, penPositionsVerified,
+    workAreaConfirmed: Boolean(activeProfile.calibratedAt),
+  }), [connected, running, busy, pending, penControl.busy, calibrationActive, plotter.emergencyStopped,
+    config.profile, plotter.machineStatus, originConfirmed, needsPenReference, penReferenceConfirmed, penPositionsVerified, activeProfile.calibratedAt]);
+  const assessJob = useCallback((layout, withinWorkArea = true, commands?: string[]) => {
+    const content = assessPlotterPreflight(layout, {
+      withinWorkArea,
+    });
+    const blockers = [...assessDevice().blockers, ...content.blockers, ...(commands ? preparedProgramBlockers(commands, config) : [])];
+    return { ...content, originConfirmed, blockers, canStart: blockers.length === 0 };
+  }, [assessDevice, originConfirmed, config]);
+  const deviceReadiness = assessDevice();
+  const preflight = assessJob(activeLayout, job.withinWorkArea, job.commands);
+  const assertDeviceReady = useCallback(() => {
+    const readiness = assessDevice();
+    if (!readiness.canStart) throw new Error(readiness.blockers[0]);
+  }, [assessDevice]);
   const playback = usePlotterPlayback(job, {
     status: plotter.status,
     progress: plotter.sheetProgress || plotter.progress,
@@ -441,19 +454,16 @@ export function useIntegratedPlotter({
   const importedWithinWorkArea = useMemo(() => {
     if (!importedGcode) return true;
     const { bounds } = importedGcode.parsed;
-    return (
-      Math.max(Math.abs(bounds.minX), Math.abs(bounds.maxX)) <=
-        Number(config.workAreaWidth) + 0.01 &&
-      Math.max(Math.abs(bounds.minY), Math.abs(bounds.maxY)) <=
-        Number(config.workAreaHeight) + 0.01
-    );
-  }, [config.workAreaHeight, config.workAreaWidth, importedGcode]);
+    return isWithinWorkArea([[{ x: bounds.minX, y: bounds.minY }, { x: bounds.maxX, y: bounds.maxY }]], config);
+  }, [config, importedGcode]);
+  const importedLaunchBlockers = importedGcode
+    ? [...new Set([...importedGcode.launchBlockers, ...preparedProgramBlockers(importedGcode.commands, config)])] : [];
+
 
   const updateConfig = useCallback(
     (key, value) => {
       if (calibrationActive) return;
       setConfig((current) => ({ ...current, [key]: value }));
-      setArmed(false);
       if (ORIGIN_CONFIG_KEYS.includes(key)) setOriginConfirmed(false);
     },
     [calibrationActive, setConfig],
@@ -481,7 +491,6 @@ export function useIntegratedPlotter({
               }
             : { ...current, profile },
       );
-      setArmed(false);
       setOriginConfirmed(false);
     },
     [calibrationActive, setConfig],
@@ -490,7 +499,6 @@ export function useIntegratedPlotter({
     (presetId) => {
       if (calibrationActive || connected || running) return false;
       setConfig((current) => configFromDevicePreset(presetId, current));
-      setArmed(false);
       setOriginConfirmed(false);
       return true;
     },
@@ -502,7 +510,6 @@ export function useIntegratedPlotter({
       ...current,
       ...mechanicsDefaults(current.profile),
     }));
-    setArmed(false);
   }, [calibrationActive, setConfig]);
   const safeAction = useCallback(async (action) => {
     setError("");
@@ -524,7 +531,6 @@ export function useIntegratedPlotter({
       setFontStatus(
         `${file.name} · ${loaded.entries.size.toLocaleString("ru-RU")} символов`,
       );
-      setArmed(false);
     } catch (reason) {
       setError(reason.message);
     } finally {
@@ -543,7 +549,6 @@ export function useIntegratedPlotter({
           workAreaHeight: config.workAreaHeight,
         });
         setImportedGcode(imported);
-        setArmed(false);
         return imported;
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : String(reason));
@@ -561,7 +566,6 @@ export function useIntegratedPlotter({
         activeProfileId: profile.id,
         profiles: [...current.profiles, profile],
       }));
-      setArmed(false);
       return profile.id;
     },
     [config],
@@ -572,7 +576,6 @@ export function useIntegratedPlotter({
       if (!profileStore.profiles.some((profile) => profile.id === id))
         return false;
       setProfileStore((current) => ({ ...current, activeProfileId: id }));
-      setArmed(false);
       return true;
     },
     [calibrationActive, connected, profileStore.profiles, running],
@@ -604,7 +607,6 @@ export function useIntegratedPlotter({
         activeProfileId: profile.id,
         profiles: [...current.profiles, profile],
       }));
-      setArmed(false);
       return profile.id;
     },
     [profileStore.profiles],
@@ -626,7 +628,6 @@ export function useIntegratedPlotter({
           profiles,
         };
       });
-      setArmed(false);
       return true;
     },
     [calibrationActive, connected, profileStore.profiles.length],
@@ -638,7 +639,6 @@ export function useIntegratedPlotter({
       activeProfileId: profile.id,
       profiles: [...current.profiles, profile],
     }));
-    setArmed(false);
     return profile;
   }, []);
   const completeCalibration = useCallback(() => {
@@ -652,7 +652,6 @@ export function useIntegratedPlotter({
       ),
     }));
     setCalibrationActive(false);
-    setArmed(false);
     setOriginConfirmed(true);
   }, []);
   const updateCalibrationConfig = useCallback((key, value) => {
@@ -661,7 +660,6 @@ export function useIntegratedPlotter({
     if (!allowed.includes(key)) return;
     setConfig((current) => normalizePlotterConfig({ ...current, [key]: value }));
     setOriginConfirmed(false);
-    setArmed(false);
   }, [calibrationActive, setConfig]);
   const performCalibrationAction = useCallback(
     async (action) => {
@@ -679,7 +677,6 @@ export function useIntegratedPlotter({
   const startCalibration = useCallback(() => {
     if (running) return false;
     setCalibrationActive(true);
-    setArmed(false);
     setOriginConfirmed(false);
     return true;
   }, [running]);
@@ -687,7 +684,6 @@ export function useIntegratedPlotter({
     async ({ emergency = false } = {}) => {
       if (emergency) await safeAction(plotter.stop);
       setCalibrationActive(false);
-      setArmed(false);
     },
     [plotter.stop, safeAction],
   );
@@ -703,36 +699,22 @@ export function useIntegratedPlotter({
   const dryRun = useCallback(
     () =>
       safeAction(() => {
-        if (!penPositionsVerified || !originConfirmed || (needsPenReference && !penReferenceConfirmed))
-          throw new Error("Перед рамкой задайте ноль листа и ноль поднятого пера.");
+        const readiness = assessJob(activeLayout, job.withinWorkArea, job.commands);
+        if (!readiness.canStart) throw new Error(readiness.blockers[0]);
         penControl.forgetPosition();
         return plotter.sendCommands(
-          createDryRunCommands(activeLayout.strokes, config),
+          createDryRunCommands(activeLayout.strokes, config), { waitForMotion: true },
         );
       }),
-    [activeLayout.strokes, config, plotter.sendCommands, safeAction, originConfirmed, needsPenReference, penReferenceConfirmed, penPositionsVerified, penControl.forgetPosition],
+    [activeLayout, job.withinWorkArea, job.commands, assessJob, config, plotter.sendCommands, safeAction, penControl.forgetPosition],
   );
 
-  const recover = useCallback(() => {
-    if (!penPositionsVerified || !originConfirmed || (needsPenReference && !penReferenceConfirmed)) {
-      setError(
-        "Перед продолжением выполните homing на контроллере, верните перо к исходной точке листа и нажмите «Установить ноль».",
-      );
-      return Promise.resolve(false);
-    }
-    return calibrationActive
-      ? Promise.resolve(false)
-      : safeAction(() => plotter.recover(createJob()));
-  }, [
-    calibrationActive,
-    createJob,
-    originConfirmed,
-    plotter.recover,
-    needsPenReference,
-    penReferenceConfirmed,
-    penPositionsVerified,
-    safeAction,
-  ]);
+  const recover = useCallback(() => safeAction(() => {
+    const prepared = createJob();
+    const readiness = assessJob(activeLayout, prepared.withinWorkArea, prepared.commands);
+    if (!readiness.canStart) throw new Error(readiness.blockers[0]);
+    return plotter.recover(prepared);
+  }), [safeAction, assessJob, activeLayout, plotter.recover, createJob]);
 
   return {
     enabled,
@@ -754,10 +736,10 @@ export function useIntegratedPlotter({
     importFont,
     importedGcode,
     importedWithinWorkArea,
+    importedLaunchBlockers,
     importGcode,
     clearImportedGcode: () => {
       setImportedGcode(null);
-      setArmed(false);
     },
     layouts,
     activeIndex,
@@ -767,10 +749,8 @@ export function useIntegratedPlotter({
     createJobs,
     busy: busy || pending,
     error,
-    armed,
-    setArmed: (value) => {
-      if (!calibrationActive) setArmed(value);
-    },
+    deviceReadiness,
+    assessJob,
     calibrationActive,
     startCalibration,
     cancelCalibration,
@@ -811,7 +791,6 @@ export function useIntegratedPlotter({
       return success;
     },
     unlockAlarm: () => safeAction(async () => {
-      setArmed(false);
       setOriginConfirmed(false);
       penControl.invalidate();
       await plotter.sendCommands(["$X"]);
@@ -835,8 +814,7 @@ export function useIntegratedPlotter({
       return success;
     },
     returnToOrigin: () => safeAction(() => {
-      if (!penPositionsVerified || !originConfirmed || (needsPenReference && !penReferenceConfirmed))
-        throw new Error("Сначала задайте ноль листа и ноль поднятого пера.");
+      assertDeviceReady();
       penControl.forgetPosition();
       return plotter.sendCommands(createReturnToOriginCommands(config));
     }),
@@ -853,105 +831,59 @@ export function useIntegratedPlotter({
       if (!/^\$(?:\$|I|G|#)$/i.test(command)) {
         penControl.invalidate();
         setOriginConfirmed(false);
-        setArmed(false);
       }
       return safeAction(() => plotter.sendCommands([command]));
     },
     dryRun,
-    runPenCalibration: (sheet) => {
-      if (calibrationActive || running || !connected) return Promise.resolve(false);
-      if (!armed || !originConfirmed) {
-        setError("Перед пробой пера установите ноль и подтвердите готовность пера.");
-        return Promise.resolve(false);
+    runPreparedJob: (preparedJob, layout) => safeAction(() => {
+      const readiness = assessJob(layout, preparedJob.withinWorkArea !== false, preparedJob.commands);
+      if (!readiness.canStart) throw new Error(readiness.blockers[0]);
+      if (!preparedJob.commands?.length) throw new Error("В задании нет команд.");
+      return plotter.run(preparedJob);
+    }),
+    runPreparedFrame: (strokes, withinPaper = true) => safeAction(() => {
+      const prepared = compilePlotJob(strokes, config);
+      const readiness = assessJob({ strokes, clipped: !withinPaper }, prepared.withinWorkArea);
+      if (!readiness.canStart) throw new Error(readiness.blockers[0]);
+      penControl.forgetPosition();
+      return plotter.sendCommands(createDryRunCommands(strokes, config), { waitForMotion: true });
+    }),
+    runPenCalibration: (sheet) => safeAction(() => {
+      const readiness = assessJob({ strokes: sheet.strokes }, sheet.withinWorkArea, sheet.commands);
+      if (!readiness.canStart) throw new Error(readiness.blockers[0]);
+      return plotter.run(sheet);
+    }),
+    runImportedGcode: () => safeAction(() => {
+      assertDeviceReady();
+      if (!importedGcode) throw new Error("Сначала откройте файл G-code.");
+      if (config.profile === "ebb") throw new Error("Обычный G-code доступен для GRBL и Marlin.");
+      if (importedLaunchBlockers.length) throw new Error(importedLaunchBlockers[0]);
+      if (!importedWithinWorkArea) throw new Error("Импортированная траектория выходит за рабочую область.");
+      penControl.forgetPosition();
+      return plotter.run({ ...importedGcode, commands: ["G21", "G90", ...createPenCommand(true, config), ...importedGcode.commands] });
+    }),
+    run: () => safeAction(() => {
+      const prepared = createJob();
+      const readiness = assessJob(activeLayout, prepared.withinWorkArea, prepared.commands);
+      if (!readiness.canStart) throw new Error(readiness.blockers[0]);
+      return plotter.run(prepared);
+    }),
+    runSheets: (indices) => safeAction(() => {
+      assertDeviceReady();
+      if (!Array.isArray(indices) || !indices.length || indices.some(i => !Number.isInteger(i) || i < 0 || i >= layouts.length))
+        throw new Error("Выберите существующие листы для запуска.");
+      const selected = indices.filter(i => layouts[i]?.strokes.length);
+      if (!selected.length) throw new Error("В выбранных листах нет траекторий.");
+      const jobs = createJobs();
+      for (const index of selected) {
+        const readiness = assessJob(layouts[index], jobs[index].withinWorkArea, jobs[index].commands);
+        if (!readiness.canStart) throw new Error(`Лист ${index + 1}: ${readiness.blockers[0]}`);
       }
-      if (needsPenReference && (!penReferenceConfirmed || !penPositionsVerified)) {
-        setError("Сначала задайте ноль поднятого пера.");
-        return Promise.resolve(false);
-      }
-      if (!sheet.withinWorkArea) {
-        setError("Проба пера выходит за рабочую область.");
-        return Promise.resolve(false);
-      }
-      return safeAction(() => plotter.run(sheet));
-    },
-    runImportedGcode: () => {
-      if (!importedGcode) {
-        setError("Сначала откройте файл G-code.");
-        return Promise.resolve(false);
-      }
-      if (config.profile === "ebb") {
-        setError("Импорт обычного G-code доступен для GRBL и Marlin.");
-        return Promise.resolve(false);
-      }
-      if (!penPositionsVerified || !armed || !originConfirmed || (needsPenReference && !penReferenceConfirmed)) {
-        setError("Перед отправкой файла подтвердите перо и нулевую точку.");
-        return Promise.resolve(false);
-      }
-      if (!importedWithinWorkArea) {
-        setError("Импортированная траектория выходит за рабочую область.");
-        return Promise.resolve(false);
-      }
-      return safeAction(() => plotter.run(importedGcode));
-    },
-    run: () => {
-      if (
-        calibrationActive ||
-        running ||
-        !connected ||
-        !armed ||
-        busy ||
-        pending
-      )
-        return Promise.resolve(false);
-      if (!preflight.canStart) {
-        setError(preflight.blockers[0]);
-        return Promise.resolve(false);
-      }
-      return safeAction(() => plotter.run(createJob()));
-    },
-    runSheets: (indices) => {
-      if (
-        calibrationActive ||
-        running ||
-        !connected ||
-        !armed ||
-        busy ||
-        pending
-      )
-        return Promise.resolve(false);
-      if (!Array.isArray(indices) || !indices.length) {
-        setError("Выберите хотя бы один лист для запуска.");
-        return Promise.resolve(false);
-      }
-      indices = indices.filter(index => layouts[index]?.strokes.length);
-      const unsafeLayout = indices
-        .map((index) => layouts[index])
-        .map((layout) =>
-          assessPlotterPreflight(layout, {
-            calibrated: Boolean(activeProfile.calibratedAt),
-            originConfirmed,
-            penReferenceConfirmed: !needsPenReference || penReferenceConfirmed,
-    penPositionsVerified,
-            withinWorkArea: compilePlotJob(layout?.strokes || [], config)
-              .withinWorkArea,
-          }),
-        )
-        .find((assessment) => !assessment.canStart);
-      if (unsafeLayout) {
-        setError(unsafeLayout.blockers[0]);
-        return Promise.resolve(false);
-      }
-      return safeAction(() => {
-        return plotter.run(
-          createSheetQueue(
-            createJobs(),
-            indices,
-            config,
-            settings.pageSize === "NotebookSpread",
-          ),
-        );
-      });
-    },
+      const queue = createSheetQueue(jobs, selected, config, settings.pageSize === "NotebookSpread");
+      const blockers = preparedProgramBlockers(queue.commands, config);
+      if (blockers.length) throw new Error(blockers[0]);
+      return plotter.run(queue);
+    }),
     recover,
     discardRecovery: plotter.discardRecovery,
     pause: () => safeAction(plotter.pause),
@@ -965,7 +897,6 @@ export function useIntegratedPlotter({
     stop: async () => {
       setOriginConfirmed(false);
       penControl.invalidate();
-      setArmed(false);
       setStopNotice("Очередь отменена. Отправляю СТОП… Если движение продолжается — отключите питание и USB.");
       try {
         const result = await plotter.stop();

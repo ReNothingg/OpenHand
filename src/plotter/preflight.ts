@@ -9,23 +9,17 @@ export interface PlotterPreflight {
   hasStrokes: boolean;
   hasMissingGlyphs: boolean;
   clipped: boolean;
-  calibrated: boolean;
-  originConfirmed: boolean;
   withinWorkArea: boolean;
   blockers: string[];
   warnings: string[];
   canStart: boolean;
 }
 
-/** Keeps the launch decision consistent across every way of starting a job. */
+/** Content checks; hardware readiness is evaluated once by assessDeviceReadiness. */
 export function assessPlotterPreflight(
   layout: PlotterLayoutSafety | null | undefined,
   options: {
-    calibrated: boolean;
-    originConfirmed: boolean;
     withinWorkArea?: boolean;
-    penReferenceConfirmed?: boolean;
-    penPositionsVerified?: boolean;
   },
 ): PlotterPreflight {
   const hasStrokes = Boolean(layout?.strokes?.length);
@@ -46,24 +40,49 @@ export function assessPlotterPreflight(
     blockers.push(
       "Траектория выходит за настроенную рабочую область плоттера.",
     );
-  if (!options.originConfirmed)
-    blockers.push("Нулевая точка плоттера не подтверждена.");
-  if (options.penReferenceConfirmed === false)
-    blockers.push("Укажите текущее положение пера во вкладке «Плоттер»: поднято или опущено.");
-  if (options.penPositionsVerified === false)
-    blockers.push("Сохраните проверенные верхнее и нижнее положения пера во вкладке «Плоттер».");
-  if (!options.calibrated)
-    warnings.push("Профиль ещё не прошёл калибровку.");
 
   return {
     hasStrokes,
     hasMissingGlyphs,
     clipped,
-    calibrated: options.calibrated,
-    originConfirmed: options.originConfirmed,
     withinWorkArea,
     blockers,
     warnings,
     canStart: blockers.length === 0,
   };
+}
+
+export interface PlotterDeviceReadinessInput {
+  connected: boolean;
+  running: boolean;
+  busy: boolean;
+  calibrationActive: boolean;
+  emergencyStopped: boolean;
+  profile: string;
+  machineState?: string;
+  statusReceivedAt?: number;
+  originConfirmed: boolean;
+  penReferenceConfirmed: boolean;
+  penPositionsVerified: boolean;
+  workAreaConfirmed: boolean;
+}
+
+/** Hardware gate shared by document, workshop, frame, imported and recovery jobs. */
+export function assessDeviceReadiness(input: PlotterDeviceReadinessInput, now = Date.now()) {
+  const blockers: string[] = [];
+  if (input.emergencyStopped) blockers.push("Действует СТОП. Проверьте механизм и разрешите управление.");
+  if (!input.connected) blockers.push("Подключите плоттер во вкладке «Плоттер».");
+  if (input.running || input.busy) blockers.push("Дождитесь завершения текущей операции.");
+  if (input.calibrationActive) blockers.push("Завершите настройку направлений и рабочей области.");
+  if (input.connected && input.profile === "grbl") {
+    if (!input.statusReceivedAt || now - input.statusReceivedAt > 3000)
+      blockers.push("Нет свежего ответа контроллера. Проверьте соединение.");
+    else if (input.machineState === "Alarm") blockers.push("Контроллер сообщает Alarm. Устраните причину и снимите блокировку.");
+    else if (input.machineState !== "Idle") blockers.push("Контроллер ещё не готов к запуску. Дождитесь состояния Idle.");
+  }
+  if (!input.workAreaConfirmed) blockers.push("Проверьте направления и размеры рабочей области во вкладке «Плоттер». Это сохраняется в профиле.");
+  if (!input.penPositionsVerified) blockers.push("Сохраните верхнее и нижнее положения пера во вкладке «Плоттер».");
+  else if (!input.penReferenceConfirmed) blockers.push("Укажите текущее положение пера во вкладке «Плоттер».");
+  if (!input.originConfirmed) blockers.push("Задайте начало листа во вкладке «Плоттер».");
+  return { blockers, canStart: blockers.length === 0 };
 }

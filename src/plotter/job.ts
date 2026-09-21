@@ -1444,9 +1444,9 @@ export function parseCustomGcode(value) {
 function penCommand(up, config, pressure = 1) {
   const servoMax = config.profile === "marlin" ? 180 : 32767;
   const pressuredPenDown = Math.max(
-    0,
+    Math.min(Number(config.penUp), Number(config.penDown)),
     Math.min(
-      servoMax,
+      Math.min(servoMax, Math.max(Number(config.penUp), Number(config.penDown))),
       Number(config.penUp) +
         (Number(config.penDown) - Number(config.penUp)) *
           Math.max(0.72, Math.min(1.28, pressure)),
@@ -1627,9 +1627,17 @@ export function compilePlotJob(strokes, config) {
   if (config.profile !== "ebb") commands.push("G21", "G90");
   addPen(true);
   penChanges += 1;
-  if (config.autoSetOrigin && config.profile !== "ebb")
-    commands.push(...createOriginCommands(config));
-  commands.push(...parseCustomGcode(config.customStartGcode));
+
+  const startCommands = parseCustomGcode(config.customStartGcode);
+  commands.push(...startCommands);
+  if (startCommands.length && config.profile !== "ebb") {
+    // User macros must not leak units, relative mode or a lowered pen into
+    // the generated document trajectory.
+    commands.push("G21", "G90");
+    addPen(true);
+    penChanges += 1;
+    penLifts += 1;
+  }
   for (const stroke of machineStrokes) {
     if (stroke.length < 2) continue;
     if (recoverable) resumePoints.push(commands.length);
@@ -1682,7 +1690,14 @@ export function compilePlotJob(strokes, config) {
     travelDistance += travel;
     commands.push(`G0X0Y0F${config.jogSpeed}`);
   }
-  commands.push(...parseCustomGcode(config.customEndGcode));
+  const endCommands = parseCustomGcode(config.customEndGcode);
+  commands.push(...endCommands);
+  if (endCommands.length && config.profile !== "ebb") {
+    commands.push("G21", "G90");
+    addPen(true);
+    penChanges += 1;
+    penLifts += 1;
+  }
 
   const estimatedSeconds =
     drawSeconds +

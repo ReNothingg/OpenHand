@@ -16,7 +16,6 @@ type Options = {
   statusReceivedAt?: number;
   setConfig: (update: (config: Config) => Config) => void;
   sendCommands: (commands: string[], options?: { waitForMotion?: boolean }) => Promise<unknown>;
-  disarm: () => void;
 };
 
 /** Session-only pose. Profile values never imply a known physical position. */
@@ -70,7 +69,6 @@ export function usePenControl(options: Options) {
     const token = revision.current;
     inflight.current = true;
     setBusy(true);
-    live.disarm();
     const commit = (position: number | null) => {
       if (token !== revision.current || live.context !== current.current.context || current.current.stopped)
         throw new Error("Операция отменена. Текущее положение пера неизвестно.");
@@ -114,13 +112,11 @@ export function usePenControl(options: Options) {
     if (!before.referenced || before.position === null) throw new Error("Сначала начните настройку в текущем положении.");
     const next = savePenPosition(live.config, up, before.position);
     live.setConfig(() => next);
-    live.disarm();
   }, [ensureIdle, pose]);
   const reset = useCallback(() => {
     const live = ensureIdle(false);
     invalidate();
     live.setConfig(clearPenSetup);
-    live.disarm();
   }, [ensureIdle, invalidate]);
   const test = useCallback((up: boolean, value?: number) => operate(async (live, commit) => {
     const stepper = ["stepper", "estepper"].includes(live.config.penMode);

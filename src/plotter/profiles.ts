@@ -6,7 +6,7 @@ export const PLOTTER_PROFILES_VERSION = 1;
 
 // Document/font changes and tuning pen travel do not undo a physical axis check.
 const CALIBRATION_KEYS = [
-  "profile", "penMode", "swapAxes", "invertX", "invertY", "mmToSteps",
+  "profile", "swapAxes", "invertX", "invertY", "mmToSteps",
   "workAreaWidth", "workAreaHeight",
 ];
 export const ORIGIN_CONFIG_KEYS = [
@@ -82,7 +82,7 @@ export const PLOTTER_DEVICE_PRESETS = [
       penUp: 50,
       penDown: 0,
       startPosition: "left-top",
-      autoSetOrigin: true,
+      autoSetOrigin: false,
       returnToOrigin: true,
     },
   },
@@ -283,10 +283,8 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
     swapAxes: boolean(incoming.swapAxes, DEFAULT_PLOTTER_CONFIG.swapAxes),
     invertX: boolean(incoming.invertX, DEFAULT_PLOTTER_CONFIG.invertX),
     invertY: boolean(incoming.invertY, DEFAULT_PLOTTER_CONFIG.invertY),
-    autoSetOrigin: boolean(
-      incoming.autoSetOrigin,
-      DEFAULT_PLOTTER_CONFIG.autoSetOrigin,
-    ),
+    // Legacy automatic zeroing is disabled: the sheet origin is explicit.
+    autoSetOrigin: false,
     returnToOrigin: boolean(
       incoming.returnToOrigin,
       DEFAULT_PLOTTER_CONFIG.returnToOrigin,

@@ -55,7 +55,7 @@ export default function PenCalibrationSheet({ workspace }) {
         <button
           className="button primary"
           type="button"
-          disabled={!workspace.connected || workspace.running || workspace.calibrationActive || !sheet.withinWorkArea}
+          disabled={!workspace.deviceReadiness.canStart || !sheet.withinWorkArea}
           onClick={async () => {
             setNotice("");
             const success = await workspace.runPenCalibration(sheet);

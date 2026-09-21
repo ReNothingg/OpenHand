@@ -29,8 +29,6 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
     config,
     busy,
     error,
-    armed,
-    setArmed,
     connected,
     running,
     plotter,
@@ -80,31 +78,16 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         </p>
       )}
 
-      <div className="plotter-preflight" aria-label="Проверка перед запуском">
-        <span className={preflight.calibrated ? "pass" : "warning"}>
-          {preflight.calibrated ? "✓ Калибровка" : "• Нужна калибровка"}
-        </span>
-        <span className={!preflight.hasMissingGlyphs ? "pass" : "warning"}>
-          {!preflight.hasMissingGlyphs ? "✓ Глифы" : "• Есть пропуски"}
-        </span>
-        <span className={!preflight.clipped ? "pass" : "warning"}>
-          {!preflight.clipped ? "✓ Лист" : "• Есть обрезка"}
-        </span>
-        <span className={preflight.withinWorkArea ? "pass" : "warning"}>
-          {preflight.withinWorkArea
-            ? "✓ Рабочая область"
-            : "• Выход за механику"}
-        </span>
-        <span className={originConfirmed ? "pass" : "warning"}>
-          {originConfirmed ? "✓ Ноль листа" : "• Задайте ноль листа"}
-        </span>
-        {["stepper", "estepper"].includes(config.penMode) && (
-          <span className={workspace.penReferenceConfirmed ? "pass" : "warning"}>
-            {workspace.penReferenceConfirmed ? "✓ Положение пера" : "• Сохраните касание пера"}
-          </span>
-        )}
-      </div>
+      {preflight.blockers.length > 1 && <ul className="plotter-readiness-details">
+        {preflight.blockers.slice(1).map(message => <li key={message}>{message}</li>)}
+      </ul>}
+      {preflight.warnings.map(message => <p className="plotter-note" key={message}>{message}</p>)}
       </details>
+      {!workspace.deviceReadiness.canStart && !running && <button className="text-button" type="button"
+        onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>
+        Открыть настройки плоттера →
+      </button>}
+
       <div className="plotter-control-grid">
         <section className="plotter-control-card recording-card" aria-label="Запись на бумаге">
           <h3>Запись на бумаге</h3>
@@ -129,23 +112,13 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
 
       </div>
       <div className="plotter-footer-actions">
-        <label className="plotter-arm">
-          <input
-            type="checkbox"
-            checked={armed}
-            disabled={calibrationActive}
-            onChange={(event) => setArmed(event.target.checked)}
-          />
-          <span>Перо и нулевая точка проверены.</span>
-        </label>
         <div className="plotter-runbar">
 
           <button
             className="button ghost compact"
             type="button"
             disabled={
-              calibrationActive ||
-              !connected ||
+              !preflight.canStart ||
               !job.commands.length ||
               busy ||
               config.profile === "ebb"
@@ -161,7 +134,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
               disabled={
                 calibrationActive ||
                 !connected ||
-                !armed ||
+                !workspace.deviceReadiness.canStart ||
                 !preflight.canStart ||
                 !job.commands.length ||
                 busy
@@ -195,7 +168,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
                 disabled={
                   calibrationActive ||
                   !connected ||
-                  !armed ||
+                  !workspace.deviceReadiness.canStart ||
                   !originConfirmed ||
                   busy
                 }
@@ -388,6 +361,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
                 {warning}
               </p>
             ))}
+            {workspace.importedLaunchBlockers.map(message => <p className="plotter-warning" key={message}>{message}</p>)}
             <button
               className="button primary compact"
               type="button"
@@ -395,9 +369,10 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
                 calibrationActive ||
                 !connected ||
                 running ||
-                !armed ||
+                !workspace.deviceReadiness.canStart ||
                 !originConfirmed ||
                 !workspace.importedWithinWorkArea ||
+                workspace.importedLaunchBlockers.length > 0 ||
                 config.profile === "ebb"
               }
               onClick={workspace.runImportedGcode}
@@ -413,8 +388,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
 
       {recoveryAvailable && !originConfirmed && (
         <p className="plotter-warning">
-          Для продолжения: выполните homing на контроллере, верните перо в
-          исходную точку листа и нажмите «Установить ноль».
+          Для продолжения задайте начало листа и текущее положение пера во вкладке «Плоттер».
         </p>
       )}
       {plotter.progress.total > 0 && (

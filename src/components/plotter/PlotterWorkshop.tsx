@@ -21,7 +21,7 @@ import {
   type SceneObject,
   sceneObject,
 } from "../../plotter/workshop";
-import { compilePlotJob, createDryRunCommands } from "../../plotter/job";
+import { compilePlotJob } from "../../plotter/job";
 import { downloadFile } from "../../lib/files";
 import { formatNominalDuration, timingExplanation } from "./PlotterFooter";
 
@@ -110,16 +110,8 @@ export default function PlotterWorkshop({
   const paperWidth = document.paperRotated ? config.workAreaHeight : config.workAreaWidth;
   const paperHeight = document.paperRotated ? config.workAreaWidth : config.workAreaHeight;
   const withinPaper = box.minX >= 0 && box.minY >= 0 && box.maxX <= paperWidth && box.maxY <= paperHeight;
-  const canRun =
-    connected &&
-    !locked &&
-    workspace.armed &&
-    workspace.originConfirmed &&
-    (!["stepper", "estepper"].includes(config.penMode) || workspace.penReferenceConfirmed) &&
-    workspace.activeProfile.calibratedAt &&
-    job.withinWorkArea &&
-    withinPaper &&
-    document.strokes.length > 0;
+  const readiness = workspace.assessJob({ strokes: document.strokes, clipped: !withinPaper }, job.withinWorkArea, job.commands);
+  const canRun = readiness.canStart;
   const path = useMemo(
     () =>
       document.strokes
@@ -161,7 +153,6 @@ export default function PlotterWorkshop({
     return () => clearTimeout(timer);
   }, [document]);
   useEffect(() => {
-    workspace.setArmed(false);
   }, [document, job.id]);
   const attempt = async (action: () => unknown) => {
     setError("");
@@ -552,25 +543,11 @@ export default function PlotterWorkshop({
                 его.
               </p>
             )}
-            <div className="workshop-checklist">
-              <span
-                className={workspace.activeProfile.calibratedAt ? "ready" : ""}
-              >
-                {workspace.activeProfile.calibratedAt ? "✓" : "○"} Калибровка
-              </span>
-              <span className={workspace.originConfirmed ? "ready" : ""}>
-                {workspace.originConfirmed ? "✓" : "○"} Ноль задан
-              </span>
-              <label className="workshop-check">
-                <input
-                  type="checkbox"
-                  checked={workspace.armed}
-                  disabled={locked}
-                  onChange={(e) => workspace.setArmed(e.target.checked)}
-                />
-                Перо и лист проверены
-              </label>
-            </div>
+            {!running && <p className={canRun ? "plotter-note" : "plotter-warning"}>
+              {canRun ? "Готово к записи" : readiness.blockers[0]}
+            </p>}
+            {!workspace.deviceReadiness.canStart && !running && <button className="text-button"
+              onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>Открыть настройки плоттера →</button>}
             <div className="workshop-run-actions">
               <button
                 disabled={!document.strokes.length}
@@ -588,7 +565,7 @@ export default function PlotterWorkshop({
                 disabled={!canRun || config.profile === "ebb"}
                 onClick={() =>
                   void attempt(() =>
-                    plotter.run(createDryRunCommands(document.strokes, config)),
+                    workspace.runPreparedFrame(document.strokes, withinPaper),
                   )
                 }
               >
@@ -599,7 +576,7 @@ export default function PlotterWorkshop({
                 disabled={!canRun}
                 onClick={() =>
                   void attempt(() => {
-                    if (canRun) return plotter.run(job);
+                    return workspace.runPreparedJob(job, { strokes: document.strokes, clipped: !withinPaper });
                   })
                 }
               >
@@ -624,7 +601,6 @@ export default function PlotterWorkshop({
                 className="danger"
                 disabled={!connected}
                 onClick={() => {
-                  workspace.setArmed(false);
                   void workspace.stop();
                 }}
               >
