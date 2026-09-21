@@ -1,6 +1,5 @@
 import { useEffect, useReducer, useRef } from "react";
 import { createPortal } from "react-dom";
-import { penLiftDistance, penLiftTarget } from "../../plotter/penLift";
 import {
   CALIBRATION_CHECKS,
   calibrationCanContinue,
@@ -266,20 +265,14 @@ export default function PlotterCalibrationWizard({ workspace }) {
               {penStep && step.id !== "pen-reference" && workspace.config.profile !== "ebb" && (
                 <fieldset disabled={running}>
                   <legend>Положение пера</legend>
-                  {(workspace.config.penMode === "servo" ? [["penUp", "Поднято"], ["penDown", "Касание"]] : [["zUp", "Ход подъёма, мм"], ["zDown", "Координата касания Z/E, мм"]]).map(([key, label]) => (
+                  {(workspace.config.penMode === "servo" ? [["penUp", "Поднято"], ["penDown", "Касание"]] : [["zUp", "Перо поднято"], ["zDown", "Перо опущено"]]).map(([key, label]) => (
                     <label className="field" key={key}>
                       <span>{label}</span>
-                      <input type="number" value={key === "zUp" ? penLiftDistance(workspace.config) : workspace.config[key]} step={workspace.config.penMode === "servo" ? 1 : 0.1} onChange={(event) => {
-                        if (event.target.value !== "" && Number.isFinite(event.target.valueAsNumber)) adjust(key, key === "zUp" ? penLiftTarget(workspace.config, event.target.valueAsNumber) : event.target.valueAsNumber);
+                      <input type="number" value={workspace.config[key]} step={workspace.config.penMode === "servo" ? 1 : 0.1} onChange={(event) => {
+                        if (event.target.value !== "" && Number.isFinite(event.target.valueAsNumber)) adjust(key, event.target.valueAsNumber);
                       }} />
                     </label>
                   ))}
-                  {["stepper", "estepper"].includes(workspace.config.penMode) && (
-                    <button type="button" className="button" disabled={Math.abs(workspace.config.zUp - workspace.config.zDown) < 0.02}
-                      onClick={() => adjust("zUp", Math.round((Number(workspace.config.zUp) + Number(workspace.config.zDown)) * 50) / 100)}>
-                      Уменьшить подъём вдвое
-                    </button>
-                  )}
                   <p className="calibration-note">Изменение сохраняет настройку без движения. Высота подъёма меняется относительно установленного нуля; положение опускания не сдвигается.</p>
                 </fieldset>
               )}

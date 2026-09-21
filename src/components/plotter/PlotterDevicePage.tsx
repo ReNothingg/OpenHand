@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import PlotterSettings from "./PlotterSettings";
 import MachineMonitor from "./MachineMonitor";
-import { penLiftDistance, penLiftTarget } from "../../plotter/penLift";
+import { penLiftDistance } from "../../plotter/penLift";
 import "../../styles/plotter-device.css";
 
 function NumberSetting({ label, value, onChange, min, max, disabled = false }: any) {
@@ -25,7 +25,6 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
   const { config, connected, running, calibrationActive, plotter } = workspace;
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
-  const [step, setStep] = useState(0.1);
   const stepper = ["stepper", "estepper"].includes(config.penMode);
   const alarm = plotter.machineStatus?.state === "Alarm";
   const locked = busy || running || calibrationActive;
@@ -45,54 +44,54 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
     {workspace.error && <p className="plotter-error" role="alert">{workspace.error}</p>}
     <div className="device-grid">
       <section className="device-pen-card" aria-labelledby="device-pen-title">
-        <h2 id="device-pen-title">Перо и прижим</h2>
-        <label className="device-number"><span>Механизм подъёма</span>
-          <select value={config.penMode} disabled={locked || config.profile === "ebb"} onChange={e => set("penMode", e.target.value)}>
-            <option value="stepper">Шаговый двигатель · Z</option><option value="servo">Сервопривод</option>
-            {config.profile === "marlin" && <option value="estepper">Шаговый двигатель · E</option>}
-            {config.profile === "grbl" && <option value="laser">Лазер / PWM</option>}
-          </select>
-        </label>
-        {!connected && <p className="device-hint">Подключите плоттер в соседнем блоке. Числа можно настроить заранее, кнопки движения станут доступны после подключения.</p>}
-        {running && <p className="device-hint">Идёт задание. Для ручной проверки сначала остановите его.</p>}
-        {alarm && <p className="device-hint">Контроллер в Alarm. Причина и снятие блокировки — в блоке состояния.</p>}
-        {stepper ? <>
-          <details className="device-step" open={!workspace.penReferenceConfirmed}><summary><h3>1. Настроить мягкое касание</h3></summary>
-            <p>Подведите кончик к бумаге короткими шагами. Он должен касаться листа без сильного продавливания. Для этих шагов ноль пера не нужен.</p>
-            <label className="device-number"><span>Шаг подстройки</span><select value={step} disabled={locked} onChange={e => setStep(Number(e.target.value))}>
-              <option value={0.1}>0,1 мм</option><option value={0.25}>0,25 мм</option><option value={0.5}>0,5 мм</option>
-            </select></label>
-            <div className="device-buttons"><button disabled={!canMove} onClick={() => void execute(() => workspace.jogPen(true, step))}>↑ Выше на {step} мм</button>
-              <button disabled={!canMove} onClick={() => void execute(() => workspace.jogPen(false, step))}>↓ Ниже на {step} мм</button></div>
-            <button className="button primary device-wide" disabled={!canMove} onClick={() => void execute(workspace.setPenContact)}>Здесь нормальное касание — сохранить</button>
-            <small>Сохраняет текущую высоту без движения. Ноль листа не меняется.</small>
-          </details>
-          <section className="device-step"><h3>2. Настройте подъём</h3>
-            <NumberSetting label="Поднимать над касанием, мм" value={penLiftDistance(config)} min={0.1} max={10} disabled={locked}
-              onChange={(v: number) => set("zUp", penLiftTarget(config, v))} />
-            <NumberSetting label="Скорость подъёма и опускания, мм/мин" value={config.zSpeed} min={1} max={3000} disabled={locked} onChange={(v: number) => set("zSpeed", v)} />
-            <p>Это расстояние между касанием и поднятым пером. Изменение числа само не двигает механизм.</p>
-            <div className="device-buttons"><button disabled={!canMove || !workspace.penReferenceConfirmed} onClick={() => void execute(() => workspace.pen(true))}>↑ Проверить подъём</button>
-              <button disabled={!canMove || !workspace.penReferenceConfirmed} onClick={() => void execute(() => workspace.pen(false))}>↓ Проверить касание</button></div>
-            {!workspace.penReferenceConfirmed && <small>Сначала сохраните касание в шаге 1.</small>}
-          </section>
-          <section className="device-step"><h3>3. Подстройте прижим</h3>
-            <p>Каждое нажатие меняет положение касания на {step} мм и сразу проверяет его. Величина подъёма сохраняется.</p>
-            <div className="device-buttons"><button disabled={!canMove || !workspace.penReferenceConfirmed} onClick={() => void execute(() => workspace.adjustPenContact(false, step))}>Мягче · {step} мм</button>
-              <button disabled={!canMove || !workspace.penReferenceConfirmed} onClick={() => void execute(() => workspace.adjustPenContact(true, step))}>Сильнее · {step} мм</button></div>
-          </section>
-          <details className="device-advanced"><summary>Координаты пера и направление подъёма</summary>
-            <NumberSetting label="Координата поднятого пера Z/E" value={config.zUp} min={-50} max={50} disabled={locked} onChange={(v: number) => set("zUp", v)} />
-            <NumberSetting label="Координата касания Z/E" value={config.zDown} min={-50} max={50} disabled={locked} onChange={(v: number) => set("zDown", v)} />
-            <p>Подъём сейчас идёт в сторону {config.zUp <= config.zDown ? "уменьшения" : "увеличения"} Z/E.</p>
-            <button disabled={!canMove || workspace.penReferenceConfirmed} onClick={() => void execute(workspace.setPenReference)}>Текущее положение — поднятое перо</button>
-          </details>
-        </> : config.penMode === "servo" ? <section className="device-step">
-          <NumberSetting label="Положение сервопривода: поднято" value={config.penUp} min={0} max={config.profile === "marlin" ? 180 : 32767} disabled={locked} onChange={(v: number) => set("penUp", v)} />
-          <NumberSetting label="Положение сервопривода: опущено" value={config.penDown} min={0} max={config.profile === "marlin" ? 180 : 32767} disabled={locked} onChange={(v: number) => set("penDown", v)} />
-          <div className="device-buttons"><button disabled={!canMove} onClick={() => void execute(() => workspace.pen(true))}>↑ Проверить подъём</button><button disabled={!canMove} onClick={() => void execute(() => workspace.pen(false))}>↓ Проверить опускание</button></div>
+        <h2 id="device-pen-title">Положение пера</h2>
+        <p className="device-hint">Задайте два положения и проверьте каждое кнопкой рядом. Числа сохраняются автоматически; ввод сам по себе не двигает перо.</p>
+        {!connected && <p className="device-hint">Для проверки подключите плоттер в блоке справа.</p>}
+        {running && <p className="device-hint">Проверка доступна после завершения или остановки задания.</p>}
+        {alarm && <p className="device-hint">Контроллер в Alarm. Сначала устраните причину аварии и снимите блокировку в блоке состояния.</p>}
+        {config.penMode !== "laser" ? <>
+          <div className="device-position-row">
+            <NumberSetting label="Перо поднято" value={stepper ? config.zUp : config.penUp}
+              min={stepper ? -50 : 0} max={stepper ? 50 : config.profile === "marlin" ? 180 : 32767}
+              disabled={locked} onChange={(v: number) => set(stepper ? "zUp" : "penUp", v)} />
+            <button disabled={!canMove || (stepper && !workspace.penReferenceConfirmed)}
+              aria-label="Проверить поднятое положение" onClick={() => void execute(() => workspace.pen(true))}>Проверить ↑</button>
+          </div>
+          <div className="device-position-row">
+            <NumberSetting label="Перо опущено" value={stepper ? config.zDown : config.penDown}
+              min={stepper ? -50 : 0} max={stepper ? 50 : config.profile === "marlin" ? 180 : 32767}
+              disabled={locked} onChange={(v: number) => set(stepper ? "zDown" : "penDown", v)} />
+            <button disabled={!canMove || (stepper && !workspace.penReferenceConfirmed)}
+              aria-label="Проверить опущенное положение" onClick={() => void execute(() => workspace.pen(false))}>Проверить ↓</button>
+          </div>
+          {stepper && <p className="device-travel">Ход между положениями: <strong>{penLiftDistance(config)} мм</strong>. Значения выше — координаты, не величина подъёма.</p>}
+          {stepper && !workspace.penReferenceConfirmed && connected && !alarm && !running && (
+            <div className="device-reference">
+              <p>Укажите, в каком из этих положений перо находится сейчас. Это не двигает перо и не меняет введённые значения.</p>
+              <div className="device-buttons">
+                <button disabled={locked} onClick={() => void execute(() => workspace.setPenReference("up"))}>Сейчас поднято</button>
+                <button disabled={locked} onClick={() => void execute(() => workspace.setPenReference("down"))}>Сейчас опущено</button>
+              </div>
+            </div>
+          )}
+        </> : <p className="device-hint">В режиме лазера проверка положения пера недоступна.</p>}
+        <details className="device-advanced"><summary>Дополнительно</summary>
+          <label className="device-number"><span>Механизм подъёма</span>
+            <select value={config.penMode} disabled={locked || config.profile === "ebb"} onChange={e => set("penMode", e.target.value)}>
+              <option value="stepper">Шаговый двигатель · Z</option><option value="servo">Сервопривод</option>
+              {config.profile === "marlin" && <option value="estepper">Шаговый двигатель · E</option>}
+              {config.profile === "grbl" && <option value="laser">Лазер / PWM</option>}
+            </select>
+          </label>
+          {stepper && <>
+            <NumberSetting label="Скорость пера, мм/мин" value={config.zSpeed} min={1} max={3000} disabled={locked} onChange={(v: number) => set("zSpeed", v)} />
+            <p>Ручной поиск положения — короткими шагами, без изменения сохранённых чисел.</p>
+            <div className="device-buttons"><button disabled={!canMove} onClick={() => void execute(() => workspace.jogPen(true, 0.1))}>↑ На 0,1 мм</button>
+              <button disabled={!canMove} onClick={() => void execute(() => workspace.jogPen(false, 0.1))}>↓ На 0,1 мм</button></div>
+          </>}
           {config.profile === "ebb" && <NumberSetting label="Шагов на миллиметр" value={config.mmToSteps} min={1} max={1000} disabled={locked} onChange={(v: number) => set("mmToSteps", v)} />}
-        </section> : <section className="device-step"><p>В режиме лазера проверка пера недоступна.</p><NumberSetting label="Мощность S" value={config.laserPower} min={0} max={1000} disabled={locked} onChange={(v: number) => set("laserPower", v)} /></section>}
+          {config.penMode === "laser" && <NumberSetting label="Мощность S" value={config.laserPower} min={0} max={1000} disabled={locked} onChange={(v: number) => set("laserPower", v)} />}
+        </details>
       </section>
       <aside className="device-configuration settings-panel">
         <MachineMonitor workspace={workspace} compact />

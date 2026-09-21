@@ -5,10 +5,7 @@
 .device-grid { max-width: 1180px; margin: auto; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 .device-pen-card { padding: 24px; border: 1px solid var(--border, #8884); border-radius: 16px; background: var(--panel-bg, transparent); }
 .device-pen-card h2 { margin: 0 0 20px; font-size: 21px; }
-.device-step { border-top: 1px solid #8883; margin-top: 22px; padding-top: 20px; }
-.device-step h3 { margin: 0 0 10px; font-size: 16px; }
-.device-step p, .device-hint, .device-advanced p { font-size: 14px; line-height: 1.55; opacity: .8; }
-.device-step small { display: block; margin-top: 10px; opacity: .7; line-height: 1.5; }
+.device-hint, .device-advanced p { font-size: 14px; line-height: 1.55; opacity: .8; }
 .device-number { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 14px 0; font-size: 14px; }
 .device-number input { width: 104px; }
 .device-number input, .device-number select { min-height: 40px; padding: 8px 10px; border: 1px solid #8885; border-radius: 8px; background: transparent; color: inherit; font: inherit; }
@@ -18,7 +15,6 @@
 .device-buttons button { flex: 1; }
 .device-pen-card button:disabled { opacity: .4; cursor: default; }
 .device-pen-card button.primary { background: var(--accent, #31975d); color: #fff; }
-.device-wide { width: 100%; }
 .device-advanced { margin-top: 22px; border-top: 1px solid #8883; padding-top: 16px; }
 .device-advanced summary { cursor: pointer; font-size: 13px; opacity: .7; }
 .app .device-page .device-configuration { opacity: 1; visibility: visible; pointer-events: auto; position: static; width: auto; max-width: none; height: auto; max-height: none; padding: 0; overflow: visible; border: 0; background: transparent; box-shadow: none; transform: none; }
@@ -30,5 +26,9 @@
 :root .with-workspace-nav > .device-page { flex: 1; height: auto; min-height: 0; }
 .device-configuration .machine-monitor > details > summary { padding: 10px 0; opacity: .7; cursor: pointer; font-size: 13px; }
 
-.device-step > summary { cursor: pointer; }
-.device-step > summary h3 { display: inline; }
+.device-position-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 16px 0; border-bottom: 1px solid #8883; }
+.device-position-row .device-number { margin: 0; }
+.device-position-row button { white-space: nowrap; }
+.device-travel { font-size: 13px; opacity: .75; line-height: 1.5; margin: 16px 0; }
+.device-reference { padding-top: 8px; font-size: 14px; line-height: 1.5; }
+@media (max-width: 460px) { .device-position-row { grid-template-columns: 1fr; } .device-position-row button { justify-self: stretch; } }

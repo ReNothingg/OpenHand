@@ -20,7 +20,6 @@ import {
 } from "../plotter/job";
 import { PLOTTER_PAGE_BREAK } from "../plotter/richText";
 import { runCalibrationAction } from "../plotter/calibrationRunner";
-import { penContactConfig, adjustPenContact } from "../plotter/penLift";
 import { mergeTrajectoryReports } from "../font-builder/letterForms";
 import {
   configFromDevicePreset,
@@ -785,32 +784,17 @@ export function useIntegratedPlotter({
     preflight,
     originConfirmed,
     penReferenceConfirmed,
-    setPenReference: () => safeAction(async () => {
-      if (penReferenceConfirmed) return;
-      await plotter.sendCommands(createPenReferenceCommands(config));
-      setPenReferenceConfirmed(true);
-    }),
-    setPenContact: () => safeAction(async () => {
+    setPenReference: (position: "up" | "down" = "up") => safeAction(async () => {
       if (!needsPenReference || running || calibrationActive)
-        throw new Error("Касание задаётся для шагового пера вне задания и мастера.");
-      const contactConfig = penContactConfig(config);
-      await plotter.sendCommands(createPenReferenceCommands(contactConfig, "down"));
-      setConfig((current) => ({ ...current, zUp: contactConfig.zUp, zDown: contactConfig.zDown }));
+        throw new Error("Дождитесь завершения операции и выберите шаговый механизм пера.");
+      if (penReferenceConfirmed) return;
+      await plotter.sendCommands(createPenReferenceCommands(config, position));
       setPenReferenceConfirmed(true);
-      setArmed(false);
     }),
     jogPen: (up, distance) => safeAction(async () => {
       if (running || calibrationActive) throw new Error("Дождитесь завершения текущей операции.");
       setArmed(false);
       await plotter.sendCommands(createPenJogCommands(up, distance, config), { waitForMotion: true });
-    }),
-    adjustPenContact: (deeper, distance) => safeAction(async () => {
-      if (running || calibrationActive || !needsPenReference || !penReferenceConfirmed)
-        throw new Error("Сначала сохраните касание пера, затем подстройте прижим.");
-      setArmed(false);
-      const next = adjustPenContact(config, deeper, distance);
-      await plotter.sendCommands(createPenCommand(false, next), { waitForMotion: true });
-      setConfig((current) => ({ ...current, zUp: next.zUp, zDown: next.zDown }));
     }),
     resetProgress: () => safeAction(() => {
       if (running || calibrationActive) throw new Error("Сначала завершите текущую операцию.");
@@ -838,7 +822,7 @@ export function useIntegratedPlotter({
       ),
     pen: (up) => safeAction(() => {
       if (needsPenReference && !penReferenceConfirmed)
-        throw new Error("Сначала сохраните нормальное касание пера в ручной проверке или задайте опору от поднятого пера.");
+        throw new Error("Укажите текущее положение пера во вкладке «Плоттер»: поднято или опущено.");
       return plotter.sendCommands(createPenCommand(up, config), { waitForMotion: true });
     }),
     setOrigin,
