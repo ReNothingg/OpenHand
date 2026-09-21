@@ -684,6 +684,15 @@ export default function App() {
     pending: calculationPending,
   });
   useEffect(() => {
+    const emergencyKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.repeat) return;
+      event.preventDefault();
+      void plotterWorkspace.stop();
+    };
+    window.addEventListener("keydown", emergencyKey, true);
+    return () => window.removeEventListener("keydown", emergencyKey, true);
+  }, [plotterWorkspace.stop]);
+  useEffect(() => {
     if (plotterWorkspace.running) {
       setEditorExpanded(false);
       setManualEditing(false);
@@ -820,7 +829,15 @@ export default function App() {
         </div>
         <div ref={setToolbarHost} className="document-toolbar-host" />
         <AppearanceControl />
+        <button type="button" className="emergency-stop" aria-label="СТОП — аварийная остановка плоттера"
+          title="Остановить плоттер и отменить очередь · Esc" onClick={() => void plotterWorkspace.stop()}>
+          <span aria-hidden="true">■</span> СТОП <kbd>Esc</kbd>
+        </button>
       </nav>
+      {plotterWorkspace.stopNotice && <div className="emergency-stop-notice" role="alert">
+        <span>{plotterWorkspace.stopNotice}</span>
+        {plotterWorkspace.emergencyStopped && <button type="button" onClick={plotterWorkspace.releaseEmergencyStop}>Разрешить управление</button>}
+      </div>}
       {workspaceMode === "device" ? (
         <PlotterDevicePage workspace={plotterWorkspace} />
       ) : workspaceMode === "workshop" ? (

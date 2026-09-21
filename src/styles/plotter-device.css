@@ -135,3 +135,14 @@
   :root .device-page .plotter-row.two { grid-template-columns: minmax(0, 1fr); }
 }
 @media print { .device-page { display: none; } }
+
+.device-teach { border-top: 1px solid var(--line); padding: 16px 0; }
+.device-teach .device-hint { margin: 12px 0 0; }
+:root .device-page .device-position-row button { white-space: normal; max-width: 130px; }
+
+.device-saved-position { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0; border-top: 1px solid var(--line); }
+.device-saved-position > span { font-size: 14px; font-weight: 600; }
+.device-saved-position small { display: block; margin-top: 5px; color: var(--text-secondary); font-size: 12px; font-weight: 400; }
+.device-saved-position output { font-size: 14px; font-variant-numeric: tabular-nums; }
+.device-reset-pen { display: grid; gap: 9px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+.device-reset-pen small { color: var(--text-secondary); font-size: 12px; line-height: 1.5; }

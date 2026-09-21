@@ -1808,7 +1808,7 @@ export function createPenJogCommands(up: boolean, distance: number, config) {
     throw new Error("Короткий шаг доступен для шагового пера Z/E.");
   if (!Number.isFinite(distance) || distance <= 0 || distance > 0.5)
     throw new Error("Выберите шаг пера от 0,1 до 0,5 мм.");
-  const direction = Math.sign(config.zUp - config.zDown) || -1;
+  const direction = config.zUpDirection === 1 ? 1 : config.zUpDirection === -1 ? -1 : Math.sign(config.zUp - config.zDown) || -1;
   const delta = number(distance * direction * (up ? 1 : -1));
   const speed = Math.min(60, Number(config.zSpeed));
   if (config.profile === "grbl") return [`$J=G21G91Z${delta}F${speed}`];

@@ -35,13 +35,13 @@ const ORIGIN_LABELS = {
   "right-bottom": "правый нижний",
 };
 
-function actionLabel(step, connected) {
+function actionLabel(step, connected, stepper) {
   if (step.kind === "connect")
     return connected ? "Проверить ответ" : "Подключить и проверить";
   if (step.kind === "origin") return "Установить ноль";
   if (step.action === "pen-reference") return "Принять текущую высоту за поднятое перо";
-  if (step.action === "pen-up") return "Поднять перо";
-  if (step.action === "pen-down") return "Опустить перо";
+  if (step.action === "pen-up") return stepper ? "Шаг к верхнему положению · до 0,1 мм" : "Поднять перо";
+  if (step.action === "pen-down") return stepper ? "Шаг к нижнему положению · до 0,1 мм" : "Опустить перо";
   return "Выполнить движение";
 }
 
@@ -351,7 +351,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
                 >
                   {running
                     ? "Выполняется…"
-                    : actionLabel(step, workspace.connected)}
+                    : actionLabel(step, workspace.connected, ["stepper", "estepper"].includes(workspace.config.penMode))}
                 </button>
               )}
             </>

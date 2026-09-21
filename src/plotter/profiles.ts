@@ -234,6 +234,10 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
     penDown: clamp(incoming.penDown, 0, servoMax, fallbackPenDown),
     zUp: clamp(incoming.zUp, -50, 50, DEFAULT_PLOTTER_CONFIG.zUp),
     zDown: clamp(incoming.zDown, -50, 50, DEFAULT_PLOTTER_CONFIG.zDown),
+    zUpDirection: incoming.zUpDirection === 1 || incoming.zUpDirection === -1
+      ? incoming.zUpDirection : (Math.sign(Number(incoming.zUp) - Number(incoming.zDown)) || -1),
+    penVerifiedUp: typeof incoming.penVerifiedUp === "string" ? incoming.penVerifiedUp : "",
+    penVerifiedDown: typeof incoming.penVerifiedDown === "string" ? incoming.penVerifiedDown : "",
     zSpeed: clamp(incoming.zSpeed, 1, 10000, DEFAULT_PLOTTER_CONFIG.zSpeed),
     laserPower: clamp(
       incoming.laserPower,

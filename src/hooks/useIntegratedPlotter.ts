@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { usePlotter } from "./usePlotter";
 import { usePlotterPlayback } from "./usePlotterPlayback";
@@ -31,6 +31,7 @@ import {
   ORIGIN_CONFIG_KEYS,
   updateProfileConfig,
 } from "../plotter/profiles";
+import { clearPenSetup, hasVerifiedPenPositions, penPositionKey, penTestDelta } from "../plotter/penLift";
 import { assessPlotterPreflight } from "../plotter/preflight";
 import { prepareImportedGcode } from "../plotter/gcodeImport";
 import { createSheetQueue } from "../plotter/sheetQueue";
@@ -138,8 +139,11 @@ export function useIntegratedPlotter({
   const [layouts, setLayouts] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [stopNotice, setStopNotice] = useState("");
   const [armed, setArmed] = useState(false);
   const [originConfirmed, setOriginConfirmed] = useState(false);
+  const [penSetupPosition, setPenSetupPosition] = useState<number | null>(null);
+  const penSetupBusy = useRef(false);
   const [penReferenceConfirmed, setPenReferenceConfirmed] = useState(false);
   const [calibrationActive, setCalibrationActive] = useState(false);
   const [importedGcode, setImportedGcode] = useState(null);
@@ -149,6 +153,7 @@ export function useIntegratedPlotter({
       (profile) => profile.id === profileStore.activeProfileId,
     ) || profileStore.profiles[0];
   const config = activeProfile.config;
+  const penPositionsVerified = hasVerifiedPenPositions(config);
   const needsPenReference = ["stepper", "estepper"].includes(config.penMode);
   const setConfig = useCallback((updater) => {
     setProfileStore((current) => {
@@ -411,6 +416,7 @@ export function useIntegratedPlotter({
   }, [plotter.controllerEpoch]);
   useEffect(() => {
     setPenReferenceConfirmed(false);
+    setPenSetupPosition(null);
   }, [connected, plotter.controllerEpoch, activeProfile.id, config.profile, config.penMode]);
   const progressPercent = plotter.progress.total
     ? (plotter.progress.current / plotter.progress.total) * 100
@@ -427,6 +433,7 @@ export function useIntegratedPlotter({
     originConfirmed,
     withinWorkArea: job.withinWorkArea,
     penReferenceConfirmed: !needsPenReference || penReferenceConfirmed,
+    penPositionsVerified,
   });
   const playback = usePlotterPlayback(job, {
     status: plotter.status,
@@ -508,16 +515,41 @@ export function useIntegratedPlotter({
       return false;
     }
   }, []);
-  const ensurePenHolding = useCallback(async () => {
-    if (config.profile !== "grbl" || config.penMode !== "stepper") return false;
-    const changed = await plotter.ensureStepperHolding();
-    if (changed) {
-      setPenReferenceConfirmed(false);
-      setOriginConfirmed(false);
-      setArmed(false);
-    }
-    return changed;
-  }, [config.profile, config.penMode, plotter.ensureStepperHolding]);
+  const testPenPosition = useCallback(async (up: boolean, value?: number) => {
+    if (penSetupBusy.current) throw new Error("Дождитесь окончания короткого шага.");
+    if (running) throw new Error("Сначала остановите задание.");
+    penSetupBusy.current = true;
+    try {
+      const key = needsPenReference ? (up ? "zUp" : "zDown") : (up ? "penUp" : "penDown");
+      const next = normalizePlotterConfig({ ...config, [key]: value ?? config[key] });
+      if (value !== undefined && (!Number.isFinite(value) || next[key] !== value))
+        throw new Error("Положение вне допустимого диапазона. Команда не отправлена.");
+      if (needsPenReference) {
+        if (!penReferenceConfirmed || penSetupPosition === null)
+          throw new Error("Сначала укажите текущее положение пера во вкладке «Плоттер».");
+        const delta = penTestDelta(penSetupPosition, Number(next[key]));
+        setConfig(current => ({ ...current, [key]: next[key] }));
+        setArmed(false);
+        if (delta === 0) return;
+        const direction = next.zUpDirection;
+        try {
+          await plotter.sendCommands(createPenJogCommands(Math.sign(delta) === direction, Math.abs(delta), next), { waitForMotion: true });
+          setPenSetupPosition(Number((penSetupPosition + delta).toFixed(3)));
+        } catch (error) {
+          setPenSetupPosition(null);
+          setPenReferenceConfirmed(false);
+          throw error;
+        }
+      } else {
+        setConfig(current => ({ ...current, [key]: next[key] }));
+        setArmed(false);
+        await plotter.sendCommands(createPenCommand(up, next), { waitForMotion: true });
+      }
+    } finally { penSetupBusy.current = false; }
+  }, [config, running, needsPenReference, penReferenceConfirmed, penSetupPosition, setConfig, plotter.sendCommands]);
+  useEffect(() => {
+    if (running) setPenSetupPosition(null);
+  }, [running]);
   const importFont = useCallback(async (file) => {
     if (!file) return;
     setBusy(true);
@@ -671,21 +703,22 @@ export function useIntegratedPlotter({
     async (action) => {
       setError("");
       try {
-        const holdingChanged = action.startsWith("pen-") && await ensurePenHolding();
-        if (holdingChanged && action !== "pen-reference")
-          throw new Error("Удержание моторов включено. Укажите текущее положение пера перед проверкой.");
         if (action.startsWith("pen-") && action !== "pen-reference" && needsPenReference && !penReferenceConfirmed)
           throw new Error("Сначала задайте ноль поднятого пера.");
-        if (action === "pen-reference" && penReferenceConfirmed && !holdingChanged) return [];
+        if (action === "pen-reference" && penReferenceConfirmed) return [];
+        if (needsPenReference && (action === "pen-up" || action === "pen-down")) {
+          await testPenPosition(action === "pen-up");
+          return [];
+        }
         const result = await runCalibrationAction(action, config, plotter.sendCommands);
-        if (action === "pen-reference") setPenReferenceConfirmed(true);
+        if (action === "pen-reference") { setPenReferenceConfirmed(true); setPenSetupPosition(config.zUp); }
         return result;
       } catch (reason) {
         setError(reason.message);
         throw reason;
       }
     },
-    [config, plotter.sendCommands, needsPenReference, penReferenceConfirmed, ensurePenHolding],
+    [config, plotter.sendCommands, needsPenReference, penReferenceConfirmed, testPenPosition],
   );
   const startCalibration = useCallback(() => {
     if (running) return false;
@@ -714,17 +747,18 @@ export function useIntegratedPlotter({
   const dryRun = useCallback(
     () =>
       safeAction(() => {
-        if (!originConfirmed || (needsPenReference && !penReferenceConfirmed))
+        if (!penPositionsVerified || !originConfirmed || (needsPenReference && !penReferenceConfirmed))
           throw new Error("Перед рамкой задайте ноль листа и ноль поднятого пера.");
+        setPenSetupPosition(null);
         return plotter.sendCommands(
           createDryRunCommands(activeLayout.strokes, config),
         );
       }),
-    [activeLayout.strokes, config, plotter.sendCommands, safeAction, originConfirmed, needsPenReference, penReferenceConfirmed],
+    [activeLayout.strokes, config, plotter.sendCommands, safeAction, originConfirmed, needsPenReference, penReferenceConfirmed, penPositionsVerified],
   );
 
   const recover = useCallback(() => {
-    if (!originConfirmed || (needsPenReference && !penReferenceConfirmed)) {
+    if (!penPositionsVerified || !originConfirmed || (needsPenReference && !penReferenceConfirmed)) {
       setError(
         "Перед продолжением выполните homing на контроллере, верните перо к исходной точке листа и нажмите «Установить ноль».",
       );
@@ -740,6 +774,7 @@ export function useIntegratedPlotter({
     plotter.recover,
     needsPenReference,
     penReferenceConfirmed,
+    penPositionsVerified,
     safeAction,
   ]);
 
@@ -797,19 +832,64 @@ export function useIntegratedPlotter({
     preflight,
     originConfirmed,
     penReferenceConfirmed,
+    penSetupPosition,
+    penPositionsVerified,
+    beginPenSetup: () => safeAction(async () => {
+      if (!needsPenReference || running || calibrationActive || penSetupBusy.current)
+        throw new Error("Дождитесь завершения операции.");
+      await plotter.sendCommands(createPenReferenceCommands(clearPenSetup(config), "up"));
+      setConfig(clearPenSetup);
+      setPenSetupPosition(0);
+      setPenReferenceConfirmed(true);
+      setArmed(false);
+    }),
+    resetPenSetup: () => safeAction(() => {
+      if (running || calibrationActive || penSetupBusy.current)
+        throw new Error("Сначала нажмите СТОП и дождитесь отмены операции.");
+      setConfig(clearPenSetup);
+      setPenReferenceConfirmed(false);
+      setPenSetupPosition(null);
+      setArmed(false);
+    }),
+    rememberPenPosition: (up: boolean) => safeAction(() => {
+      if (penSetupPosition === null || !penReferenceConfirmed || running || calibrationActive || penSetupBusy.current)
+        throw new Error("Сначала задайте текущее положение и дождитесь окончания шага.");
+      const otherVerified = config[up ? "penVerifiedDown" : "penVerifiedUp"] === penPositionKey(config, !up);
+      if (otherVerified && Math.abs(penSetupPosition - config[up ? "zDown" : "zUp"]) < 0.001)
+        throw new Error("Верхнее и нижнее положения совпадают. Переместите перо коротким шагом перед сохранением второго положения.");
+      const key = up ? "zUp" : "zDown";
+      setConfig(current => {
+        const next = { ...current, [key]: penSetupPosition };
+        return { ...next, [up ? "penVerifiedUp" : "penVerifiedDown"]: penPositionKey(next, up) };
+      });
+      setArmed(false);
+    }),
     setPenReference: (position: "up" | "down" = "up") => safeAction(async () => {
       if (!needsPenReference || running || calibrationActive)
         throw new Error("Дождитесь завершения операции и выберите шаговый механизм пера.");
-      if (penReferenceConfirmed) return;
-      await ensurePenHolding();
+      if (penReferenceConfirmed && penSetupPosition !== null) return;
       await plotter.sendCommands(createPenReferenceCommands(config, position));
       setPenReferenceConfirmed(true);
+      setPenSetupPosition(position === "down" ? config.zDown : config.zUp);
     }),
     jogPen: (up, distance) => safeAction(async () => {
-      if (running || calibrationActive) throw new Error("Дождитесь завершения текущей операции.");
-      setArmed(false);
-      await ensurePenHolding();
-      await plotter.sendCommands(createPenJogCommands(up, distance, config), { waitForMotion: true });
+      if (running || calibrationActive || penSetupBusy.current) throw new Error("Дождитесь завершения текущей операции.");
+      penSetupBusy.current = true;
+      try {
+        setArmed(false);
+        // Setup never queues a large jog, even if called outside this page.
+        if (!Number.isFinite(distance) || distance <= 0 || distance > 0.1)
+          throw new Error("При настройке пера доступен один шаг до 0,1 мм.");
+        await plotter.sendCommands(createPenJogCommands(up, distance, config), { waitForMotion: true });
+        if (penSetupPosition !== null) {
+          const direction = config.zUpDirection;
+          setPenSetupPosition(Number((penSetupPosition + distance * direction * (up ? 1 : -1)).toFixed(3)));
+        }
+      } catch (error) {
+        setPenSetupPosition(null);
+        setPenReferenceConfirmed(false);
+        throw error;
+      } finally { penSetupBusy.current = false; }
     }),
     resetProgress: () => safeAction(() => {
       if (running || calibrationActive) throw new Error("Сначала завершите текущую операцию.");
@@ -828,6 +908,7 @@ export function useIntegratedPlotter({
       setArmed(false);
       setOriginConfirmed(false);
       setPenReferenceConfirmed(false);
+      setPenSetupPosition(null);
       await plotter.sendCommands(["$X"]);
       await plotter.realtime("status");
     }),
@@ -835,24 +916,14 @@ export function useIntegratedPlotter({
       safeAction(() =>
         plotter.sendCommands(createPageJogCommands(dx, dy, config)),
       ),
-    pen: (up, value?: number) => safeAction(async () => {
-      if (needsPenReference && !penReferenceConfirmed)
-        throw new Error("Укажите текущее положение пера во вкладке «Плоттер»: поднято или опущено.");
-      if (running || calibrationActive) throw new Error("Дождитесь завершения текущей операции.");
-      const key = needsPenReference ? (up ? "zUp" : "zDown") : (up ? "penUp" : "penDown");
-      if (value !== undefined && !Number.isFinite(value)) throw new Error("Введите числовое положение пера.");
-      const next = normalizePlotterConfig({ ...config, [key]: value ?? config[key] });
-      if (value !== undefined && next[key] !== value)
-        throw new Error("Положение вне допустимого диапазона. Команда не отправлена.");
-      if (await ensurePenHolding())
-        throw new Error("Удержание моторов включено. Укажите текущее положение пера перед проверкой.");
-      setConfig((current) => ({ ...current, [key]: next[key] }));
-      setArmed(false);
-      await plotter.sendCommands(createPenCommand(up, next), { waitForMotion: true });
+    pen: (up, value?: number) => safeAction(() => {
+      if (calibrationActive) throw new Error("Завершите мастер настройки.");
+      return testPenPosition(up, value);
     }),
     setOrigin,
     home: async () => {
       setPenReferenceConfirmed(false);
+      setPenSetupPosition(null);
       const success = await safeAction(() =>
         plotter.sendCommands(createHomingCommands(config)),
       );
@@ -860,8 +931,9 @@ export function useIntegratedPlotter({
       return success;
     },
     returnToOrigin: () => safeAction(() => {
-      if (!originConfirmed || (needsPenReference && !penReferenceConfirmed))
+      if (!penPositionsVerified || !originConfirmed || (needsPenReference && !penReferenceConfirmed))
         throw new Error("Сначала задайте ноль листа и ноль поднятого пера.");
+      setPenSetupPosition(null);
       return plotter.sendCommands(createReturnToOriginCommands(config));
     }),
     sendManualCommand: (value) => {
@@ -876,6 +948,7 @@ export function useIntegratedPlotter({
       }
       if (!/^\$(?:\$|I|G|#)$/i.test(command)) {
         setPenReferenceConfirmed(false);
+        setPenSetupPosition(null);
         setOriginConfirmed(false);
         setArmed(false);
       }
@@ -888,7 +961,7 @@ export function useIntegratedPlotter({
         setError("Перед пробой пера установите ноль и подтвердите готовность пера.");
         return Promise.resolve(false);
       }
-      if (needsPenReference && !penReferenceConfirmed) {
+      if (needsPenReference && (!penReferenceConfirmed || !penPositionsVerified)) {
         setError("Сначала задайте ноль поднятого пера.");
         return Promise.resolve(false);
       }
@@ -907,7 +980,7 @@ export function useIntegratedPlotter({
         setError("Импорт обычного G-code доступен для GRBL и Marlin.");
         return Promise.resolve(false);
       }
-      if (!armed || !originConfirmed || (needsPenReference && !penReferenceConfirmed)) {
+      if (!penPositionsVerified || !armed || !originConfirmed || (needsPenReference && !penReferenceConfirmed)) {
         setError("Перед отправкой файла подтвердите перо и нулевую точку.");
         return Promise.resolve(false);
       }
@@ -955,6 +1028,7 @@ export function useIntegratedPlotter({
             calibrated: Boolean(activeProfile.calibratedAt),
             originConfirmed,
             penReferenceConfirmed: !needsPenReference || penReferenceConfirmed,
+    penPositionsVerified,
             withinWorkArea: compilePlotJob(layout?.strokes || [], config)
               .withinWorkArea,
           }),
@@ -979,10 +1053,26 @@ export function useIntegratedPlotter({
     discardRecovery: plotter.discardRecovery,
     pause: () => safeAction(plotter.pause),
     resume: () => safeAction(plotter.resume),
-    stop: () => {
+    stopNotice,
+    emergencyStopped: plotter.emergencyStopped,
+    releaseEmergencyStop: () => {
+      try { plotter.releaseEmergencyStop(); setStopNotice(""); }
+      catch (reason) { setStopNotice(reason.message); }
+    },
+    stop: async () => {
       setOriginConfirmed(false);
+      setPenReferenceConfirmed(false);
+      setPenSetupPosition(null);
       setArmed(false);
-      return safeAction(plotter.stop);
+      setStopNotice("Очередь отменена. Отправляю СТОП… Если движение продолжается — отключите питание и USB.");
+      try {
+        await plotter.stop();
+        setStopNotice("СТОП отправлен. Управление заблокировано. Если движение или визг продолжаются — отключите питание и USB.");
+        return true;
+      } catch {
+        setStopNotice("Передать СТОП не удалось. Немедленно отключите питание плоттера и USB. Очередь приложения отменена.");
+        return false;
+      }
     },
   };
 }

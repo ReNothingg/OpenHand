@@ -25,6 +25,7 @@ export function assessPlotterPreflight(
     originConfirmed: boolean;
     withinWorkArea?: boolean;
     penReferenceConfirmed?: boolean;
+    penPositionsVerified?: boolean;
   },
 ): PlotterPreflight {
   const hasStrokes = Boolean(layout?.strokes?.length);
@@ -49,6 +50,8 @@ export function assessPlotterPreflight(
     blockers.push("Нулевая точка плоттера не подтверждена.");
   if (options.penReferenceConfirmed === false)
     blockers.push("Укажите текущее положение пера во вкладке «Плоттер»: поднято или опущено.");
+  if (options.penPositionsVerified === false)
+    blockers.push("Сохраните проверенные верхнее и нижнее положения пера во вкладке «Плоттер».");
   if (!options.calibrated)
     warnings.push("Профиль ещё не прошёл калибровку.");
 

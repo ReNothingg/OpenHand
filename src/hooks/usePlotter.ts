@@ -63,6 +63,8 @@ export function usePlotter() {
   const profileRef = useRef("grbl");
   const pendingRef = useRef([]);
   const abortRef = useRef(false);
+  const emergencyStopRef = useRef(false);
+  const [emergencyStopped, setEmergencyStopped] = useState(false);
   const pausedRef = useRef(false);
   const pauseWaitersRef = useRef([]);
   const commandTimeoutRef = useRef(12000);
@@ -276,6 +278,7 @@ export function usePlotter() {
   const sendCommand = useCallback(
     async (command, timeoutMs = commandTimeoutRef.current) => {
       if (!writerRef.current) throw new Error("Плоттер не подключён.");
+      if (emergencyStopRef.current) throw new Error("СТОП: управление заблокировано.");
       if (desynchronizedRef.current)
         throw new Error(
           "Потеряна синхронизация ответов. Переподключите плоттер.",
@@ -317,27 +320,6 @@ export function usePlotter() {
     },
     [writeRaw],
   );
-
-  const ensureStepperHolding = useCallback(async () => {
-    if (profileRef.current !== "grbl") return false;
-    if (operationRef.current) throw new Error("Дождитесь завершения текущей операции.");
-    operationRef.current = true;
-    try {
-      if (controllerSettingsRef.current[1] === undefined) await sendCommand("$$");
-      const previous = controllerSettingsRef.current[1];
-      if (previous === undefined) throw new Error("Плата не сообщила параметр удержания $1. Проверьте прошивку.");
-      if (previous === 255) return false;
-      await sendCommand("$1=255");
-      const verification = { ...controllerSettingsRef.current };
-      delete verification[1];
-      controllerSettingsRef.current = verification;
-      await sendCommand("$$");
-      if (controllerSettingsRef.current[1] !== 255)
-        throw new Error("Плата не подтвердила удержание моторов. Проверка пера отменена.");
-      log("system", `Удержание шаговых моторов включено: $1=${previous} → $1=255. Настройка сохранена в плате.`);
-      return true;
-    } finally { operationRef.current = false; }
-  }, [sendCommand, log]);
 
   const connect = useCallback(
     async (profile, incomingOptions) => {
@@ -428,10 +410,7 @@ export function usePlotter() {
         if (!writerRef.current) throw new Error("Соединение с плоттером потеряно.");
         if (profile === "grbl") {
           await sendCommand("$$");
-          if (options.penMode === "stepper" && statusReportRef.current.state !== "Alarm") {
-            try { await ensureStepperHolding(); }
-            catch (reason) { log("error", reason instanceof Error ? reason.message : String(reason)); }
-          }
+
         }
         setStatus("connected");
       } catch (error) {
@@ -459,7 +438,7 @@ export function usePlotter() {
         connectingRef.current = false;
       }
     },
-    [log, networkSupported, readLoop, sendCommand, supported, writeRaw, ensureStepperHolding],
+    [log, networkSupported, readLoop, sendCommand, supported, writeRaw],
   );
 
   const realtime = useCallback(
@@ -576,6 +555,7 @@ export function usePlotter() {
       jobOrCommands,
       options: { startIndex?: number; prefix?: string[] } = {},
     ) => {
+      if (emergencyStopRef.current) throw new Error("СТОП: управление заблокировано.");
       if (operationRef.current)
         throw new Error("Дождитесь завершения текущей операции.");
       if (!writerRef.current) throw new Error("Плоттер не подключён.");
@@ -746,7 +726,7 @@ export function usePlotter() {
   }, [status, writeRaw]);
 
   const resume = useCallback(async () => {
-    if (status !== "paused") return;
+    if (emergencyStopRef.current || status !== "paused") return;
     if (profileRef.current === "grbl") await writeRaw(new Uint8Array([126]));
     pausedRef.current = false;
     setStatus("running");
@@ -754,6 +734,8 @@ export function usePlotter() {
   }, [status, writeRaw]);
 
   const stop = useCallback(async () => {
+    emergencyStopRef.current = true;
+    setEmergencyStopped(true);
     cancelPaperWait();
     abortRef.current = true;
     pausedRef.current = false;
@@ -766,8 +748,10 @@ export function usePlotter() {
     desynchronizedRef.current = true;
     setControllerEpoch((epoch) => epoch + 1);
     setMachineStatus(null);
-    if (!writerRef.current) return;
-    if (profileRef.current === "grbl") await writeRaw(new Uint8Array([33, 24]));
+    if (!writerRef.current) throw new Error("Нет связи с плоттером. Отключите его питание и USB.");
+    // Realtime bytes bypass acknowledgement waits and the G-code queue.
+    // Cancel jogging as well as buffered program moves, then reset GRBL.
+    if (profileRef.current === "grbl") await writeRaw(new Uint8Array([0x85, 0x21, 0x18]));
     else if (profileRef.current === "marlin") await writeRaw("M410\n");
     else await writeRaw("R\r\n");
     setStatus("connected");
@@ -779,6 +763,7 @@ export function usePlotter() {
 
   const sendCommands = useCallback(
     async (commands, options: { waitForMotion?: boolean } = {}) => {
+      if (emergencyStopRef.current) throw new Error("СТОП: управление заблокировано.");
       if (operationRef.current)
         throw new Error("Дождитесь завершения текущей операции.");
       operationRef.current = true;
@@ -866,7 +851,6 @@ export function usePlotter() {
     machineStatus,
     controllerEpoch,
     controllerSettings,
-    ensureStepperHolding,
     realtime,
     recovery,
     connect,
@@ -876,6 +860,13 @@ export function usePlotter() {
     pause,
     resume,
     stop,
+    emergencyStopped,
+    releaseEmergencyStop: () => {
+      if (operationRef.current || connectingRef.current) throw new Error("Дождитесь завершения отмены операции.");
+      emergencyStopRef.current = false;
+      setEmergencyStopped(false);
+      // No writes, no resumption and no automatic reference restoration.
+    },
     sendCommands,
     resetProgress,
     clearLogs: () => setLogs([]),
