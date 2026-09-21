@@ -12,6 +12,11 @@ struct SerialOpenOptions {
     let stopBits: Int
     let parity: String
     let flowControl: String
+
+    var description: String {
+        let parityName = ["none": "N", "even": "E", "odd": "O"][parity] ?? parity
+        return "\(baudRate) бод, \(dataBits)\(parityName)\(stopBits), поток: \(flowControl == "hardware" ? "RTS/CTS" : "нет")"
+    }
 }
 
 enum SerialConnectionError: LocalizedError {
@@ -19,6 +24,7 @@ enum SerialConnectionError: LocalizedError {
     case notOpen
     case openFailed(String, Int32)
     case configurationFailed(String)
+    case driverRejected(String, String, String, Int32)
     case unsupportedBaudRate(Int)
     case writeFailed(Int32)
 
@@ -32,6 +38,11 @@ enum SerialConnectionError: LocalizedError {
             return "Не удалось открыть \(path): \(String(cString: strerror(code)))."
         case let .configurationFailed(message):
             return "Не удалось настроить порт: \(message)."
+        case let .driverRejected(path, stage, settings, code):
+            let recovery = code == EINVAL || code == EIO || code == ENXIO || code == 83
+                ? "Отключите USB-кабель от Mac и подключите снова, затем выберите порт заново. Если ошибка повторится, проверьте параметры порта."
+                : "Проверьте подключение и параметры порта."
+            return "Драйвер не настроил \(path) (\(settings)). \(recovery) Этап: \(stage); \(String(cString: strerror(code))) [\(code)]."
         case let .unsupportedBaudRate(value):
             return "Скорость \(value) бод не поддерживается."
         case let .writeFailed(code):
@@ -101,7 +112,7 @@ final class SerialConnection: @unchecked Sendable {
             }
 
             do {
-                try self.configure(fileDescriptor, options: options)
+                try self.configure(fileDescriptor, path: path, options: options)
                 self.descriptor = fileDescriptor
                 self.manuallyClosing = false
                 self.startReading(fileDescriptor)
@@ -174,10 +185,14 @@ final class SerialConnection: @unchecked Sendable {
         }
     }
 
-    private func configure(_ fileDescriptor: Int32, options serialOptions: SerialOpenOptions) throws {
+    private func configure(_ fileDescriptor: Int32, path: String, options serialOptions: SerialOpenOptions) throws {
+        func driverError(_ stage: String) -> SerialConnectionError {
+            let code = errno
+            return .driverRejected(path, stage, serialOptions.description, code)
+        }
         var options = termios()
         guard tcgetattr(fileDescriptor, &options) == 0 else {
-            throw SerialConnectionError.configurationFailed(String(cString: strerror(errno)))
+            throw driverError("tcgetattr")
         }
 
         cfmakeraw(&options)
@@ -237,24 +252,29 @@ final class SerialConnection: @unchecked Sendable {
             throw SerialConnectionError.unsupportedBaudRate(serialOptions.baudRate)
         }
 
-        guard cfsetispeed(&options, standardSpeed) == 0,
-              cfsetospeed(&options, standardSpeed) == 0,
-              tcsetattr(fileDescriptor, TCSANOW, &options) == 0 else {
-            throw SerialConnectionError.configurationFailed(String(cString: strerror(errno)))
+        guard cfsetispeed(&options, standardSpeed) == 0 else {
+            throw driverError("скорость приёма")
+        }
+        guard cfsetospeed(&options, standardSpeed) == 0 else {
+            throw driverError("скорость передачи")
+        }
+        guard tcsetattr(fileDescriptor, TCSANOW, &options) == 0 else {
+            throw driverError("tcsetattr")
         }
 
         if serialOptions.baudRate == 250_000 {
             var customSpeed = speed_t(serialOptions.baudRate)
-            let iossiospeed = UInt(0x80045402)
+            // IOSSIOSPEED = _IOW('T', 2, speed_t). Darwin speed_t is 64-bit
+            // on both supported architectures; 0x80045402 is the 32-bit ABI.
+            let iossiospeed = UInt(0x80000000) | (UInt(MemoryLayout<speed_t>.size) << 16)
+                | (UInt(0x54) << 8) | 2
             guard ioctl(fileDescriptor, iossiospeed, &customSpeed) >= 0 else {
-                throw SerialConnectionError.configurationFailed(
-                    "драйвер устройства не принял нестандартную скорость 250000 бод"
-                )
+                throw driverError("IOSSIOSPEED")
             }
         }
 
         guard fcntl(fileDescriptor, F_SETFL, 0) >= 0 else {
-            throw SerialConnectionError.configurationFailed(String(cString: strerror(errno)))
+            throw driverError("режим чтения порта")
         }
 
         tcflush(fileDescriptor, TCIOFLUSH)

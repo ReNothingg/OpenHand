@@ -61,6 +61,15 @@ internal sealed class SerialConnection : IDisposable
         {
             await Task.Run(port.Open);
         }
+        catch (Exception error) when (error is IOException or ArgumentException)
+        {
+            port.Dispose();
+            throw new IOException(
+                $"Не удалось настроить {options.Path} ({options.BaudRate} бод, " +
+                $"{options.DataBits} бит, чётность {options.Parity}, стоп-биты {options.StopBits}, поток {options.Handshake}). " +
+                "Отключите USB-кабель и подключите снова, затем выберите порт заново. " +
+                $"Если ошибка повторится, проверьте параметры порта. Драйвер: {error.Message}", error);
+        }
         catch
         {
             port.Dispose();
