@@ -183,6 +183,17 @@ export function usePlotter() {
                 );
               }
             }
+            if (/^Grbl\s/i.test(line)) {
+              // The startup banner is a stream boundary: reset discarded the
+              // old command queue. Reject its waiters BEFORE accepting new
+              // commands. Keep the operation aborted and physical zeros lost;
+              // Alarm still requires the user's explicit $X, never auto-resume.
+              for (const pending of pendingRef.current.splice(0)) {
+                clearTimeout(pending.timeout);
+                pending.reject(new Error("Контроллер перезапущен. Предыдущая команда отменена."));
+              }
+              desynchronizedRef.current = false;
+            }
             if (/^(ok|OK)\b/.test(line)) settlePending(line);
             else if (/^(error|ALARM)/i.test(line)) settlePending(line, true);
           }
@@ -716,7 +727,7 @@ export function usePlotter() {
     setStatus("connected");
     log(
       "system",
-      "Отправлена аварийная остановка. Перед следующим заданием переподключите плоттер и проверьте ноль.",
+      "Отправлена аварийная остановка. После ответа о перезапуске снимите Alarm в состоянии плоттера. Задание не возобновится автоматически; физический ноль нужно проверить.",
     );
   }, [cancelPaperWait, log, saveRecovery, writeRaw]);
 
