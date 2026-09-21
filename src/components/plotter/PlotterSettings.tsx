@@ -11,6 +11,7 @@ import {
 import PlotterCalibrationWizard from "./PlotterCalibrationWizard";
 import PenCalibrationSheet from './PenCalibrationSheet';
 import MachineMonitor from './MachineMonitor';
+import { penLiftDistance, penLiftTarget } from "../../plotter/penLift";
 
 function Help({ children }: { children: string }) {
   return (
@@ -529,21 +530,24 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
             ) : (
               <div className="plotter-row two">
                 <label className="field">
-                  <Caption help="Чтобы уменьшить подъём, приблизьте это значение к положению опущенного пера. Ноль Z при этом не меняется.">
-                    Перо поднято, мм
+                  <Caption help="Расстояние от положения касания до поднятого пера. Например, при касании Z9 и ходе 0,5 подъём будет в Z8,5. Направление и ноль Z сохраняются.">
+                    Ход подъёма, мм
                   </Caption>
                   <input
                     type="number"
-                    min="-50"
+                    min="0.1"
                     max="50"
                     step="0.1"
-                    value={config.zUp}
-                    onChange={number("zUp", -50, 50)}
+                    value={penLiftDistance(config)}
+                    onChange={(event) => {
+                      if (event.target.value !== "" && Number.isFinite(event.target.valueAsNumber))
+                        workspace.updateConfig("zUp", penLiftTarget(config, event.target.valueAsNumber));
+                    }}
                   />
                 </label>
                 <label className="field">
                   <Caption help="Координата касания листа. Не задавайте большое заглубление.">
-                    Перо опущено, мм
+                    Координата касания Z/E, мм
                   </Caption>
                   <input
                     type="number"
