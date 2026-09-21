@@ -75,3 +75,32 @@ Observed verification (hardware disconnected):
 Remaining: comprehensive transport cancellation/error audit, controller/pen reference
 model, full job-path audit, coherent setup and job interface, diagnostic/version visibility,
 rendered end-to-end flows and wider failure simulation. Goal is not complete.
+
+
+## Pen control checkpoint
+
+Replaced independent pose booleans and duplicated mutation handlers with usePenControl.
+Its session context includes connection epoch, device profile, pen mechanism and direction.
+Async operations have a revision token and one-operation lock: completion after stop,
+profile change or invalidation cannot resurrect a reference or overwrite the new profile.
+Fresh GRBL Idle is required for pen actions. Local reset performs no I/O.
+
+Saved positions must be finite, different and ordered according to the independently
+configured lift direction. Normal completed jobs preserve the coordinate reference but
+forget the last manual setup position; movement to a taught endpoint restores that position.
+Removed all pen stages and pen parameter editing from the axes/area calibration wizard.
+There is one teaching surface: begin here, short steps, two saved heights, normal up/down
+buttons and a separate fine-adjustment disclosure.
+
+Verification completed without physical hardware:
+- Hook simulation: teach/save/move; equal and reversed positions rejected; late completion
+  after stop/profile switch discarded; overlapping clicks do not queue another jog;
+  normal job does not force reteaching; local reset has no writes; stale Idle rejected.
+- Real React component with virtual command transport: completed teaching, ordinary up/down,
+  disconnect/reconnect with saved heights retained, renewed reference without movement,
+  stop blocks save/movement controls. Logged commands match those actions.
+- Full application rendered with the new panel and ordinary styles; disconnected controls
+  are disabled with one next-step message. Compact layout puts connection before pen setup.
+
+Still not a completed goal: job readiness/streaming/import/recovery path audit, native
+transport lifetime edge cases, consolidated diagnostics and whole-application UI pass remain.

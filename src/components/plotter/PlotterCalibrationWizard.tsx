@@ -19,10 +19,6 @@ const STEP_TEXT = {
     "Каретка должна сместиться на небольшой шаг в направлении Y−.",
   "axis-y-positive":
     "Каретка должна вернуться на такой же шаг в направлении Y+.",
-  "pen-up": "Перо должно подняться без упора сервопривода или оси.",
-  "pen-reference": "Ручка должна быть снята или поднята над бумагой. Эта кнопка не двигает механизм: она принимает текущую высоту за положение «перо поднято». Следующая проверка опускания будет двигаться от этой высоты. Если механизм упирается в ограничитель, сначала устраните упор.",
-  "pen-down": "Перо должно мягко коснуться бумаги без чрезмерного прижима.",
-  "pen-safe": "Перед позиционированием нуля листа снова поднимите перо.",
   origin:
     "Кнопками переместите поднятое перо в левый верхний угол рабочей области, затем установите ноль.",
 
@@ -35,13 +31,10 @@ const ORIGIN_LABELS = {
   "right-bottom": "правый нижний",
 };
 
-function actionLabel(step, connected, stepper) {
+function actionLabel(step, connected) {
   if (step.kind === "connect")
     return connected ? "Проверить ответ" : "Подключить и проверить";
   if (step.kind === "origin") return "Установить ноль";
-  if (step.action === "pen-reference") return "Принять текущую высоту за поднятое перо";
-  if (step.action === "pen-up") return stepper ? "Шаг к верхнему положению · до 0,1 мм" : "Поднять перо";
-  if (step.action === "pen-down") return stepper ? "Шаг к нижнему положению · до 0,1 мм" : "Опустить перо";
   return "Выполнить движение";
 }
 
@@ -133,7 +126,6 @@ export default function PlotterCalibrationWizard({ workspace }) {
     dispatch({ type: "settings-changed", axes: ["invertX", "invertY", "swapAxes"].includes(key) });
   };
   const axisStep = step.id.startsWith("axis-");
-  const penStep = step.id.startsWith("pen-");
   const axisDescription = axisStep
     ? `Перо должно переместиться на ${workspace.config.calibrationStep} мм ${
       step.id.includes("-x-")
@@ -153,7 +145,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
         <header>
           <div>
             <small>
-              Калибровка · шаг {state.index + 1} из {state.steps.length}
+              Направления и область · шаг {state.index + 1} из {state.steps.length}
             </small>
             <h2 id="calibration-title">{step.title}</h2>
           </div>
@@ -224,7 +216,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
                 ✓
               </div>
               <p>
-                Направления, перо и ноль подтверждены вами. Размеры области записаны по вашим измерениям; автоматический объезд не выполнялся. Профиль «
+                Направления и ноль листа подтверждены вами. Размеры области записаны по вашим измерениям; автоматический объезд не выполнялся. Профиль «
                 {workspace.activeProfile.name}» будет отмечен как
                 откалиброванный.
               </p>
@@ -261,20 +253,6 @@ export default function PlotterCalibrationWizard({ workspace }) {
                     {[...new Set([0.1, 0.5, 1, 2, 5, workspace.config.calibrationStep])].sort((a, b) => a - b).map((value) => <option key={value} value={value}>{value}</option>)}
                   </select>
                 </label>
-              )}
-              {penStep && step.id !== "pen-reference" && workspace.config.profile !== "ebb" && (
-                <fieldset disabled={running}>
-                  <legend>Положение пера</legend>
-                  {(workspace.config.penMode === "servo" ? [["penUp", "Поднято"], ["penDown", "Касание"]] : [["zUp", "Перо поднято"], ["zDown", "Перо опущено"]]).map(([key, label]) => (
-                    <label className="field" key={key}>
-                      <span>{label}</span>
-                      <input type="number" value={workspace.config[key]} step={workspace.config.penMode === "servo" ? 1 : 0.1} onChange={(event) => {
-                        if (event.target.value !== "" && Number.isFinite(event.target.valueAsNumber)) adjust(key, event.target.valueAsNumber);
-                      }} />
-                    </label>
-                  ))}
-                  <p className="calibration-note">Изменение сохраняет настройку без движения. Высота подъёма меняется относительно установленного нуля; положение опускания не сдвигается.</p>
-                </fieldset>
               )}
               {step.kind === "connect" &&
                 workspace.config.penMode === "laser" && (
@@ -351,7 +329,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
                 >
                   {running
                     ? "Выполняется…"
-                    : actionLabel(step, workspace.connected, ["stepper", "estepper"].includes(workspace.config.penMode))}
+                    : actionLabel(step, workspace.connected)}
                 </button>
               )}
             </>

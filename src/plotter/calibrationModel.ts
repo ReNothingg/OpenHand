@@ -37,38 +37,13 @@ const BASE_STEPS = [
     title: "Движение вниз",
     action: "axis-y-positive",
   },
-  { id: "pen-reference", kind: "verify", title: "Ноль поднятого пера", action: "pen-reference", stepperOnly: true },
-  {
-    id: "pen-up",
-    kind: "verify",
-    title: "Поднятие пера",
-    action: "pen-up",
-    penOnly: true,
-  },
-  {
-    id: "pen-down",
-    kind: "verify",
-    title: "Касание пера",
-    action: "pen-down",
-    penOnly: true,
-  },
-  {
-    id: "pen-safe",
-    kind: "verify",
-    title: "Поднять перо перед позиционированием",
-    action: "pen-up",
-    penOnly: true,
-  },
   { id: "origin", kind: "origin", title: "Нулевая точка", action: "origin" },
   { id: "area", kind: "area", title: "Размер доступной области" },
   { id: "summary", kind: "summary", title: "Готово" },
 ];
 
-export function calibrationSteps(config) {
-  return BASE_STEPS.filter(
-    (step) => !(step.penOnly && config.penMode === "laser")
-      && !(step.stepperOnly && !["stepper", "estepper"].includes(config.penMode)),
-  );
+export function calibrationSteps(_config) {
+  return [...BASE_STEPS];
 }
 
 export function createCalibrationState(config) {

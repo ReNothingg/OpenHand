@@ -1,8 +1,6 @@
 import {
   createPageJogCommands,
   createOriginCommands,
-  createPenCommand,
-  createPenReferenceCommands,
 } from "./job";
 
 function probeCommands(profile) {
@@ -27,18 +25,8 @@ export function calibrationCommands(action, config) {
       return createPageJogCommands(0, -step, config);
     case "axis-y-positive":
       return createPageJogCommands(0, step, config);
-    case "pen-up":
-      if (config.penMode === "laser")
-        throw new Error("Мастер не активирует лазер.");
-      return createPenCommand(true, config);
-    case "pen-down":
-      if (config.penMode === "laser")
-        throw new Error("Мастер не активирует лазер.");
-      return createPenCommand(false, config);
     case "origin":
       return createOriginCommands(config);
-    case "pen-reference":
-      return createPenReferenceCommands(config);
     default:
       throw new Error("Неизвестный шаг калибровки.");
   }
