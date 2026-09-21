@@ -1,26 +1,158 @@
 /* Font selection owns its surfaces and spacing in one place. */
-:root .font-picker { min-width: 0; padding: 12px; border-radius: 4px; background: var(--surface-panel); }
-:root .font-picker-row { display: flex; align-items: stretch; gap: 8px; }
-:root .font-picker :is(.font-picker-trigger, .font-upload-button) { border: 1px solid var(--line); border-radius: 4px; background: var(--surface-raised); min-height: 36px; padding: 8px; color: var(--text-primary); }
-:root .font-picker-trigger { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; text-align: left; }
-:root .font-picker-trigger > span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
-:root .font-kind-badge { font-size: 10px; font-style: normal; color: var(--text-secondary); }
-:root .font-upload-button { flex: 0 0 auto; font-size: 12px; }
-:root .font-studio-link { display: flex; justify-content: space-between; margin-top: 10px; padding: 4px 0; font-size: 12px; line-height: 1.5; color: var(--green); text-decoration: none; }
-:root .font-picker-menu { margin-top: 12px; display: grid; gap: 10px; }
-:root .font-picker-menu > input { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-raised); font-size: 13px; }
-:root .font-picker-list { max-height: min(440px, 55vh); overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 14px; padding: 2px; }
-:root .font-section-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; margin-bottom: 8px; font-size: 11px; color: var(--text-secondary); }
-:root .font-section-heading em { font-style: normal; }
-:root :is(.custom-gfont-grid, .plotter-family-tabs, .screen-font-grid) { display: grid; grid-template-columns: 1fr; gap: 6px; }
-:root .font-picker :is(.custom-gfont-grid, .plotter-family-tabs, .screen-font-grid) > button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-raised); color: var(--text-primary); text-align: left; cursor: pointer; }
-:root .font-picker button > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-:root .font-picker button small, :root .font-picker button em { color: var(--text-secondary); font-size: 11px; font-style: normal; }
-:root .font-picker button:hover { background: var(--control-hover); }
-:root .font-picker button[aria-selected="true"], :root .font-picker button.selected { border-color: var(--green); background: var(--accent-soft); }
-:root .font-picker :is(button, input):focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
-:root .font-variant-panel { margin: 10px 0 14px; }
-:root .font-variant-labels { display: flex; flex-wrap: wrap; gap: 6px; }
-:root .font-variant-labels button { padding: 6px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-raised); font-size: 12px; }
-:root .unified-font-group { margin-top: 14px; }
-:root .font-picker-empty { padding: 16px 8px; font-size: 13px; color: var(--text-secondary); }
+:root .font-picker {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 4px;
+  background: var(--surface-panel);
+}
+:root .font-picker-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+:root .font-picker :is(.font-picker-trigger, .font-upload-button) {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  min-height: 36px;
+  padding: 8px;
+  color: var(--text-primary);
+}
+:root .font-picker-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+:root .font-picker-trigger > span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+:root .font-kind-badge {
+  font-size: 10px;
+  font-style: normal;
+  color: var(--text-secondary);
+}
+:root .font-upload-button {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+:root .font-studio-link {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 4px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--green);
+  text-decoration: none;
+}
+:root .font-picker-menu {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+:root .font-picker-menu > input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  font-size: 13px;
+}
+:root .font-picker-list {
+  max-height: min(440px, 55vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 14px;
+  padding: 2px;
+}
+:root .font-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+:root .font-section-heading em {
+  font-style: normal;
+}
+:root :is(.custom-gfont-grid, .plotter-family-tabs, .screen-font-grid) {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+:root
+  .font-picker
+  :is(.custom-gfont-grid, .plotter-family-tabs, .screen-font-grid)
+  > button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+:root .font-picker button > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:root .font-picker button small,
+:root .font-picker button em {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-style: normal;
+}
+:root .font-picker button:hover {
+  background: var(--control-hover);
+}
+:root .font-picker button[aria-selected="true"],
+:root .font-picker button.selected {
+  border-color: var(--green);
+  background: var(--accent-soft);
+}
+:root .font-picker :is(button, input):focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+}
+:root .font-variant-panel {
+  margin: 10px 0 14px;
+}
+:root .font-variant-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+:root .font-variant-labels button {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  font-size: 12px;
+}
+:root .unified-font-group {
+  margin-top: 14px;
+}
+:root .font-picker-empty {
+  padding: 16px 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}

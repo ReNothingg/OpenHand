@@ -2044,74 +2044,284 @@ body,
   overflow-wrap: anywhere;
 }
 
-.plotter-sheet-options { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 16px; margin-bottom: 10px; }
-.plotter-sheet-options label { display: grid; gap: 4px; color: var(--text-secondary); font-size: 12px; }
-.plotter-sheet-options select { padding: 6px 8px; min-height: 32px; }
-.paper-change-dialog { width: min(460px, calc(100vw - 32px)); border: 1px solid var(--line); padding: 24px; color: var(--text-primary); background: var(--surface-panel); font: 13px/1.6 system-ui, sans-serif; }
-.paper-change-dialog::backdrop { background: var(--overlay); }
-.paper-change-dialog h2 { margin: 0 0 14px; font-size: 20px; }
-.paper-change-dialog p { margin: 10px 0; }
-.paper-change-dialog label { display: flex; align-items: start; gap: 10px; margin: 20px 0; }
-.paper-change-dialog label input { flex-shrink: 0; margin-top: 5px; }
-.paper-change-dialog > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-.paper-change-dialog button { background: var(--surface-raised); color: var(--text-primary); border: 0; border-radius: 4px; }
-.paper-change-dialog button.primary { background: var(--green); color: var(--on-accent); }
-@media print { .paper-change-dialog { display: none !important; } }
+.plotter-sheet-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+.plotter-sheet-options label {
+  display: grid;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.plotter-sheet-options select {
+  padding: 6px 8px;
+  min-height: 32px;
+}
+.paper-change-dialog {
+  width: min(460px, calc(100vw - 32px));
+  border: 1px solid var(--line);
+  padding: 24px;
+  color: var(--text-primary);
+  background: var(--surface-panel);
+  font:
+    13px/1.6 system-ui,
+    sans-serif;
+}
+.paper-change-dialog::backdrop {
+  background: var(--overlay);
+}
+.paper-change-dialog h2 {
+  margin: 0 0 14px;
+  font-size: 20px;
+}
+.paper-change-dialog p {
+  margin: 10px 0;
+}
+.paper-change-dialog label {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  margin: 20px 0;
+}
+.paper-change-dialog label input {
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+.paper-change-dialog > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.paper-change-dialog button {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border: 0;
+  border-radius: 4px;
+}
+.paper-change-dialog button.primary {
+  background: var(--green);
+  color: var(--on-accent);
+}
+@media print {
+  .paper-change-dialog {
+    display: none !important;
+  }
+}
 
-:root .document-toolbar { flex-wrap: wrap; }
+:root .document-toolbar {
+  flex-wrap: wrap;
+}
 
 /* One visual surface per settings group, not per individual control. */
-:root :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector) .settings-section {
+:root
+  :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector)
+  .settings-section {
   margin: 8px 10px;
   background: var(--surface-raised);
   border-radius: 4px;
   overflow: hidden;
 }
-:root :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector) .settings-section > summary { padding: 14px 16px; }
-:root :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector) .settings-section > .settings-content { padding: 4px 16px 18px; gap: 14px; }
-:root :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector) .settings-content .settings-section {
+:root
+  :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector)
+  .settings-section
+  > summary {
+  padding: 14px 16px;
+}
+:root
+  :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector)
+  .settings-section
+  > .settings-content {
+  padding: 4px 16px 18px;
+  gap: 14px;
+}
+:root
+  :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector)
+  .settings-content
+  .settings-section {
   margin: 2px 0;
   background: var(--surface-panel);
 }
-:root :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector) .settings-content .settings-section > summary { font-size: 13px; padding: 12px; min-height: 40px; }
-:root :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector) .settings-content .settings-section > .settings-content { padding: 2px 12px 16px; }
-:root .pages-viewport { background: #e9e9eb; }
-:root.theme-dark .pages-viewport { background: #111111; }
-
-:root .panel-resize-handle { width: 6px; cursor: col-resize; touch-action: none; background: transparent; z-index: 25; outline-offset: -2px; transition: background-color 140ms ease; }
-:root .panel-resize-handle:hover, :root .panel-resize-handle:focus-visible { background: var(--accent-soft); }
-:root .document-resize-handle { position: absolute; top: 0; bottom: 0; right: var(--settings-panel-size); }
-:root .settings-panel { border-left: 0; }
-:root .workshop-body { grid-template-columns: var(--inspector-width, 320px) 6px minmax(0, 1fr); }
-:root .workshop-inspector { border-right: 0; }
-:root .integrated-plotter-settings { margin: 0; padding: 0; border: 0; }
-:root .integrated-plotter-settings > fieldset { display: contents; }
-:root .integrated-plotter-footer { padding: 8px 12px; }
-:root .integrated-plotter-footer.is-collapsed { min-height: 40px; max-height: 54px; overflow: hidden; }
-.plotter-footer-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-:root .plotter-footer-heading > button:first-child { background: transparent; padding: 4px 0; min-height: 28px; font-size: 12px; text-align: left; }
-.plotter-footer-body { display: grid; gap: 10px; padding-top: 8px; }
-.plotter-footer-body[hidden] { display: none; }
-:root .plotter-footer-body > :is(p, div, details) { margin-top: 0; margin-bottom: 0; }
-:root .plotter-footer-body .plotter-sheet-options { gap: 12px; align-items: end; }
-:root .plotter-footer-body .plotter-note { font-size: 12px; line-height: 1.45; }
-:root .settings-section[open] > .settings-content, .plotter-footer-body:not([hidden]) { animation: panel-content-enter 180ms ease-out; }
-@keyframes panel-content-enter { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
-@supports (interpolate-size: allow-keywords) {
-  :root .settings-section { interpolate-size: allow-keywords; }
-  :root .settings-section::details-content { block-size: 0; overflow: clip; transition: block-size 180ms ease, content-visibility 180ms allow-discrete; }
-  :root .settings-section[open]::details-content { block-size: auto; }
+:root
+  :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector)
+  .settings-content
+  .settings-section
+  > summary {
+  font-size: 13px;
+  padding: 12px;
+  min-height: 40px;
 }
-@media (max-width: 700px) { :root .panel-resize-handle { display: none; } :root .workshop-body { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { :root .settings-section::details-content { transition: none; } :root .settings-section[open] > .settings-content, .plotter-footer-body:not([hidden]) { animation: none; } }
+:root
+  :is(.settings-panel.settings-panel, .workshop-inspector.workshop-inspector)
+  .settings-content
+  .settings-section
+  > .settings-content {
+  padding: 2px 12px 16px;
+}
+:root .pages-viewport {
+  background: #e9e9eb;
+}
+:root.theme-dark .pages-viewport {
+  background: #111111;
+}
 
-.workshop-run-body { display: grid; gap: 10px; }
-.workshop-run-body[hidden] { display: none; }
-:root .workshop-inspector.workshop-inspector .workshop-section { background: var(--surface-raised); margin: 8px 10px; padding: 14px; border-radius: 4px; }
-:root .workshop-tabs { padding: 8px 10px; border-bottom: 0; gap: 6px; }
-:root .workshop-tabs button { min-height: 34px; font-size: 13px; }
+:root .panel-resize-handle {
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  z-index: 25;
+  outline-offset: -2px;
+  transition: background-color 140ms ease;
+}
+:root .panel-resize-handle:hover,
+:root .panel-resize-handle:focus-visible {
+  background: var(--accent-soft);
+}
+:root .document-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: var(--settings-panel-size);
+}
+:root .settings-panel {
+  border-left: 0;
+}
+:root .workshop-body {
+  grid-template-columns: var(--inspector-width, 320px) 6px minmax(0, 1fr);
+}
+:root .workshop-inspector {
+  border-right: 0;
+}
+:root .integrated-plotter-settings {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+:root .integrated-plotter-settings > fieldset {
+  display: contents;
+}
+:root .integrated-plotter-footer {
+  padding: 8px 12px;
+}
+:root .integrated-plotter-footer.is-collapsed {
+  min-height: 40px;
+  max-height: 54px;
+  overflow: hidden;
+}
+.plotter-footer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+:root .plotter-footer-heading > button:first-child {
+  background: transparent;
+  padding: 4px 0;
+  min-height: 28px;
+  font-size: 12px;
+  text-align: left;
+}
+.plotter-footer-body {
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
+}
+.plotter-footer-body[hidden] {
+  display: none;
+}
+:root .plotter-footer-body > :is(p, div, details) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+:root .plotter-footer-body .plotter-sheet-options {
+  gap: 12px;
+  align-items: end;
+}
+:root .plotter-footer-body .plotter-note {
+  font-size: 12px;
+  line-height: 1.45;
+}
+:root .settings-section[open] > .settings-content,
+.plotter-footer-body:not([hidden]) {
+  animation: panel-content-enter 180ms ease-out;
+}
+@keyframes panel-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@supports (interpolate-size: allow-keywords) {
+  :root .settings-section {
+    interpolate-size: allow-keywords;
+  }
+  :root .settings-section::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size 180ms ease,
+      content-visibility 180ms allow-discrete;
+  }
+  :root .settings-section[open]::details-content {
+    block-size: auto;
+  }
+}
+@media (max-width: 700px) {
+  :root .panel-resize-handle {
+    display: none;
+  }
+  :root .workshop-body {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root .settings-section::details-content {
+    transition: none;
+  }
+  :root .settings-section[open] > .settings-content,
+  .plotter-footer-body:not([hidden]) {
+    animation: none;
+  }
+}
 
-:root .integrated-plotter-footer .plotter-footer-heading { position: sticky; top: -8px; z-index: 2; background: var(--surface-panel); }
+.workshop-run-body {
+  display: grid;
+  gap: 10px;
+}
+.workshop-run-body[hidden] {
+  display: none;
+}
+:root .workshop-inspector.workshop-inspector .workshop-section {
+  background: var(--surface-raised);
+  margin: 8px 10px;
+  padding: 14px;
+  border-radius: 4px;
+}
+:root .workshop-tabs {
+  padding: 8px 10px;
+  border-bottom: 0;
+  gap: 6px;
+}
+:root .workshop-tabs button {
+  min-height: 34px;
+  font-size: 13px;
+}
+
+:root .integrated-plotter-footer .plotter-footer-heading {
+  position: sticky;
+  top: -8px;
+  z-index: 2;
+  background: var(--surface-panel);
+}
 
 /* The footer meets the sidebar at the same edge as the canvas. */
 :root .integrated-plotter-footer {
@@ -2141,7 +2351,9 @@ body,
   color: var(--text-primary);
   text-align: left;
   cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
 }
 :root .settings-panel.settings-panel button.document-preset:hover {
   background: var(--control-hover);
@@ -2151,6 +2363,15 @@ body,
   outline: 2px solid var(--green);
   outline-offset: 2px;
 }
-:root .settings-panel.settings-panel button.document-preset:active { background: var(--accent-soft); }
-:root .settings-panel.settings-panel button.document-preset strong { font-size: 13px; font-weight: 600; }
-:root .settings-panel.settings-panel button.document-preset small { font-size: 12px; line-height: 1.45; color: var(--text-secondary); }
+:root .settings-panel.settings-panel button.document-preset:active {
+  background: var(--accent-soft);
+}
+:root .settings-panel.settings-panel button.document-preset strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+:root .settings-panel.settings-panel button.document-preset small {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}

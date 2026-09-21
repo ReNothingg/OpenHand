@@ -1,14 +1,78 @@
-.drawing-image-dialog { width: min(860px, 92vw); max-height: 90vh; overflow: auto; padding: 20px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-panel); color: var(--text-primary); }
-.drawing-image-dialog::backdrop { background: var(--overlay); }
-.drawing-image-dialog header, .drawing-image-dialog footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.drawing-image-dialog h2 { margin: 0; font-size: 18px; }
-.drawing-image-dialog button, .drawing-image-dialog input, .drawing-image-dialog select { padding: 8px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-raised); color: var(--text-primary); }
-.drawing-image-dialog button.primary { background: var(--green); color: var(--on-accent); }
-.drawing-image-previews { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
-.drawing-image-previews figure { margin: 0; min-width: 0; }
-.drawing-image-previews figcaption { margin-bottom: 8px; font-size: 12px; }
-.drawing-image-previews img, .drawing-image-previews canvas { width: 100%; height: 260px; object-fit: contain; background: white; }
-.drawing-image-fields { display: flex; flex-wrap: wrap; gap: 16px; }
-.drawing-image-fields label { display: grid; gap: 6px; font-size: 13px; }
-.drawing-image-dialog p { font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
-@media(max-width: 600px) { .drawing-image-previews { grid-template-columns: 1fr; } }
+.drawing-image-dialog {
+  width: min(860px, 92vw);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+}
+.drawing-image-dialog::backdrop {
+  background: var(--overlay);
+}
+.drawing-image-dialog header,
+.drawing-image-dialog footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.drawing-image-dialog h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.drawing-image-dialog button,
+.drawing-image-dialog input,
+.drawing-image-dialog select {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+.drawing-image-dialog button.primary {
+  background: var(--green);
+  color: var(--on-accent);
+}
+.drawing-image-previews {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+.drawing-image-previews figure {
+  margin: 0;
+  min-width: 0;
+}
+.drawing-image-previews figcaption {
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.drawing-image-previews img,
+.drawing-image-previews canvas {
+  width: 100%;
+  height: 260px;
+  object-fit: contain;
+  background: white;
+}
+.drawing-image-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.drawing-image-fields label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.drawing-image-dialog p {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+@media (max-width: 600px) {
+  .drawing-image-previews {
+    grid-template-columns: 1fr;
+  }
+}
