@@ -748,13 +748,23 @@ export function usePlotter() {
     desynchronizedRef.current = true;
     setControllerEpoch((epoch) => epoch + 1);
     setMachineStatus(null);
-    if (!writerRef.current) throw new Error("Нет связи с плоттером. Отключите его питание и USB.");
-    // Realtime bytes bypass acknowledgement waits and the G-code queue.
-    // Cancel jogging as well as buffered program moves, then reset GRBL.
-    if (profileRef.current === "grbl") await writeRaw(new Uint8Array([0x85, 0x21, 0x18]));
-    else if (profileRef.current === "marlin") await writeRaw("M410\n");
-    else await writeRaw("R\r\n");
-    setStatus("connected");
+    const nativeStop = typeof window !== "undefined" && window.__openhandEmergencyStop;
+    if (nativeStop) {
+      let timer: ReturnType<typeof setTimeout>;
+      try {
+        const result = await Promise.race([
+          nativeStop(profileRef.current),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Нет подтверждения отправки СТОП от USB-моста.")), 4000); }),
+        ]);
+        if (!result.sent) throw new Error("USB-мост не подтвердил отправку СТОП.");
+      } finally { clearTimeout(timer!); }
+    } else {
+      if (!writerRef.current) throw new Error("Нет связи с плоттером. Отключите его питание и USB.");
+      if (profileRef.current === "grbl") await writeRaw(new Uint8Array([0x85, 0x21, 0x18]));
+      else if (profileRef.current === "marlin") await writeRaw("M410\n");
+      else await writeRaw("R\r\n");
+    }
+    setStatus(writerRef.current ? "connected" : "disconnected");
     log(
       "system",
       "Отправлена аварийная остановка. После ответа о перезапуске снимите Alarm в состоянии плоттера. Задание не возобновится автоматически; физический ноль нужно проверить.",

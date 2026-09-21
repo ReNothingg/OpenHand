@@ -9,10 +9,22 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
     private let serial = SerialConnection()
     private let tcp = TcpConnection()
     private var selectedPort: SerialPortDescriptor?
+    private var lastSerialOpen: (path: String, options: SerialOpenOptions)?
+    private var lastRequestedTransport: String?
     private var activeTransport: String?
 
     override init() {
         super.init()
+        if let saved = UserDefaults.standard.dictionary(forKey: "OpenHandLastSerialPort"),
+           let path = saved["path"] as? String, path.hasPrefix("/dev/cu."),
+           let baud = saved["baudRate"] as? Int {
+            lastSerialOpen = (path, SerialOpenOptions(
+                baudRate: baud, dataBits: saved["dataBits"] as? Int ?? 8,
+                stopBits: saved["stopBits"] as? Int ?? 1,
+                parity: saved["parity"] as? String ?? "none",
+                flowControl: saved["flowControl"] as? String ?? "none"))
+            lastRequestedTransport = UserDefaults.standard.string(forKey: "OpenHandLastTransport")
+        }
 
         serial.onData = { [weak self] data in
             self?.sendSerialData(data)
@@ -105,6 +117,14 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 parity: payload["parity"] as? String ?? "none",
                 flowControl: payload["flowControl"] as? String ?? "none"
             )
+            lastSerialOpen = (path, options)
+            lastRequestedTransport = "serial"
+            UserDefaults.standard.set("serial", forKey: "OpenHandLastTransport")
+            UserDefaults.standard.set([
+                "path": path, "baudRate": options.baudRate, "dataBits": options.dataBits,
+                "stopBits": options.stopBits, "parity": options.parity,
+                "flowControl": options.flowControl
+            ], forKey: "OpenHandLastSerialPort")
             tcp.close { [weak self] in
                 self?.serial.open(path: path, options: options) { [weak self] result in
                     switch result {
@@ -123,6 +143,8 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 reject(id, message: "Некорректные параметры TCP-подключения.")
                 return
             }
+            lastRequestedTransport = "network"
+            UserDefaults.standard.set("network", forKey: "OpenHandLastTransport")
             serial.close { [weak self] in
                 self?.tcp.open(host: host, port: port.intValue) { [weak self] result in
                     switch result {
@@ -154,6 +176,39 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 tcp.write(data, completion: completion)
             } else {
                 serial.write(data, completion: completion)
+            }
+
+        case "emergencyStop":
+            let data: Data
+            switch payload["profile"] as? String {
+            case "grbl": data = Data([0x85, 0x21, 0x18])
+            case "marlin": data = Data("M410\n".utf8)
+            case "ebb": data = Data("R\r\n".utf8)
+            default: reject(id, message: "Неизвестный протокол остановки."); return
+            }
+            let finish: SerialConnection.Completion = { [weak self] result in
+                switch result {
+                case .success: self?.resolve(id, result: ["sent": true])
+                case let .failure(error): self?.reject(id, error: error)
+                }
+            }
+            if lastRequestedTransport == "network" {
+                tcp.write(data, completion: finish)
+            } else if let saved = lastSerialOpen {
+                serial.write(data) { [weak self] result in
+                    guard let self else { return }
+                    if case .success = result { finish(result); return }
+                    // Recover only the explicitly selected port. No discovery,
+                    // configuration commands, DTR pulse, homing or job replay.
+                    self.serial.open(path: saved.path, options: saved.options) { [weak self] opened in
+                        guard let self else { return }
+                        if case .failure = opened { finish(opened); return }
+                        self.activeTransport = "serial"
+                        self.serial.write(data, completion: finish)
+                    }
+                }
+            } else {
+                reject(id, message: "USB-порт ещё не выбран. Не удалось передать СТОП.")
             }
 
         case "setSignals":

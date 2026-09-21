@@ -188,6 +188,7 @@ private let serialShim = #"""
   };
   serial.getPorts = async () => [];
 
+  Object.defineProperty(window, "__openhandEmergencyStop", { value: profile => bridge.call("emergencyStop", { profile }) });
   Object.defineProperty(window, "__openhandNativePlatform", {
     value: "macos",
     configurable: false,

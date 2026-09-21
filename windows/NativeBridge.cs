@@ -13,6 +13,8 @@ internal sealed class NativeBridge : IDisposable
     private readonly NetworkConnection _network = new();
     private string? _selectedPortPath;
     private string? _activeTransport;
+    private string? _lastRequestedTransport;
+    private SerialOpenOptions? _lastSerialOpen;
     private NotifyIcon? _notification;
 
     public NativeBridge(
@@ -145,6 +147,8 @@ internal sealed class NativeBridge : IDisposable
                         ParseStopBits(GetOptionalInt32(payload, "stopBits", 1)),
                         ParseParity(GetOptionalString(payload, "parity", "none")),
                         ParseHandshake(GetOptionalString(payload, "flowControl", "none")));
+                    _lastSerialOpen = options;
+                    _lastRequestedTransport = "serial";
                     await _serial.OpenAsync(options);
                     _activeTransport = "serial";
                     Resolve(id, new { opened = true });
@@ -155,9 +159,34 @@ internal sealed class NativeBridge : IDisposable
                     await _serial.CloseAsync();
                     var host = GetRequiredString(payload, "host");
                     var port = GetRequiredInt32(payload, "port");
+                    _lastRequestedTransport = "network";
                     await _network.OpenAsync(host, port);
                     _activeTransport = "network";
                     Resolve(id, new { opened = true });
+                    break;
+                }
+                case "emergencyStop":
+                {
+                    byte[] bytes = GetRequiredString(payload, "profile") switch
+                    {
+                        "grbl" => new byte[] { 0x85, 0x21, 0x18 },
+                        "marlin" => System.Text.Encoding.ASCII.GetBytes("M410\n"),
+                        "ebb" => System.Text.Encoding.ASCII.GetBytes("R\r\n"),
+                        _ => throw new ArgumentException("Неизвестный протокол остановки.")
+                    };
+                    if (_lastRequestedTransport == "network") await _network.WriteAsync(bytes);
+                    else if (_lastSerialOpen is { } saved)
+                    {
+                        try { await _serial.WriteAsync(bytes); }
+                        catch (Exception error) when (error is IOException or InvalidOperationException)
+                        {
+                            await _serial.OpenAsync(saved);
+                            _activeTransport = "serial";
+                            await _serial.WriteAsync(bytes);
+                        }
+                    }
+                    else throw new InvalidOperationException("USB-порт ещё не выбран. Не удалось передать СТОП.");
+                    Resolve(id, new { sent = true });
                     break;
                 }
                 case "write":

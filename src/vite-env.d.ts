@@ -15,6 +15,7 @@ interface OpenHandSaveResult {
 }
 
 interface Window {
+  __openhandEmergencyStop?: (profile: string) => Promise<{ sent: boolean }>;
   __openhandNotificationBridge?: {
     enable: () => Promise<{ granted: boolean }>;
     show: (title: string, body: string) => Promise<unknown>;

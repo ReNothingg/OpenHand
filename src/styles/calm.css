@@ -2377,7 +2377,7 @@ body,
 }
 
 /* Emergency control lives outside every scroll area and disabled fieldset. */
-:root .workspace-navigation > .emergency-stop {
+:root .app.with-workspace-nav .workspace-navigation > button.emergency-stop {
   flex: 0 0 auto;
   order: 10;
   display: inline-flex;
@@ -2396,14 +2396,14 @@ body,
   letter-spacing: .5px;
   cursor: pointer;
 }
-:root .workspace-navigation > .emergency-stop:hover { background: #8e1a12; }
-:root .workspace-navigation > .emergency-stop:focus-visible { outline: 3px solid var(--text-primary); outline-offset: 3px; }
+:root .app.with-workspace-nav .workspace-navigation > button.emergency-stop:hover { background: #8e1a12; }
+:root .app.with-workspace-nav .workspace-navigation > button.emergency-stop:focus-visible { outline: 3px solid var(--text-primary); outline-offset: 3px; }
 .emergency-stop kbd { font: inherit; font-size: 10px; font-weight: 500; opacity: .8; }
 .emergency-stop-notice { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 12px 18px; background: var(--danger-soft); color: var(--danger); font-size: 13px; line-height: 1.5; }
 .emergency-stop-notice button { flex-shrink: 0; padding: 8px 12px; border: 1px solid currentColor; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
 @media (max-width: 700px) {
   :root .workspace-navigation { flex-wrap: wrap; }
-  :root .workspace-navigation > .emergency-stop { order: 0; margin-left: auto; min-width: 96px; }
+  :root .app.with-workspace-nav .workspace-navigation > button.emergency-stop { order: 0; margin-left: auto; min-width: 96px; }
   :root .workspace-navigation > .appearance-control { order: 2; }
   .emergency-stop-notice { flex-wrap: wrap; }
 }

@@ -273,7 +273,9 @@ final class SerialConnection: @unchecked Sendable {
             }
         }
 
-        guard fcntl(fileDescriptor, F_SETFL, 0) >= 0 else {
+        // A stalled UART must not block this serial queue and strand STOP
+        // behind a blocking read/write. DispatchSource handles read readiness.
+        guard fcntl(fileDescriptor, F_SETFL, O_NONBLOCK) >= 0 else {
             throw driverError("режим чтения порта")
         }
 

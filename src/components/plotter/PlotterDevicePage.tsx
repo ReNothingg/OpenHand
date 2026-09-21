@@ -90,7 +90,7 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
             </div>
             {!workspace.penPositionsVerified && <p className="device-hint">Письмо и полный ход заблокированы до сохранения обоих положений.</p>}
           </div>}
-          {stepper && <p className="device-travel"><span>Ход пера</span><strong>{penLiftDistance(config)} мм</strong></p>}
+          {stepper && workspace.penPositionsVerified && <p className="device-travel"><span>Ход пера</span><strong>{penLiftDistance(config)} мм</strong></p>}
           {stepper && (!workspace.penReferenceConfirmed || workspace.penSetupPosition === null) && connected && !alarm && !running && (
             <div className="device-reference">
               {!workspace.penPositionsVerified ? <>
