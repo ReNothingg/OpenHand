@@ -646,6 +646,14 @@ export function useIntegratedPlotter({
     setArmed(false);
     setOriginConfirmed(true);
   }, []);
+  const updateCalibrationConfig = useCallback((key, value) => {
+    if (!calibrationActive) return;
+    const allowed = ["invertX", "invertY", "swapAxes", "penUp", "penDown", "zUp", "zDown", "calibrationStep"];
+    if (!allowed.includes(key)) return;
+    setConfig((current) => normalizePlotterConfig({ ...current, [key]: value }));
+    setOriginConfirmed(false);
+    setArmed(false);
+  }, [calibrationActive, setConfig]);
   const performCalibrationAction = useCallback(
     async (action) => {
       setError("");
@@ -670,6 +678,7 @@ export function useIntegratedPlotter({
     }));
     setCalibrationActive(true);
     setArmed(false);
+    setOriginConfirmed(false);
     return true;
   }, [running]);
   const cancelCalibration = useCallback(
@@ -759,6 +768,10 @@ export function useIntegratedPlotter({
     cancelCalibration,
     completeCalibration,
     performCalibrationAction,
+    updateCalibrationConfig,
+    connectCalibration: () => plotter.connect(config.profile, config),
+    calibrationJog: (dx, dy) =>
+      plotter.sendCommands(createPageJogCommands(dx, dy, config), { waitForMotion: true }),
     plotter,
     connected,
     running,
@@ -804,6 +817,18 @@ export function useIntegratedPlotter({
       return safeAction(() => plotter.sendCommands([command]));
     },
     dryRun,
+    runPenCalibration: (sheet) => {
+      if (calibrationActive || running || !connected) return Promise.resolve(false);
+      if (!armed || !originConfirmed) {
+        setError("Перед пробой пера установите ноль и подтвердите готовность пера.");
+        return Promise.resolve(false);
+      }
+      if (!sheet.withinWorkArea) {
+        setError("Проба пера выходит за рабочую область.");
+        return Promise.resolve(false);
+      }
+      return safeAction(() => plotter.run(sheet));
+    },
     runImportedGcode: () => {
       if (!importedGcode) {
         setError("Сначала откройте файл G-code.");

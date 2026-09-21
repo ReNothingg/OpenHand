@@ -53,6 +53,20 @@ export default function PenCalibrationSheet({ workspace }) {
           </figcaption>
         </figure>
         <button
+          className="button primary"
+          type="button"
+          disabled={!workspace.connected || workspace.running || workspace.calibrationActive || !sheet.withinWorkArea}
+          onClick={async () => {
+            setNotice("");
+            const success = await workspace.runPenCalibration(sheet);
+            setNotice(success
+              ? "Проба завершена. Выберите лучший образец на бумаге."
+              : "Проба не завершена. Проверьте сообщение и готовность плоттера.");
+          }}
+        >
+          Написать пробу на плоттере
+        </button>
+        <button
           className="button"
           type="button"
           disabled={!sheet.withinWorkArea}

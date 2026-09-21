@@ -55,6 +55,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
     createCalibrationState,
   );
   const wasConnected = useRef(workspace.connected);
+  const actionInFlight = useRef(false);
   const step = currentCalibrationStep(state);
   const running = state.phase === "running";
   const stepText =
@@ -86,11 +87,12 @@ export default function PlotterCalibrationWizard({ workspace }) {
   };
 
   const runStep = async () => {
+    if (actionInFlight.current) return;
+    actionInFlight.current = true;
     dispatch({ type: "action-start" });
     try {
       if (step.kind === "connect" && !workspace.connected) {
-        const connected = await workspace.connect();
-        if (!connected) throw new Error("Не удалось подключить устройство.");
+        await workspace.connectCalibration();
       }
       await workspace.performCalibrationAction(step.action);
       dispatch({ type: "action-success" });
@@ -104,6 +106,8 @@ export default function PlotterCalibrationWizard({ workspace }) {
         error:
           reason instanceof Error ? reason.message : "Проверка не выполнена.",
       });
+    } finally {
+      actionInFlight.current = false;
     }
   };
 
@@ -112,9 +116,42 @@ export default function PlotterCalibrationWizard({ workspace }) {
     if (passed) dispatch({ type: "continue" });
   };
 
-  const jog = (dx, dy) => {
-    void workspace.jog(dx, dy);
+  const jog = async (dx, dy) => {
+    if (actionInFlight.current) return;
+    actionInFlight.current = true;
+    dispatch({ type: "action-start" });
+    try {
+      await workspace.calibrationJog(dx, dy);
+      dispatch({ type: "settings-changed" });
+    } catch (reason) {
+      dispatch({ type: "action-error", error: reason instanceof Error ? reason.message : "Перемещение не выполнено." });
+    } finally {
+      actionInFlight.current = false;
+    }
   };
+
+  const adjust = (key, value) => {
+    if (actionInFlight.current) return;
+    workspace.updateCalibrationConfig(key, value);
+    dispatch({ type: "settings-changed", axes: ["invertX", "invertY", "swapAxes"].includes(key) });
+  };
+  const axisStep = step.id.startsWith("axis-");
+  const penStep = step.id.startsWith("pen-");
+  const axisDescription = axisStep
+    ? `Перо должно переместиться на ${workspace.config.calibrationStep} мм ${
+      step.id.includes("-x-")
+        ? ((step.id.endsWith("positive") !== workspace.config.startPosition.startsWith("right")) ? "вправо" : "влево")
+        : ((step.id.endsWith("positive") !== workspace.config.startPosition.endsWith("bottom")) ? "вниз" : "вверх")
+    }. Если направление неверное, измените переключатели ниже.`
+    : stepText;
+  const boundaryText = step.kind === "boundary"
+    ? ({
+      "boundary-right": "Перо пройдёт вдоль первой стороны от выбранного нуля на ширину рабочей области.",
+      "boundary-bottom": "Перо перейдёт к противоположному углу рабочей области.",
+      "boundary-left": "Перо пройдёт вдоль обратной стороны рабочей области.",
+      "boundary-home": "Перо вернётся в выбранную нулевую точку.",
+    })[step.id]
+    : null;
 
   return createPortal(
     <div className="calibration-backdrop" role="presentation">
@@ -203,7 +240,40 @@ export default function PlotterCalibrationWizard({ workspace }) {
             </>
           ) : (
             <>
-              <p>{stepText}</p>
+              <p>{boundaryText || axisDescription}</p>
+              {axisStep && (
+                <fieldset disabled={running} className="calibration-checklist">
+                  <legend>Направление осей</legend>
+                  {[["invertX", "Развернуть мотор X"], ["invertY", "Развернуть мотор Y"], ["swapAxes", "Поменять оси X и Y местами"]].map(([key, label]) => (
+                    <label key={key}>
+                      <input type="checkbox" checked={workspace.config[key]} onChange={(event) => adjust(key, event.target.checked)} />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+              {(axisStep || step.kind === "origin") && (
+                <label className="field">
+                  <span>Шаг перемещения, мм</span>
+                  <select disabled={running} value={workspace.config.calibrationStep} onChange={(event) => adjust("calibrationStep", Number(event.target.value))}>
+                    {[...new Set([0.1, 0.5, 1, 2, 5, workspace.config.calibrationStep])].sort((a, b) => a - b).map((value) => <option key={value} value={value}>{value}</option>)}
+                  </select>
+                </label>
+              )}
+              {penStep && workspace.config.profile !== "ebb" && (
+                <fieldset disabled={running}>
+                  <legend>Положение пера</legend>
+                  {(workspace.config.penMode === "servo" ? [["penUp", "Поднято"], ["penDown", "Касание"]] : [["zUp", "Поднято, мм"], ["zDown", "Касание, мм"]]).map(([key, label]) => (
+                    <label className="field" key={key}>
+                      <span>{label}</span>
+                      <input type="number" value={workspace.config[key]} step={workspace.config.penMode === "servo" ? 1 : 0.1} onChange={(event) => {
+                        if (event.target.value !== "" && Number.isFinite(event.target.valueAsNumber)) adjust(key, event.target.valueAsNumber);
+                      }} />
+                    </label>
+                  ))}
+                  <p className="calibration-note">Изменение сохраняет настройку. Нажмите кнопку ниже, чтобы проверить её на плоттере.</p>
+                </fieldset>
+              )}
               {step.kind === "connect" &&
                 workspace.config.penMode === "laser" && (
                   <p className="calibration-warning">

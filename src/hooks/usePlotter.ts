@@ -29,7 +29,9 @@ function loadRecovery(): PlotterRecoveryState | null {
 }
 
 function lineEnding(profile) {
-  return profile === "marlin" ? "\n" : "\r\n";
+  // GRBL accepts CR and LF separately; CRLF can yield two acknowledgements
+  // (the second for an empty line), incorrectly completing the next command.
+  return profile === "ebb" ? "\r\n" : "\n";
 }
 
 export function usePlotter() {
@@ -64,6 +66,7 @@ export function usePlotter() {
   const pausedRef = useRef(false);
   const pauseWaitersRef = useRef([]);
   const commandTimeoutRef = useRef(12000);
+  const statusReportRef = useRef({ sequence: 0, state: "" });
 
   const cancelPaperWait = useCallback(
     (message = "Очередь листов остановлена.") => {
@@ -134,6 +137,11 @@ export function usePlotter() {
             const line = rawLine.trim();
             if (!line) continue;
             if (line.startsWith("<")) {
+              const report = parseGrblStatus(line);
+              if (report) statusReportRef.current = {
+                sequence: statusReportRef.current.sequence + 1,
+                state: report.state,
+              };
               if (/^<Alarm(?:\||>)/.test(line)) {
                 abortRef.current = true;
                 desynchronizedRef.current = true;
@@ -342,15 +350,21 @@ export function usePlotter() {
         writerRef.current = port.writable.getWriter();
         readerRef.current = port.readable.getReader();
         void readLoop(readerRef.current);
-        setStatus("connected");
         log(
           "system",
           connectionType === "network"
             ? `${profile.toUpperCase()} · TCP ${networkHost}:${networkPort}`
             : `${profile.toUpperCase()} · ${serialOptions.baudRate} бод · ${serialOptions.dataBits}${serialOptions.parity === "none" ? "N" : serialOptions.parity === "even" ? "E" : "O"}${serialOptions.stopBits}`,
         );
-        if (profile === "marlin") await writeRaw("M115\n");
-        else await writeRaw(new Uint8Array([24]));
+        // Opening USB serial/DTR can reboot the controller. Do not expose
+        // controls or leave an untracked M115 acknowledgement in the stream.
+        if (profile === "grbl") await writeRaw(new Uint8Array([24]));
+        if (profile !== "ebb") {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          await sendCommand(profile === "marlin" ? "M115" : "$I");
+        }
+        if (!writerRef.current) throw new Error("Соединение с плоттером потеряно.");
+        setStatus("connected");
       } catch (error) {
         try {
           await readerRef.current?.cancel();
@@ -376,7 +390,7 @@ export function usePlotter() {
         connectingRef.current = false;
       }
     },
-    [log, networkSupported, readLoop, supported, writeRaw],
+    [log, networkSupported, readLoop, sendCommand, supported, writeRaw],
   );
 
   const realtime = useCallback(
@@ -695,7 +709,7 @@ export function usePlotter() {
   }, [cancelPaperWait, log, saveRecovery, writeRaw]);
 
   const sendCommands = useCallback(
-    async (commands) => {
+    async (commands, options: { waitForMotion?: boolean } = {}) => {
       if (operationRef.current)
         throw new Error("Дождитесь завершения текущей операции.");
       operationRef.current = true;
@@ -705,11 +719,36 @@ export function usePlotter() {
           if (abortRef.current) throw new Error("Операция прервана.");
           await sendCommand(command);
         }
+        if (options.waitForMotion && profileRef.current === "grbl") {
+          // Jog's ok means queued. Wait for a NEW Idle report; the previous
+          // cached Idle can predate the movement. G-code barriers cannot be
+          // sent while GRBL is in Jog state.
+          const deadline = Date.now() + 120000;
+          const sequence = statusReportRef.current.sequence;
+          await writeRaw("?", false);
+          while (true) {
+            if (abortRef.current || !writerRef.current)
+              throw new Error("Операция прервана.");
+            const report = statusReportRef.current;
+            if (report.sequence > sequence && report.state === "Idle") break;
+            if (Date.now() >= deadline) {
+              desynchronizedRef.current = true;
+              setControllerEpoch((epoch) => epoch + 1);
+              await writeRaw(new Uint8Array([33]));
+              throw new Error("Движение не завершено. Переподключите плоттер и проверьте ноль перед повтором.");
+            }
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            // Keep the initial sequence so fast replies are not skipped.
+            await writeRaw("?", false);
+          }
+        } else if (options.waitForMotion && profileRef.current === "marlin") {
+          await sendCommand("M400", 120000);
+        }
       } finally {
         operationRef.current = false;
       }
     },
-    [sendCommand],
+    [sendCommand, writeRaw],
   );
 
   useEffect(

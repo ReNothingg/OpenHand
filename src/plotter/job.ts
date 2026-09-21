@@ -1779,7 +1779,7 @@ export function createJogCommands(dx, dy, config) {
     ];
   }
   if (config.profile === "marlin")
-    return ["G91", `G0X${number(dx)}Y${number(dy)}F${config.jogSpeed}`];
+    return ["G21", "G91", `G0X${number(dx)}Y${number(dy)}F${config.jogSpeed}`, "G90"];
   return [`$J=G21G91X${number(dx)}Y${number(dy)}F${config.jogSpeed}`];
 }
 
@@ -1794,8 +1794,8 @@ export function createPenCommand(up, config) {
 
 export function createOriginCommands(config) {
   if (config.profile === "ebb") return [];
-  if (config.profile === "marlin") return ["G92X0Y0Z0"];
-  return ["G10P0L20X0Y0Z0"];
+  if (config.profile === "marlin") return ["G92X0Y0"];
+  return ["G10P0L20X0Y0"];
 }
 
 export function createHomingCommands(config) {

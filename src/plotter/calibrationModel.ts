@@ -62,19 +62,19 @@ const BASE_STEPS = [
   {
     id: "boundary-right",
     kind: "boundary",
-    title: "Правый верхний угол",
+    title: "Первая сторона рамки",
     action: "boundary-right",
   },
   {
     id: "boundary-bottom",
     kind: "boundary",
-    title: "Правый нижний угол",
+    title: "Противоположный угол",
     action: "boundary-bottom",
   },
   {
     id: "boundary-left",
     kind: "boundary",
-    title: "Левый нижний угол",
+    title: "Обратная сторона рамки",
     action: "boundary-left",
   },
   {
@@ -128,6 +128,13 @@ export function calibrationReducer(state, event) {
     case "action-start":
       if (state.phase === "running") return state;
       return { ...state, phase: "running", error: "" };
+    case "settings-changed":
+      return {
+        ...state,
+        index: event.axes ? 2 : state.index,
+        phase: "ready",
+        error: "",
+      };
     case "action-success":
       return { ...state, phase: "awaiting-verification", error: "" };
     case "action-error":
@@ -148,8 +155,8 @@ export function calibrationReducer(state, event) {
         phase: "ready",
         failedDirections,
         error: step?.id.startsWith("axis-")
-          ? "Направление оси не совпадает. Исправьте настройки контроллера и повторите шаг."
-          : "Механика сработала неверно. Исправьте настройку профиля и повторите шаг.",
+          ? "Исправьте направление ниже. После изменения повторите проверку осей."
+          : "Измените параметры ниже и повторите проверку.",
       };
     }
     case "continue":
