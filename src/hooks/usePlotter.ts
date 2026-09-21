@@ -55,6 +55,8 @@ export function usePlotter() {
   const [controllerEpoch, setControllerEpoch] = useState(0);
   const operationRef = useRef(false);
   const connectingRef = useRef(false);
+  const connectionEpochRef = useRef(0);
+  const cancelConnectRef = useRef(false);
   const desynchronizedRef = useRef(false);
   const [recovery, setRecovery] = useState(loadRecovery);
   const portRef = useRef(null);
@@ -136,12 +138,13 @@ export function usePlotter() {
   }, [rememberSetting]);
 
   const readLoop = useCallback(
-    async (reader) => {
+    async (reader, connectionEpoch: number) => {
       const decoder = new TextDecoder();
       let buffer = "";
       try {
         while (true) {
           const { value, done } = await reader.read();
+          if (connectionEpochRef.current !== connectionEpoch || readerRef.current !== reader) break;
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
           if (buffer.length > 65536)
@@ -149,6 +152,7 @@ export function usePlotter() {
           const lines = buffer.split(/\r?\n/);
           buffer = lines.pop() || "";
           for (const rawLine of lines) {
+            if (connectionEpochRef.current !== connectionEpoch || readerRef.current !== reader) break;
             const line = rawLine.trim();
             if (!line) continue;
             if (line.startsWith("<")) {
@@ -219,7 +223,7 @@ export function usePlotter() {
       } catch (error) {
         if (readerRef.current === reader) log("error", error.message);
       } finally {
-        if (readerRef.current === reader) {
+        if (connectionEpochRef.current === connectionEpoch && readerRef.current === reader) {
           cancelPaperWait("Соединение с плоттером потеряно.");
           abortRef.current = true;
           pausedRef.current = false;
@@ -245,7 +249,7 @@ export function usePlotter() {
         } catch {
           /* already released */
         }
-        if (!readerRef.current) {
+        if (connectionEpochRef.current === connectionEpoch && !readerRef.current) {
           const closedPort = portRef.current;
           portRef.current = null;
           try {
@@ -256,7 +260,7 @@ export function usePlotter() {
         }
       }
     },
-    [cancelPaperWait, log, settlePending, rememberSetting, status],
+    [cancelPaperWait, log, settlePending, rememberSetting],
   );
 
   const writeRaw = useCallback(
@@ -286,9 +290,14 @@ export function usePlotter() {
       if (profileRef.current === "grbl" && statusReportRef.current.state === "Alarm"
           && !/^\$(?:X|I|G|#|\$)$/i.test(command))
         throw new Error("GRBL в состоянии Alarm. Устраните причину и нажмите «Снять Alarm» в состоянии плоттера. Затем проверьте ноль.");
+      const connectionEpoch = connectionEpochRef.current;
       let pending = null;
       const acknowledgement = new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
+          if (connectionEpochRef.current !== connectionEpoch) {
+            reject(new Error("Предыдущее соединение закрыто."));
+            return;
+          }
           const index = pendingRef.current.findIndex(
             (item) => item.timeout === timeout,
           );
@@ -367,6 +376,12 @@ export function usePlotter() {
       );
       setStatus("connecting");
       connectingRef.current = true;
+      cancelConnectRef.current = false;
+      const connectionEpoch = ++connectionEpochRef.current;
+      const checkOpening = () => {
+        if (cancelConnectRef.current || connectionEpochRef.current !== connectionEpoch)
+          throw new DOMException("Подключение отменено.", "AbortError");
+      };
       profileRef.current = profile;
       desynchronizedRef.current = false;
       setMachineStatus(null);
@@ -379,8 +394,10 @@ export function usePlotter() {
             ? { openhandNetwork: { host: networkHost, port: networkPort } }
             : undefined,
         );
+        checkOpening();
         portRef.current = port;
         await port.open(serialOptions);
+        checkOpening();
         try {
           await port.setSignals({
             dataTerminalReady: true,
@@ -392,7 +409,8 @@ export function usePlotter() {
         portRef.current = port;
         writerRef.current = port.writable.getWriter();
         readerRef.current = port.readable.getReader();
-        void readLoop(readerRef.current);
+        checkOpening();
+        void readLoop(readerRef.current, connectionEpoch);
         log(
           "system",
           connectionType === "network"
@@ -405,13 +423,12 @@ export function usePlotter() {
         // planner state even when the user only reconnects to an idle machine.
         if (profile !== "ebb") {
           await new Promise((resolve) => setTimeout(resolve, 2000));
+          checkOpening();
           await sendCommand(profile === "marlin" ? "M115" : "$I");
         }
         if (!writerRef.current) throw new Error("Соединение с плоттером потеряно.");
-        if (profile === "grbl") {
-          await sendCommand("$$");
-
-        }
+        if (profile === "grbl") await sendCommand("$$");
+        checkOpening();
         setStatus("connected");
       } catch (error) {
         try {
@@ -477,6 +494,8 @@ export function usePlotter() {
   }, [realtime, status]);
 
   const disconnect = useCallback(async () => {
+    cancelConnectRef.current = true;
+    ++connectionEpochRef.current;
     cancelPaperWait();
     abortRef.current = true;
     pausedRef.current = false;
@@ -512,6 +531,8 @@ export function usePlotter() {
     if (!supported || typeof navigator.serial.addEventListener !== "function")
       return undefined;
     const handleDeviceDisconnect = () => {
+      cancelConnectRef.current = true;
+      ++connectionEpochRef.current;
       cancelPaperWait("Устройство отключено.");
       abortRef.current = true;
       pausedRef.current = false;
@@ -734,6 +755,7 @@ export function usePlotter() {
   }, [status, writeRaw]);
 
   const stop = useCallback(async () => {
+    cancelConnectRef.current = true;
     emergencyStopRef.current = true;
     setEmergencyStopped(true);
     cancelPaperWait();
@@ -765,10 +787,20 @@ export function usePlotter() {
       else await writeRaw("R\r\n");
     }
     setStatus(writerRef.current ? "connected" : "disconnected");
-    log(
-      "system",
-      "Отправлена аварийная остановка. После ответа о перезапуске снимите Alarm в состоянии плоттера. Задание не возобновится автоматически; физический ноль нужно проверить.",
-    );
+    log("system", "Команда остановки передана. Очередь отменена; новые команды заблокированы.");
+    if (profileRef.current === "grbl" && writerRef.current) {
+      const sequence = statusReportRef.current.sequence;
+      const deadline = Date.now() + 1800;
+      while (Date.now() < deadline && writerRef.current) {
+        try { await writeRaw("?", false); }
+        catch { break; }
+        await new Promise(resolve => setTimeout(resolve, 150));
+        const report = statusReportRef.current;
+        if (report.sequence > sequence && ["Idle", "Hold:0", "Alarm", "Sleep"].includes(report.state))
+          return { delivered: true, controllerState: report.state };
+      }
+    }
+    return { delivered: true, controllerState: null };
   }, [cancelPaperWait, log, saveRecovery, writeRaw]);
 
   const sendCommands = useCallback(

@@ -112,6 +112,9 @@ final class SerialConnection: @unchecked Sendable {
             }
 
             do {
+                guard ioctl(fileDescriptor, UInt(TIOCEXCL)) == 0 else {
+                    throw SerialConnectionError.openFailed(path, errno)
+                }
                 try self.configure(fileDescriptor, path: path, options: options)
                 self.descriptor = fileDescriptor
                 self.manuallyClosing = false
