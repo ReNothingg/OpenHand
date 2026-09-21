@@ -51,9 +51,9 @@ export default function MachineMonitor({ workspace, compact = false }: { workspa
       <details open={!compact}>
       <summary>Координаты и скорости</summary>
       <small>
-        {fresh && status.work
-          ? "Рабочие координаты · мм"
-          : "Машинные координаты · мм"}
+        {fresh && status.unitsKnown === false
+          ? "Единицы координат ещё не прочитаны"
+          : fresh && status.work ? "Рабочие координаты · мм" : "Машинные координаты · мм"}
       </small>
       <div className="machine-dro">
         {["X", "Y", "Z"].map((axis, i) => (

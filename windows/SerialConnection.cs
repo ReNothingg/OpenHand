@@ -22,6 +22,8 @@ internal sealed class SerialConnection : IDisposable
     private SerialPort? _port;
     private CancellationTokenSource? _readCancellation;
     private bool _disposed;
+    private long _writeEpoch;
+    private CancellationTokenSource? _writeCancellation;
 
     public event Action<byte[]>? DataReceived;
     public event Action<string>? Disconnected;
@@ -90,18 +92,48 @@ internal sealed class SerialConnection : IDisposable
     public async Task<int> WriteAsync(byte[] data)
     {
         ThrowIfDisposed();
+        var epoch = Interlocked.Read(ref _writeEpoch);
         await _writeLock.WaitAsync();
+        CancellationTokenSource? cancellation = null;
         try
         {
             var port = GetOpenPort();
-            await port.BaseStream.WriteAsync(data);
-            await port.BaseStream.FlushAsync();
+            lock (_sync)
+            {
+                if (epoch != _writeEpoch) throw new IOException("Предыдущая запись отменена остановкой.");
+                cancellation = new CancellationTokenSource();
+                _writeCancellation = cancellation;
+            }
+            await port.BaseStream.WriteAsync(data, cancellation.Token);
+            await port.BaseStream.FlushAsync(cancellation.Token);
             return data.Length;
         }
         finally
         {
+            lock (_sync) { if (ReferenceEquals(_writeCancellation, cancellation)) _writeCancellation = null; }
+            cancellation?.Dispose();
             _writeLock.Release();
         }
+    }
+
+    public async Task EmergencyWriteAsync(byte[] data)
+    {
+        // Cancel the current overlapped write before waiting for its lock.
+        // Any already queued ordinary writer belongs to the previous epoch.
+        lock (_sync)
+        {
+            ++_writeEpoch;
+            _writeCancellation?.Cancel();
+        }
+        await _writeLock.WaitAsync();
+        try
+        {
+            var port = GetOpenPort();
+            port.DiscardOutBuffer();
+            await port.BaseStream.WriteAsync(data);
+            await port.BaseStream.FlushAsync();
+        }
+        finally { _writeLock.Release(); }
     }
 
     public void SetSignals(bool? dataTerminalReady, bool? requestToSend)
@@ -127,6 +159,8 @@ internal sealed class SerialConnection : IDisposable
             cancellation = _readCancellation;
             _port = null;
             _readCancellation = null;
+            ++_writeEpoch;
+            _writeCancellation?.Cancel();
         }
 
         cancellation?.Cancel();
@@ -250,6 +284,8 @@ internal sealed class SerialConnection : IDisposable
             cancellation = _readCancellation;
             _port = null;
             _readCancellation = null;
+            ++_writeEpoch;
+            _writeCancellation?.Cancel();
         }
 
         cancellation?.Cancel();

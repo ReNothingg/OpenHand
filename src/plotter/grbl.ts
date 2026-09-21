@@ -1,5 +1,6 @@
 export interface GrblStatus {
   state: string;
+  unitsKnown?: boolean;
   machine?: number[];
   work?: number[];
   offset?: number[];
@@ -22,7 +23,7 @@ const vector = (value: string | undefined) => {
 export function parseGrblStatus(
   line: string,
   previous?: GrblStatus | null,
-  reportInches = false,
+  reportInches: boolean | null = false,
 ): GrblStatus | null {
   if (!/^<[^<>]+>$/.test(line)) return null;
   const [state, ...parts] = line.slice(1, -1).split("|");
@@ -39,9 +40,9 @@ export function parseGrblStatus(
     }),
   );
   const factor = reportInches ? 25.4 : 1;
-  const position = (value: string | undefined) => vector(value)?.map(n => n * factor);
+  const position = (value: string | undefined) => reportInches === null ? undefined : vector(value)?.map(n => n * factor);
   const offset =
-    fields.WCO === undefined ? previous?.offset : position(fields.WCO);
+    reportInches === null ? undefined : fields.WCO === undefined ? previous?.offset : position(fields.WCO);
   let machine = position(fields.MPos),
     work = position(fields.WPos);
   if (machine && offset?.length === machine.length)
@@ -51,10 +52,11 @@ export function parseGrblStatus(
   const fs = fields.FS?.split(",").map(Number);
   return {
     state,
+    unitsKnown: reportInches !== null,
     machine,
     work,
     offset,
-    feed: fs && Number.isFinite(fs[0]) ? fs[0] * factor : undefined,
+    feed: reportInches !== null && fs && Number.isFinite(fs[0]) ? fs[0] * factor : undefined,
     spindle: fs && Number.isFinite(fs[1]) ? fs[1] : undefined,
     overrides: vector(fields.Ov) || previous?.overrides,
     pins: fields.Pn || "",

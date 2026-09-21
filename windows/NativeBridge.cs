@@ -12,8 +12,11 @@ internal sealed class NativeBridge : IDisposable
     private readonly SerialConnection _serial = new();
     private readonly NetworkConnection _network = new();
     private string? _selectedPortPath;
+    private bool _emergencyStopped;
+    private bool _emergencyInFlight;
     private string? _activeTransport;
     private string? _lastRequestedTransport;
+    private string? _lastProtocol;
     private SerialOpenOptions? _lastSerialOpen;
     private NotifyIcon? _notification;
 
@@ -139,6 +142,8 @@ internal sealed class NativeBridge : IDisposable
                 }
                 case "open":
                 {
+                    if (_emergencyInFlight) throw new InvalidOperationException("Остановка ещё выполняется.");
+                    _lastProtocol = GetOptionalString(payload, "profile", "grbl");
                     await _network.CloseAsync();
                     var options = new SerialOpenOptions(
                         GetRequiredString(payload, "path"),
@@ -156,6 +161,8 @@ internal sealed class NativeBridge : IDisposable
                 }
                 case "openNetwork":
                 {
+                    if (_emergencyInFlight) throw new InvalidOperationException("Остановка ещё выполняется.");
+                    _lastProtocol = GetOptionalString(payload, "profile", "grbl");
                     await _serial.CloseAsync();
                     var host = GetRequiredString(payload, "host");
                     var port = GetRequiredInt32(payload, "port");
@@ -165,34 +172,48 @@ internal sealed class NativeBridge : IDisposable
                     Resolve(id, new { opened = true });
                     break;
                 }
+                case "releaseEmergencyStop":
+                    if (_emergencyInFlight) throw new InvalidOperationException("Остановка ещё выполняется.");
+                    _emergencyStopped = false;
+                    Resolve(id, new { released = true });
+                    break;
                 case "emergencyStop":
                 {
-                    byte[] bytes = GetRequiredString(payload, "profile") switch
+                    if (_emergencyInFlight) throw new InvalidOperationException("Остановка уже выполняется.");
+                    byte[] bytes = (_lastProtocol ?? GetRequiredString(payload, "profile")) switch
                     {
                         "grbl" => new byte[] { 0x85, 0x21, 0x18 },
                         "marlin" => System.Text.Encoding.ASCII.GetBytes("M410\n"),
                         "ebb" => System.Text.Encoding.ASCII.GetBytes("R\r\n"),
                         _ => throw new ArgumentException("Неизвестный протокол остановки.")
                     };
+                    _emergencyStopped = true;
+                    _emergencyInFlight = true;
+                    try
+                    {
                     if (_lastRequestedTransport == "network") await _network.WriteAsync(bytes);
                     else if (_lastSerialOpen is { } saved)
                     {
-                        try { await _serial.WriteAsync(bytes); }
+                        try { await _serial.EmergencyWriteAsync(bytes); }
                         catch (Exception error) when (error is IOException or InvalidOperationException)
                         {
                             await _serial.OpenAsync(saved);
                             _activeTransport = "serial";
-                            await _serial.WriteAsync(bytes);
+                            await _serial.EmergencyWriteAsync(bytes);
                         }
                     }
                     else throw new InvalidOperationException("USB-порт ещё не выбран. Не удалось передать СТОП.");
                     Resolve(id, new { sent = true });
+                    }
+                    finally { _emergencyInFlight = false; }
                     break;
                 }
                 case "write":
                 {
                     var data = Convert.FromBase64String(
                         GetRequiredString(payload, "data"));
+                    if (_emergencyStopped && !(data.Length == 1 && data[0] == 0x3f))
+                        throw new InvalidOperationException("СТОП: отправка команд заблокирована.");
                     var written = _activeTransport == "network"
                         ? await _network.WriteAsync(data)
                         : await _serial.WriteAsync(data);
@@ -223,7 +244,8 @@ internal sealed class NativeBridge : IDisposable
         }
         catch (OperationCanceledException)
         {
-            Reject(id, "Выбор последовательного порта отменён.");
+            var selecting = payload.TryGetProperty("action", out var action) && action.GetString() == "requestPort";
+            Reject(id, selecting ? "Выбор последовательного порта отменён." : "Операция последовательного порта отменена.");
         }
         catch (Exception error)
         {

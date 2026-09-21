@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { buildMetadata } from './scripts/build-metadata.mjs'
 
 export default defineConfig({
   base: './',
+  define: { __OPENHAND_BUILD__: JSON.stringify(buildMetadata) },
   plugins: [react()],
   optimizeDeps: {
     // Keep dependency discovery scoped to the source app. Packaged macOS and

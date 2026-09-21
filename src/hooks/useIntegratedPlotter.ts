@@ -890,8 +890,8 @@ export function useIntegratedPlotter({
     resume: () => safeAction(plotter.resume),
     stopNotice,
     emergencyStopped: plotter.emergencyStopped,
-    releaseEmergencyStop: () => {
-      try { plotter.releaseEmergencyStop(); setStopNotice(""); }
+    releaseEmergencyStop: async () => {
+      try { await plotter.releaseEmergencyStop(); setStopNotice(""); }
       catch (reason) { setStopNotice(reason.message); }
     },
     stop: async () => {

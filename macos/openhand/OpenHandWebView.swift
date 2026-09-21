@@ -21,6 +21,9 @@ private let serialShim = #"""
   const pendingFiles = new Map();
   let nextRequestID = 1;
   let activePort = null;
+  let stopPending = null;
+  let writesStopped = false;
+  let stopGeneration = 0;
 
   function bytesToBase64(bytes) {
     let binary = "";
@@ -105,10 +108,12 @@ private let serialShim = #"""
           await bridge.call("openNetwork", {
             host: this.info.host,
             port: this.info.port,
+            profile: options.profile,
           });
         } else {
           await bridge.call("open", {
             path: this.info.path,
+            profile: options.profile,
             baudRate: Number(options.baudRate),
             dataBits: options.dataBits ?? 8,
             stopBits: options.stopBits ?? 1,
@@ -137,6 +142,8 @@ private let serialShim = #"""
         },
         write: (chunk) => {
           const bytes = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk);
+          if (writesStopped && !(bytes.length === 1 && bytes[0] === 0x3f))
+            throw new Error("СТОП: отправка команд заблокирована.");
           return bridge.call("write", { data: bytesToBase64(bytes) });
         },
       });
@@ -152,6 +159,7 @@ private let serialShim = #"""
     }
 
     async close() {
+      if (stopPending) { try { await stopPending; } catch {} }
       if (!this._opened) return;
       await bridge.call("close");
       this._opened = false;
@@ -188,7 +196,25 @@ private let serialShim = #"""
   };
   serial.getPorts = async () => [];
 
-  Object.defineProperty(window, "__openhandEmergencyStop", { value: profile => bridge.call("emergencyStop", { profile }) });
+  Object.defineProperty(window, "__openhandEmergencyStop", { value: profile => {
+    writesStopped = true;
+    ++stopGeneration;
+    if (stopPending) return stopPending;
+    const request = bridge.call("emergencyStop", { profile });
+    stopPending = request;
+    const clear = () => { if (stopPending === request) stopPending = null; };
+    request.then(clear, clear);
+    return request;
+  } });
+  Object.defineProperty(window, "__openhandReleaseEmergencyStop", { value: async () => {
+    if (stopPending) throw new Error("Остановка ещё выполняется.");
+    const generation = stopGeneration;
+    await bridge.call("releaseEmergencyStop");
+    if (generation !== stopGeneration) throw new Error("Запрошен новый СТОП.");
+    if (stopPending) throw new Error("Остановка ещё выполняется.");
+    writesStopped = false;
+  } });
+  Object.defineProperty(window, "__openhandBridgeVersion", { value: 3 });
   Object.defineProperty(window, "__openhandNativePlatform", {
     value: "macos",
     configurable: false,

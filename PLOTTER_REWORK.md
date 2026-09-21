@@ -140,3 +140,38 @@ Follow-up findings in this checkpoint:
   cannot silently turn the document's absolute trajectory into relative/inch moves.
 - Generated jobs, calibration sheets and queues passed the policy across applicable modes.
   Final web/macOS bundle parity: 153 files; Windows build succeeded.
+
+## Stop lifecycle and diagnostics checkpoint
+
+STOP is coalesced while pending, latches ordinary writes in both native shims and bridges,
+and cannot be cleared by an older asynchronous release after a newer STOP. Port close waits
+for the current emergency request; status polling remains permitted. The Windows serial
+adapter cancels the current overlapped write before acquiring its lock for emergency data,
+and rejects queued writers from the prior epoch. A partial/failed G-code write invalidates
+synchronization and physical references, blocking subsequent lines. STOP delivery has a
+bounded acknowledgement wait on browser and native paths. An uncertain/errored stream is
+closed before releasing control rather than treated as usable.
+
+Native connection requests carry their protocol, so emergency bytes use the remembered
+connection protocol. Bridge version 3 is explicit; a stale native shell cannot establish a
+new connection with this frontend. Build revision/date and native bridge revision are visible
+in a single diagnostic disclosure. Local JSON export includes device state/log, not document
+content. Unknown $13 units now hide coordinates and feed rather than label raw values as mm;
+release after a successful GRBL reset reads settings, without movement or restoring references.
+
+Verification without plotter access:
+- Executed the actual embedded macOS and Windows shim JavaScript with mock native replies:
+  repeated STOP coalesces; ordinary late write blocked; '?' allowed; close waits; native
+  release required; an old release cannot clear a newer stop; protocol passed on open.
+- Hook simulation: old bridge blocked before chooser; connect/release blocked during STOP;
+  delayed release race rejected; partial write prevents following movement; unknown units
+  hidden and known inch reports converted.
+- Launched the built macOS application without connecting: bridge 3 and build timestamp
+  visible. Saved diagnostic JSON through NSSavePanel, parsed the file and verified disconnected
+  state, empty command log and no document-content fields. Closed the temporary application.
+- Web/macOS build and signature verification passed; web copies match (153 files); Windows
+  compilation passed. No physical-device stop/driver cancellation claim is inferred.
+
+Remaining acceptance work: full UI/job/paper-change/recovery pass, stop access around modal
+and native file dialogs, hardware-setting fingerprint/reference invalidation review, Windows
+cold-start saved-port parity, and final requirement-by-requirement audit.

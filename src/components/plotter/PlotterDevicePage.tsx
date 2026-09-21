@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import PlotterSettings from "./PlotterSettings";
+import PlotterDiagnostics from "./PlotterDiagnostics";
 import PenSetupPanel from "./PenSetupPanel";
 import "../../styles/plotter-device.css";
 
@@ -84,9 +85,7 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
           {config.penMode === "laser" && <NumberSetting label="Мощность S" value={config.laserPower} min={0} max={1000} disabled={locked} onChange={(v: number) => set("laserPower", v)} />}
         </details>
       </section>} />
-        <details className="device-advanced"><summary>Журнал команд</summary>
-          <pre className="device-command-log">{plotter.logs.map((entry: any) => `${entry.time} ${entry.direction === "out" ? "→" : entry.direction === "in" ? "←" : "·"} ${entry.message}`).join("\n")}</pre>
-        </details>
+      <PlotterDiagnostics workspace={workspace} />
     </div>
   </main>;
 }

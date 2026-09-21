@@ -66,6 +66,8 @@ export function usePlotter() {
   const pendingRef = useRef([]);
   const abortRef = useRef(false);
   const emergencyStopRef = useRef(false);
+  const emergencyGenerationRef = useRef(0);
+  const stopInFlightRef = useRef<Promise<{ delivered: boolean; controllerState: string | null }> | null>(null);
   const [emergencyStopped, setEmergencyStopped] = useState(false);
   const pausedRef = useRef(false);
   const pauseWaitersRef = useRef([]);
@@ -156,7 +158,7 @@ export function usePlotter() {
             const line = rawLine.trim();
             if (!line) continue;
             if (line.startsWith("<")) {
-              const report = parseGrblStatus(line, undefined, controllerSettingsRef.current[13] === 1);
+              const report = parseGrblStatus(line, undefined, (controllerSettingsRef.current[13] === 0 || controllerSettingsRef.current[13] === 1) ? controllerSettingsRef.current[13] === 1 : null);
               const wasAlarm = statusReportRef.current.state === "Alarm";
               if (report) statusReportRef.current = {
                 sequence: statusReportRef.current.sequence + 1,
@@ -177,7 +179,7 @@ export function usePlotter() {
                 }
               }
               setMachineStatus(
-                (previous) => parseGrblStatus(line, previous, controllerSettingsRef.current[13] === 1) || previous,
+                (previous) => parseGrblStatus(line, previous, (controllerSettingsRef.current[13] === 0 || controllerSettingsRef.current[13] === 1) ? controllerSettingsRef.current[13] === 1 : null) || previous,
               );
               continue;
             }
@@ -316,6 +318,15 @@ export function usePlotter() {
       try {
         await writeRaw(`${command}${lineEnding(profileRef.current)}`);
       } catch (error) {
+        // A write may have delivered only a prefix. Do not append another
+        // G-code line to an uncertain controller buffer, or poison a new session.
+        if (connectionEpochRef.current === connectionEpoch) {
+          desynchronizedRef.current = true;
+          abortRef.current = true;
+          setControllerEpoch(epoch => epoch + 1);
+          if (profileRef.current === "grbl" && !emergencyStopRef.current)
+            void writeRaw(new Uint8Array([0x21])).catch(() => {});
+        }
         const index = pendingRef.current.indexOf(pending);
         if (index >= 0) pendingRef.current.splice(index, 1);
         clearTimeout(pending.timeout);
@@ -332,8 +343,12 @@ export function usePlotter() {
 
   const connect = useCallback(
     async (profile, incomingOptions) => {
+      if (stopInFlightRef.current || emergencyStopRef.current)
+        throw new Error("Сначала дождитесь завершения СТОП и разрешите управление.");
       if (writerRef.current || operationRef.current || connectingRef.current)
         throw new Error("Сначала закройте текущее соединение.");
+      if (typeof window !== "undefined" && window.__openhandNativePlatform && (window.__openhandBridgeVersion ?? 0) < 3)
+        throw new Error("Открыта старая версия OpenHand. Полностью закройте приложение и запустите новую сборку.");
       if (!supported)
         throw new Error(
           "Web Serial недоступен. Используйте Chrome или Edge по HTTPS/localhost.",
@@ -343,6 +358,7 @@ export function usePlotter() {
           ? incomingOptions
           : { baudRate: incomingOptions };
       const serialOptions = {
+        profile,
         baudRate: Number(options.baudRate),
         dataBits: Number(options.dataBits) === 7 ? 7 : 8,
         stopBits: Number(options.stopBits) === 2 ? 2 : 1,
@@ -754,53 +770,63 @@ export function usePlotter() {
     pauseWaitersRef.current.splice(0).forEach((resolve) => resolve());
   }, [status, writeRaw]);
 
-  const stop = useCallback(async () => {
-    cancelConnectRef.current = true;
-    emergencyStopRef.current = true;
-    setEmergencyStopped(true);
-    cancelPaperWait();
-    abortRef.current = true;
-    pausedRef.current = false;
-    pauseWaitersRef.current.splice(0).forEach((resolve) => resolve());
-    for (const pending of pendingRef.current.splice(0)) {
-      clearTimeout(pending.timeout);
-      pending.reject(new DOMException("Задание остановлено.", "AbortError"));
-    }
-    saveRecovery(null);
-    desynchronizedRef.current = true;
-    setControllerEpoch((epoch) => epoch + 1);
-    setMachineStatus(null);
-    const nativeStop = typeof window !== "undefined" && window.__openhandEmergencyStop;
-    if (nativeStop) {
+  const stop = useCallback(() => {
+    if (stopInFlightRef.current) return stopInFlightRef.current;
+    const operation = (async () => {
+      ++emergencyGenerationRef.current;
+      cancelConnectRef.current = true;
+      emergencyStopRef.current = true;
+      setEmergencyStopped(true);
+      cancelPaperWait();
+      abortRef.current = true;
+      pausedRef.current = false;
+      pauseWaitersRef.current.splice(0).forEach((resolve) => resolve());
+      for (const pending of pendingRef.current.splice(0)) {
+        clearTimeout(pending.timeout);
+        pending.reject(new DOMException("Задание остановлено.", "AbortError"));
+      }
+      saveRecovery(null);
+      desynchronizedRef.current = true;
+      setControllerEpoch((epoch) => epoch + 1);
+      setMachineStatus(null);
+      const nativeStop = typeof window !== "undefined" && window.__openhandEmergencyStop;
+      let delivery: Promise<unknown>;
+      if (nativeStop) {
+        delivery = nativeStop(profileRef.current).then(result => {
+          if (!result.sent) throw new Error("USB-мост не подтвердил отправку СТОП.");
+        });
+      } else {
+        if (!writerRef.current) throw new Error("Нет связи с плоттером. Отключите его питание и USB.");
+        const bytes = profileRef.current === "grbl" ? new Uint8Array([0x85, 0x21, 0x18])
+          : profileRef.current === "marlin" ? "M410\n" : "R\r\n";
+        delivery = writeRaw(bytes);
+      }
       let timer: ReturnType<typeof setTimeout>;
       try {
-        const result = await Promise.race([
-          nativeStop(profileRef.current),
-          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Нет подтверждения отправки СТОП от USB-моста.")), 4000); }),
-        ]);
-        if (!result.sent) throw new Error("USB-мост не подтвердил отправку СТОП.");
+        await Promise.race([delivery, new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("Отправка СТОП не подтверждена за 4 секунды.")), 4000);
+        })]);
       } finally { clearTimeout(timer!); }
-    } else {
-      if (!writerRef.current) throw new Error("Нет связи с плоттером. Отключите его питание и USB.");
-      if (profileRef.current === "grbl") await writeRaw(new Uint8Array([0x85, 0x21, 0x18]));
-      else if (profileRef.current === "marlin") await writeRaw("M410\n");
-      else await writeRaw("R\r\n");
-    }
-    setStatus(writerRef.current ? "connected" : "disconnected");
-    log("system", "Команда остановки передана. Очередь отменена; новые команды заблокированы.");
-    if (profileRef.current === "grbl" && writerRef.current) {
-      const sequence = statusReportRef.current.sequence;
-      const deadline = Date.now() + 1800;
-      while (Date.now() < deadline && writerRef.current) {
-        try { await writeRaw("?", false); }
-        catch { break; }
-        await new Promise(resolve => setTimeout(resolve, 150));
-        const report = statusReportRef.current;
-        if (report.sequence > sequence && ["Idle", "Hold:0", "Alarm", "Sleep"].includes(report.state))
-          return { delivered: true, controllerState: report.state };
+      setStatus(writerRef.current ? "connected" : "disconnected");
+      log("system", "Команда остановки передана. Очередь отменена; новые команды заблокированы.");
+      if (profileRef.current === "grbl" && writerRef.current) {
+        const sequence = statusReportRef.current.sequence;
+        const deadline = Date.now() + 1800;
+        while (Date.now() < deadline && writerRef.current) {
+          try { await writeRaw("?", false); }
+          catch { break; }
+          await new Promise(resolve => setTimeout(resolve, 150));
+          const report = statusReportRef.current;
+          if (report.sequence > sequence && ["Idle", "Hold:0", "Alarm", "Sleep"].includes(report.state))
+            return { delivered: true, controllerState: report.state };
+        }
       }
-    }
-    return { delivered: true, controllerState: null };
+      return { delivered: true, controllerState: null };
+    })();
+    stopInFlightRef.current = operation;
+    const clear = () => { if (stopInFlightRef.current === operation) stopInFlightRef.current = null; };
+    void operation.then(clear, clear);
+    return operation;
   }, [cancelPaperWait, log, saveRecovery, writeRaw]);
 
   const sendCommands = useCallback(
@@ -903,11 +929,30 @@ export function usePlotter() {
     resume,
     stop,
     emergencyStopped,
-    releaseEmergencyStop: () => {
-      if (operationRef.current || connectingRef.current) throw new Error("Дождитесь завершения отмены операции.");
+    releaseEmergencyStop: async () => {
+      const generation = emergencyGenerationRef.current;
+      if (stopInFlightRef.current || operationRef.current || connectingRef.current) throw new Error("Дождитесь завершения отмены операции.");
+      if (typeof window !== "undefined" && window.__openhandReleaseEmergencyStop)
+        await window.__openhandReleaseEmergencyStop();
+      if (stopInFlightRef.current || generation !== emergencyGenerationRef.current) throw new Error("Запрошен новый СТОП. Управление остаётся заблокированным.");
+      // A cancelled native write may have errored the WritableStream. A
+      // released latch is not evidence that this old stream is usable again.
+      if (desynchronizedRef.current && writerRef.current) await disconnect();
+      else {
+        try { await writerRef.current?.ready; }
+        catch { await disconnect(); }
+      }
+      if (stopInFlightRef.current || generation !== emergencyGenerationRef.current) throw new Error("Запрошен новый СТОП. Управление остаётся заблокированным.");
       emergencyStopRef.current = false;
+      if (writerRef.current && profileRef.current === "grbl") {
+        operationRef.current = true;
+        try { await sendCommand("$$"); }
+        catch (error) { emergencyStopRef.current = true; throw error; }
+        finally { operationRef.current = false; }
+      }
+      if (generation !== emergencyGenerationRef.current) throw new Error("Запрошен новый СТОП.");
       setEmergencyStopped(false);
-      // No writes, no resumption and no automatic reference restoration.
+      // Only settings were read; no job resumption or reference restoration.
     },
     sendCommands,
     resetProgress,

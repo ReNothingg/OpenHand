@@ -14,7 +14,11 @@ interface OpenHandSaveResult {
   error?: string;
 }
 
+declare const __OPENHAND_BUILD__: { revision: string; modified: boolean; builtAt: string };
+
 interface Window {
+  __openhandBridgeVersion?: number;
+  __openhandReleaseEmergencyStop?: () => Promise<unknown>;
   __openhandEmergencyStop?: (profile: string) => Promise<{ sent: boolean }>;
   __openhandNotificationBridge?: {
     enable: () => Promise<{ granted: boolean }>;

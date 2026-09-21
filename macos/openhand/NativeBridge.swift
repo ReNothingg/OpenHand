@@ -11,6 +11,9 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
     private var selectedPort: SerialPortDescriptor?
     private var lastSerialOpen: (path: String, options: SerialOpenOptions)?
     private var lastRequestedTransport: String?
+    private var lastProtocol: String?
+    private var emergencyStopped = false
+    private var emergencyInFlight = false
     private var activeTransport: String?
 
     override init() {
@@ -24,6 +27,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 parity: saved["parity"] as? String ?? "none",
                 flowControl: saved["flowControl"] as? String ?? "none"))
             lastRequestedTransport = UserDefaults.standard.string(forKey: "OpenHandLastTransport")
+            lastProtocol = saved["profile"] as? String
         }
 
         serial.onData = { [weak self] data in
@@ -104,6 +108,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             }
 
         case "open":
+            guard !emergencyInFlight else { reject(id, message: "Остановка ещё выполняется."); return }
             guard let path = payload["path"] as? String,
                   let baudRate = payload["baudRate"] as? NSNumber else {
                 reject(id, message: "Некорректные параметры открытия порта.")
@@ -117,11 +122,13 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 parity: payload["parity"] as? String ?? "none",
                 flowControl: payload["flowControl"] as? String ?? "none"
             )
+            lastProtocol = payload["profile"] as? String
             lastSerialOpen = (path, options)
             lastRequestedTransport = "serial"
             UserDefaults.standard.set("serial", forKey: "OpenHandLastTransport")
             UserDefaults.standard.set([
                 "path": path, "baudRate": options.baudRate, "dataBits": options.dataBits,
+                "profile": lastProtocol ?? "grbl",
                 "stopBits": options.stopBits, "parity": options.parity,
                 "flowControl": options.flowControl
             ], forKey: "OpenHandLastSerialPort")
@@ -138,6 +145,8 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             }
 
         case "openNetwork":
+            guard !emergencyInFlight else { reject(id, message: "Остановка ещё выполняется."); return }
+            lastProtocol = payload["profile"] as? String
             guard let host = payload["host"] as? String,
                   let port = payload["port"] as? NSNumber else {
                 reject(id, message: "Некорректные параметры TCP-подключения.")
@@ -164,6 +173,10 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 return
             }
 
+            if emergencyStopped && data != Data([0x3f]) {
+                reject(id, message: "СТОП: отправка команд заблокирована.")
+                return
+            }
             let completion: SerialConnection.Completion = { [weak self] result in
                 switch result {
                 case .success:
@@ -178,15 +191,24 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 serial.write(data, completion: completion)
             }
 
+        case "releaseEmergencyStop":
+            guard !emergencyInFlight else { reject(id, message: "Остановка ещё выполняется."); return }
+            emergencyStopped = false
+            resolve(id, result: ["released": true])
+
         case "emergencyStop":
+            guard !emergencyInFlight else { reject(id, message: "Остановка уже выполняется."); return }
             let data: Data
-            switch payload["profile"] as? String {
+            switch lastProtocol ?? (payload["profile"] as? String) {
             case "grbl": data = Data([0x85, 0x21, 0x18])
             case "marlin": data = Data("M410\n".utf8)
             case "ebb": data = Data("R\r\n".utf8)
             default: reject(id, message: "Неизвестный протокол остановки."); return
             }
+            emergencyStopped = true
+            emergencyInFlight = true
             let finish: SerialConnection.Completion = { [weak self] result in
+                self?.emergencyInFlight = false
                 switch result {
                 case .success: self?.resolve(id, result: ["sent": true])
                 case let .failure(error): self?.reject(id, error: error)
@@ -208,6 +230,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                     }
                 }
             } else {
+                emergencyInFlight = false
                 reject(id, message: "USB-порт ещё не выбран. Не удалось передать СТОП.")
             }
 
