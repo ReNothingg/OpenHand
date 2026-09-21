@@ -140,7 +140,7 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
             </label>
             <div className="plotter-profile-meta">
               {workspace.activeProfile.calibratedAt
-                ? `Калибровка: ${new Date(workspace.activeProfile.calibratedAt).toLocaleString("ru-RU")}`
+                ? `Калибровка сохранена: ${new Date(workspace.activeProfile.calibratedAt).toLocaleString("ru-RU")}`
                 : "Калибровка ещё не завершена"}
             </div>
             <div className="plotter-profile-actions">

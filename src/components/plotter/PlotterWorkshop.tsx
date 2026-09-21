@@ -117,6 +117,7 @@ export default function PlotterWorkshop({
     !locked &&
     workspace.armed &&
     workspace.originConfirmed &&
+    (!["stepper", "estepper"].includes(config.penMode) || workspace.penReferenceConfirmed) &&
     workspace.activeProfile.calibratedAt &&
     job.withinWorkArea &&
     withinPaper &&

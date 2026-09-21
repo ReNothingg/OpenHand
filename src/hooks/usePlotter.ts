@@ -358,7 +358,8 @@ export function usePlotter() {
         );
         // Opening USB serial/DTR can reboot the controller. Do not expose
         // controls or leave an untracked M115 acknowledgement in the stream.
-        if (profile === "grbl") await writeRaw(new Uint8Array([24]));
+        // Identification must not soft-reset GRBL: reset discards G92 and the
+        // planner state even when the user only reconnects to an idle machine.
         if (profile !== "ebb") {
           await new Promise((resolve) => setTimeout(resolve, 2000));
           await sendCommand(profile === "marlin" ? "M115" : "$I");

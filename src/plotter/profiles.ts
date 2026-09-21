@@ -4,6 +4,28 @@ export const PLOTTER_PROFILES_KEY = "openhand.plotter.profiles.v1";
 export const LEGACY_PLOTTER_SETTINGS_KEY = "openhand.plotter.settings.v1";
 export const PLOTTER_PROFILES_VERSION = 1;
 
+// Document/font changes and tuning pen travel do not undo a physical axis check.
+const CALIBRATION_KEYS = [
+  "profile", "penMode", "swapAxes", "invertX", "invertY", "mmToSteps",
+  "workAreaWidth", "workAreaHeight",
+];
+export const ORIGIN_CONFIG_KEYS = [
+  "profile", "startPosition", "swapAxes", "invertX", "invertY", "mmToSteps",
+  "workAreaWidth", "workAreaHeight",
+];
+
+export function updateProfileConfig(profile, incoming) {
+  const config = normalizePlotterConfig(incoming);
+  if (JSON.stringify(config) === JSON.stringify(profile.config)) return profile;
+  return {
+    ...profile,
+    config,
+    calibratedAt: CALIBRATION_KEYS.some((key) => config[key] !== profile.config[key])
+      ? null : profile.calibratedAt,
+    updatedAt: Date.now(),
+  };
+}
+
 const PROFILE_NAMES = {
   grbl: "GRBL",
   marlin: "Marlin",

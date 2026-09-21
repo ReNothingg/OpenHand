@@ -27,6 +27,8 @@ import {
   normalizePlotterConfig,
   parsePlotterProfile,
   PLOTTER_PROFILES_KEY,
+  ORIGIN_CONFIG_KEYS,
+  updateProfileConfig,
 } from "../plotter/profiles";
 import { assessPlotterPreflight } from "../plotter/preflight";
 import { prepareImportedGcode } from "../plotter/gcodeImport";
@@ -155,15 +157,7 @@ export function useIntegratedPlotter({
           if (profile.id !== activeId) return profile;
           const incoming =
             typeof updater === "function" ? updater(profile.config) : updater;
-          const nextConfig = normalizePlotterConfig(incoming);
-          if (JSON.stringify(nextConfig) === JSON.stringify(profile.config))
-            return profile;
-          return {
-            ...profile,
-            config: nextConfig,
-            calibratedAt: null,
-            updatedAt: Date.now(),
-          };
+          return updateProfileConfig(profile, incoming);
         }),
       };
     });
@@ -452,7 +446,7 @@ export function useIntegratedPlotter({
       if (calibrationActive) return;
       setConfig((current) => ({ ...current, [key]: value }));
       setArmed(false);
-      setOriginConfirmed(false);
+      if (ORIGIN_CONFIG_KEYS.includes(key)) setOriginConfirmed(false);
     },
     [calibrationActive, setConfig],
   );
@@ -680,14 +674,6 @@ export function useIntegratedPlotter({
   );
   const startCalibration = useCallback(() => {
     if (running) return false;
-    setProfileStore((current) => ({
-      ...current,
-      profiles: current.profiles.map((profile) =>
-        profile.id === current.activeProfileId
-          ? { ...profile, calibratedAt: null, updatedAt: Date.now() }
-          : profile,
-      ),
-    }));
     setCalibrationActive(true);
     setArmed(false);
     setOriginConfirmed(false);
