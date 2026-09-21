@@ -1803,6 +1803,19 @@ export function createPenReferenceCommands(config, position: "up" | "down" = "up
   return ["G21", `G92${config.penMode === "estepper" ? "E" : "Z"}${number(Number(position === "down" ? config.zDown : config.zUp))}`];
 }
 
+export function createPenJogCommands(up: boolean, distance: number, config) {
+  if (!["stepper", "estepper"].includes(config.penMode) || config.profile === "ebb")
+    throw new Error("Короткий шаг доступен для шагового пера Z/E.");
+  if (!Number.isFinite(distance) || distance <= 0 || distance > 0.5)
+    throw new Error("Выберите шаг пера от 0,1 до 0,5 мм.");
+  const direction = Math.sign(config.zUp - config.zDown) || -1;
+  const delta = number(distance * direction * (up ? 1 : -1));
+  const speed = Math.min(60, Number(config.zSpeed));
+  if (config.profile === "grbl") return [`$J=G21G91Z${delta}F${speed}`];
+  if (config.penMode === "estepper") return ["G21", "M83", `G1E${delta}F${speed}`, "M82"];
+  return ["G21", "G91", `G1Z${delta}F${speed}`, "G90"];
+}
+
 export function createOriginCommands(config) {
   if (config.profile === "ebb") return [];
   if (config.profile === "marlin") return ["G92X0Y0"];

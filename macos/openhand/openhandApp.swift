@@ -54,6 +54,8 @@ struct openhandApp: App {
                     .keyboardShortcut("1", modifiers: [.command, .shift]).disabled(!state.ready || state.locked)
                 Toggle("Мастерская плоттера", isOn: Binding(get: { state.workspace == "workshop" }, set: { _ in state.select("workshop") }))
                     .keyboardShortcut("2", modifiers: [.command, .shift]).disabled(!state.ready || state.locked)
+                Toggle("Плоттер", isOn: Binding(get: { state.workspace == "device" }, set: { _ in state.select("device") }))
+                    .keyboardShortcut("3", modifiers: [.command, .option]).disabled(!state.ready || state.locked)
                 Divider()
                 Toggle("Редактор текста", isOn: Binding(get: { state.editor }, set: { _ in state.command("editor") }))
                     .keyboardShortcut("e", modifiers: [.command, .option]).disabled(!state.ready || state.locked || state.workspace != "document")

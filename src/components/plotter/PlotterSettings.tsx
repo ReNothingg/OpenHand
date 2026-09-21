@@ -10,8 +10,6 @@ import {
 } from "../../plotter/profiles";
 import PlotterCalibrationWizard from "./PlotterCalibrationWizard";
 import PenCalibrationSheet from './PenCalibrationSheet';
-import MachineMonitor from './MachineMonitor';
-import { penLiftDistance, penLiftTarget } from "../../plotter/penLift";
 
 function Help({ children }: { children: string }) {
   return (
@@ -36,8 +34,7 @@ function Caption({
   );
 }
 
-export default function PlotterSettings({ workspace, defaultOpen = false }: { workspace: any; defaultOpen?: boolean }) {
-  const fontInputRef = useRef(null);
+export default function PlotterSettings({ workspace }: { workspace: any }) {
   const profileInputRef = useRef(null);
   const [manualCommand, setManualCommand] = useState("");
   const { enabled, config, connected, running, plotter, calibrationActive } =
@@ -94,11 +91,8 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
     <div
       className={`integrated-plotter-settings ${enabled ? "enabled" : "disabled"}`}
     >
-      <SettingSection title="Состояние плоттера" open={false}>
-        <MachineMonitor workspace={workspace} />
-      </SettingSection>
       <fieldset disabled={!enabled || calibrationActive}>
-        <SettingSection title="Плоттер" open={defaultOpen}>
+        <div className="device-settings-sections">
           <SettingSection title="Профиль устройства" open={false}>
             <label className="field">
               <Caption help="Готовые локальные параметры, восстановленные из KDraw. Применение заменит механику и координаты активного профиля.">
@@ -216,7 +210,7 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
             </button>
           </SettingSection>
 
-          <SettingSection title="Подключение" open={false}>
+          <SettingSection title="Подключение" open={true}>
             <label className="field">
               <Caption help="USB и Bluetooth используют системный последовательный порт. TCP подключается к сетевому модулю плоттера по адресу и порту.">
                 Транспорт
@@ -432,142 +426,7 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
               )}
           </SettingSection>
 
-          <SettingSection title="Механика" open={false}>
-            <div className="plotter-reset-row">
-              <button
-                className="text-button"
-                type="button"
-                disabled={locked}
-                onClick={workspace.resetMechanics}
-              >
-                Сбросить
-              </button>
-            </div>
-            {config.profile !== "ebb" && (
-              <label className="field">
-                <Caption help="Servo управляет сервоприводом, Z/E — шаговым мотором. Laser может немедленно включить излучатель — сначала снимите с него питание.">
-                  Механизм пера
-                </Caption>
-                <select
-                  value={config.penMode}
-                  disabled={running}
-                  onChange={(event) =>
-                    workspace.updateConfig("penMode", event.target.value)
-                  }
-                >
-                  <option value="servo">Сервопривод</option>
-                  <option value="stepper">Ось Z</option>
-                  {config.profile === "grbl" && (
-                    <option value="laser">Лазер / PWM</option>
-                  )}
-                  {config.profile === "marlin" && (
-                    <option value="estepper">Ось E</option>
-                  )}
-                </select>
-              </label>
-            )}
-            {config.profile === "ebb" ? (
-              <label className="field">
-                <Caption help="Количество шагов моторов на миллиметр. Начинайте с малого тестового перемещения.">
-                  Шагов на миллиметр
-                </Caption>
-                <input
-                  type="number"
-                  min="1"
-                  max="1000"
-                  value={config.mmToSteps}
-                  onChange={number("mmToSteps", 1, 1000)}
-                />
-              </label>
-            ) : config.penMode === "servo" ? (
-              <div className="plotter-row two">
-                <label className="field">
-                  <Caption help="Положение сервопривода при поднятом пере. Меняйте небольшими шагами, чтобы не упереть серву в механику.">
-                    Перо поднято
-                  </Caption>
-                  <input
-                    type="number"
-                    min="0"
-                    max={config.profile === "marlin" ? 180 : 32767}
-                    value={config.penUp}
-                    onChange={number(
-                      "penUp",
-                      0,
-                      config.profile === "marlin" ? 180 : 32767,
-                    )}
-                  />
-                </label>
-                <label className="field">
-                  <Caption help="Положение при касании бумаги. Слишком сильный прижим может сломать перо или редуктор.">
-                    Перо опущено
-                  </Caption>
-                  <input
-                    type="number"
-                    min="0"
-                    max={config.profile === "marlin" ? 180 : 32767}
-                    value={config.penDown}
-                    onChange={number(
-                      "penDown",
-                      0,
-                      config.profile === "marlin" ? 180 : 32767,
-                    )}
-                  />
-                </label>
-              </div>
-            ) : config.penMode === "laser" ? (
-              <label className="field">
-                <Caption help="Мощность PWM. Не проверяйте со включённым лазером без очков и закрытого корпуса.">
-                  Мощность S
-                </Caption>
-                <input
-                  type="number"
-                  min="0"
-                  max="1000"
-                  value={config.laserPower}
-                  onChange={number("laserPower", 0, 1000)}
-                />
-              </label>
-            ) : (
-              <div className="plotter-row two">
-                <label className="field">
-                  <Caption help="Расстояние от положения касания до поднятого пера. Например, при касании Z9 и ходе 0,5 подъём будет в Z8,5. Направление и ноль Z сохраняются.">
-                    Ход подъёма, мм
-                  </Caption>
-                  <input
-                    type="number"
-                    min="0.1"
-                    max="50"
-                    step="0.1"
-                    value={penLiftDistance(config)}
-                    onChange={(event) => {
-                      if (event.target.value !== "" && Number.isFinite(event.target.valueAsNumber))
-                        workspace.updateConfig("zUp", penLiftTarget(config, event.target.valueAsNumber));
-                    }}
-                  />
-                </label>
-                <label className="field">
-                  <Caption help="Координата касания листа. Не задавайте большое заглубление.">
-                    Координата касания Z/E, мм
-                  </Caption>
-                  <input
-                    type="number"
-                    min="-50"
-                    max="50"
-                    step="0.1"
-                    value={config.zDown}
-                    onChange={number("zDown", -50, 50)}
-                  />
-                </label>
-                <button
-                  className="button"
-                  type="button"
-                  disabled={running || calibrationActive || Math.abs(config.zUp - config.zDown) < 0.02}
-                  onClick={() => workspace.updateConfig("zUp", Math.round((Number(config.zUp) + Number(config.zDown)) * 50) / 100)}
-                >
-                  Уменьшить подъём вдвое
-                </button>
-              </div>
-            )}
+          <SettingSection title="Оси, рабочая область и скорость" open={false}>
             <div className="plotter-row two">
               <label className="field">
                 <Caption help="Начните с 500–1500 мм/мин. Высокая скорость вызывает пропуски шагов и рваные линии.">
@@ -787,38 +646,9 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
                 />
               </label>
             </details>
-            <button
-              className="button ghost settings-wide-button"
-              type="button"
-              disabled={!enabled || running}
-              onClick={() => fontInputRef.current?.click()}
-            >
-              Загрузить свой .gfont
-            </button>
-            <input
-              ref={fontInputRef}
-              type="file"
-              accept=".gfont,application/octet-stream"
-              hidden
-              onChange={(event) => {
-                workspace.importFont(event.target.files?.[0]);
-                event.target.value = "";
-              }}
-            />
           </SettingSection>
 
-          <SettingSection title="Ручная проверка" open={false}>
-            {!connected && (
-              <div>
-                <p className="plotter-note">Для ручных кнопок нужно подключение к плоттеру.</p>
-                <button className="button primary" type="button"
-                  disabled={!plotter.supported || plotter.status === "connecting"}
-                  onClick={workspace.connect}>
-                  {plotter.status === "connecting" ? "Подключаю…" : "Подключить плоттер"}
-                </button>
-              </div>
-            )}
-            {running && <p className="plotter-note">Сейчас идёт задание. Ручные команды доступны после его завершения или остановки.</p>}
+          <SettingSection title="Положение на листе" open={false}>
             <div className="jog-control">
               <button
                 type="button"
@@ -870,46 +700,14 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
                 onChange={number("jogDistance", 0.1, 50)}
               />
             </label>
-            {["stepper", "estepper"].includes(config.penMode) && (
-              <div>
-                <p className="calibration-note">Если ручка сейчас касается бумаги с нормальным прижимом, сохраните это положение. Оно станет нулём пера, подъём — на 0,5 мм от него. Кнопка не двигает механизм и не меняет ноль листа.</p>
-                <button className="button primary" type="button" disabled={!connected || running}
-                  onClick={workspace.setPenContact}>
-                  Текущее положение — нормальное касание
-                </button>
-                <details>
-                  <summary>Задать опору от поднятого пера</summary>
-                <p className="calibration-note">Снимите ручку или убедитесь, что она поднята над бумагой. Зафиксируйте эту высоту перед первым управлением пером. Кнопка не двигает механизм.</p>
-                <button className="button" type="button" disabled={!connected || running || workspace.penReferenceConfirmed} onClick={workspace.setPenReference}>
-                  {workspace.penReferenceConfirmed ? "Ноль пера установлен" : "Текущая высота — перо поднято"}
-                </button>
-                </details>
-              </div>
-            )}
             <div className="plotter-actions compact-actions">
-              <button
-                className="button compact"
-                type="button"
-                disabled={!connected || running}
-                onClick={() => workspace.pen(true)}
-              >
-                Перо ↑
-              </button>
-              <button
-                className="button compact"
-                type="button"
-                disabled={!connected || running}
-                onClick={() => workspace.pen(false)}
-              >
-                Перо ↓
-              </button>
               <button
                 className="button compact"
                 type="button"
                 disabled={!connected || running || config.profile === "ebb"}
                 onClick={workspace.setOrigin}
               >
-                Это ноль
+                Здесь начало листа
               </button>
               <button
                 className="button compact"
@@ -925,7 +723,7 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
                 disabled={!connected || running || config.profile === "ebb"}
                 onClick={workspace.returnToOrigin}
               >
-                В ноль
+                Вернуться к началу листа
               </button>
             </div>
             <form
@@ -958,7 +756,7 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
               </button>
             </form>
           </SettingSection>
-        </SettingSection>
+        </div>
       </fieldset>
       {calibrationActive && <PlotterCalibrationWizard workspace={workspace} />}
       <PenCalibrationSheet workspace={workspace} />

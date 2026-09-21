@@ -1,7 +1,6 @@
 import { STRUCTURE_CONTROLS } from "../../handwriting/structure";
 import { PAGE_SIZES } from "../../app/config";
 import { fonts } from "../../fonts";
-import PlotterSettings from "../plotter/PlotterSettings";
 import FontPicker from "./controls/FontPicker";
 import RangeControl from "./controls/RangeControl";
 import SettingSection from "./controls/SettingSection";
@@ -91,8 +90,8 @@ export default function SettingsPanel({
           <div className="font-compat-warning" role="note">
             <b>!</b>
             <span>
-              Обычный шрифт не содержит однолинейных траекторий. Подключение и
-              запуск плоттера заблокированы.
+              Для записи этого документа выберите однолинейный GFont.
+              Настройки устройства доступны во вкладке «Плоттер».
             </span>
           </div>
         )}
@@ -214,7 +213,7 @@ export default function SettingsPanel({
             onChange={(value) => updateSetting("marginBottom", value)}
           />
       </SettingSection>
-      <PlotterSettings workspace={plotterWorkspace} />
+      <button className="button settings-wide-button" type="button" onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>Настроить плоттер →</button>
       <SettingSection title="Почерк" open={false}>
         <label className="field handwriting-profile-field">
           <span>Профиль автора</span>

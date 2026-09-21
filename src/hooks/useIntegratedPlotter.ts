@@ -10,6 +10,7 @@ import {
   createPageJogCommands,
   createOriginCommands,
   createPenCommand,
+  createPenJogCommands,
   createPenReferenceCommands,
   createReturnToOriginCommands,
   DEFAULT_PLOTTER_CONFIG,
@@ -19,7 +20,7 @@ import {
 } from "../plotter/job";
 import { PLOTTER_PAGE_BREAK } from "../plotter/richText";
 import { runCalibrationAction } from "../plotter/calibrationRunner";
-import { penContactConfig } from "../plotter/penLift";
+import { penContactConfig, adjustPenContact } from "../plotter/penLift";
 import { mergeTrajectoryReports } from "../font-builder/letterForms";
 import {
   configFromDevicePreset,
@@ -797,6 +798,19 @@ export function useIntegratedPlotter({
       setConfig((current) => ({ ...current, zUp: contactConfig.zUp, zDown: contactConfig.zDown }));
       setPenReferenceConfirmed(true);
       setArmed(false);
+    }),
+    jogPen: (up, distance) => safeAction(async () => {
+      if (running || calibrationActive) throw new Error("Дождитесь завершения текущей операции.");
+      setArmed(false);
+      await plotter.sendCommands(createPenJogCommands(up, distance, config), { waitForMotion: true });
+    }),
+    adjustPenContact: (deeper, distance) => safeAction(async () => {
+      if (running || calibrationActive || !needsPenReference || !penReferenceConfirmed)
+        throw new Error("Сначала сохраните касание пера, затем подстройте прижим.");
+      setArmed(false);
+      const next = adjustPenContact(config, deeper, distance);
+      await plotter.sendCommands(createPenCommand(false, next), { waitForMotion: true });
+      setConfig((current) => ({ ...current, zUp: next.zUp, zDown: next.zDown }));
     }),
     resetProgress: () => safeAction(() => {
       if (running || calibrationActive) throw new Error("Сначала завершите текущую операцию.");

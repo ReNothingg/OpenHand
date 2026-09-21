@@ -56,6 +56,7 @@ internal sealed class MainForm : Form
         var workspaceMenu = new ToolStripMenuItem("Рабочее пространство");
         Add(workspaceMenu, "Документ", "document", Keys.Control | Keys.Shift | Keys.D1);
         Add(workspaceMenu, "Мастерская плоттера", "workshop", Keys.Control | Keys.Shift | Keys.D2);
+        Add(workspaceMenu, "Плоттер", "device", Keys.Control | Keys.Shift | Keys.D3);
         workspaceMenu.DropDownItems.Add(new ToolStripSeparator());
         Add(workspaceMenu, "Редактор текста", "editor", Keys.Control | Keys.Alt | Keys.E);
         Add(workspaceMenu, "Панель настроек", "settings", Keys.Control | Keys.Alt | Keys.S);
@@ -99,6 +100,7 @@ internal sealed class MainForm : Form
             if (action is "editor" or "settings" or "print") item.Enabled &= _menuWorkspace == "document";
             item.Checked = action switch {
                 "document" => _menuWorkspace == "document", "workshop" => _menuWorkspace == "workshop",
+                "device" => _menuWorkspace == "device",
                 "editor" => _menuEditor, "settings" => _menuSettings,
                 _ => action == "appearance:" + _menuAppearance
             };
@@ -112,7 +114,7 @@ internal sealed class MainForm : Form
             if (dialog.ShowDialog(this) == DialogResult.OK) await OpenDocumentAsync(dialog.FileName);
         } else if (action == "print") core.ShowPrintUI(CoreWebView2PrintDialogKind.Browser);
         else {
-            var eventName = action is "document" or "workshop" ? "openhand:workspace" : "openhand:menu-command";
+            var eventName = action is "document" or "workshop" or "device" ? "openhand:workspace" : "openhand:menu-command";
             await core.ExecuteScriptAsync($"window.dispatchEvent(new CustomEvent('{eventName}',{{detail:{JsonSerializer.Serialize(action)}}}));");
         }
     }

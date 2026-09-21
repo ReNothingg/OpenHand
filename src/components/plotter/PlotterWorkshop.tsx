@@ -23,7 +23,6 @@ import {
 } from "../../plotter/workshop";
 import { compilePlotJob, createDryRunCommands } from "../../plotter/job";
 import { downloadFile } from "../../lib/files";
-import PlotterSettings from "./PlotterSettings";
 import { formatNominalDuration, timingExplanation } from "./PlotterFooter";
 
 const STORAGE_KEY = "openhand.workshop.v1";
@@ -88,7 +87,6 @@ export default function PlotterWorkshop({
   const [tool, setTool] = useState<SceneTool>("move");
   const [history, setHistory] = useState<(typeof document)[]>([]);
   const [future, setFuture] = useState<(typeof document)[]>([]);
-  const [tab, setTab] = useState("prepare");
   const [view, setView] = useState("drawing");
   const [error, setError] = useState("");
   const [drag, setDrag] = useState(false);
@@ -188,7 +186,7 @@ export default function PlotterWorkshop({
     const target=dropPoint.current;dropPoint.current=null;
     const b=bounds(strokes);
     const placed=target ? transform(strokes,{x:target.x-b.minX,y:target.y-b.minY}) : strokes;
-    const object=sceneObject(placed,name);commitObjects([...document.objects,object]);setSelected([object.id]);setTab("prepare");setView("drawing");
+    const object=sceneObject(placed,name);commitObjects([...document.objects,object]);setSelected([object.id]);setView("drawing");
   });
   const edit = (action: (strokes: Stroke[]) => Stroke[]) => void attempt(() => {
     if(!selected.length)throw new Error("Выберите объект на сцене.");
@@ -295,29 +293,10 @@ export default function PlotterWorkshop({
         )}
       <div className={`workshop-body ${inspectorCollapsed?"inspector-collapsed":""}`} style={{ "--inspector-width": `min(${panelWidth}px, 65vw)` } as React.CSSProperties}>
         <aside className="workshop-inspector" inert={inspectorCollapsed} aria-hidden={inspectorCollapsed}>
-          <div
-            className="workshop-tabs"
-            role="tablist"
-            aria-label="Панель мастерской"
-          >
-            <button
-              role="tab"
-              aria-selected={tab === "prepare"}
-              onClick={() => setTab("prepare")}
-            >
-              Рисунок
-            </button>
-            <button
-              role="tab"
-              aria-selected={tab === "machine"}
-              onClick={() => setTab("machine")}
-            >
-              Устройство
-            </button>
-          </div>
-          {tab === "machine" ? (
-            <PlotterSettings workspace={workspace} defaultOpen />
-          ) : (
+          <button className="button" type="button" disabled={locked}
+            onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>
+            Настроить плоттер →
+          </button>
             <fieldset disabled={locked}>
               <section className="workshop-section">
                 <h2>Объекты</h2>
@@ -433,7 +412,6 @@ export default function PlotterWorkshop({
                 </button>
               </section>
             </fieldset>
-          )}
         </aside>
         {!inspectorCollapsed && <PanelResizeHandle side="left" width={panelWidth} onChange={setPanelWidth} />}
         <main className="workshop-main">
@@ -661,7 +639,7 @@ export default function PlotterWorkshop({
               />
             )}
             {!connected && (
-              <small>Подключение и калибровка — во вкладке «Устройство».</small>
+              <small>Подключение и управление пером — в общей вкладке «Плоттер».</small>
             )}
             <details className="workshop-log">
               <summary>Журнал порта</summary>

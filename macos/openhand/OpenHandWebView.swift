@@ -304,7 +304,7 @@ struct OpenHandWebView: NSViewRepresentable {
         @objc func changeWorkspace(_ notification: Notification) {
             guard let webView, webView.window?.isKeyWindow == true,
                   let mode = notification.object as? String,
-                  mode == "document" || mode == "workshop" else { return }
+                  mode == "document" || mode == "workshop" || mode == "device" else { return }
             webView.evaluateJavaScript("window.dispatchEvent(new CustomEvent('openhand:workspace', { detail: '\(mode)' }))", completionHandler: nil)
         }
 

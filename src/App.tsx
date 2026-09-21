@@ -12,6 +12,7 @@ import EditorPanel from "./components/editor/EditorPanel";
 import PreviewPanel from "./components/preview/PreviewPanel";
 import SettingsPanel from "./components/settings/SettingsPanel";
 import PlotterWorkshop from "./components/plotter/PlotterWorkshop";
+import PlotterDevicePage from "./components/plotter/PlotterDevicePage";
 import AppearanceControl from "./components/AppearanceControl";
 import { useDocumentPersistence } from "./hooks/useDocumentPersistence";
 import { useDebouncedValue } from "./hooks/useDebouncedValue";
@@ -43,9 +44,8 @@ import {
 export default function App() {
   const [workspaceMode, setWorkspaceMode] = useState(() => {
     try {
-      return sessionStorage.getItem("openhand.workspace") === "workshop"
-        ? "workshop"
-        : "document";
+      const saved = sessionStorage.getItem("openhand.workspace");
+      return ["workshop", "device"].includes(saved) ? saved : "document";
     } catch {
       return "document";
     }
@@ -672,7 +672,7 @@ export default function App() {
     [hasIntentionalPlacement, plotterPageBlocks],
   );
   const plotterWorkspace = useIntegratedPlotter({
-    enabled: plotterEnabled || workspaceMode === "workshop",
+    enabled: plotterEnabled || workspaceMode !== "document",
     fontId: settings.plotterFontId,
     customFont: customPlotterFont,
     pageTexts: plotterPageTexts,
@@ -754,7 +754,7 @@ export default function App() {
       if (plotterWorkspace.running || plotterWorkspace.calibrationActive)
         return;
       const mode =
-        (event as CustomEvent).detail === "workshop" ? "workshop" : "document";
+        ["workshop", "device"].includes((event as CustomEvent).detail) ? (event as CustomEvent).detail : "document";
       setWorkspaceMode(mode);
       try {
         sessionStorage.setItem("openhand.workspace", mode);
@@ -798,7 +798,8 @@ export default function App() {
         <div className="workspace-switcher">
           {[
             ["document", "Документ"],
-            ["workshop", "Мастерская плоттера"],
+            ["workshop", "Мастерская"],
+            ["device", "Плоттер"],
           ].map(([mode, label]) => (
             <button
               key={mode}
@@ -820,7 +821,9 @@ export default function App() {
         <div ref={setToolbarHost} className="document-toolbar-host" />
         <AppearanceControl />
       </nav>
-      {workspaceMode === "workshop" ? (
+      {workspaceMode === "device" ? (
+        <PlotterDevicePage workspace={plotterWorkspace} />
+      ) : workspaceMode === "workshop" ? (
         <PlotterWorkshop
           workspace={plotterWorkspace}
           toolbarHost={toolbarHost}

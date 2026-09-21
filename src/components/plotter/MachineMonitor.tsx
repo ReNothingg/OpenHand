@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { GRBL_REALTIME } from "../../plotter/grbl";
 
-export default function MachineMonitor({ workspace }: { workspace: any }) {
+export default function MachineMonitor({ workspace, compact = false }: { workspace: any; compact?: boolean }) {
   const { plotter, config, connected } = workspace;
   const status = plotter.machineStatus;
   const [now, setNow] = useState(Date.now());
@@ -48,6 +48,8 @@ export default function MachineMonitor({ workspace }: { workspace: any }) {
           <p className="calibration-note">Кнопка отправляет $X без движения. Задание не возобновляется; ноль после аварии нужно проверить.</p>
         </div>
       )}
+      <details open={!compact}>
+      <summary>Координаты и скорости</summary>
       <small>
         {fresh && status.work
           ? "Рабочие координаты · мм"
@@ -105,6 +107,7 @@ export default function MachineMonitor({ workspace }: { workspace: any }) {
         ))}
       </div>
       {fresh && status.pins && <small>Активные входы: {status.pins}</small>}
+      </details>
       {error && (
         <p className="plotter-error" role="alert">
           {error}
