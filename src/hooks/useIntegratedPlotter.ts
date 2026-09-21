@@ -794,6 +794,13 @@ export function useIntegratedPlotter({
       if (success) setOriginConfirmed(false);
       return success;
     },
+    unlockAlarm: () => safeAction(async () => {
+      setArmed(false);
+      setOriginConfirmed(false);
+      setPenReferenceConfirmed(false);
+      await plotter.sendCommands(["$X"]);
+      await plotter.realtime("status");
+    }),
     jog: (dx, dy) =>
       safeAction(() =>
         plotter.sendCommands(createPageJogCommands(dx, dy, config)),

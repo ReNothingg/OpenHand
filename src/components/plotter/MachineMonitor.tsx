@@ -6,6 +6,7 @@ export default function MachineMonitor({ workspace }: { workspace: any }) {
   const status = plotter.machineStatus;
   const [now, setNow] = useState(Date.now());
   const [error, setError] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
@@ -33,6 +34,20 @@ export default function MachineMonitor({ workspace }: { workspace: any }) {
               : "Не подключён"}
         </span>
       </div>
+      {fresh && status.state === "Alarm" && (
+        <div>
+          <p className="plotter-error">Контроллер в аварийном состоянии. Устраните упор или другую причину перед снятием блокировки.</p>
+          <button type="button" disabled={unlocking || workspace.running}
+            onClick={async () => {
+              setUnlocking(true);
+              try { await workspace.unlockAlarm(); }
+              finally { setUnlocking(false); }
+            }}>
+            {unlocking ? "Снимаю блокировку…" : "Снять Alarm"}
+          </button>
+          <p className="calibration-note">Кнопка отправляет $X без движения. Задание не возобновляется; ноль после аварии нужно проверить.</p>
+        </div>
+      )}
       <small>
         {fresh && status.work
           ? "Рабочие координаты · мм"

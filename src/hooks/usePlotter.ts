@@ -138,17 +138,21 @@ export function usePlotter() {
             if (!line) continue;
             if (line.startsWith("<")) {
               const report = parseGrblStatus(line);
+              const wasAlarm = statusReportRef.current.state === "Alarm";
               if (report) statusReportRef.current = {
                 sequence: statusReportRef.current.sequence + 1,
                 state: report.state,
               };
-              if (/^<Alarm(?:\||>)/.test(line)) {
+              if (report?.state === "Alarm" && !wasAlarm) {
                 abortRef.current = true;
-                desynchronizedRef.current = true;
+                setControllerEpoch((epoch) => epoch + 1);
+                log("error", "GRBL сообщает Alarm. Устраните причину аварии, затем снимите блокировку. Движения остановлены.");
                 cancelPaperWait("Авария контроллера.");
                 pausedRef.current = false;
                 pauseWaitersRef.current.splice(0).forEach((resume) => resume());
-                for (const pending of pendingRef.current.splice(0)) {
+                const interrupted = pendingRef.current.filter((pending) => !/^\$(?:X|I|G|#|\$)$/i.test(pending.command));
+                pendingRef.current = pendingRef.current.filter((pending) => !interrupted.includes(pending));
+                for (const pending of interrupted) {
                   clearTimeout(pending.timeout);
                   pending.reject(new Error("Авария контроллера."));
                 }
@@ -162,11 +166,14 @@ export function usePlotter() {
             if (/^(ALARM|Grbl\s)/i.test(line)) {
               setControllerEpoch((epoch) => epoch + 1);
               setMachineStatus(null);
+              if (/^ALARM/i.test(line)) statusReportRef.current = {
+                sequence: statusReportRef.current.sequence + 1, state: "Alarm",
+              };
             }
             if (/^(ALARM|Grbl\s)/i.test(line) && operationRef.current) {
               cancelPaperWait("Контроллер сброшен или сообщил об аварии.");
               abortRef.current = true;
-              desynchronizedRef.current = true;
+              if (/^Grbl\s/i.test(line)) desynchronizedRef.current = true;
               pausedRef.current = false;
               pauseWaitersRef.current.splice(0).forEach((resume) => resume());
               for (const pending of pendingRef.current.splice(0)) {
@@ -246,6 +253,9 @@ export function usePlotter() {
         throw new Error(
           "Потеряна синхронизация ответов. Переподключите плоттер.",
         );
+      if (profileRef.current === "grbl" && statusReportRef.current.state === "Alarm"
+          && !/^\$(?:X|I|G|#|\$)$/i.test(command))
+        throw new Error("GRBL в состоянии Alarm. Устраните причину и нажмите «Снять Alarm» в состоянии плоттера. Затем проверьте ноль.");
       let pending = null;
       const acknowledgement = new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -260,7 +270,7 @@ export function usePlotter() {
             void writeRaw(new Uint8Array([33])).catch(() => {});
           reject(new Error(`Плоттер не ответил на команду: ${command}`));
         }, timeoutMs);
-        pending = { resolve, reject, timeout };
+        pending = { resolve, reject, timeout, command };
         pendingRef.current.push(pending);
       });
       void acknowledgement.catch(() => {});
@@ -330,6 +340,7 @@ export function usePlotter() {
       profileRef.current = profile;
       desynchronizedRef.current = false;
       setMachineStatus(null);
+      statusReportRef.current = { sequence: 0, state: "" };
       try {
         const port = await navigator.serial.requestPort(
           connectionType === "network"
