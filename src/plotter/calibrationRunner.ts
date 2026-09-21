@@ -2,7 +2,7 @@ import {
   createPageJogCommands,
   createOriginCommands,
   createPenCommand,
-  transformPointForMachine,
+  createPenReferenceCommands,
 } from "./job";
 
 function probeCommands(profile) {
@@ -13,20 +13,8 @@ function probeCommands(profile) {
 
 export function calibrationCommands(action, config) {
   const step = Number(config.calibrationStep);
-  const width = Number(config.workAreaWidth);
-  const height = Number(config.workAreaHeight);
-  const boundaryTargets = {
-    "boundary-right": [width, 0],
-    "boundary-bottom": [width, height],
-    "boundary-left": [0, height],
-    "boundary-home": [0, 0],
-  };
-  if (config.profile !== "ebb" && boundaryTargets[action]) {
-    const [x, y] = boundaryTargets[action];
-    const target = transformPointForMachine({ x, y }, config);
-    // Absolute corners make a repeated check return to the same point instead
-    // of travelling another full width/height beyond the paper.
-    return ["G21", "G90", `G0X${target.x}Y${target.y}F${config.jogSpeed}`];
+  if (action.startsWith("boundary-")) {
+    throw new Error("Автоматический объезд непроверенной области отключён. Измерьте доступную область от нуля листа.");
   }
   switch (action) {
     case "probe":
@@ -49,14 +37,8 @@ export function calibrationCommands(action, config) {
       return createPenCommand(false, config);
     case "origin":
       return createOriginCommands(config);
-    case "boundary-right":
-      return createPageJogCommands(width, 0, config);
-    case "boundary-bottom":
-      return createPageJogCommands(0, height, config);
-    case "boundary-left":
-      return createPageJogCommands(-width, 0, config);
-    case "boundary-home":
-      return createPageJogCommands(0, -height, config);
+    case "pen-reference":
+      return createPenReferenceCommands(config);
     default:
       throw new Error("Неизвестный шаг калибровки.");
   }

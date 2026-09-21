@@ -1,12 +1,12 @@
 export const CALIBRATION_CHECKS = [
-  { id: "pen-raised", label: "Перо поднято, а лазер физически отключён." },
+  { id: "pen-raised", label: "Ручка снята или её кончик не касается бумаги. Лазер, если есть, отключён." },
   {
     id: "area-clear",
-    label: "Каретка находится вдали от краёв, рабочая зона свободна.",
+    label: "Держатель примерно посередине: есть место для короткого шага во все стороны.",
   },
   {
     id: "stop-ready",
-    label: "Питание и аварийная остановка находятся под рукой.",
+    label: "Я могу сразу выключить питание плоттера, если движение пойдёт не так.",
   },
 ];
 
@@ -16,27 +16,28 @@ const BASE_STEPS = [
   {
     id: "axis-x-negative",
     kind: "verify",
-    title: "Ось X−",
+    title: "Движение влево",
     action: "axis-x-negative",
   },
   {
     id: "axis-x-positive",
     kind: "verify",
-    title: "Ось X+",
+    title: "Движение вправо",
     action: "axis-x-positive",
   },
   {
     id: "axis-y-negative",
     kind: "verify",
-    title: "Ось Y−",
+    title: "Движение вверх",
     action: "axis-y-negative",
   },
   {
     id: "axis-y-positive",
     kind: "verify",
-    title: "Ось Y+",
+    title: "Движение вниз",
     action: "axis-y-positive",
   },
+  { id: "pen-reference", kind: "verify", title: "Ноль поднятого пера", action: "pen-reference", stepperOnly: true },
   {
     id: "pen-up",
     kind: "verify",
@@ -54,41 +55,19 @@ const BASE_STEPS = [
   {
     id: "pen-safe",
     kind: "verify",
-    title: "Поднять перо для рамки",
+    title: "Поднять перо перед позиционированием",
     action: "pen-up",
     penOnly: true,
   },
   { id: "origin", kind: "origin", title: "Нулевая точка", action: "origin" },
-  {
-    id: "boundary-right",
-    kind: "boundary",
-    title: "Первая сторона рамки",
-    action: "boundary-right",
-  },
-  {
-    id: "boundary-bottom",
-    kind: "boundary",
-    title: "Противоположный угол",
-    action: "boundary-bottom",
-  },
-  {
-    id: "boundary-left",
-    kind: "boundary",
-    title: "Обратная сторона рамки",
-    action: "boundary-left",
-  },
-  {
-    id: "boundary-home",
-    kind: "boundary",
-    title: "Возврат к нулю",
-    action: "boundary-home",
-  },
+  { id: "area", kind: "area", title: "Размер доступной области" },
   { id: "summary", kind: "summary", title: "Готово" },
 ];
 
 export function calibrationSteps(config) {
   return BASE_STEPS.filter(
-    (step) => !(step.penOnly && config.penMode === "laser"),
+    (step) => !(step.penOnly && config.penMode === "laser")
+      && !(step.stepperOnly && !["stepper", "estepper"].includes(config.penMode)),
   );
 }
 
@@ -131,7 +110,9 @@ export function calibrationReducer(state, event) {
     case "settings-changed":
       return {
         ...state,
-        index: event.axes ? 2 : state.index,
+        index: event.axes ? 2 : event.penReference
+          ? Math.max(0, state.steps.findIndex((step) => step.id === "pen-reference"))
+          : state.index,
         phase: "ready",
         error: "",
       };

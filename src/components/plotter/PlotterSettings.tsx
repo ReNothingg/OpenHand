@@ -583,7 +583,7 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
               </label>
             </div>
             <label className="field">
-              <Caption help="Физический угол, в котором вы устанавливаете ноль листа. Профиль Ozon / KDraw использует левый верхний угол и отрицательную Y вниз.">
+              <Caption help="Физический угол рабочей области, где вы устанавливаете ноль листа. Выбор угла не меняет направления ручных стрелок.">
                 Нулевая точка листа
               </Caption>
               <select
@@ -642,7 +642,7 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
             </Toggle>
             <div className="plotter-row two">
               <label className="field">
-                <Caption help="Физическая ширина безопасной рабочей области. Мастер использует её для проверки рамки.">
+                <Caption help="Измеренная ширина области от выбранного угла нуля. Не подставляйте размер всего станка, если ноль установлен посередине.">
                   Рабочая ширина, мм
                 </Caption>
                 <input
@@ -847,6 +847,14 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
                 onChange={number("jogDistance", 0.1, 50)}
               />
             </label>
+            {["stepper", "estepper"].includes(config.penMode) && (
+              <div>
+                <p className="calibration-note">Снимите ручку или убедитесь, что она поднята над бумагой. Зафиксируйте эту высоту перед первым управлением пером. Кнопка не двигает механизм.</p>
+                <button className="button" type="button" disabled={!connected || running} onClick={workspace.setPenReference}>
+                  Текущая высота — перо поднято
+                </button>
+              </div>
+            )}
             <div className="plotter-actions compact-actions">
               <button
                 className="button compact"

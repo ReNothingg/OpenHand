@@ -13,9 +13,9 @@ const PROFILE_NAMES = {
 export const PLOTTER_DEVICE_PRESETS = [
   {
     id: "ozon-kdraw-grbl",
-    name: "Ozon / KDraw · GRBL",
+    name: "Ozon 2121931195 · GRBL Stepper",
     description:
-      "Исходный профиль KDraw: 115200 бод, серво 12000/18000. Совместимость и размеры конкретного плоттера нужно проверить.",
+      "Шаговый подъём из Machine settings: Z0/Z3, 1000 мм/мин. Оси по проверке устройства: X+ вниз, Y+ вправо. Перед движением задайте ноль пера и измерьте рабочую область.",
     config: {
       profile: "grbl",
       connectionType: "serial",
@@ -25,20 +25,21 @@ export const PLOTTER_DEVICE_PRESETS = [
       parity: "none",
       flowControl: "none",
       feedRate: 1500,
-      jogSpeed: 2500,
-      penMode: "servo",
-      penUp: 12000,
-      penDown: 18000,
+      jogSpeed: 300,
+      jogDistance: 1,
+      calibrationStep: 1,
+      penMode: "stepper",
+      zUp: 0,
+      zDown: 3,
+      zSpeed: 1000,
       penUpDelay: 0.2,
       penDownDelay: 0.2,
       startPosition: "left-top",
-      swapAxes: false,
-      invertX: false,
+      swapAxes: true,
+      invertX: true,
       invertY: false,
-      autoSetOrigin: true,
-      returnToOrigin: true,
-      workAreaWidth: 330,
-      workAreaHeight: 203,
+      autoSetOrigin: false,
+      returnToOrigin: false,
     },
   },
   {
@@ -294,7 +295,8 @@ export function createPlotterProfile(
         .trim()
         .slice(0, 64) || "Плоттер",
     config: normalizedConfig,
-    calibratedAt: Number.isFinite(options.calibratedAt)
+    calibrationRevision: 2,
+    calibratedAt: options.calibrationRevision === 2 && Number.isFinite(options.calibratedAt)
       ? options.calibratedAt
       : null,
     createdAt: Number.isFinite(options.createdAt) ? options.createdAt : now,
@@ -316,6 +318,7 @@ export function normalizePlotterProfile(
   return createPlotterProfile(incoming.name, config, {
     ...options,
     calibratedAt: incoming.calibratedAt,
+    calibrationRevision: incoming.calibrationRevision,
     createdAt: incoming.createdAt,
     updatedAt: incoming.updatedAt,
   });

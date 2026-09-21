@@ -1396,16 +1396,22 @@ function penDelay(up, config) {
  */
 export function transformPointForMachine(point, config) {
   const position = config.startPosition || "left-bottom";
-  let x = Number(point.x) * (position.startsWith("right") ? -1 : 1);
-  let y = Number(point.y) * (position.endsWith("top") ? -1 : 1);
+  return transformVectorForMachine(
+    Number(point.x) - (position.startsWith("right") ? Number(config.workAreaWidth) : 0),
+    Number(point.y) - (position.endsWith("bottom") ? Number(config.workAreaHeight) : 0),
+    config,
+  );
+}
+
+export function transformVectorForMachine(dx, dy, config) {
+  // Directions are physical page directions: right/down. Moving the origin
+  // translates points; it must never reverse the manual arrows or mirror text.
+  let x = Number(dx);
+  let y = -Number(dy);
   if (config.swapAxes) [x, y] = [y, x];
   if (config.invertX) x *= -1;
   if (config.invertY) y *= -1;
   return { x, y };
-}
-
-export function transformVectorForMachine(dx, dy, config) {
-  return transformPointForMachine({ x: dx, y: dy }, config);
 }
 
 function transformStrokeForMachine(stroke: PlotStroke, config): PlotStroke {
@@ -1728,12 +1734,12 @@ export function isWithinWorkArea(machineStrokes, config) {
   const bounds = plotBounds(machineStrokes);
   if (!bounds) return true;
   const epsilon = 0.01;
-  return (
-    Math.max(Math.abs(bounds.minX), Math.abs(bounds.maxX)) <=
-      Number(config.workAreaWidth) + epsilon &&
-    Math.max(Math.abs(bounds.minY), Math.abs(bounds.maxY)) <=
-      Number(config.workAreaHeight) + epsilon
-  );
+  const corners = plotBounds([[
+    transformPointForMachine({ x: 0, y: 0 }, config),
+    transformPointForMachine({ x: Number(config.workAreaWidth), y: Number(config.workAreaHeight) }, config),
+  ]]);
+  return bounds.minX >= corners.minX - epsilon && bounds.maxX <= corners.maxX + epsilon
+    && bounds.minY >= corners.minY - epsilon && bounds.maxY <= corners.maxY + epsilon;
 }
 
 export function createDryRunCommands(strokes, config) {
@@ -1789,7 +1795,12 @@ export function createPageJogCommands(dx, dy, config) {
 }
 
 export function createPenCommand(up, config) {
-  return [penCommand(up, config)];
+  return [...(["stepper", "estepper"].includes(config.penMode) ? ["G21"] : []), penCommand(up, config)];
+}
+
+export function createPenReferenceCommands(config) {
+  if (!["stepper", "estepper"].includes(config.penMode)) return [];
+  return ["G21", `G92${config.penMode === "estepper" ? "E" : "Z"}${number(Number(config.zUp))}`];
 }
 
 export function createOriginCommands(config) {

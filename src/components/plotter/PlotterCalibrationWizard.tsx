@@ -20,15 +20,12 @@ const STEP_TEXT = {
   "axis-y-positive":
     "Каретка должна вернуться на такой же шаг в направлении Y+.",
   "pen-up": "Перо должно подняться без упора сервопривода или оси.",
+  "pen-reference": "Ручка должна быть снята или поднята над бумагой. Эта кнопка не двигает механизм: она принимает текущую высоту за положение «перо поднято». Следующая проверка опускания будет двигаться от этой высоты. Если механизм упирается в ограничитель, сначала устраните упор.",
   "pen-down": "Перо должно мягко коснуться бумаги без чрезмерного прижима.",
-  "pen-safe": "Перед позиционированием и проверкой рамки снова поднимите перо.",
+  "pen-safe": "Перед позиционированием нуля листа снова поднимите перо.",
   origin:
     "Кнопками переместите поднятое перо в левый верхний угол рабочей области, затем установите ноль.",
-  "boundary-right":
-    "Перо с поднятым механизмом переместится по верхней стороне к правому углу.",
-  "boundary-bottom": "Перо переместится вниз к правому нижнему углу.",
-  "boundary-left": "Перо переместится по нижней стороне к левому углу.",
-  "boundary-home": "Перо вернётся вверх в исходную нулевую точку.",
+
 };
 
 const ORIGIN_LABELS = {
@@ -42,9 +39,9 @@ function actionLabel(step, connected) {
   if (step.kind === "connect")
     return connected ? "Проверить ответ" : "Подключить и проверить";
   if (step.kind === "origin") return "Установить ноль";
+  if (step.action === "pen-reference") return "Принять текущую высоту за поднятое перо";
   if (step.action === "pen-up") return "Поднять перо";
   if (step.action === "pen-down") return "Опустить перо";
-  if (step.kind === "boundary") return "Перейти к углу";
   return "Выполнить движение";
 }
 
@@ -133,25 +130,17 @@ export default function PlotterCalibrationWizard({ workspace }) {
   const adjust = (key, value) => {
     if (actionInFlight.current) return;
     workspace.updateCalibrationConfig(key, value);
-    dispatch({ type: "settings-changed", axes: ["invertX", "invertY", "swapAxes"].includes(key) });
+    dispatch({ type: "settings-changed", axes: ["invertX", "invertY", "swapAxes"].includes(key), penReference: key === "zUp" });
   };
   const axisStep = step.id.startsWith("axis-");
   const penStep = step.id.startsWith("pen-");
   const axisDescription = axisStep
     ? `Перо должно переместиться на ${workspace.config.calibrationStep} мм ${
       step.id.includes("-x-")
-        ? ((step.id.endsWith("positive") !== workspace.config.startPosition.startsWith("right")) ? "вправо" : "влево")
-        : ((step.id.endsWith("positive") !== workspace.config.startPosition.endsWith("bottom")) ? "вниз" : "вверх")
+        ? (step.id.endsWith("positive") ? "вправо" : "влево")
+        : (step.id.endsWith("positive") ? "вниз" : "вверх")
     }. Если направление неверное, измените переключатели ниже.`
     : stepText;
-  const boundaryText = step.kind === "boundary"
-    ? ({
-      "boundary-right": "Перо пройдёт вдоль первой стороны от выбранного нуля на ширину рабочей области.",
-      "boundary-bottom": "Перо перейдёт к противоположному углу рабочей области.",
-      "boundary-left": "Перо пройдёт вдоль обратной стороны рабочей области.",
-      "boundary-home": "Перо вернётся в выбранную нулевую точку.",
-    })[step.id]
-    : null;
 
   return createPortal(
     <div className="calibration-backdrop" role="presentation">
@@ -216,13 +205,26 @@ export default function PlotterCalibrationWizard({ workspace }) {
                 Перейти к движениям
               </button>
             </>
+          ) : step.kind === "area" ? (
+            <>
+              <p>Измерьте область, доступную от выбранного угла нуля. Ноль листа должен находиться в этом углу, а не посередине механики. Автоматического движения к краям не будет.</p>
+              {[["workAreaWidth", "Ширина, мм"], ["workAreaHeight", "Высота, мм"]].map(([key, label]) => (
+                <label className="field" key={key}>
+                  <span>{label}</span>
+                  <input type="number" min="20" max="2000" value={workspace.config[key]} onChange={(event) => {
+                    if (event.target.value && Number.isFinite(event.target.valueAsNumber)) adjust(key, event.target.valueAsNumber);
+                  }} />
+                </label>
+              ))}
+              <button className="button primary" type="button" onClick={() => verify(true)}>Размеры измерены, ноль находится в выбранном углу</button>
+            </>
           ) : step.kind === "summary" ? (
             <>
               <div className="calibration-success" aria-hidden="true">
                 ✓
               </div>
               <p>
-                Оси, перо, нулевая точка и рабочая область проверены. Профиль «
+                Направления, перо и ноль подтверждены вами. Размеры области записаны по вашим измерениям; автоматический объезд не выполнялся. Профиль «
                 {workspace.activeProfile.name}» будет отмечен как
                 откалиброванный.
               </p>
@@ -240,7 +242,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
             </>
           ) : (
             <>
-              <p>{boundaryText || axisDescription}</p>
+              <p>{axisDescription}</p>
               {axisStep && (
                 <fieldset disabled={running} className="calibration-checklist">
                   <legend>Направление осей</legend>
@@ -260,7 +262,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
                   </select>
                 </label>
               )}
-              {penStep && workspace.config.profile !== "ebb" && (
+              {penStep && step.id !== "pen-reference" && workspace.config.profile !== "ebb" && (
                 <fieldset disabled={running}>
                   <legend>Положение пера</legend>
                   {(workspace.config.penMode === "servo" ? [["penUp", "Поднято"], ["penDown", "Касание"]] : [["zUp", "Поднято, мм"], ["zDown", "Касание, мм"]]).map(([key, label]) => (

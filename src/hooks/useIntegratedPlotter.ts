@@ -10,6 +10,7 @@ import {
   createPageJogCommands,
   createOriginCommands,
   createPenCommand,
+  createPenReferenceCommands,
   createReturnToOriginCommands,
   DEFAULT_PLOTTER_CONFIG,
   layoutBlocks,
@@ -135,6 +136,7 @@ export function useIntegratedPlotter({
   const [error, setError] = useState("");
   const [armed, setArmed] = useState(false);
   const [originConfirmed, setOriginConfirmed] = useState(false);
+  const [penReferenceConfirmed, setPenReferenceConfirmed] = useState(false);
   const [calibrationActive, setCalibrationActive] = useState(false);
   const [importedGcode, setImportedGcode] = useState(null);
   const plotter = usePlotter();
@@ -143,6 +145,7 @@ export function useIntegratedPlotter({
       (profile) => profile.id === profileStore.activeProfileId,
     ) || profileStore.profiles[0];
   const config = activeProfile.config;
+  const needsPenReference = ["stepper", "estepper"].includes(config.penMode);
   const setConfig = useCallback((updater) => {
     setProfileStore((current) => {
       const activeId = current.activeProfileId;
@@ -410,6 +413,9 @@ export function useIntegratedPlotter({
     setOriginConfirmed(false);
     setArmed(false);
   }, [plotter.controllerEpoch]);
+  useEffect(() => {
+    setPenReferenceConfirmed(false);
+  }, [connected, plotter.controllerEpoch, activeProfile.id, config.profile, config.penMode, config.zUp]);
   const progressPercent = plotter.progress.total
     ? (plotter.progress.current / plotter.progress.total) * 100
     : 0;
@@ -424,6 +430,7 @@ export function useIntegratedPlotter({
     calibrated: Boolean(activeProfile.calibratedAt),
     originConfirmed,
     withinWorkArea: job.withinWorkArea,
+    penReferenceConfirmed: !needsPenReference || penReferenceConfirmed,
   });
   const playback = usePlotterPlayback(job, {
     status: plotter.status,
@@ -638,7 +645,7 @@ export function useIntegratedPlotter({
       ...current,
       profiles: current.profiles.map((profile) =>
         profile.id === current.activeProfileId
-          ? { ...profile, calibratedAt, updatedAt: calibratedAt }
+          ? { ...profile, calibratedAt, calibrationRevision: 2, updatedAt: calibratedAt }
           : profile,
       ),
     }));
@@ -648,7 +655,7 @@ export function useIntegratedPlotter({
   }, []);
   const updateCalibrationConfig = useCallback((key, value) => {
     if (!calibrationActive) return;
-    const allowed = ["invertX", "invertY", "swapAxes", "penUp", "penDown", "zUp", "zDown", "calibrationStep"];
+    const allowed = ["invertX", "invertY", "swapAxes", "penUp", "penDown", "zUp", "zDown", "calibrationStep", "workAreaWidth", "workAreaHeight"];
     if (!allowed.includes(key)) return;
     setConfig((current) => normalizePlotterConfig({ ...current, [key]: value }));
     setOriginConfirmed(false);
@@ -658,13 +665,17 @@ export function useIntegratedPlotter({
     async (action) => {
       setError("");
       try {
-        return await runCalibrationAction(action, config, plotter.sendCommands);
+        if (action.startsWith("pen-") && action !== "pen-reference" && needsPenReference && !penReferenceConfirmed)
+          throw new Error("Сначала задайте ноль поднятого пера.");
+        const result = await runCalibrationAction(action, config, plotter.sendCommands);
+        if (action === "pen-reference") setPenReferenceConfirmed(true);
+        return result;
       } catch (reason) {
         setError(reason.message);
         throw reason;
       }
     },
-    [config, plotter.sendCommands],
+    [config, plotter.sendCommands, needsPenReference, penReferenceConfirmed],
   );
   const startCalibration = useCallback(() => {
     if (running) return false;
@@ -700,16 +711,18 @@ export function useIntegratedPlotter({
 
   const dryRun = useCallback(
     () =>
-      safeAction(() =>
-        plotter.sendCommands(
+      safeAction(() => {
+        if (!originConfirmed || (needsPenReference && !penReferenceConfirmed))
+          throw new Error("Перед рамкой задайте ноль листа и ноль поднятого пера.");
+        return plotter.sendCommands(
           createDryRunCommands(activeLayout.strokes, config),
-        ),
-      ),
-    [activeLayout.strokes, config, plotter.sendCommands, safeAction],
+        );
+      }),
+    [activeLayout.strokes, config, plotter.sendCommands, safeAction, originConfirmed, needsPenReference, penReferenceConfirmed],
   );
 
   const recover = useCallback(() => {
-    if (!originConfirmed) {
+    if (!originConfirmed || (needsPenReference && !penReferenceConfirmed)) {
       setError(
         "Перед продолжением выполните homing на контроллере, верните перо к исходной точке листа и нажмите «Установить ноль».",
       );
@@ -723,6 +736,8 @@ export function useIntegratedPlotter({
     createJob,
     originConfirmed,
     plotter.recover,
+    needsPenReference,
+    penReferenceConfirmed,
     safeAction,
   ]);
 
@@ -779,6 +794,11 @@ export function useIntegratedPlotter({
     recoveryAvailable,
     preflight,
     originConfirmed,
+    penReferenceConfirmed,
+    setPenReference: () => safeAction(async () => {
+      await plotter.sendCommands(createPenReferenceCommands(config));
+      setPenReferenceConfirmed(true);
+    }),
     playback,
     connect: () => safeAction(() => plotter.connect(config.profile, config)),
     disconnect: async () => {
@@ -790,8 +810,11 @@ export function useIntegratedPlotter({
       safeAction(() =>
         plotter.sendCommands(createPageJogCommands(dx, dy, config)),
       ),
-    pen: (up) =>
-      safeAction(() => plotter.sendCommands(createPenCommand(up, config))),
+    pen: (up) => safeAction(() => {
+      if (needsPenReference && !penReferenceConfirmed)
+        throw new Error("Сначала нажмите «Текущая высота — перо поднято».");
+      return plotter.sendCommands(createPenCommand(up, config), { waitForMotion: true });
+    }),
     setOrigin,
     home: async () => {
       const success = await safeAction(() =>
@@ -800,10 +823,11 @@ export function useIntegratedPlotter({
       if (success) setOriginConfirmed(false);
       return success;
     },
-    returnToOrigin: () =>
-      safeAction(() =>
-        plotter.sendCommands(createReturnToOriginCommands(config)),
-      ),
+    returnToOrigin: () => safeAction(() => {
+      if (!originConfirmed || (needsPenReference && !penReferenceConfirmed))
+        throw new Error("Сначала задайте ноль листа и ноль поднятого пера.");
+      return plotter.sendCommands(createReturnToOriginCommands(config));
+    }),
     sendManualCommand: (value) => {
       const command = String(value || "").trim();
       if (
@@ -823,6 +847,10 @@ export function useIntegratedPlotter({
         setError("Перед пробой пера установите ноль и подтвердите готовность пера.");
         return Promise.resolve(false);
       }
+      if (needsPenReference && !penReferenceConfirmed) {
+        setError("Сначала задайте ноль поднятого пера.");
+        return Promise.resolve(false);
+      }
       if (!sheet.withinWorkArea) {
         setError("Проба пера выходит за рабочую область.");
         return Promise.resolve(false);
@@ -838,7 +866,7 @@ export function useIntegratedPlotter({
         setError("Импорт обычного G-code доступен для GRBL и Marlin.");
         return Promise.resolve(false);
       }
-      if (!armed || !originConfirmed) {
+      if (!armed || !originConfirmed || (needsPenReference && !penReferenceConfirmed)) {
         setError("Перед отправкой файла подтвердите перо и нулевую точку.");
         return Promise.resolve(false);
       }
@@ -885,6 +913,7 @@ export function useIntegratedPlotter({
           assessPlotterPreflight(layout, {
             calibrated: Boolean(activeProfile.calibratedAt),
             originConfirmed,
+            penReferenceConfirmed: !needsPenReference || penReferenceConfirmed,
             withinWorkArea: compilePlotJob(layout?.strokes || [], config)
               .withinWorkArea,
           }),
