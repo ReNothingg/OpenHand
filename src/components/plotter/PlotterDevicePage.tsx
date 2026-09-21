@@ -4,21 +4,30 @@ import MachineMonitor from "./MachineMonitor";
 import { penLiftDistance } from "../../plotter/penLift";
 import "../../styles/plotter-device.css";
 
-function NumberSetting({ label, value, onChange, min, max, disabled = false }: any) {
+function NumberSetting({ label, value, onChange, min, max, disabled = false, onTest, testLabel, testDisabled }: any) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
+  const parsed = Number(draft.replace(",", "."));
+  const valid = Boolean(draft.trim()) && Number.isFinite(parsed) && parsed >= min && parsed <= max;
   const commit = () => {
-    const next = Number(draft.replace(",", "."));
-    if (!draft.trim() || !Number.isFinite(next)) { setDraft(String(value)); return; }
-    const bounded = Math.max(min, Math.min(max, next));
-    setDraft(String(bounded));
-    if (bounded !== value) onChange(bounded);
+    if (!valid) return null;
+    setDraft(String(parsed));
+    if (parsed !== value) onChange(parsed);
+    return parsed;
   };
-  return <label className="device-number"><span>{label}</span>
-    <input type="text" inputMode="decimal" aria-label={label} value={draft} disabled={disabled}
-      onChange={e => setDraft(e.target.value)} onBlur={commit}
+  const field = <label className="device-number"><span>{label}</span>
+    <input type="text" inputMode="decimal" aria-label={label} aria-invalid={!valid}
+      value={draft} disabled={disabled} onChange={e => setDraft(e.target.value)} onBlur={commit}
       onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} />
   </label>;
+  return onTest ? <div className="device-position-row">
+    {field}
+    <button disabled={disabled || testDisabled || !valid} aria-label={testLabel} onClick={() => {
+      const target = commit();
+      if (target !== null) void onTest(target);
+    }}>{testLabel}</button>
+    {!valid && <small className="device-input-error" role="alert">Введите число от {min} до {max}.</small>}
+  </div> : <>{field}{!valid && <small role="alert">Введите число от {min} до {max}.</small>}</>;
 }
 
 export default function PlotterDevicePage({ workspace }: { workspace: any }) {
@@ -45,25 +54,21 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
     <div className="device-grid">
       <section className="device-pen-card" aria-labelledby="device-pen-title">
         <h2 id="device-pen-title">Положение пера</h2>
-        <p className="device-hint">Задайте два положения и проверьте каждое кнопкой рядом. Числа сохраняются автоматически; ввод сам по себе не двигает перо.</p>
+        <p className="device-hint">Задайте два положения. «Проверить» отправляет перо ровно в введённое положение и оставляет там. Автоматического возврата нет.</p>
         {!connected && <p className="device-hint">Для проверки подключите плоттер в блоке справа.</p>}
         {running && <p className="device-hint">Проверка доступна после завершения или остановки задания.</p>}
         {alarm && <p className="device-hint">Контроллер в Alarm. Сначала устраните причину аварии и снимите блокировку в блоке состояния.</p>}
         {config.penMode !== "laser" ? <>
-          <div className="device-position-row">
-            <NumberSetting label="Перо поднято" value={stepper ? config.zUp : config.penUp}
-              min={stepper ? -50 : 0} max={stepper ? 50 : config.profile === "marlin" ? 180 : 32767}
-              disabled={locked} onChange={(v: number) => set(stepper ? "zUp" : "penUp", v)} />
-            <button disabled={!canMove || (stepper && !workspace.penReferenceConfirmed)}
-              aria-label="Проверить поднятое положение" onClick={() => void execute(() => workspace.pen(true))}>Проверить ↑</button>
-          </div>
-          <div className="device-position-row">
-            <NumberSetting label="Перо опущено" value={stepper ? config.zDown : config.penDown}
-              min={stepper ? -50 : 0} max={stepper ? 50 : config.profile === "marlin" ? 180 : 32767}
-              disabled={locked} onChange={(v: number) => set(stepper ? "zDown" : "penDown", v)} />
-            <button disabled={!canMove || (stepper && !workspace.penReferenceConfirmed)}
-              aria-label="Проверить опущенное положение" onClick={() => void execute(() => workspace.pen(false))}>Проверить ↓</button>
-          </div>
+          <NumberSetting label="Перо поднято" value={stepper ? config.zUp : config.penUp}
+            min={stepper ? -50 : 0} max={stepper ? 50 : config.profile === "marlin" ? 180 : 32767}
+            disabled={locked} onChange={(v: number) => set(stepper ? "zUp" : "penUp", v)}
+            testLabel="Проверить ↑" testDisabled={!canMove || (stepper && !workspace.penReferenceConfirmed)}
+            onTest={(v: number) => execute(() => workspace.pen(true, v))} />
+          <NumberSetting label="Перо опущено" value={stepper ? config.zDown : config.penDown}
+            min={stepper ? -50 : 0} max={stepper ? 50 : config.profile === "marlin" ? 180 : 32767}
+            disabled={locked} onChange={(v: number) => set(stepper ? "zDown" : "penDown", v)}
+            testLabel="Проверить ↓" testDisabled={!canMove || (stepper && !workspace.penReferenceConfirmed)}
+            onTest={(v: number) => execute(() => workspace.pen(false, v))} />
           {stepper && <p className="device-travel">Ход между положениями: <strong>{penLiftDistance(config)} мм</strong>. Значения выше — координаты, не величина подъёма.</p>}
           {stepper && !workspace.penReferenceConfirmed && connected && !alarm && !running && (
             <div className="device-reference">
@@ -84,6 +89,7 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
             </select>
           </label>
           {stepper && <>
+            {config.profile === "grbl" && <p>Удержание моторов: {plotter.controllerSettings?.[1] === 255 ? "включено" : "проверяется при подключении и настройке пера"}. Для шагового пера приложение устанавливает $1=255: моторы остаются под током в паузах, чтобы пружина не сбивала положение. Настройка сохраняется в плате.</p>}
             <NumberSetting label="Скорость пера, мм/мин" value={config.zSpeed} min={1} max={3000} disabled={locked} onChange={(v: number) => set("zSpeed", v)} />
             <p>Ручной поиск положения — короткими шагами, без изменения сохранённых чисел.</p>
             <div className="device-buttons"><button disabled={!canMove} onClick={() => void execute(() => workspace.jogPen(true, 0.1))}>↑ На 0,1 мм</button>
@@ -96,6 +102,9 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
       <aside className="device-configuration settings-panel">
         <MachineMonitor workspace={workspace} compact />
         <PlotterSettings workspace={workspace} />
+        <details className="device-advanced"><summary>Журнал команд</summary>
+          <pre className="device-command-log">{plotter.logs.map((entry: any) => `${entry.time} ${entry.direction === "out" ? "→" : entry.direction === "in" ? "←" : "·"} ${entry.message}`).join("\n")}</pre>
+        </details>
       </aside>
     </div>
   </main>;

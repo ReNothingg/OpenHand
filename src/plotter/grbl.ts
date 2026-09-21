@@ -22,6 +22,7 @@ const vector = (value: string | undefined) => {
 export function parseGrblStatus(
   line: string,
   previous?: GrblStatus | null,
+  reportInches = false,
 ): GrblStatus | null {
   if (!/^<[^<>]+>$/.test(line)) return null;
   const [state, ...parts] = line.slice(1, -1).split("|");
@@ -37,10 +38,12 @@ export function parseGrblStatus(
       return [part.slice(0, i), part.slice(i + 1)];
     }),
   );
+  const factor = reportInches ? 25.4 : 1;
+  const position = (value: string | undefined) => vector(value)?.map(n => n * factor);
   const offset =
-    fields.WCO === undefined ? previous?.offset : vector(fields.WCO);
-  let machine = vector(fields.MPos),
-    work = vector(fields.WPos);
+    fields.WCO === undefined ? previous?.offset : position(fields.WCO);
+  let machine = position(fields.MPos),
+    work = position(fields.WPos);
   if (machine && offset?.length === machine.length)
     work = machine.map((n, i) => n - offset![i]);
   if (work && offset?.length === work.length)
@@ -51,7 +54,7 @@ export function parseGrblStatus(
     machine,
     work,
     offset,
-    feed: fs && Number.isFinite(fs[0]) ? fs[0] : undefined,
+    feed: fs && Number.isFinite(fs[0]) ? fs[0] * factor : undefined,
     spindle: fs && Number.isFinite(fs[1]) ? fs[1] : undefined,
     overrides: vector(fields.Ov) || previous?.overrides,
     pins: fields.Pn || "",

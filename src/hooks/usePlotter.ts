@@ -67,6 +67,16 @@ export function usePlotter() {
   const pauseWaitersRef = useRef([]);
   const commandTimeoutRef = useRef(12000);
   const statusReportRef = useRef({ sequence: 0, state: "" });
+  const controllerSettingsRef = useRef<Record<number, number>>({});
+  const [controllerSettings, setControllerSettings] = useState<Record<number, number>>({});
+
+  const rememberSetting = useCallback((line: string) => {
+    const match = /^\$(\d+)=(-?\d+(?:\.\d+)?)$/.exec(line.trim());
+    if (!match) return;
+    const next = { ...controllerSettingsRef.current, [Number(match[1])]: Number(match[2]) };
+    controllerSettingsRef.current = next;
+    setControllerSettings(next);
+  }, []);
 
   const cancelPaperWait = useCallback(
     (message = "Очередь листов остановлена.") => {
@@ -117,8 +127,11 @@ export function usePlotter() {
     if (!pending) return;
     clearTimeout(pending.timeout);
     if (error) pending.reject(new Error(line));
-    else pending.resolve(line);
-  }, []);
+    else {
+      rememberSetting(pending.command);
+      pending.resolve(line);
+    }
+  }, [rememberSetting]);
 
   const readLoop = useCallback(
     async (reader) => {
@@ -137,7 +150,7 @@ export function usePlotter() {
             const line = rawLine.trim();
             if (!line) continue;
             if (line.startsWith("<")) {
-              const report = parseGrblStatus(line);
+              const report = parseGrblStatus(line, undefined, controllerSettingsRef.current[13] === 1);
               const wasAlarm = statusReportRef.current.state === "Alarm";
               if (report) statusReportRef.current = {
                 sequence: statusReportRef.current.sequence + 1,
@@ -158,11 +171,12 @@ export function usePlotter() {
                 }
               }
               setMachineStatus(
-                (previous) => parseGrblStatus(line, previous) || previous,
+                (previous) => parseGrblStatus(line, previous, controllerSettingsRef.current[13] === 1) || previous,
               );
               continue;
             }
             log("in", line);
+            if (profileRef.current === "grbl") rememberSetting(line);
             if (/^(ALARM|Grbl\s)/i.test(line)) {
               setControllerEpoch((epoch) => epoch + 1);
               setMachineStatus(null);
@@ -184,6 +198,8 @@ export function usePlotter() {
               }
             }
             if (/^Grbl\s/i.test(line)) {
+              controllerSettingsRef.current = {};
+              setControllerSettings({});
               // The startup banner is a stream boundary: reset discarded the
               // old command queue. Reject its waiters BEFORE accepting new
               // commands. Keep the operation aborted and physical zeros lost;
@@ -238,7 +254,7 @@ export function usePlotter() {
         }
       }
     },
-    [cancelPaperWait, log, settlePending, status],
+    [cancelPaperWait, log, settlePending, rememberSetting, status],
   );
 
   const writeRaw = useCallback(
@@ -302,6 +318,27 @@ export function usePlotter() {
     [writeRaw],
   );
 
+  const ensureStepperHolding = useCallback(async () => {
+    if (profileRef.current !== "grbl") return false;
+    if (operationRef.current) throw new Error("Дождитесь завершения текущей операции.");
+    operationRef.current = true;
+    try {
+      if (controllerSettingsRef.current[1] === undefined) await sendCommand("$$");
+      const previous = controllerSettingsRef.current[1];
+      if (previous === undefined) throw new Error("Плата не сообщила параметр удержания $1. Проверьте прошивку.");
+      if (previous === 255) return false;
+      await sendCommand("$1=255");
+      const verification = { ...controllerSettingsRef.current };
+      delete verification[1];
+      controllerSettingsRef.current = verification;
+      await sendCommand("$$");
+      if (controllerSettingsRef.current[1] !== 255)
+        throw new Error("Плата не подтвердила удержание моторов. Проверка пера отменена.");
+      log("system", `Удержание шаговых моторов включено: $1=${previous} → $1=255. Настройка сохранена в плате.`);
+      return true;
+    } finally { operationRef.current = false; }
+  }, [sendCommand, log]);
+
   const connect = useCallback(
     async (profile, incomingOptions) => {
       if (writerRef.current || operationRef.current || connectingRef.current)
@@ -352,6 +389,8 @@ export function usePlotter() {
       desynchronizedRef.current = false;
       setMachineStatus(null);
       statusReportRef.current = { sequence: 0, state: "" };
+      controllerSettingsRef.current = {};
+      setControllerSettings({});
       try {
         const port = await navigator.serial.requestPort(
           connectionType === "network"
@@ -387,6 +426,13 @@ export function usePlotter() {
           await sendCommand(profile === "marlin" ? "M115" : "$I");
         }
         if (!writerRef.current) throw new Error("Соединение с плоттером потеряно.");
+        if (profile === "grbl") {
+          await sendCommand("$$");
+          if (options.penMode === "stepper" && statusReportRef.current.state !== "Alarm") {
+            try { await ensureStepperHolding(); }
+            catch (reason) { log("error", reason instanceof Error ? reason.message : String(reason)); }
+          }
+        }
         setStatus("connected");
       } catch (error) {
         try {
@@ -413,7 +459,7 @@ export function usePlotter() {
         connectingRef.current = false;
       }
     },
-    [log, networkSupported, readLoop, sendCommand, supported, writeRaw],
+    [log, networkSupported, readLoop, sendCommand, supported, writeRaw, ensureStepperHolding],
   );
 
   const realtime = useCallback(
@@ -819,6 +865,8 @@ export function usePlotter() {
     continuePaper,
     machineStatus,
     controllerEpoch,
+    controllerSettings,
+    ensureStepperHolding,
     realtime,
     recovery,
     connect,

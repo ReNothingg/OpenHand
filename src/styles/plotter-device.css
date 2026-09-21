@@ -32,3 +32,5 @@
 .device-travel { font-size: 13px; opacity: .75; line-height: 1.5; margin: 16px 0; }
 .device-reference { padding-top: 8px; font-size: 14px; line-height: 1.5; }
 @media (max-width: 460px) { .device-position-row { grid-template-columns: 1fr; } .device-position-row button { justify-self: stretch; } }
+.device-input-error { grid-column: 1 / -1; color: #dc7772; }
+.device-command-log { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; padding: 12px; background: #8881; }
