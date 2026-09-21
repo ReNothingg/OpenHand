@@ -1798,9 +1798,9 @@ export function createPenCommand(up, config) {
   return [...(["stepper", "estepper"].includes(config.penMode) ? ["G21"] : []), penCommand(up, config)];
 }
 
-export function createPenReferenceCommands(config) {
+export function createPenReferenceCommands(config, position: "up" | "down" = "up") {
   if (!["stepper", "estepper"].includes(config.penMode)) return [];
-  return ["G21", `G92${config.penMode === "estepper" ? "E" : "Z"}${number(Number(config.zUp))}`];
+  return ["G21", `G92${config.penMode === "estepper" ? "E" : "Z"}${number(Number(position === "down" ? config.zDown : config.zUp))}`];
 }
 
 export function createOriginCommands(config) {

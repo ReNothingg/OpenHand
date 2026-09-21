@@ -680,6 +680,7 @@ export default function App() {
     settings: deferredSettings,
     metrics: layoutMetrics,
     activeSheetIndex,
+    onResetProgress: () => setActiveSheetIndex(0),
     pending: calculationPending,
   });
   useEffect(() => {

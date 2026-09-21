@@ -627,6 +627,10 @@ export default function PlotterWorkshop({
               >
                 Начать рисунок
               </button>
+              <button disabled={running || workspace.calibrationActive} onClick={workspace.resetProgress}
+                title="Сбросить прогресс без движения и изменения нуля">
+                Сбросить прогресс
+              </button>
               {running && (
                 <button
                   onClick={

@@ -19,6 +19,7 @@ import {
 } from "../plotter/job";
 import { PLOTTER_PAGE_BREAK } from "../plotter/richText";
 import { runCalibrationAction } from "../plotter/calibrationRunner";
+import { penContactConfig } from "../plotter/penLift";
 import { mergeTrajectoryReports } from "../font-builder/letterForms";
 import {
   configFromDevicePreset,
@@ -128,6 +129,7 @@ export function useIntegratedPlotter({
   settings,
   metrics,
   activeSheetIndex,
+  onResetProgress = () => {},
   pending = false,
 }) {
   const [profileStore, setProfileStore] = useState(loadPlotterProfileStore);
@@ -787,6 +789,21 @@ export function useIntegratedPlotter({
       await plotter.sendCommands(createPenReferenceCommands(config));
       setPenReferenceConfirmed(true);
     }),
+    setPenContact: () => safeAction(async () => {
+      if (!needsPenReference || running || calibrationActive)
+        throw new Error("Касание задаётся для шагового пера вне задания и мастера.");
+      const contactConfig = penContactConfig(config);
+      await plotter.sendCommands(createPenReferenceCommands(contactConfig, "down"));
+      setConfig((current) => ({ ...current, zUp: contactConfig.zUp, zDown: contactConfig.zDown }));
+      setPenReferenceConfirmed(true);
+      setArmed(false);
+    }),
+    resetProgress: () => safeAction(() => {
+      if (running || calibrationActive) throw new Error("Сначала завершите текущую операцию.");
+      plotter.resetProgress();
+      playback.reset();
+      onResetProgress();
+    }),
     playback,
     connect: () => safeAction(() => plotter.connect(config.profile, config)),
     disconnect: async () => {
@@ -807,7 +824,7 @@ export function useIntegratedPlotter({
       ),
     pen: (up) => safeAction(() => {
       if (needsPenReference && !penReferenceConfirmed)
-        throw new Error("Сначала нажмите «Текущая высота — перо поднято».");
+        throw new Error("Сначала сохраните нормальное касание пера в ручной проверке или задайте опору от поднятого пера.");
       return plotter.sendCommands(createPenCommand(up, config), { waitForMotion: true });
     }),
     setOrigin,

@@ -808,6 +808,17 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
           </SettingSection>
 
           <SettingSection title="Ручная проверка" open={false}>
+            {!connected && (
+              <div>
+                <p className="plotter-note">Для ручных кнопок нужно подключение к плоттеру.</p>
+                <button className="button primary" type="button"
+                  disabled={!plotter.supported || plotter.status === "connecting"}
+                  onClick={workspace.connect}>
+                  {plotter.status === "connecting" ? "Подключаю…" : "Подключить плоттер"}
+                </button>
+              </div>
+            )}
+            {running && <p className="plotter-note">Сейчас идёт задание. Ручные команды доступны после его завершения или остановки.</p>}
             <div className="jog-control">
               <button
                 type="button"
@@ -861,10 +872,18 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
             </label>
             {["stepper", "estepper"].includes(config.penMode) && (
               <div>
+                <p className="calibration-note">Если ручка сейчас касается бумаги с нормальным прижимом, сохраните это положение. Оно станет нулём пера, подъём — на 0,5 мм от него. Кнопка не двигает механизм и не меняет ноль листа.</p>
+                <button className="button primary" type="button" disabled={!connected || running}
+                  onClick={workspace.setPenContact}>
+                  Текущее положение — нормальное касание
+                </button>
+                <details>
+                  <summary>Задать опору от поднятого пера</summary>
                 <p className="calibration-note">Снимите ручку или убедитесь, что она поднята над бумагой. Зафиксируйте эту высоту перед первым управлением пером. Кнопка не двигает механизм.</p>
                 <button className="button" type="button" disabled={!connected || running || workspace.penReferenceConfirmed} onClick={workspace.setPenReference}>
                   {workspace.penReferenceConfirmed ? "Ноль пера установлен" : "Текущая высота — перо поднято"}
                 </button>
+                </details>
               </div>
             )}
             <div className="plotter-actions compact-actions">

@@ -774,6 +774,16 @@ export function usePlotter() {
     [sendCommand, writeRaw],
   );
 
+  const resetProgress = useCallback(() => {
+    if (operationRef.current || connectingRef.current)
+      throw new Error("Сначала остановите текущее задание и дождитесь завершения операции.");
+    setProgress({ current: 0, total: 0 });
+    setPrintingSheet(null);
+    setSheetProgress(null);
+    setPaperChange(null);
+    saveRecovery(null);
+  }, [saveRecovery]);
+
   useEffect(
     () => () => {
       cancelPaperWait();
@@ -819,6 +829,7 @@ export function usePlotter() {
     resume,
     stop,
     sendCommands,
+    resetProgress,
     clearLogs: () => setLogs([]),
     discardRecovery: () => saveRecovery(null),
   };

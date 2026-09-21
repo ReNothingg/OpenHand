@@ -8,3 +8,8 @@ export function penLiftTarget(config: { zUp: number; zDown: number }, distance: 
   const direction = Math.sign(config.zUp - config.zDown) || -1;
   return Number(Math.max(-50, Math.min(50, config.zDown + direction * distance)).toFixed(3));
 }
+
+/** A user-observed contact becomes Z/E zero; only a short lift is requested later. */
+export function penContactConfig<T extends { zUp: number; zDown: number }>(config: T): T {
+  return { ...config, zDown: 0, zUp: (Math.sign(config.zUp - config.zDown) || -1) * 0.5 };
+}

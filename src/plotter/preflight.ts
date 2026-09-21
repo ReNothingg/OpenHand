@@ -48,7 +48,7 @@ export function assessPlotterPreflight(
   if (!options.originConfirmed)
     blockers.push("Нулевая точка плоттера не подтверждена.");
   if (options.penReferenceConfirmed === false)
-    blockers.push("Не задан ноль поднятого пера. Задайте его в ручной проверке.");
+    blockers.push("Сохраните нормальное касание пера в ручной проверке.");
   if (!options.calibrated)
     warnings.push("Профиль ещё не прошёл калибровку.");
 

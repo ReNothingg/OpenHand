@@ -96,8 +96,13 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
             : "• Выход за механику"}
         </span>
         <span className={originConfirmed ? "pass" : "warning"}>
-          {originConfirmed ? "✓ Ноль задан" : "• Проверьте ноль"}
+          {originConfirmed ? "✓ Ноль листа" : "• Задайте ноль листа"}
         </span>
+        {["stepper", "estepper"].includes(config.penMode) && (
+          <span className={workspace.penReferenceConfirmed ? "pass" : "warning"}>
+            {workspace.penReferenceConfirmed ? "✓ Положение пера" : "• Сохраните касание пера"}
+          </span>
+        )}
       </div>
       </details>
       <div className="plotter-control-grid">
@@ -113,6 +118,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
             onChange={(e) => setScope(e.target.value)}
           >
             <option value="current">Текущий лист</option>
+            <option value="all">С первого листа · все листы</option>
             <option value="remaining">
               С текущего до конца ·{" "}
               {Math.max(0, workspace.layouts.length - workspace.activeIndex)}{" "}
@@ -171,9 +177,9 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
                             {
                               length:
                                 workspace.layouts.length -
-                                workspace.activeIndex,
+                                (scope === "all" ? 0 : workspace.activeIndex),
                             },
-                            (_, i) => workspace.activeIndex + i,
+                            (_, i) => (scope === "all" ? 0 : workspace.activeIndex) + i,
                           ),
                     )
               }
@@ -201,15 +207,16 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
                 )}
                 %
               </button>
-              <button
-                className="button ghost compact"
-                type="button"
-                onClick={workspace.discardRecovery}
-              >
-                Начать заново
-              </button>
             </>
           )}
+          <button className="button ghost compact" type="button"
+            disabled={running || calibrationActive}
+            title="Сбросить счётчик команд, восстановление задания и анимацию. Плоттер не двигается, нули и калибровка сохраняются."
+            onClick={async () => {
+              if (await workspace.resetProgress()) setScope("all");
+            }}>
+            Сбросить прогресс
+          </button>
           {plotter.status === "running" && (
             <button
               className="button compact"
@@ -265,7 +272,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           disabled={!job.strokes?.length || running}
           onClick={playback.reset}
         >
-          Сначала
+          Анимация сначала
         </button>
         <select
           value={playback.speed}
