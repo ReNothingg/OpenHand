@@ -9,6 +9,7 @@ import {
   serializePlotterProfile,
 } from "../../plotter/profiles";
 import PlotterCalibrationWizard from "./PlotterCalibrationWizard";
+import MachineMonitor from "./MachineMonitor";
 import PenCalibrationSheet from './PenCalibrationSheet';
 
 function Help({ children }: { children: string }) {
@@ -34,7 +35,7 @@ function Caption({
   );
 }
 
-export default function PlotterSettings({ workspace }: { workspace: any }) {
+export default function PlotterSettings({ workspace, penControls }: { workspace: any; penControls: React.ReactNode }) {
   const profileInputRef = useRef(null);
   const [manualCommand, setManualCommand] = useState("");
   const { enabled, config, connected, running, plotter, calibrationActive } =
@@ -91,126 +92,14 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
     <div
       className={`integrated-plotter-settings ${enabled ? "enabled" : "disabled"}`}
     >
-      <fieldset disabled={!enabled || calibrationActive}>
-        <div className="device-settings-sections">
-          <SettingSection title="Профиль устройства" open={false}>
-            <label className="field">
-              <Caption help="Готовые локальные параметры, восстановленные из KDraw. Применение заменит механику и координаты активного профиля.">
-                Совместимость
-              </Caption>
-              <select
-                defaultValue=""
-                disabled={connected || running}
-                onChange={(event) => {
-                  if (event.target.value)
-                    workspace.applyDevicePreset(event.target.value);
-                  event.target.value = "";
-                }}
-              >
-                <option value="" disabled>
-                  Применить готовый профиль…
-                </option>
-                {PLOTTER_DEVICE_PRESETS.map((preset) => (
-                  <option value={preset.id} key={preset.id}>
-                    {preset.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Активный профиль</span>
-              <select
-                value={workspace.activeProfile.id}
-                disabled={connected || running}
-                onChange={(event) =>
-                  workspace.selectDeviceProfile(event.target.value)
-                }
-              >
-                {workspace.profileStore.profiles.map((profile) => (
-                  <option value={profile.id} key={profile.id}>
-                    {profile.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="plotter-profile-meta">
-              {workspace.activeProfile.calibratedAt
-                ? `Калибровка сохранена: ${new Date(workspace.activeProfile.calibratedAt).toLocaleString("ru-RU")}`
-                : "Калибровка ещё не завершена"}
-            </div>
-            <div className="plotter-profile-actions">
-              <button
-                className="text-button"
-                type="button"
-                disabled={connected || running}
-                onClick={createProfile}
-              >
-                Новый
-              </button>
-              <button
-                className="text-button"
-                type="button"
-                disabled={connected || running}
-                onClick={renameProfile}
-              >
-                Переименовать
-              </button>
-              <button
-                className="text-button"
-                type="button"
-                disabled={connected || running}
-                onClick={duplicateProfile}
-              >
-                Дублировать
-              </button>
-              <button
-                className="text-button danger-text"
-                type="button"
-                disabled={
-                  connected ||
-                  running ||
-                  workspace.profileStore.profiles.length < 2
-                }
-                onClick={deleteProfile}
-              >
-                Удалить
-              </button>
-            </div>
-            <div className="plotter-row two">
-              <button
-                className="button ghost compact"
-                type="button"
-                onClick={exportProfile}
-              >
-                Экспорт
-              </button>
-              <button
-                className="button ghost compact"
-                type="button"
-                disabled={connected || running}
-                onClick={() => profileInputRef.current?.click()}
-              >
-                Импорт
-              </button>
-            </div>
-            <input
-              ref={profileInputRef}
-              type="file"
-              accept=".json,application/json"
-              hidden
-              onChange={importProfile}
-            />
-            <button
-              className="button primary settings-wide-button"
-              type="button"
-              disabled={!enabled || running}
-              onClick={workspace.startCalibration}
-            >
-              Калибровать
-            </button>
-          </SettingSection>
-
-          <SettingSection title="Подключение" open={true}>
+      <div className="device-grid">
+        {penControls}
+        <section className="device-connection-card" aria-labelledby="device-connection-title">
+          <h2 id="device-connection-title">Подключение</h2>
+          <MachineMonitor workspace={workspace} compact />
+          {config.profile !== "grbl" && <p className="device-connection-state">{connected ? "Подключён" : "Не подключён"}</p>}
+          <fieldset disabled={!enabled || calibrationActive}>
+          <div className="device-connection-fields settings-content">
             <label className="field">
               <Caption help="USB и Bluetooth используют системный последовательный порт. TCP подключается к сетевому модулю плоттера по адресу и порту.">
                 Транспорт
@@ -424,7 +313,131 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
                   работает в приложениях OpenHand для macOS и Windows.
                 </p>
               )}
+          </div>
+          </fieldset>
+        </section>
+      </div>
+      <h2 className="device-secondary-title">Настройки устройства</h2>
+      <fieldset disabled={!enabled || calibrationActive}>
+        <div className="device-settings-sections">
+          <SettingSection title="Профиль устройства" open={false}>
+            <label className="field">
+              <Caption help="Готовые локальные параметры, восстановленные из KDraw. Применение заменит механику и координаты активного профиля.">
+                Совместимость
+              </Caption>
+              <select
+                defaultValue=""
+                disabled={connected || running}
+                onChange={(event) => {
+                  if (event.target.value)
+                    workspace.applyDevicePreset(event.target.value);
+                  event.target.value = "";
+                }}
+              >
+                <option value="" disabled>
+                  Применить готовый профиль…
+                </option>
+                {PLOTTER_DEVICE_PRESETS.map((preset) => (
+                  <option value={preset.id} key={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Активный профиль</span>
+              <select
+                value={workspace.activeProfile.id}
+                disabled={connected || running}
+                onChange={(event) =>
+                  workspace.selectDeviceProfile(event.target.value)
+                }
+              >
+                {workspace.profileStore.profiles.map((profile) => (
+                  <option value={profile.id} key={profile.id}>
+                    {profile.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="plotter-profile-meta">
+              {workspace.activeProfile.calibratedAt
+                ? `Калибровка сохранена: ${new Date(workspace.activeProfile.calibratedAt).toLocaleString("ru-RU")}`
+                : "Калибровка ещё не завершена"}
+            </div>
+            <div className="plotter-profile-actions">
+              <button
+                className="text-button"
+                type="button"
+                disabled={connected || running}
+                onClick={createProfile}
+              >
+                Новый
+              </button>
+              <button
+                className="text-button"
+                type="button"
+                disabled={connected || running}
+                onClick={renameProfile}
+              >
+                Переименовать
+              </button>
+              <button
+                className="text-button"
+                type="button"
+                disabled={connected || running}
+                onClick={duplicateProfile}
+              >
+                Дублировать
+              </button>
+              <button
+                className="text-button danger-text"
+                type="button"
+                disabled={
+                  connected ||
+                  running ||
+                  workspace.profileStore.profiles.length < 2
+                }
+                onClick={deleteProfile}
+              >
+                Удалить
+              </button>
+            </div>
+            <div className="plotter-row two">
+              <button
+                className="button ghost compact"
+                type="button"
+                onClick={exportProfile}
+              >
+                Экспорт
+              </button>
+              <button
+                className="button ghost compact"
+                type="button"
+                disabled={connected || running}
+                onClick={() => profileInputRef.current?.click()}
+              >
+                Импорт
+              </button>
+            </div>
+            <input
+              ref={profileInputRef}
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={importProfile}
+            />
+            <button
+              className="button primary settings-wide-button"
+              type="button"
+              disabled={!enabled || running}
+              onClick={workspace.startCalibration}
+            >
+              Калибровать
+            </button>
           </SettingSection>
+
+
 
           <SettingSection title="Оси, рабочая область и скорость" open={false}>
             <div className="plotter-row two">
@@ -756,10 +769,10 @@ export default function PlotterSettings({ workspace }: { workspace: any }) {
               </button>
             </form>
           </SettingSection>
+          <PenCalibrationSheet workspace={workspace} />
         </div>
       </fieldset>
       {calibrationActive && <PlotterCalibrationWizard workspace={workspace} />}
-      <PenCalibrationSheet workspace={workspace} />
     </div>
   );
 }
