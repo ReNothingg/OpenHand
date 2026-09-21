@@ -415,7 +415,7 @@ export function useIntegratedPlotter({
   }, [plotter.controllerEpoch]);
   useEffect(() => {
     setPenReferenceConfirmed(false);
-  }, [connected, plotter.controllerEpoch, activeProfile.id, config.profile, config.penMode, config.zUp]);
+  }, [connected, plotter.controllerEpoch, activeProfile.id, config.profile, config.penMode]);
   const progressPercent = plotter.progress.total
     ? (plotter.progress.current / plotter.progress.total) * 100
     : 0;
@@ -667,6 +667,7 @@ export function useIntegratedPlotter({
       try {
         if (action.startsWith("pen-") && action !== "pen-reference" && needsPenReference && !penReferenceConfirmed)
           throw new Error("Сначала задайте ноль поднятого пера.");
+        if (action === "pen-reference" && penReferenceConfirmed) return [];
         const result = await runCalibrationAction(action, config, plotter.sendCommands);
         if (action === "pen-reference") setPenReferenceConfirmed(true);
         return result;
@@ -796,6 +797,7 @@ export function useIntegratedPlotter({
     originConfirmed,
     penReferenceConfirmed,
     setPenReference: () => safeAction(async () => {
+      if (penReferenceConfirmed) return;
       await plotter.sendCommands(createPenReferenceCommands(config));
       setPenReferenceConfirmed(true);
     }),
@@ -817,6 +819,7 @@ export function useIntegratedPlotter({
     }),
     setOrigin,
     home: async () => {
+      setPenReferenceConfirmed(false);
       const success = await safeAction(() =>
         plotter.sendCommands(createHomingCommands(config)),
       );
@@ -837,6 +840,11 @@ export function useIntegratedPlotter({
       ) {
         setError("Введите одну корректную команду длиной до 256 символов.");
         return Promise.resolve(false);
+      }
+      if (!/^\$(?:\$|I|G|#)$/i.test(command)) {
+        setPenReferenceConfirmed(false);
+        setOriginConfirmed(false);
+        setArmed(false);
       }
       return safeAction(() => plotter.sendCommands([command]));
     },

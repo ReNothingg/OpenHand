@@ -110,9 +110,7 @@ export function calibrationReducer(state, event) {
     case "settings-changed":
       return {
         ...state,
-        index: event.axes ? 2 : event.penReference
-          ? Math.max(0, state.steps.findIndex((step) => step.id === "pen-reference"))
-          : state.index,
+        index: event.axes ? 2 : state.index,
         phase: "ready",
         error: "",
       };

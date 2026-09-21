@@ -529,7 +529,7 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
             ) : (
               <div className="plotter-row two">
                 <label className="field">
-                  <Caption help="Координата Z/E при поднятом пере. Ошибка направления может увести ось в концевик.">
+                  <Caption help="Чтобы уменьшить подъём, приблизьте это значение к положению опущенного пера. Ноль Z при этом не меняется.">
                     Перо поднято, мм
                   </Caption>
                   <input
@@ -554,6 +554,14 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
                     onChange={number("zDown", -50, 50)}
                   />
                 </label>
+                <button
+                  className="button"
+                  type="button"
+                  disabled={running || calibrationActive || Math.abs(config.zUp - config.zDown) < 0.02}
+                  onClick={() => workspace.updateConfig("zUp", Math.round((Number(config.zUp) + Number(config.zDown)) * 50) / 100)}
+                >
+                  Уменьшить подъём вдвое
+                </button>
               </div>
             )}
             <div className="plotter-row two">
@@ -850,8 +858,8 @@ export default function PlotterSettings({ workspace, defaultOpen = false }: { wo
             {["stepper", "estepper"].includes(config.penMode) && (
               <div>
                 <p className="calibration-note">Снимите ручку или убедитесь, что она поднята над бумагой. Зафиксируйте эту высоту перед первым управлением пером. Кнопка не двигает механизм.</p>
-                <button className="button" type="button" disabled={!connected || running} onClick={workspace.setPenReference}>
-                  Текущая высота — перо поднято
+                <button className="button" type="button" disabled={!connected || running || workspace.penReferenceConfirmed} onClick={workspace.setPenReference}>
+                  {workspace.penReferenceConfirmed ? "Ноль пера установлен" : "Текущая высота — перо поднято"}
                 </button>
               </div>
             )}

@@ -130,7 +130,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
   const adjust = (key, value) => {
     if (actionInFlight.current) return;
     workspace.updateCalibrationConfig(key, value);
-    dispatch({ type: "settings-changed", axes: ["invertX", "invertY", "swapAxes"].includes(key), penReference: key === "zUp" });
+    dispatch({ type: "settings-changed", axes: ["invertX", "invertY", "swapAxes"].includes(key) });
   };
   const axisStep = step.id.startsWith("axis-");
   const penStep = step.id.startsWith("pen-");
@@ -273,7 +273,13 @@ export default function PlotterCalibrationWizard({ workspace }) {
                       }} />
                     </label>
                   ))}
-                  <p className="calibration-note">Изменение сохраняет настройку. Нажмите кнопку ниже, чтобы проверить её на плоттере.</p>
+                  {["stepper", "estepper"].includes(workspace.config.penMode) && (
+                    <button type="button" className="button" disabled={Math.abs(workspace.config.zUp - workspace.config.zDown) < 0.02}
+                      onClick={() => adjust("zUp", Math.round((Number(workspace.config.zUp) + Number(workspace.config.zDown)) * 50) / 100)}>
+                      Уменьшить подъём вдвое
+                    </button>
+                  )}
+                  <p className="calibration-note">Изменение сохраняет настройку без движения. Высота подъёма меняется относительно установленного нуля; положение опускания не сдвигается.</p>
                 </fieldset>
               )}
               {step.kind === "connect" &&
