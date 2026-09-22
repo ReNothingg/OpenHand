@@ -1,3 +1,5 @@
+import { orderedStrokeSamples } from "./strokeSamples";
+
 export type FontPoint = {
   x: number;
   y: number;
@@ -77,6 +79,8 @@ export function appendSample(
     stroke.push(point);
     return;
   }
+  // Coalesced batches can overlap a preceding pointermove batch.
+  if (Number.isFinite(point.time) && Number.isFinite(previous.time) && point.time! <= previous.time!) return;
   const distance = Math.hypot(point.x - previous.x, point.y - previous.y);
   if (
     distance < 0.12 &&
@@ -95,7 +99,7 @@ export function appendSample(
 }
 
 export function completeStroke(stroke: FontStroke): FontStroke {
-  const points = stroke.map((point) => ({
+  const points = orderedStrokeSamples(stroke).map((point) => ({
     ...point,
     x: Math.round(point.x * 100) / 100,
     y: Math.round(point.y * 100) / 100,

@@ -1,4 +1,5 @@
 import { validForms, formGlyph, type LetterForm } from '../font-builder/letterForms';
+import { orderedStrokeSamples } from '../font-builder/strokeSamples';
 const EOCD_SIGNATURE = 0x06054b50;
 const CENTRAL_SIGNATURE = 0x02014b50;
 const LOCAL_SIGNATURE = 0x04034b50;
@@ -427,6 +428,18 @@ export class GFont {
           });
         }
       } catch { /* Optional pen metadata must not make valid centerline glyphs unreadable. */ }
+    }
+    const strokes: GFontPoint[][] = [];
+    glyph.points.forEach((point, index) => {
+      if (!glyph.flags[index] || !strokes.length) strokes.push([]);
+      strokes.at(-1)!.push(point);
+    });
+    const repaired = strokes.map(orderedStrokeSamples);
+    if (repaired.some((stroke, index) => stroke !== strokes[index])) {
+      const clean = formGlyph({ strokes: repaired }, glyph.codePoint);
+      glyph.points = clean.points;
+      glyph.flags = clean.flags;
+      glyph.bounds = clean.bounds;
     }
     this.cache.set(codePoint, glyph);
     return glyph;

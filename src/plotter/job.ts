@@ -109,14 +109,6 @@ function splitGlyphStrokes(
   const variation = handwriting?.enabled
     ? Math.max(0, Math.min(100, Number(handwriting.variation) || 0))
     : 0;
-  const variant =
-    variation > 0 &&
-    seededRandom(handwriting.seed, `${handwriting.key}:active`) * 100 <
-      variation
-      ? Math.floor(
-          seededRandom(handwriting.seed, `${handwriting.key}:variant`) * 4,
-        )
-      : 0;
   const rhythm = handwriting?.enabled
     ? Math.max(0, Math.min(100, Number(handwriting.rhythm) || 0))
     : 0;
@@ -142,15 +134,13 @@ function splitGlyphStrokes(
   const motion = handwriting?.motion || { coherence: 0, width: 1, height: 1, slant: 0, baseline: 0 };
   const scaleX =
     motion.width * authorWidth * evolution.width *
-    (1 +
-      (variant === 1
-        ? -0.025
-        : variant === 2
-          ? 0.035
-          : variant === 3
-            ? 0.012
-            : 0) +
-      0);
+    (1 + (seededRandom(handwriting?.seed, `${handwriting?.key}:width`) - 0.5) * variation * 0.0012);
+  // One smooth deformation field per occurrence, never independent point jitter.
+  // The same seed gives identical preview, export and recovery trajectories.
+  const glyphHeight = Math.max(1, glyph.bounds.maxY - glyph.bounds.minY);
+  const bend = handwriting?.isLetter
+    ? (seededRandom(handwriting.seed, `${handwriting.key}:bend`) - 0.5) * variation * 0.0012
+    : 0;
   const scaleY =
     1 +
     (seededRandom(handwriting?.seed, `${handwriting?.key}:height`) - 0.5) *
@@ -179,7 +169,7 @@ function splitGlyphStrokes(
     const localX =
       (source.x - glyph.bounds.minX) * scale * scaleX - localY * (slant - randomSlant * motion.coherence * 0.85 + Math.tan(motion.slant * Math.PI / 180));
     const point = {
-      x: cursorX + localX,
+      x: cursorX + localX + Math.sin(Math.PI * (source.y - glyph.bounds.minY) / glyphHeight) * glyphHeight * scale * bend,
       y: baseline + localY + baselineDrift + rhythmDrift * (1 - motion.coherence * 0.85) + motion.baseline * scale * FONT_EM,
     };
     if (glyph.flags[index] === 0 || !stroke) {

@@ -795,3 +795,37 @@ also rechecked in response to the user's request to inspect the vendor program.
 
 Remaining: saved-device identity/cold STOP fallback parity, network emergency priority
 and teardown, broader final acceptance, and physical pen/contact verification.
+
+## ReNothingg font: overlapping samples and automatic letter variation
+
+Inspected the supplied local ReNothingg.gfont without sending device commands.
+Its 150 glyphs contain 204 strokes and 51,335 samples. Strokes repeatedly move
+backwards in recorded time and replay earlier timestamps, e.g. the Cyrillic о
+returns from 25 ms to 12/17/21/25 ms. This produces genuine backwards segments
+in the stored geometry, rather than merely an excessive number of collinear points.
+
+Added a shared sample-order repair to GFont glyph metadata, alternate forms,
+stroke completion and export. It activates only when a backwards timestamp repeats
+a previously seen timestamp; monotonic/untimed/constant-time strokes are unchanged.
+Live pen input rejects already consumed samples before smoothing. The user's original
+file is untouched; a repaired copy is provided outside the repository. On this file,
+25,140 repeated samples were removed, retaining 26,195 points. All original stroke
+counts and endpoints are preserved. Turns over 90 degrees fell from 12,957 to 141.
+This is trajectory evidence; physical vibration has not been remeasured.
+
+The existing glyph-variation control now uses a continuous per-occurrence width
+variation plus a small smooth deformation across letter height, in addition to
+the existing height/slant variation. There is no per-point random jitter or change
+to saved pen heights. Moved the slider to the top level of the handwriting section
+under the master switch, with an explicit automatic-variation label. The shared
+implementation is included in both desktop bundles.
+
+Verification: actual file decoded and exported/reimported for all 150 glyphs and
+forms; endpoint/stroke preservation and idempotence; deliberate geometric reversal,
+untimed and constant-time preservation; overlapping live batches; eight repeated о
+with eight deterministic trajectories, zero-variation equality and changed-seed
+difference; finite generated commands and unchanged Z commands in an isolated
+nonjoining text sample. A local browser loaded the original font successfully;
+the slider changed the actual preview and returning to 58% restored its statistics.
+No browser console errors were observed. npm/macOS build, Windows cross-build and
+web parity are checked before publication; temporary test sources are removed.

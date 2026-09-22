@@ -241,6 +241,15 @@ export default function SettingsPanel({
         </Toggle>
         {settings.trueHandwriting && (
           <>
+            <RangeControl
+              label="Автоматический разброс букв"
+              value={settings.glyphVariation}
+              min={0}
+              max={100}
+              suffix="%"
+              onChange={(value) => updateSetting("glyphVariation", value)}
+              hint="Повторения отличаются шириной, высотой и наклоном. У GFont слегка меняется изгиб штриха, без дрожания отдельных точек."
+            />
             <SettingSection title="Изменение почерка по странице" open={false}>
             <Toggle
               checked={settings.fatigueEnabled}
@@ -285,15 +294,6 @@ export default function SettingsPanel({
               max={100}
               suffix="%"
               onChange={(value) => updateSetting("authorRhythm", value)}
-            />
-            <RangeControl
-              label="Вариативность букв"
-              value={settings.glyphVariation}
-              min={0}
-              max={100}
-              suffix="%"
-              onChange={(value) => updateSetting("glyphVariation", value)}
-              hint="Варьирует пропорции глифа; новые начертания букв не создаются."
             />
             <RangeControl
               label="Связность"

@@ -1,4 +1,5 @@
 import type { FontStroke } from "./penInput";
+import { orderedStrokeSamples } from "./strokeSamples";
 
 export type JoinAnchor = { stroke: number; end: "start" | "end" };
 export type LetterForm = {
@@ -35,7 +36,7 @@ export function validForms(value: unknown): LetterForm[] {
       )
         return [];
       strokes.push(
-        stroke.map((p) => {
+        orderedStrokeSamples(stroke.map((p) => {
           const point: FontStroke[number] = { x: p.x, y: p.y };
           for (const [key, min, max] of [
             ["pressure", 0, 1],
@@ -47,7 +48,7 @@ export function validForms(value: unknown): LetterForm[] {
               point[key] = p[key];
           }
           return point;
-        }),
+        })),
       );
     }
     const anchor = (a: JoinAnchor | undefined) =>

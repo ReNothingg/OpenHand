@@ -1,7 +1,8 @@
 const encoder = new TextEncoder();
 
 import type { FontStroke } from "./penInput";
-import type { LetterForms } from "./letterForms";
+import { validForms, type LetterForms } from "./letterForms";
+import { orderedStrokeSamples } from "./strokeSamples";
 
 function crc32(bytes: Uint8Array) {
   let crc = 0xffffffff;
@@ -79,7 +80,7 @@ export function createGFontBlob(
     .sort(([left], [right]) => left.codePointAt(0) - right.codePointAt(0))
     .forEach(([character, strokes]) => {
       const codePoint = character.codePointAt(0);
-      const kept = strokes.filter((stroke) => stroke.length > 1);
+      const kept = strokes.filter((stroke) => stroke.length > 1).map(orderedStrokeSamples);
       entries.push({
         filename: String(codePoint),
         data: encodeGlyph(codePoint, kept),
@@ -88,7 +89,7 @@ export function createGFontBlob(
         entries.push({
           filename: `openhand/${codePoint}.forms.json`,
           data: encoder.encode(
-            JSON.stringify({ version: 1, forms: forms[character] }),
+            JSON.stringify({ version: 1, forms: validForms(forms[character]) }),
           ),
         });
       if (
