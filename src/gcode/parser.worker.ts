@@ -2,11 +2,13 @@
 
 import { parseGCode } from "./parser";
 import { MAX_GCODE_SEGMENTS_PER_KIND } from "./limits";
+import type { GCodePenModel } from "./penModel";
 
-self.addEventListener("message", (event: MessageEvent<{ id: number; source: string }>) => {
-  const { id, source } = event.data;
+self.addEventListener("message", (event: MessageEvent<{ id: number; source: string; penModel?: GCodePenModel }>) => {
+  const { id, source, penModel } = event.data;
   try {
     const result = parseGCode(source, {
+      penModel,
       includeLines: false,
       maxSegmentsPerKind: MAX_GCODE_SEGMENTS_PER_KIND,
     });

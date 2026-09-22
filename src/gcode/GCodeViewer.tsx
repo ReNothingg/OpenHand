@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { downloadFile } from "../lib/files";
 import AppearanceControl from "../components/AppearanceControl";
+import GCodePenControls from "./GCodePenControls";
+import { readPenModel, type GCodePenModel } from "./penModel";
 import {
   base64DecodedSize,
   MAX_GCODE_FILE_BYTES,
@@ -37,7 +39,9 @@ function decodePayload(
   }
   if (typeof payload.data !== "string") return null;
   validateGCodeFileSize(base64DecodedSize(payload.data));
-  const binary = atob(payload.data);
+  let binary: string;
+  try { binary = atob(payload.data); }
+  catch { throw new Error("Не удалось прочитать переданный файл: данные повреждены. Откройте исходный G-code заново."); }
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
   return {
     name: payload.name || "openhand.gcode",
@@ -138,13 +142,63 @@ export default function GCodeViewer({
   );
   const [result, setResult] = useState<GCodeParseResult>(EMPTY_RESULT);
   const [error, setError] = useState("");
+  const [parseError, setParseError] = useState("");
   const [parsing, setParsing] = useState(false);
   const [showTravel, setShowTravel] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [previous, setPrevious] = useState<GCodeDocument | null>(null);
+  const [previewPen, setPreviewPen] = useState<GCodePenModel | undefined>();
+  const filePen = useMemo(() => readPenModel(document?.text || ""), [document?.text]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 640, height: 480 });
+  const zoomAnchor = useRef<{ x: number; y: number } | null>(null);
+  const hasDocument = Boolean(document);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const publish = (width: number, height: number) => {
+      const next = { width: Math.max(1, Math.floor(width)), height: Math.max(1, Math.floor(height)) };
+      setCanvasSize(current => current.width === next.width && current.height === next.height ? current : next);
+    };
+    const update = () => {
+      const style = getComputedStyle(canvas);
+      const rect = canvas.getBoundingClientRect();
+      publish(rect.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+        rect.height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom));
+    };
+    update();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(entries => {
+      const rect = entries[0]?.contentRect;
+      if (rect) publish(rect.width, rect.height);
+    });
+    observer?.observe(canvas);
+    window.addEventListener("resize", update);
+    return () => { observer?.disconnect(); window.removeEventListener("resize", update); };
+  }, [hasDocument]);
+
+  const changeZoom = (next: number) => {
+    const canvas = canvasRef.current, stage = canvas?.firstElementChild;
+    if (canvas && stage) {
+      const style = getComputedStyle(canvas), bounds = stage.getBoundingClientRect();
+      zoomAnchor.current = {
+        x: (canvas.scrollLeft + canvas.clientWidth / 2 - parseFloat(style.paddingLeft)) / Math.max(1, bounds.width),
+        y: (canvas.scrollTop + canvas.clientHeight / 2 - parseFloat(style.paddingTop)) / Math.max(1, bounds.height),
+      };
+    }
+    setZoom(next);
+  };
+  useLayoutEffect(() => {
+    const anchor = zoomAnchor.current, canvas = canvasRef.current, stage = canvas?.firstElementChild;
+    if (!anchor || !canvas || !stage) return;
+    zoomAnchor.current = null;
+    const style = getComputedStyle(canvas), bounds = stage.getBoundingClientRect();
+    canvas.scrollLeft = anchor.x * bounds.width + parseFloat(style.paddingLeft) - canvas.clientWidth / 2;
+    canvas.scrollTop = anchor.y * bounds.height + parseFloat(style.paddingTop) - canvas.clientHeight / 2;
+  }, [zoom]);
 
   useEffect(() => {
     if (!payload) return;
@@ -153,6 +207,7 @@ export default function GCodeViewer({
       if (nextDocument) {
         setEditing(false);
         setPrevious(null);
+        setPreviewPen(undefined);
         setDocument(nextDocument);
         setError("");
         setZoom(1);
@@ -170,14 +225,15 @@ export default function GCodeViewer({
     let cancelled = false;
     setResult(EMPTY_RESULT);
     setParsing(true);
-    parseGCodeAsync(document?.text || "")
+    setParseError("");
+    parseGCodeAsync(document?.text || "", { penModel: previewPen })
       .then((parsed) => {
         if (!cancelled) setResult(parsed);
       })
       .catch((reason) => {
         if (!cancelled) {
           setResult(EMPTY_RESULT);
-          setError(
+          setParseError(
             reason instanceof Error
               ? reason.message
               : "Не удалось разобрать G-code.",
@@ -190,7 +246,7 @@ export default function GCodeViewer({
     return () => {
       cancelled = true;
     };
-  }, [document?.text]);
+  }, [document?.text, previewPen]);
 
   const drawingPreview = useMemo(
     () => previewSegments(result.drawing),
@@ -231,11 +287,13 @@ export default function GCodeViewer({
     }
     try {
       validateGCodeFileSize(file.size);
+      const text = normalizeGCodeSource(await file.text());
       setEditing(false);
       setPrevious(null);
+      setPreviewPen(undefined);
       setDocument({
         name: file.name,
-        text: normalizeGCodeSource(await file.text()),
+        text,
       });
       setError("");
       setZoom(1);
@@ -343,12 +401,9 @@ export default function GCodeViewer({
         </div>
       </header>
 
-      {document && !parsing && result.penInterpretation === "heuristic" && <p className="gcode-viewer-warning neutral" role="status">
-        В файле нет настроек пера. Цвета штрихов и холостого хода определены приблизительно; координаты показаны как в файле.
-      </p>}
-      {error && (
+      {(error || parseError) && (
         <p className="gcode-viewer-warning" role="alert">
-          {error}
+          {error || parseError}
         </p>
       )}
       {parsing && (
@@ -419,16 +474,19 @@ export default function GCodeViewer({
                   step="0.1"
                   value={zoom}
                   aria-label="Масштаб просмотра G-code"
-                  onChange={(event) => setZoom(Number(event.target.value))}
+                  onChange={(event) => changeZoom(Number(event.target.value))}
                 />
                 <output>{Math.round(zoom * 100)}%</output>
               </label>
             </div>
-            <div className="gcode-canvas">
+            <GCodePenControls model={previewPen} fileModel={filePen} onChange={setPreviewPen} />
+            <div className="gcode-canvas" ref={canvasRef}>
               {hasGeometry ? (
+                <div className="gcode-canvas-stage" style={{ width: canvasSize.width * Math.max(1, zoom), height: canvasSize.height * Math.max(1, zoom) }}>
                 <svg
                   viewBox={viewBox}
-                  style={{ transform: `scale(${zoom})` }}
+                  width={canvasSize.width * zoom}
+                  height={canvasSize.height * zoom}
                   preserveAspectRatio="xMidYMid meet"
                   role="img"
                   aria-label={`Траектория файла ${document.name}`}
@@ -456,6 +514,7 @@ export default function GCodeViewer({
                     />
                   ))}
                 </svg>
+                </div>
               ) : (
                 <div className="gcode-empty-preview">
                   <strong>Нет перемещений для просмотра</strong>

@@ -294,6 +294,7 @@ export function parseGCode(
   let motion: 0 | 1 | 2 | 3 | null = null;
   let penDown: boolean | null = null;
   let spindleOn = false;
+  let spindlePower: number | null = null;
   let position: GCodePoint = { x: 0, y: 0, z: 0 };
   let commandCount = 0;
 
@@ -340,15 +341,19 @@ export function parseGCode(
     }
     if (mCodes.includes(3) || mCodes.includes(4)) spindleOn = true;
     if (mCodes.includes(5)) spindleOn = false;
+    const power = lastValue(words, "S");
+    const spindleWord = power !== undefined && !gCodes.includes(4) &&
+      (mCodes.length === 0 || mCodes.some(code => [3, 4, 5].includes(code)));
+    if (spindleWord) spindlePower = power;
     if (!penModel || penModel.kind === "spindle") {
       if (mCodes.includes(3) || mCodes.includes(4)) penDown = true;
       if (mCodes.includes(5)) penDown = false;
-      if (penModel?.kind === "spindle" && spindleOn && lastValue(words, "S") !== undefined)
-        penDown = lastValue(words, "S")! > 0;
+      if (penModel?.kind === "spindle") penDown = spindleOn && (spindlePower === null || spindlePower > 0);
     } else if (penModel.kind === "servo") {
       const s = lastValue(words, "S");
-      if (s !== undefined && ((penModel.command === "M3" && spindleOn) ||
-          (penModel.command === "M280" && mCodes.includes(280) && lastValue(words, "P") === 0)))
+      if (penModel.command === "M3" && spindleOn && spindlePower !== null)
+        penDown = isPenDownAt(spindlePower, penModel);
+      if (s !== undefined && penModel.command === "M280" && mCodes.includes(280) && lastValue(words, "P") === 0)
         penDown = isPenDownAt(s, penModel);
     }
 

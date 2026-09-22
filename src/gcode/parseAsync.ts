@@ -1,5 +1,8 @@
 import { parseGCode, type GCodeParseResult } from "./parser";
 import { MAX_GCODE_SEGMENTS_PER_KIND } from "./limits";
+import type { GCodePenModel } from "./penModel";
+
+export interface GCodePreviewOptions { penModel?: GCodePenModel }
 
 type PendingRequest = {
   resolve: (result: GCodeParseResult) => void;
@@ -52,11 +55,12 @@ function getWorker() {
   }
 }
 
-export async function parseGCodeAsync(source: string) {
+export async function parseGCodeAsync(source: string, options: GCodePreviewOptions = {}) {
   const worker = getWorker();
   if (!worker) {
     await new Promise((resolve) => window.setTimeout(resolve, 0));
     return parseGCode(source, {
+      penModel: options.penModel,
       includeLines: false,
       maxSegmentsPerKind: MAX_GCODE_SEGMENTS_PER_KIND,
     });
@@ -64,11 +68,12 @@ export async function parseGCodeAsync(source: string) {
   const id = nextRequestId++;
   return new Promise<GCodeParseResult>((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    worker.postMessage({ id, source });
+    worker.postMessage({ id, source, penModel: options.penModel });
   }).catch(async (error) => {
     if (!workerUnavailable) throw error;
     await new Promise((resolve) => window.setTimeout(resolve, 0));
     return parseGCode(source, {
+      penModel: options.penModel,
       includeLines: false,
       maxSegmentsPerKind: MAX_GCODE_SEGMENTS_PER_KIND,
     });

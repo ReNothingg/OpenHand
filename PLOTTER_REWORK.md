@@ -606,3 +606,50 @@ Temporary checks are removed before publication. npm run build, macOS build,
 Windows cross-build and web parity are verified for the shared implementation.
 Remaining work includes broader application acceptance, Windows saved-port startup,
 raw-file preview controls, and the unresolved physical pen/contact boundary.
+
+## Explicit pen interpretation for external G-code previews
+
+Added an optional viewer-only pen model: automatic/file metadata, Z, E, M3 S servo,
+M280 P0 servo, or M3/M4/M5 output. Distinct finite up/down values are required for
+axes and servo; decimal comma is accepted. Applying changes uses the background
+parser and affects display classification/statistics only. The original source,
+save payload and device profile are not rewritten. Opening another valid file
+clears the override; an invalid incoming file preserves the previous document and
+view. Parse errors are separate from file-open errors. Invalid native file payloads
+now show a Russian explanation instead of the browser's atob exception.
+
+While validating, found that the previous percentage-sized SVG overflowed the
+available canvas at 100%, particularly with controls expanded. The viewer now
+measures the available content area with ResizeObserver and floors fractional sizes
+to avoid scrollbar feedback. The actual scrollable stage grows with zoom, so edges
+remain reachable; zoom preserves the current view center. The M3/M4/M5 parser model
+also retains modal S power, including S0 followed by M3 without a new S value.
+S in a dwell or M280 does not overwrite spindle power; a separately supplied S
+is applied when M3 subsequently activates the selected servo model. These cases
+were checked separately before the final build.
+
+Software evidence: pure parser and async-fallback checks for both Z directions,
+relative E, both servo grammars, modal spindle power, inch conversion, invalid/equal
+values and manual-over-file precedence. Real React viewer in the browser showed the
+same sample as 20 mm under the heuristic, 10 mm with Z0-up/Z3-down, and 20 mm with
+the reversed explicit model. Equal values were rejected without changing the view.
+The save bridge captured unchanged file text. Opening a new file reset the override;
+an invalid file preserved it and showed the translated error. At 1280px and 760px
+widths, collapsed and expanded controls fit; 100% had no canvas overflow, and 200%
+had positive reachable scroll extents while retaining the center. Browser fixture
+and temporary test files are removed before publication. npm run build, macOS build,
+Windows cross-build and matching web bundles are checked for this shared feature.
+
+Read-only startup audit confirmed a remaining platform difference: macOS restores
+the last serial attempt and protocol from UserDefaults for STOP fallback; Windows
+keeps them only in memory. This needs an explicit saved-device identity review,
+not blind reopening of a potentially reassigned COM port. The final integrated
+application audit and real pen/contact boundary also remain open.
+
+Next priority from route inspection: src/main.tsx switches from App to the standalone
+GCodeViewer on openhand:open-file. That unmounts useIntegratedPlotter/usePlotter, whose
+cleanup cancels the reader and closes the port without an awaited STOP. Thus opening
+a file during motion can discard the application's session while the device still
+has buffered movement. This must be addressed at the shared session/navigation
+boundary before a final acceptance claim or further physical testing. The current
+viewer tests were isolated and did not exercise a live document session.
