@@ -14,6 +14,8 @@ internal sealed class NativeBridge : IDisposable
     private string? _selectedPortPath;
     private bool _emergencyStopped;
     private bool _emergencyInFlight;
+    private string? _lastStopFailure;
+    private bool _pageTransitionPending;
     private string? _activeTransport;
     private string? _lastRequestedTransport;
     private string? _lastProtocol;
@@ -24,6 +26,19 @@ internal sealed class NativeBridge : IDisposable
     private int _openGeneration;
     private Task? _closeTask;
     public bool NeedsShutdown => HasActiveConnection || _openingCount > 0 || _emergencyInFlight || _closeTask is { IsCompleted: false };
+    public bool NeedsPageTransitionStop => HasActiveConnection || _openingCount > 0 || _emergencyInFlight;
+
+    public async Task PrepareForPageChangeAsync()
+    {
+        if (_closingRequested) throw new InvalidOperationException("Приложение закрывается.");
+        _pageTransitionPending = true;
+        if (!NeedsPageTransitionStop) return;
+        try { await PrepareForCloseAsync(); }
+        catch (Exception error) { _lastStopFailure = error.Message; throw; }
+        finally { CancelCloseRequest(); }
+    }
+
+    public void FinishPageChange() => _pageTransitionPending = false;
 
 
     public NativeBridge(
@@ -145,7 +160,7 @@ internal sealed class NativeBridge : IDisposable
             "grbl" => new byte[] { 0x85, 0x21, 0x18 },
             "marlin" => System.Text.Encoding.ASCII.GetBytes("M410\n"),
             "ebb" => System.Text.Encoding.ASCII.GetBytes("R\r\n"),
-            _ => throw new ArgumentException("Неизвестный протокол остановки.")
+            _ => throw new ArgumentException(_lastStopFailure = "Неизвестный протокол остановки.")
         };
         _emergencyInFlight = true;
         try
@@ -154,7 +169,7 @@ internal sealed class NativeBridge : IDisposable
             else if (_lastSerialOpen is { } saved)
             {
                 try { await _serial.EmergencyWriteAsync(bytes); }
-                catch (Exception error) when (error is IOException or InvalidOperationException)
+                catch (Exception error) when ((error is IOException or InvalidOperationException) && !_closingRequested && !_pageTransitionPending)
                 {
                     await _serial.OpenAsync(saved);
                     _activeTransport = "serial";
@@ -162,7 +177,9 @@ internal sealed class NativeBridge : IDisposable
                 }
             }
             else throw new InvalidOperationException("USB-порт ещё не выбран. Не удалось передать СТОП.");
+            _lastStopFailure = null;
         }
+        catch (Exception error) { _lastStopFailure = error.Message; throw; }
         finally { _emergencyInFlight = false; }
     }
 
@@ -204,7 +221,7 @@ internal sealed class NativeBridge : IDisposable
                 using var document = JsonDocument.Parse(eventArgs.WebMessageAsJson);
                 var root = document.RootElement;
                 if (GetOptionalString(root, "bridge", "") == "file" &&
-                    root.TryGetProperty("id", out var idElement) && idElement.TryGetInt32(out var id))
+                    root.TryGetProperty("id", out var idElement) && idElement.ValueKind == JsonValueKind.String && idElement.GetString() is { Length: > 0 and <= 128 } id)
                 {
                     ResolveFile(id, new { saved = false, error = $"Не удалось сохранить файл: {error.Message}" });
                     return;
@@ -220,7 +237,7 @@ internal sealed class NativeBridge : IDisposable
     private async Task HandleSerialAsync(JsonElement payload)
     {
         if (!payload.TryGetProperty("id", out var idElement) ||
-            !idElement.TryGetInt32(out var id))
+            idElement.ValueKind != JsonValueKind.String || idElement.GetString() is not { Length: > 0 and <= 128 } id)
         {
             return;
         }
@@ -228,10 +245,13 @@ internal sealed class NativeBridge : IDisposable
         try
         {
             var action = GetRequiredString(payload, "action");
-            if (_closingRequested && action is "open" or "openNetwork" or "write" or "setSignals" or "releaseEmergencyStop" or "requestPort")
-                throw new InvalidOperationException("Соединение закрывается. Новые команды заблокированы.");
+            if ((_closingRequested || _pageTransitionPending) && action is "open" or "openNetwork" or "write" or "setSignals" or "releaseEmergencyStop" or "requestPort")
+                throw new InvalidOperationException("Интерфейс или соединение перезапускается. Новые команды заблокированы.");
             switch (action)
             {
+                case "sessionState":
+                    Resolve(id, new { emergencyStopped = _emergencyStopped, stopPending = _emergencyInFlight, stopError = _lastStopFailure ?? "" });
+                    break;
                 case "enableNotifications":
                     Resolve(id, new { granted = true });
                     break;
@@ -262,6 +282,7 @@ internal sealed class NativeBridge : IDisposable
                 }
                 case "open":
                 {
+                    if (_emergencyStopped) throw new InvalidOperationException("СТОП: сначала разрешите управление.");
                     if (_openingCount != 0) throw new InvalidOperationException("Подключение ещё выполняется.");
                     if (_emergencyInFlight) throw new InvalidOperationException("Остановка ещё выполняется.");
                     var options = new SerialOpenOptions(
@@ -292,6 +313,7 @@ internal sealed class NativeBridge : IDisposable
                 }
                 case "openNetwork":
                 {
+                    if (_emergencyStopped) throw new InvalidOperationException("СТОП: сначала разрешите управление.");
                     if (_openingCount != 0) throw new InvalidOperationException("Подключение ещё выполняется.");
                     if (_emergencyInFlight) throw new InvalidOperationException("Остановка ещё выполняется.");
                     var host = GetRequiredString(payload, "host");
@@ -392,7 +414,7 @@ internal sealed class NativeBridge : IDisposable
 
     private async Task SaveFileAsync(JsonElement payload)
     {
-        if (!payload.TryGetProperty("id", out var idElement) || !idElement.TryGetInt32(out var id))
+        if (!payload.TryGetProperty("id", out var idElement) || idElement.ValueKind != JsonValueKind.String || idElement.GetString() is not { Length: > 0 and <= 128 } id)
         {
             return;
         }
@@ -429,17 +451,17 @@ internal sealed class NativeBridge : IDisposable
         }
     }
 
-    private void ResolveFile(int id, object result)
+    private void ResolveFile(string id, object result)
     {
         PostMessage("file", "resolve", new { id, result });
     }
 
-    private void Resolve(int id, object result)
+    private void Resolve(string id, object result)
     {
         PostSerial("resolve", new { id, result });
     }
 
-    private void Reject(int id, string error)
+    private void Reject(string id, string error)
     {
         PostSerial("resolve", new { id, error });
     }

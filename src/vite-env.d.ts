@@ -18,6 +18,7 @@ declare const __OPENHAND_BUILD__: { revision: string; modified: boolean; builtAt
 
 interface Window {
   __openhandBridgeVersion?: number;
+  __openhandGetSessionState?: () => Promise<{ emergencyStopped: boolean; stopPending?: boolean; stopError?: string }>;
   __openhandReleaseEmergencyStop?: () => Promise<unknown>;
   __openhandEmergencyStop?: (profile: string) => Promise<{ sent: boolean }>;
   __openhandNotificationBridge?: {

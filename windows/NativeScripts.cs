@@ -12,6 +12,7 @@ internal static class NativeScripts
           const pending = new Map();
           const pendingFiles = new Map();
           let nextRequestID = 1;
+          const pageToken = Array.from(crypto.getRandomValues(new Uint32Array(4)), value => value.toString(16).padStart(8, "0")).join("");
           let activePort = null;
           let stopPending = null;
           let writesStopped = false;
@@ -52,7 +53,7 @@ internal static class NativeScripts
 
           const bridge = {
             call(action, payload = {}) {
-              const id = nextRequestID++;
+              const id = `${pageToken}:${nextRequestID++}`;
               return new Promise((resolve, reject) => {
                 pending.set(id, { resolve, reject });
                 post("serial", { id, action, ...payload });
@@ -77,7 +78,7 @@ internal static class NativeScripts
 
           const fileBridge = {
             save(payload) {
-              const id = nextRequestID++;
+              const id = `${pageToken}:${nextRequestID++}`;
               return new Promise((resolve, reject) => {
                 pendingFiles.set(id, { resolve, reject });
                 post("file", { id, ...payload });
@@ -242,8 +243,15 @@ internal static class NativeScripts
             if (generation !== stopGeneration) throw new Error("Запрошен новый СТОП.");
             if (stopPending) throw new Error("Остановка ещё выполняется.");
             writesStopped = false;
+            ++stopGeneration;
           } });
-          Object.defineProperty(window, "__openhandBridgeVersion", { value: 6 });
+          Object.defineProperty(window, "__openhandGetSessionState", { value: async () => {
+            const generation = stopGeneration;
+            const state = await bridge.call("sessionState");
+            if (generation === stopGeneration) writesStopped = writesStopped || Boolean(state.emergencyStopped);
+            return state;
+          } });
+          Object.defineProperty(window, "__openhandBridgeVersion", { value: 7 });
           Object.defineProperty(window, "__openhandNativePlatform", {
             value: "windows",
             configurable: false,

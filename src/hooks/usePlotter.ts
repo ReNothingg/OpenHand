@@ -97,6 +97,11 @@ export function usePlotter() {
   const stopInFlightRef = useRef<Promise<{ delivered: boolean; controllerState: string | null }> | null>(null);
   const [emergencyStopped, setEmergencyStopped] = useState(false);
   const [stopNotice, setStopNotice] = useState("");
+  const [nativeSessionReady] = useState(() => {
+    let resolve!: () => void;
+    const promise = new Promise<void>(ready => { resolve = ready; });
+    return { promise, resolve };
+  });
   const pausedRef = useRef(false);
   const pauseWaitersRef = useRef([]);
   const commandTimeoutRef = useRef(12000);
@@ -105,6 +110,34 @@ export function usePlotter() {
   const controllerSettingsRef = useRef<Record<number, number>>({});
   const [controllerSettingsComplete, setControllerSettingsComplete] = useState(false);
   const [controllerSettings, setControllerSettings] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const readState = typeof window !== "undefined" && window.__openhandGetSessionState;
+    if (!readState) { nativeSessionReady.resolve(); return; }
+    let timer: ReturnType<typeof setTimeout>;
+    void Promise.race([
+      Promise.resolve().then(readState),
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Нативная оболочка не ответила.")), 4000); }),
+    ]).then(state => {
+      if (cancelled || !state.emergencyStopped) return;
+      emergencyStopRef.current = true;
+      setEmergencyStopped(true);
+      setControllerEpoch(epoch => epoch + 1);
+      setStopNotice(state.stopError
+        ? `Передача СТОП не подтверждена: ${state.stopError} Управление заблокировано. Если механизм движется — отключите питание и USB.`
+        : "Управление заблокировано после СТОП. Очередь не возобновлялась. Для нового подключения нажмите «Разрешить управление».");
+    }).catch(error => {
+      if (cancelled) return;
+      emergencyStopRef.current = true;
+      setEmergencyStopped(true);
+      setStopNotice(`Не удалось восстановить состояние подключения: ${error instanceof Error ? error.message : String(error)} Управление заблокировано.`);
+    }).finally(() => {
+      clearTimeout(timer!);
+      if (!cancelled) nativeSessionReady.resolve();
+    });
+    return () => { cancelled = true; clearTimeout(timer!); };
+  }, []);
 
   const rememberSetting = useCallback((line: string) => {
     const match = /^\$(\d+)=(-?\d+(?:\.\d+)?)$/.exec(line.trim());
@@ -464,11 +497,12 @@ export function usePlotter() {
 
   const connect = useCallback(
     async (profile, incomingOptions) => {
+      await nativeSessionReady.promise;
       if (stopInFlightRef.current || emergencyStopRef.current)
         throw new Error("Сначала дождитесь завершения СТОП и разрешите управление.");
       if (writerRef.current || operationRef.current || connectingRef.current)
         throw new Error("Сначала закройте текущее соединение.");
-      if (typeof window !== "undefined" && window.__openhandNativePlatform && (window.__openhandBridgeVersion ?? 0) < 6)
+      if (typeof window !== "undefined" && window.__openhandNativePlatform && (window.__openhandBridgeVersion ?? 0) < 7)
         throw new Error("Открыта старая версия OpenHand. Полностью закройте приложение и запустите новую сборку.");
       if (!supported)
         throw new Error(
@@ -1199,6 +1233,7 @@ export function usePlotter() {
     stopNotice,
     releaseEmergencyStop: async () => {
       try {
+        await nativeSessionReady.promise;
         const generation = emergencyGenerationRef.current;
         if (stopInFlightRef.current || operationRef.current || connectingRef.current) throw new Error("Дождитесь завершения отмены операции.");
         if (typeof window !== "undefined" && window.__openhandReleaseEmergencyStop)

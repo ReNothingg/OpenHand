@@ -690,3 +690,66 @@ Windows cross-build and web parity checked for the final shared bundle.
 Remaining: saved-device identity/cold STOP fallback parity, full native navigation
 and reload/termination audit (ordinary SPA routes are now covered), broader final
 acceptance, and physical pen/contact verification. The overall goal is still active.
+
+## Native page recovery, restored STOP state and serial output drain
+
+During the saved-port audit found a more immediate lifecycle problem: WKWebView and
+WebView2 reloaded the page after renderer failure without cancelling native motion.
+Bridge version 7 now runs the existing bounded native stop/close sequence before a
+full main-document navigation or renderer recovery. Fragment-only navigation is left
+alone. Recovery navigation has an explicit permit and identity so late completion/
+cancellation from an older page cannot unlock the new transition. Windows ignores
+unrelated child/GPU process failure events. If STOP delivery fails, the interface can
+still reload to expose the native STOP latch and error; it does not replay the job.
+The native menu remains the stop path if the renderer cannot recover.
+
+Added a read-only sessionState RPC and a bootstrap gate. React waits for native state
+before connecting or releasing STOP, including a connection requested in a child's
+first effect. Failed state restoration also blocks motion. New page request IDs use
+a random page token plus counter (serial and file bridges), preventing delayed replies
+from matching a newly reused numeric ID. A delayed state reply cannot re-latch the JS
+writer after a later explicit release. Native open/openNetwork also enforce the STOP
+latch. Close/reload failure no longer reopens a saved port during teardown.
+
+The actual macOS test exposed lost STOP bytes on immediate close: a tty write accepted
+three bytes into its output queue, but closing before the PTY peer read them discarded
+them. Added SerialConnection.closeAfterDraining with nonblocking TIOCOUTQ polling, a
+two-second deadline, and connection-generation checking. At zero queued bytes, close
+happens on that same serial queue. Timeout/error retains the port; an old drain cannot
+close a later connection even if its descriptor is reused. Windows already awaits
+SerialStream FlushAsync; its underlying transmit-flush behavior was checked against
+the .NET source and Microsoft communication API documentation. Physical delivery or
+mechanical stop still requires device feedback, not merely a write completion.
+
+Evidence without the plotter:
+- Both actual embedded JS shims executed in isolated realms: unique serial/file IDs,
+  ignored old-page replies, state-only restoration, restored write latch, and delayed
+  state reply after release all passed.
+- The actual Swift/C# page and close method bodies were executed with controlled stop/
+  close completions: ordering, native latch persistence, failure retaining the port,
+  no I/O on a cold transition, close conflict and timeout/late completion passed.
+- The real SerialConnection and lease implementation ran against generated PTYs:
+  bytes arrived before close, an unread output buffer timed out while keeping the port
+  and writer usable, and a stale drain did not close a replacement connection.
+- A separately identified, signed copy of the real macOS executable used a test-only
+  page and a newly allocated PTY. Full reload produced the observed peer trace
+  `473158314636300a` (test line), then `852118` (STOP), then `SLAVE_CLOSED`. The new page
+  reported emergencyStopped=true and rejected even a direct native open until explicit
+  release. Hash navigation had kept the same page and connection. Release did not send
+  another port command. No /dev/cu device was opened in this validation.
+- Real React restored the visible native error and blocked opening with zero resets/
+  writes. Release alone opened nothing; a later explicit virtual connection sent only
+  $I and $$. Thrown/timeout metadata requests and the earliest child-effect connection
+  race also left opens at zero.
+
+The first automated isolated app launch was blank and a baseline launch was unusually
+slow; repeated new-version launches then loaded and passed the PTY test. No real renderer
+process was forcibly killed. Windows native UI/runtime behavior is still supported by
+source, method/shim tests and cross-build rather than a Windows device run. Temporary
+test apps, fixtures and scenarios are removed before publication. npm run build,
+macOS build, Windows cross-build and web-bundle parity are checked for this revision.
+
+References: https://learn.microsoft.com/en-us/windows/win32/devio/read-and-write-operations
+and https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.IO.Ports/src/System/IO/Ports/SerialStream.Windows.cs .
+Remaining: saved-device identity/cold STOP fallback parity, transport-data epochs and
+network teardown audit, broader final acceptance, and physical pen/contact verification.

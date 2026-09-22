@@ -29,6 +29,8 @@ enum SerialConnectionError: LocalizedError {
     case driverRejected(String, String, String, Int32)
     case unsupportedBaudRate(Int)
     case writeFailed(Int32)
+    case outputDrainFailed(Int32)
+    case outputDrainTimedOut
 
     var errorDescription: String? {
         switch self {
@@ -54,6 +56,10 @@ enum SerialConnectionError: LocalizedError {
             return "Скорость \(value) бод не поддерживается."
         case let .writeFailed(code):
             return "Ошибка записи в порт: \(String(cString: strerror(code)))."
+        case let .outputDrainFailed(code):
+            return "Не удалось проверить передачу данных перед закрытием порта: \(String(cString: strerror(code)))."
+        case .outputDrainTimedOut:
+            return "Передача данных перед закрытием порта не завершилась за 2 секунды. Соединение оставлено открытым."
         }
     }
 }
@@ -69,6 +75,7 @@ final class SerialConnection: @unchecked Sendable {
     private var portLease: SerialPortLease?
     private var readSource: DispatchSourceRead?
     private var manuallyClosing = false
+    private var connectionGeneration: UInt64 = 0
 
     var onData: DataHandler?
     var onDisconnect: DisconnectHandler?
@@ -170,6 +177,43 @@ final class SerialConnection: @unchecked Sendable {
                 }
             }
             self.complete(result, completion)
+        }
+    }
+
+    /// A successful write means queued bytes. Closing a tty before they drain can discard STOP.
+    func closeAfterDraining(requireOpen: Bool, completion: @escaping Completion) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            if self.descriptor < 0 {
+                self.complete(requireOpen ? .failure(SerialConnectionError.notOpen) : .success(()), completion)
+                return
+            }
+            self.drainAndClose(generation: self.connectionGeneration,
+                               deadline: DispatchTime.now().uptimeNanoseconds + 2_000_000_000, completion: completion)
+        }
+    }
+
+    private func drainAndClose(generation: UInt64, deadline: UInt64, completion: @escaping Completion) {
+        guard descriptor >= 0, connectionGeneration == generation else {
+            complete(.failure(SerialConnectionError.notOpen), completion)
+            return
+        }
+        var queued: Int32 = 0
+        guard ioctl(descriptor, UInt(TIOCOUTQ), &queued) == 0 else {
+            complete(.failure(SerialConnectionError.outputDrainFailed(errno)), completion)
+            return
+        }
+        if queued == 0 {
+            manuallyClosing = true
+            closeLocked(notify: false)
+            complete(.success(()), completion)
+        } else if DispatchTime.now().uptimeNanoseconds >= deadline {
+            complete(.failure(SerialConnectionError.outputDrainTimedOut), completion)
+        } else {
+            // Keep the serial queue responsive instead of blocking indefinitely in tcdrain.
+            queue.asyncAfter(deadline: .now() + 0.01) { [weak self] in
+                self?.drainAndClose(generation: generation, deadline: deadline, completion: completion)
+            }
         }
     }
 
@@ -331,6 +375,7 @@ final class SerialConnection: @unchecked Sendable {
     }
 
     private func closeLocked(notify: Bool, reason: String = "Устройство отключено.") {
+        connectionGeneration &+= 1
         let oldDescriptor = descriptor
         descriptor = -1
 

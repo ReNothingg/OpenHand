@@ -20,6 +20,7 @@ private let serialShim = #"""
   const pending = new Map();
   const pendingFiles = new Map();
   let nextRequestID = 1;
+  const pageToken = Array.from(crypto.getRandomValues(new Uint32Array(4)), value => value.toString(16).padStart(8, "0")).join("");
   let activePort = null;
   let stopPending = null;
   let writesStopped = false;
@@ -46,7 +47,7 @@ private let serialShim = #"""
 
   const bridge = {
     call(action, payload = {}) {
-      const id = nextRequestID++;
+      const id = `${pageToken}:${nextRequestID++}`;
       return new Promise((resolve, reject) => {
         pending.set(id, { resolve, reject });
         window.webkit.messageHandlers.serialBridge.postMessage({ id, action, ...payload });
@@ -71,7 +72,7 @@ private let serialShim = #"""
 
   const fileBridge = {
     save(payload) {
-      const id = nextRequestID++;
+      const id = `${pageToken}:${nextRequestID++}`;
       return new Promise((resolve, reject) => {
         pendingFiles.set(id, { resolve, reject });
         window.webkit.messageHandlers.fileBridge.postMessage({ id, ...payload });
@@ -232,8 +233,15 @@ private let serialShim = #"""
     if (generation !== stopGeneration) throw new Error("Запрошен новый СТОП.");
     if (stopPending) throw new Error("Остановка ещё выполняется.");
     writesStopped = false;
+    ++stopGeneration;
   } });
-  Object.defineProperty(window, "__openhandBridgeVersion", { value: 6 });
+  Object.defineProperty(window, "__openhandGetSessionState", { value: async () => {
+    const generation = stopGeneration;
+    const state = await bridge.call("sessionState");
+    if (generation === stopGeneration) writesStopped = writesStopped || Boolean(state.emergencyStopped);
+    return state;
+  } });
+  Object.defineProperty(window, "__openhandBridgeVersion", { value: 7 });
   Object.defineProperty(window, "__openhandNativePlatform", {
     value: "macos",
     configurable: false,
@@ -361,6 +369,33 @@ struct OpenHandWebView: NSViewRepresentable {
         weak var webView: WKWebView?
         private var lastDocumentRequestID: UUID?
         private var pendingDocument: [String: Any]?
+        private var pageRecoveryInFlight = false
+        private var permittedNavigationURL: URL?
+        private var recoveryNavigation: WKNavigation?
+
+        private func replacePage(afterStopping request: URLRequest? = nil) {
+            guard !pageRecoveryInFlight, !bridge.isClosing, let webView else { return }
+            pageRecoveryInFlight = true
+            recoveryNavigation = nil
+            let nextRequest = request ?? URLRequest(url: webView.url ?? URL(string: "openhand://app/index.html")!)
+            bridge.prepareForPageChange { [weak self] result in
+                guard let self, let webView = self.webView else { return }
+                guard !self.bridge.isClosing else { self.pageRecoveryInFlight = false; return }
+                if case let .failure(error) = result {
+                    // The restored page inherits the native STOP latch and error.
+                    // Keep the UI available for another STOP even if delivery failed.
+                    NSLog("OpenHand stop before page recovery failed: %@", error.localizedDescription)
+                }
+                self.permittedNavigationURL = nextRequest.url
+                self.recoveryNavigation = webView.load(nextRequest)
+                if self.recoveryNavigation == nil {
+                    self.pageRecoveryInFlight = false
+                    self.permittedNavigationURL = nil
+                    self.bridge.finishPageChange()
+                    self.showLoadingError("Не удалось начать восстановление интерфейса. Перезапустите OpenHand.")
+                }
+            }
+        }
 
         @objc func changeWorkspace(_ notification: Notification) {
             guard let webView, webView.window?.isKeyWindow == true,
@@ -479,6 +514,25 @@ struct OpenHandWebView: NSViewRepresentable {
             let isApplicationURL = scheme == "openhand" && url.host == "app"
             let isInternalURL = isApplicationURL || scheme == "about" || scheme == "blob"
             if isInternalURL {
+                if navigationAction.targetFrame?.isMainFrame == true {
+                    if permittedNavigationURL == url {
+                        permittedNavigationURL = nil
+                        decisionHandler(.allow)
+                        return
+                    }
+                    if pageRecoveryInFlight { decisionHandler(.cancel); return }
+                    var current = webView.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }
+                    var next = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                    let differentFragment = current?.fragment != next?.fragment
+                    current?.fragment = nil
+                    next?.fragment = nil
+                    let fragmentOnly = navigationAction.navigationType != .reload && differentFragment && current?.url == next?.url
+                    if bridge.needsPageTransitionStop && !fragmentOnly {
+                        decisionHandler(.cancel)
+                        replacePage(afterStopping: navigationAction.request)
+                        return
+                    }
+                }
                 decisionHandler(.allow)
             } else if ["http", "https", "mailto"].contains(scheme ?? "") {
                 NSWorkspace.shared.open(url)
@@ -550,10 +604,25 @@ struct OpenHandWebView: NSViewRepresentable {
         }
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-            webView.reload()
+            if pageRecoveryInFlight {
+                // Coalesce duplicate failure events while the native STOP is pending.
+                guard recoveryNavigation != nil else { return }
+                pageRecoveryInFlight = false
+                permittedNavigationURL = nil
+                recoveryNavigation = nil
+                bridge.finishPageChange()
+                showLoadingError("Интерфейс снова завершился во время восстановления. Перезапустите OpenHand.")
+                return
+            }
+            replacePage()
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            if pageRecoveryInFlight && (recoveryNavigation == nil || navigation !== recoveryNavigation) { return }
+            pageRecoveryInFlight = false
+            permittedNavigationURL = nil
+            recoveryNavigation = nil
+            bridge.finishPageChange()
             NSLog("OpenHand document finished loading")
             verifyRuntime(in: webView, attemptsRemaining: 20)
         }
@@ -601,6 +670,12 @@ struct OpenHandWebView: NSViewRepresentable {
             didFail navigation: WKNavigation!,
             withError error: Error
         ) {
+            if (error as NSError).code == NSURLErrorCancelled { return }
+            if pageRecoveryInFlight && (recoveryNavigation == nil || navigation !== recoveryNavigation) { return }
+            pageRecoveryInFlight = false
+            permittedNavigationURL = nil
+            recoveryNavigation = nil
+            bridge.finishPageChange()
             showLoadingError(error.localizedDescription)
         }
 
@@ -609,6 +684,12 @@ struct OpenHandWebView: NSViewRepresentable {
             didFailProvisionalNavigation navigation: WKNavigation!,
             withError error: Error
         ) {
+            if (error as NSError).code == NSURLErrorCancelled { return }
+            if pageRecoveryInFlight && (recoveryNavigation == nil || navigation !== recoveryNavigation) { return }
+            pageRecoveryInFlight = false
+            permittedNavigationURL = nil
+            recoveryNavigation = nil
+            bridge.finishPageChange()
             showLoadingError(error.localizedDescription)
         }
 

@@ -14,6 +14,8 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
     private var lastProtocol: String?
     private var emergencyStopped = false
     private var emergencyInFlight = false
+    private var lastStopFailure: String?
+    private var pageTransitionPending = false
     private var activeTransport: String?
     static let liveBridges = NSHashTable<NativeBridge>.weakObjects()
     private var closingRequested = false
@@ -23,6 +25,25 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
     private var openingCount = 0
     private var openGeneration = 0
     var needsShutdown: Bool { activeTransport != nil || openingCount > 0 || emergencyInFlight || closeInFlight }
+    var needsPageTransitionStop: Bool { activeTransport != nil || openingCount > 0 || emergencyInFlight }
+    var isClosing: Bool { closingRequested }
+
+    func prepareForPageChange(completion: @escaping SerialConnection.Completion) {
+        guard !closingRequested else {
+            completion(.failure(NSError(domain: "OpenHand", code: 4, userInfo: [NSLocalizedDescriptionKey: "Приложение закрывается."])))
+            return
+        }
+        pageTransitionPending = true
+        guard needsPageTransitionStop else { completion(.success(())); return }
+        prepareForClose { [weak self] result in
+            guard let self else { return }
+            self.cancelCloseRequest()
+            if case let .failure(error) = result { self.lastStopFailure = error.localizedDescription }
+            completion(result)
+        }
+    }
+
+    func finishPageChange() { pageTransitionPending = false }
 
 
     override init() {
@@ -126,13 +147,16 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
     }
 
     private func performEmergencyStop(profile: String?, completion: @escaping SerialConnection.Completion) {
+        emergencyStopped = true
         if emergencyInFlight { stopWaiters.append(completion); return }
         let data: Data
         switch lastProtocol ?? profile {
         case "grbl": data = Data([0x85, 0x21, 0x18])
         case "marlin": data = Data("M410\n".utf8)
         case "ebb": data = Data("R\r\n".utf8)
-        default: completion(.failure(NSError(domain: "OpenHand", code: 1, userInfo: [NSLocalizedDescriptionKey: "Неизвестный протокол остановки."]))); return
+        default:
+            lastStopFailure = "Неизвестный протокол остановки."
+            completion(.failure(NSError(domain: "OpenHand", code: 1, userInfo: [NSLocalizedDescriptionKey: lastStopFailure!]))); return
         }
         emergencyStopped = true
         emergencyInFlight = true
@@ -140,6 +164,8 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         let finish: SerialConnection.Completion = { [weak self] result in
             guard let self else { return }
             self.emergencyInFlight = false
+            if case let .failure(error) = result { self.lastStopFailure = error.localizedDescription }
+            else { self.lastStopFailure = nil }
             let waiters = self.stopWaiters
             self.stopWaiters.removeAll()
             waiters.forEach { $0(result) }
@@ -150,6 +176,8 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             serial.write(data) { [weak self] result in
                 guard let self else { return }
                 if case .success = result { finish(result); return }
+                // A close/reload must never reopen a channel that has already been torn down.
+                if self.closingRequested || self.pageTransitionPending { finish(result); return }
                 // Recover only the explicitly selected port. No discovery,
                 // configuration commands, DTR pulse, homing or job replay.
                 self.serial.open(path: saved.path, options: saved.options) { [weak self] opened in
@@ -177,10 +205,11 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         closingRequested = true
         emergencyStopped = true
         openGeneration += 1
+        let serialWasActive = lastRequestedTransport == "serial" && (activeTransport != nil || emergencyInFlight)
         let finish: SerialConnection.Completion = { [self] result in
             guard closeInFlight && closeGeneration == generation else { return }
             closeInFlight = false
-            if case .failure = result { closingRequested = false }
+            if case let .failure(error) = result { closingRequested = false; lastStopFailure = error.localizedDescription }
             let waiters = closeWaiters
             closeWaiters.removeAll()
             waiters.forEach { $0(result) }
@@ -194,8 +223,9 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         let closePorts: SerialConnection.Completion = { [self] stopped in
             guard closeInFlight && closeGeneration == generation else { return }
             if case .failure = stopped { timer.cancel(); finish(stopped); return }
-            serial.close { [self] in
+            serial.closeAfterDraining(requireOpen: serialWasActive) { [self] drained in
                 guard closeInFlight && closeGeneration == generation else { return }
+                if case .failure = drained { timer.cancel(); finish(drained); return }
                 tcp.close { [self] in
                     guard closeInFlight && closeGeneration == generation else { return }
                     timer.cancel()
@@ -215,17 +245,20 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
 
     private func handleSerialMessage(_ body: Any) {
         guard let payload = body as? [String: Any],
-              let requestID = payload["id"] as? NSNumber,
+              let requestID = payload["id"] as? String, !requestID.isEmpty, requestID.count <= 128,
               let action = payload["action"] as? String else {
             return
         }
 
-        let id = requestID.intValue
-        if closingRequested && ["open", "openNetwork", "write", "setSignals", "releaseEmergencyStop", "requestPort"].contains(action) {
-            reject(id, message: "Соединение закрывается. Новые команды заблокированы.")
+        let id = requestID
+        if (closingRequested || pageTransitionPending) && ["open", "openNetwork", "write", "setSignals", "releaseEmergencyStop", "requestPort"].contains(action) {
+            reject(id, message: "Интерфейс или соединение перезапускается. Новые команды заблокированы.")
             return
         }
         switch action {
+        case "sessionState":
+            resolve(id, result: ["emergencyStopped": emergencyStopped, "stopPending": emergencyInFlight,
+                                 "stopError": lastStopFailure ?? ""])
         case "enableNotifications":
             Task {
                 do {
@@ -254,6 +287,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             }
 
         case "open":
+            guard !emergencyStopped else { reject(id, message: "СТОП: сначала разрешите управление."); return }
             guard openingCount == 0 else { reject(id, message: "Подключение ещё выполняется."); return }
             guard !emergencyInFlight else { reject(id, message: "Остановка ещё выполняется."); return }
             guard let path = payload["path"] as? String,
@@ -307,6 +341,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             }
 
         case "openNetwork":
+            guard !emergencyStopped else { reject(id, message: "СТОП: сначала разрешите управление."); return }
             guard openingCount == 0 else { reject(id, message: "Подключение ещё выполняется."); return }
             guard !emergencyInFlight else { reject(id, message: "Остановка ещё выполняется."); return }
             lastProtocol = payload["profile"] as? String
@@ -441,14 +476,14 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
 
     private func handleFileMessage(_ body: Any) {
         guard let payload = body as? [String: Any],
-              let requestID = payload["id"] as? NSNumber,
+              let requestID = payload["id"] as? String, !requestID.isEmpty, requestID.count <= 128,
               let encoded = payload["data"] as? String,
               let data = Data(base64Encoded: encoded) else {
             showError("Не удалось подготовить файл к сохранению.")
             return
         }
 
-        let id = requestID.intValue
+        let id = requestID
 
         let proposedName = sanitizedFilename(payload["name"] as? String ?? "openhand-file")
         let panel = NSSavePanel()
@@ -487,25 +522,25 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         )
     }
 
-    private func resolve(_ id: Int, result: Any) {
+    private func resolve(_ id: String, result: Any) {
         callJavaScript(
             function: "window.__openhandSerialBridge?.resolve",
             payload: ["id": id, "result": result]
         )
     }
 
-    private func reject(_ id: Int, error: Error) {
+    private func reject(_ id: String, error: Error) {
         reject(id, message: error.localizedDescription)
     }
 
-    private func reject(_ id: Int, message: String) {
+    private func reject(_ id: String, message: String) {
         callJavaScript(
             function: "window.__openhandSerialBridge?.resolve",
             payload: ["id": id, "error": message]
         )
     }
 
-    private func resolveFile(_ id: Int, result: Any) {
+    private func resolveFile(_ id: String, result: Any) {
         callJavaScript(
             function: "window.__openhandFileBridge?.resolve",
             payload: ["id": id, "result": result]

@@ -35,6 +35,43 @@ internal sealed class MainForm : Form, IMessageFilter
     private bool _escapePressed;
     private bool _awaitingClose;
     private bool _allowClose;
+    private bool _pageRecoveryInFlight;
+    private string? _permittedNavigation;
+    private ulong? _recoveryNavigationId;
+
+    private async Task ReplacePageAfterStoppingAsync(string? url = null)
+    {
+        if (_pageRecoveryInFlight || _awaitingClose || _allowClose || IsDisposed) return;
+        _pageRecoveryInFlight = true;
+        _recoveryNavigationId = null;
+        _runtimeReady = false;
+        _menuReady = false;
+        UpdateMenu();
+        var destination = url ?? _webView.Source?.AbsoluteUri ?? $"https://{ApplicationHost}/index.html";
+        try
+        {
+            try { if (_nativeBridge is not null) await _nativeBridge.PrepareForPageChangeAsync(); }
+            catch (Exception error) { Debug.WriteLine($"STOP before page recovery: {error.Message}"); }
+            if (_awaitingClose || _allowClose || IsDisposed)
+            {
+                _pageRecoveryInFlight = false;
+                _permittedNavigation = null;
+                _recoveryNavigationId = null;
+                _nativeBridge?.FinishPageChange();
+                return;
+            }
+            _permittedNavigation = destination;
+            _webView.CoreWebView2.Navigate(destination);
+        }
+        catch (Exception error)
+        {
+            _pageRecoveryInFlight = false;
+            _permittedNavigation = null;
+            _recoveryNavigationId = null;
+            _nativeBridge?.FinishPageChange();
+            ShowFatalError($"Не удалось восстановить интерфейс. Перезапустите OpenHand.\n\n{error.Message}");
+        }
+    }
 
     public MainForm(string? initialDocument)
     {
@@ -213,10 +250,20 @@ internal sealed class MainForm : Form, IMessageFilter
         core.NavigationCompleted += HandleNavigationCompleted;
         core.NewWindowRequested += HandleNewWindowRequested;
         core.DownloadStarting += HandleDownloadStarting;
-        core.ProcessFailed += (_, _) =>
+        core.ProcessFailed += async (_, failure) =>
         {
-            _runtimeReady = false;
-            core.Reload();
+            if (failure.ProcessFailedKind is not (CoreWebView2ProcessFailedKind.RenderProcessExited or
+                CoreWebView2ProcessFailedKind.RenderProcessUnresponsive or CoreWebView2ProcessFailedKind.BrowserProcessExited)) return;
+            if (_pageRecoveryInFlight && _recoveryNavigationId is not null)
+            {
+                _pageRecoveryInFlight = false;
+                _permittedNavigation = null;
+                _recoveryNavigationId = null;
+                _nativeBridge?.FinishPageChange();
+                ShowFatalError("Интерфейс снова завершился во время восстановления. Перезапустите OpenHand.");
+                return;
+            }
+            await ReplacePageAfterStoppingAsync();
         };
     }
 
@@ -237,6 +284,21 @@ internal sealed class MainForm : Form, IMessageFilter
             uri.Scheme == "blob";
         if (allowed)
         {
+            if (string.Equals(_permittedNavigation, uri.AbsoluteUri, StringComparison.Ordinal))
+            {
+                _permittedNavigation = null;
+                _recoveryNavigationId = eventArgs.NavigationId;
+                return;
+            }
+            if (_pageRecoveryInFlight) { eventArgs.Cancel = true; return; }
+            var current = _webView.Source;
+            var fragmentOnly = current is not null && current.Fragment != uri.Fragment &&
+                new UriBuilder(current) { Fragment = "" }.Uri == new UriBuilder(uri) { Fragment = "" }.Uri;
+            if (_nativeBridge?.NeedsPageTransitionStop == true && !fragmentOnly)
+            {
+                eventArgs.Cancel = true;
+                _ = ReplacePageAfterStoppingAsync(uri.AbsoluteUri);
+            }
             return;
         }
 
@@ -248,11 +310,23 @@ internal sealed class MainForm : Form, IMessageFilter
         object? sender,
         CoreWebView2NavigationCompletedEventArgs eventArgs)
     {
+        if (_pageRecoveryInFlight && (_recoveryNavigationId is null || eventArgs.NavigationId != _recoveryNavigationId)) return;
         if (!eventArgs.IsSuccess)
         {
+            if (eventArgs.WebErrorStatus == CoreWebView2WebErrorStatus.OperationCanceled) return;
+            _pageRecoveryInFlight = false;
+            _permittedNavigation = null;
+            _recoveryNavigationId = null;
+            _nativeBridge?.FinishPageChange();
             ShowLoadingError($"Ошибка навигации WebView2: {eventArgs.WebErrorStatus}.");
             return;
         }
+
+        _pageRecoveryInFlight = false;
+        _permittedNavigation = null;
+        _recoveryNavigationId = null;
+        _nativeBridge?.FinishPageChange();
+        _loadingErrorShown = false;
 
         for (var attempt = 0; attempt <= 20; attempt++)
         {

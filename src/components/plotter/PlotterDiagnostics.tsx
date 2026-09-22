@@ -36,7 +36,7 @@ export default function PlotterDiagnostics({ workspace }: { workspace: any }) {
       {build.builtAt && <time dateTime={build.builtAt}>{new Date(build.builtAt).toLocaleString("ru-RU")}</time>}
       <span>{native ? `${native} · USB-мост ${bridgeVersion || "старой версии"}` : "Браузерная версия"}</span>
     </div>
-    {native && bridgeVersion < 6 && <p className="plotter-warning">Открыта старая нативная оболочка. Для управления устройством запустите новую сборку OpenHand.</p>}
+    {native && bridgeVersion < 7 && <p className="plotter-warning">Открыта старая нативная оболочка. Для управления устройством запустите новую сборку OpenHand.</p>}
     <button className="button" type="button" onClick={() => void exportReport()}>Сохранить диагностику</button>
     <p className="device-hint">Локальный файл с параметрами устройства и последними ответами контроллера. Текст документа не включается.</p>
     {error && <p role="alert" className="plotter-error">{error}</p>}
