@@ -407,3 +407,30 @@ macOS build, Windows cross-build and web parity passed.
 Still required: raw-file pen interpretation controls, remaining transport ownership
 and reconnect/reference issues, paper-change/recovery full interaction pass, and
 final scope audit. This does not establish physical pen force or travel accuracy.
+
+## Native serial ownership checkpoint
+
+Bridge version 6 adds a lifetime flock lease keyed by canonical device identity in
+a fixed per-user private directory. The cu/tty device names share a lease. macOS
+checks the exact selected device and its call-in/callout partner through libproc
+before opening, then acquires TIOCEXCL and checks for older foreign owners again
+before configuring. Only names/PIDs for matching owners are used. The lock covers
+OpenHand windows/copies; the second check addresses already-open legacy clients
+that TIOCEXCL cannot evict. Lock files are never unlinked during normal operation,
+and descriptor close/process exit releases the lock. Ownership-check failure rejects
+connection rather than silently claiming exclusivity. Windows already uses exclusive
+SerialPort opening; UnauthorizedAccessException now explains busy/access denied
+instead of suggesting repeated USB reconnection. STOP failures expose their reason.
+
+Executed checks used the actual new Swift helper and SerialConnection with generated
+files/PTYS only: free target; existing foreign process and same-process owner;
+two-process lease conflict; forced process termination releases lease; cu/tty key
+identity; legacy PTY owner rejects open without changing termios or writing bytes;
+second new SerialConnection denied while the first is active; close/reopen succeeds;
+the only emitted test byte was '?' to the synthetic PTY. No physical USB port was
+opened. macOS build, Windows cross-build and web-bundle parity are verified at commit.
+
+Still outstanding: Windows saved-port cold-start behavior, manual coordinate/frame
+and reference lifecycle audit, raw-file preview controls, paper-change/recovery UX,
+and final acceptance. Physical hardware exclusivity beyond the exercised PTY/API
+checks is not claimed. Goal remains active.

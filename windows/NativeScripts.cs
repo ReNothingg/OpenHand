@@ -243,7 +243,7 @@ internal static class NativeScripts
             if (stopPending) throw new Error("Остановка ещё выполняется.");
             writesStopped = false;
           } });
-          Object.defineProperty(window, "__openhandBridgeVersion", { value: 5 });
+          Object.defineProperty(window, "__openhandBridgeVersion", { value: 6 });
           Object.defineProperty(window, "__openhandNativePlatform", {
             value: "windows",
             configurable: false,

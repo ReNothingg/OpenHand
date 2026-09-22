@@ -63,6 +63,11 @@ internal sealed class SerialConnection : IDisposable
         {
             await Task.Run(port.Open);
         }
+        catch (UnauthorizedAccessException error)
+        {
+            port.Dispose();
+            throw new IOException($"Порт {options.Path} занят другой программой или доступ запрещён. Отключите порт в другой копии OpenHand, UGS или другом приложении и повторите попытку.", error);
+        }
         catch (Exception error) when (error is IOException or ArgumentException)
         {
             port.Dispose();

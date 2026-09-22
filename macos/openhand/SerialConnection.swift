@@ -22,6 +22,8 @@ struct SerialOpenOptions {
 enum SerialConnectionError: LocalizedError {
     case noPorts
     case notOpen
+    case portBusy(String, String)
+    case ownershipCheckFailed(String, Int32)
     case openFailed(String, Int32)
     case configurationFailed(String)
     case driverRejected(String, String, String, Int32)
@@ -34,7 +36,12 @@ enum SerialConnectionError: LocalizedError {
             return "Последовательные порты не найдены. Подключите устройство и повторите попытку."
         case .notOpen:
             return "Последовательный порт не открыт."
+        case let .portBusy(path, owner):
+            return "Порт \(path) занят: \(owner). Отключите порт в этой программе или закройте её, затем повторите подключение."
+        case let .ownershipCheckFailed(path, code):
+            return "Не удалось проверить, свободен ли порт \(path): \(String(cString: strerror(code))). Подключение отменено."
         case let .openFailed(path, code):
+            if code == EBUSY { return "Порт \(path) занят другой программой. Закройте её подключение и повторите попытку." }
             return "Не удалось открыть \(path): \(String(cString: strerror(code)))."
         case let .configurationFailed(message):
             return "Не удалось настроить порт: \(message)."
@@ -59,6 +66,7 @@ final class SerialConnection: @unchecked Sendable {
 
     private let queue = DispatchQueue(label: "com.renothingg.openhand.serial", qos: .userInitiated)
     private var descriptor: Int32 = -1
+    private var portLease: SerialPortLease?
     private var readSource: DispatchSourceRead?
     private var manuallyClosing = false
 
@@ -105,23 +113,28 @@ final class SerialConnection: @unchecked Sendable {
             guard let self else { return }
             self.closeLocked(notify: false)
 
-            let fileDescriptor = Darwin.open(path, O_RDWR | O_NOCTTY | O_NONBLOCK)
-            guard fileDescriptor >= 0 else {
-                self.complete(.failure(SerialConnectionError.openFailed(path, errno)), completion)
-                return
-            }
-
             do {
-                guard ioctl(fileDescriptor, UInt(TIOCEXCL)) == 0 else {
-                    throw SerialConnectionError.openFailed(path, errno)
+                let lease = try SerialPortLease.acquire(path: path)
+                try SerialPortLease.assertNoOwners(path: path)
+                let fileDescriptor = Darwin.open(path, O_RDWR | O_NOCTTY | O_NONBLOCK | O_CLOEXEC)
+                guard fileDescriptor >= 0 else { throw SerialConnectionError.openFailed(path, errno) }
+                do {
+                    guard ioctl(fileDescriptor, UInt(TIOCEXCL)) == 0 else {
+                        throw SerialConnectionError.openFailed(path, errno)
+                    }
+                    // TIOCEXCL prevents future opens, but does not evict an older client.
+                    try SerialPortLease.assertNoOwners(path: path, ignoring: getpid())
+                    try self.configure(fileDescriptor, path: path, options: options)
+                    self.descriptor = fileDescriptor
+                    self.portLease = lease
+                    self.manuallyClosing = false
+                    self.startReading(fileDescriptor)
+                    self.complete(.success(()), completion)
+                } catch {
+                    Darwin.close(fileDescriptor)
+                    throw error
                 }
-                try self.configure(fileDescriptor, path: path, options: options)
-                self.descriptor = fileDescriptor
-                self.manuallyClosing = false
-                self.startReading(fileDescriptor)
-                self.complete(.success(()), completion)
             } catch {
-                Darwin.close(fileDescriptor)
                 self.complete(.failure(error), completion)
             }
         }
@@ -329,6 +342,8 @@ final class SerialConnection: @unchecked Sendable {
         if oldDescriptor >= 0 {
             Darwin.close(oldDescriptor)
         }
+
+        portLease = nil
 
         if notify, let handler = onDisconnect {
             DispatchQueue.main.async {
