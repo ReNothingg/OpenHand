@@ -52,7 +52,11 @@ export function usePlotter() {
   const paperWaiterRef = useRef<{
     resolve: () => void;
     reject: (reason: Error) => void;
+    change: PaperChange;
   } | null>(null);
+  const [paperContinuing, setPaperContinuing] = useState(false);
+  const paperContinuingRef = useRef(false);
+  const paperContinueGeneration = useRef(0);
   const [machineStatus, setMachineStatus] = useState<GrblStatus | null>(null);
   const machineReportRef = useRef<GrblStatus | null>(null);
   const clearMachineStatus = useCallback(() => {
@@ -100,6 +104,9 @@ export function usePlotter() {
 
   const cancelPaperWait = useCallback(
     (message = "Очередь листов остановлена.") => {
+      ++paperContinueGeneration.current;
+      paperContinuingRef.current = false;
+      setPaperContinuing(false);
       const waiter = paperWaiterRef.current;
       paperWaiterRef.current = null;
       setPaperChange(null);
@@ -107,17 +114,6 @@ export function usePlotter() {
     },
     [],
   );
-
-  const continuePaper = useCallback(() => {
-    if (!writerRef.current || abortRef.current || desynchronizedRef.current)
-      return;
-    const waiter = paperWaiterRef.current;
-    if (!waiter) return;
-    paperWaiterRef.current = null;
-    setPaperChange(null);
-    setStatus("running");
-    waiter.resolve();
-  }, []);
 
   const saveRecovery = useCallback((value) => {
     if (!value) {
@@ -325,6 +321,37 @@ export function usePlotter() {
     },
     [log],
   );
+
+  const continuePaper = useCallback(async (expected: PaperChange) => {
+    const waiter = paperWaiterRef.current;
+    if (!waiter || waiter.change !== expected || paperContinuingRef.current || !writerRef.current ||
+        abortRef.current || desynchronizedRef.current || emergencyStopRef.current) return false;
+    const report = machineReportRef.current;
+    if (profileRef.current === "grbl" && (!report || Date.now() - report.receivedAt > 3000 ||
+        !["Idle", "Hold:0"].includes(report.state))) return false;
+    paperContinuingRef.current = true;
+    setPaperContinuing(true);
+    const generation = ++paperContinueGeneration.current;
+    try {
+      // The planner barrier completed before this waiter was created. An explicit
+      // paper confirmation may release an external hold, but never resets axes.
+      if (profileRef.current === "grbl" && report?.state === "Hold:0") await writeRaw(new Uint8Array([126]));
+      if (generation !== paperContinueGeneration.current || paperWaiterRef.current !== waiter ||
+          abortRef.current || emergencyStopRef.current || !writerRef.current) return false;
+      paperWaiterRef.current = null;
+      setPaperChange(null);
+      pausedRef.current = false;
+      pauseWaitersRef.current.splice(0).forEach(resume => resume());
+      setStatus("running");
+      waiter.resolve();
+      return true;
+    } finally {
+      if (generation === paperContinueGeneration.current) {
+        paperContinuingRef.current = false;
+        setPaperContinuing(false);
+      }
+    }
+  }, [writeRaw]);
 
   const sendCommand = useCallback(
     async (command, timeoutMs = commandTimeoutRef.current) => {
@@ -700,14 +727,43 @@ export function usePlotter() {
           current: safeCheckpoint,
           total: commands.length,
           profile: profileRef.current,
+          sheetIndices: job.sheetIndices,
         });
       } else saveRecovery(null);
+      const waitForPaper = async (change: PaperChange) => {
+        // The boundary command is a planner barrier after lifting the pen.
+        // Keep exclusive ownership of the stream throughout the paper swap.
+        const waiting = new Promise<void>((resolve, reject) => {
+          paperWaiterRef.current = { resolve, reject, change };
+        });
+        setPaperChange(change);
+        setStatus("waiting-paper");
+        log(
+          "system",
+          `Завершено: ${change.completedLabel.toLowerCase()}. Смените бумагу: далее ${change.nextLabel.toLowerCase()}.`,
+        );
+        void notifyPlotter(
+          "Смените лист",
+          `Завершено: ${change.completedLabel.toLowerCase()}. Подготовьте ${change.nextLabel.toLowerCase()} и нажмите «Продолжить» в OpenHand.`,
+        ).catch(() => {});
+        await waiting;
+        if (abortRef.current)
+          throw new DOMException("Очередь остановлена.", "AbortError");
+      };
       try {
         let sheetRangeIndex = 0;
+        const interruptedPaperChange = requestedStart > 0 ? paperChanges.get(requestedStart) : null;
         for (const command of options.prefix || []) {
           if (abortRef.current) throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
           await sendCommand(command);
           if (abortRef.current) throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
+        }
+        if (interruptedPaperChange) {
+          // Recovery may start with the pen at either confirmed endpoint. Finish
+          // the ordinary lift prefix before asking the user to handle the paper.
+          await sendCommand(profileRef.current === "grbl" ? "G4P0.01" : "M400", 60000);
+          if (abortRef.current) throw new DOMException("Очередь остановлена.", "AbortError");
+          await waitForPaper(interruptedPaperChange);
         }
         for (let index = startIndex; index < commands.length; index += 1) {
           const ranges = job.sheetRanges || [];
@@ -756,6 +812,7 @@ export function usePlotter() {
               current: safeCheckpoint,
               total: commands.length,
               profile: profileRef.current,
+              sheetIndices: job.sheetIndices,
             });
           }
           const change = paperChanges.get(index + 1);
@@ -763,24 +820,7 @@ export function usePlotter() {
             await waitWhilePaused();
             if (abortRef.current)
               throw new DOMException("Очередь остановлена.", "AbortError");
-            // The boundary command is a planner barrier after lifting the pen.
-            // Keep exclusive ownership of the stream throughout the paper swap.
-            const waiting = new Promise<void>((resolve, reject) => {
-              paperWaiterRef.current = { resolve, reject };
-            });
-            setPaperChange(change);
-            setStatus("waiting-paper");
-            log(
-              "system",
-              `Завершено: ${change.completedLabel.toLowerCase()}. Переверните бумагу: далее ${change.nextLabel.toLowerCase()}.`,
-            );
-            void notifyPlotter(
-              "Переверните страницу",
-              `Завершено: ${change.completedLabel.toLowerCase()}. Подготовьте ${change.nextLabel.toLowerCase()} и нажмите «Продолжить» в OpenHand.`,
-            ).catch(() => {});
-            await waiting;
-            if (abortRef.current)
-              throw new DOMException("Очередь остановлена.", "AbortError");
+            await waitForPaper(change);
           }
         }
         // An ok acknowledges parsing, not completed motion. Drain the planner
@@ -834,7 +874,7 @@ export function usePlotter() {
       if (!recovery) return;
       log(
         "system",
-        `Продолжение с безопасного штриха: ${recovery.current} / ${recovery.total}`,
+        `Продолжение с подтверждённой точки: ${recovery.current} / ${recovery.total}`,
       );
       return run(job, {
         startIndex: recovery.current,
@@ -1012,6 +1052,10 @@ export function usePlotter() {
     logs,
     progress,
     paperChange,
+    paperContinuing,
+    canContinuePaper: Boolean(paperChange && !paperContinuing && !emergencyStopped && writerRef.current &&
+      !abortRef.current && !desynchronizedRef.current && (profileRef.current !== "grbl" ||
+        (machineStatus && Date.now() - machineStatus.receivedAt <= 3000 && ["Idle", "Hold:0"].includes(machineStatus.state)))),
     printingSheet,
     sheetProgress,
     continuePaper,

@@ -434,3 +434,38 @@ Still outstanding: Windows saved-port cold-start behavior, manual coordinate/fra
 and reference lifecycle audit, raw-file preview controls, paper-change/recovery UX,
 and final acceptance. Physical hardware exclusivity beyond the exercised PTY/API
 checks is not claimed. Goal remains active.
+
+## Document queue, paper changes and recovery
+
+Found that the normal document button routed even one sheet through a nonrecoverable
+queue. A one-sheet selection now preserves the compiled job and checkpoints. Multi-sheet
+queues map stroke checkpoints and completed sheet boundaries, persist their selected
+sheet indices, and reconstruct that exact selection for recovery. Invalid/changed
+selections or content cannot silently reuse the saved index. The recovery button names
+the required sheet; stale recovery has an explanation and the existing local reset path.
+
+Recovering at a paper boundary runs the ordinary known-reference lift prefix and planner
+barrier, then asks for paper confirmation before sending the next sheet. No XY or Z/E
+origin reset is added. Continuing validates the active waiter identity, fresh GRBL
+Idle/Hold:0, stop state and writer. Explicit paper confirmation can release Hold:0 with
+one realtime resume byte. STOP/disconnect cancel the waiter; stale/double confirmation
+cannot release a later page. Marlin uses M400 and receives no GRBL realtime bytes.
+
+The paper dialog resets its confirmation by change identity, focuses its heading,
+puts always-enabled STOP in a sticky header and labels only controller-command
+completion. The document counter now says commands transmitted rather than implying
+physical completion. The old README suggestion to use the minimum speed was removed;
+the observed F1 incident showed why duration matters.
+
+Actual usePlotter/controller simulation passed: withheld lift barrier delays dialog;
+single-sheet recoverability; stored page selection; disconnect/reconnect at a boundary;
+no next-sheet data before confirmation; stale/busy status refusal; Hold:0 release once;
+no coordinate reset; STOP rejects old continuation and clears recovery; reset is local;
+Marlin waits for M400. Real DOM dialog test verified first Tab reaches STOP, page 3
+requires its own unchecked confirmation after page 2, Escape cancels without another
+continuation, title restores, and the modal is legible with STOP visible. Fixtures are
+removed before publication. Physical paper/pen position is not measured by these tests.
+
+Remaining audit includes workshop recovery integration, imported-job final pen pose,
+manual coordinate/frame changes, Windows cold-start cache behavior, raw-file preview
+controls, and the final application-level acceptance pass. Goal remains incomplete.

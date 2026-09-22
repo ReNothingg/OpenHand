@@ -101,7 +101,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           <select
             aria-label="Какие листы записать"
             value={config.profile === "ebb" ? "current" : scope}
-            disabled={running || calibrationActive || config.profile === "ebb"}
+            disabled={running || calibrationActive || recoveryAvailable || config.profile === "ebb"}
             onChange={(e) => setScope(e.target.value)}
           >
             <option value="current">Текущий лист</option>
@@ -178,7 +178,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
                 }
                 onClick={workspace.recover}
               >
-                Продолжить с{" "}
+                {workspace.recoveryLabel ? `Продолжить: ${workspace.recoveryLabel.toLowerCase()} · ` : "Продолжить с "}
                 {Math.round(
                   (plotter.recovery.current / plotter.recovery.total) * 100,
                 )}
@@ -389,6 +389,9 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         </section>
       </div>
       {error && <p className="plotter-error" role="alert">{error}</p>}
+      {workspace.recoveryProblem && !running && !busy && <p className="plotter-warning">
+        Сохранённое продолжение недоступно: {workspace.recoveryProblem} Можно сбросить прогресс и начать заново.
+      </p>}
       {plotter.recoveryWarning && <p className="plotter-warning" role="status">{plotter.recoveryWarning}</p>}
 
       {recoveryAvailable && !originConfirmed && (
@@ -400,7 +403,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         <div className="plotter-progress">
           <i style={{ width: `${workspace.progressPercent}%` }} />
           <span>
-            {plotter.progress.current} / {plotter.progress.total}
+            Передано команд: {plotter.progress.current} / {plotter.progress.total}
           </span>
         </div>
       )}

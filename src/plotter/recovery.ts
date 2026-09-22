@@ -5,6 +5,7 @@ export interface PlotterRecoveryState {
   total: number;
   profile: string;
   updatedAt?: number;
+  sheetIndices?: number[];
 }
 
 export interface RecoverablePlotterJob {
@@ -12,6 +13,7 @@ export interface RecoverablePlotterJob {
   commands: unknown[];
   recoverable?: boolean;
   resumePoints?: number[];
+  sheetIndices?: number[];
 }
 
 export function normalizeRecoveryState(
@@ -29,6 +31,9 @@ export function normalizeRecoveryState(
   ) {
     return null;
   }
+  if (value.sheetIndices !== undefined && (!Array.isArray(value.sheetIndices) ||
+      !value.sheetIndices.length || value.sheetIndices.length > 100 ||
+      value.sheetIndices.some((n, i, indices) => !Number.isInteger(n) || n < 0 || (i > 0 && n <= indices[i - 1]!)))) return null;
   return value as PlotterRecoveryState;
 }
 
@@ -56,6 +61,8 @@ export function assertRecoveryCompatible(
   }
   if (recovery.checkpointVersion !== 2 || (recovery.current !== 0 && !job.resumePoints?.includes(recovery.current)))
     throw new Error("Сохранённая точка не подтверждена выполнением контроллера. Начните задание заново.");
+  if (JSON.stringify(recovery.sheetIndices || null) !== JSON.stringify(job.sheetIndices || null))
+    throw new Error("Выбор листов изменился. Продолжение относится к прежней очереди.");
   if (recovery.profile !== profile) {
     throw new Error(
       "Профиль контроллера изменился. Верните прежнюю прошивку перед продолжением.",

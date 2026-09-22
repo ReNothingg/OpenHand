@@ -2063,6 +2063,9 @@ body,
 }
 .paper-change-dialog {
   width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  box-sizing: border-box;
   border: 1px solid var(--line);
   padding: 24px;
   color: var(--text-primary);
@@ -2078,6 +2081,13 @@ body,
   margin: 0 0 14px;
   font-size: 20px;
 }
+.paper-change-dialog > header {
+  position: sticky; top: -24px; z-index: 1;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+  margin: -24px -24px 16px; padding: 16px 20px;
+  background: var(--surface-panel); border-bottom: 1px solid var(--line);
+}
+.paper-change-dialog > header h2 { flex: 1; margin: 0; }
 .paper-change-dialog p {
   margin: 10px 0;
 }
@@ -2093,7 +2103,7 @@ body,
 }
 .paper-change-dialog > div {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
 }

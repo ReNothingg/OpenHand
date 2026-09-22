@@ -36,7 +36,8 @@ import { hasVerifiedPenPositions } from "../plotter/penLift";
 import { assessDeviceReadiness, assessPlotterPreflight } from "../plotter/preflight";
 import { preparedProgramBlockers } from "../plotter/importSafety";
 import { prepareImportedGcode } from "../plotter/gcodeImport";
-import { createSheetQueue } from "../plotter/sheetQueue";
+import { createSheetQueue, sheetLabel } from "../plotter/sheetQueue";
+import { assertRecoveryCompatible } from "../plotter/recovery";
 import {
   minStrokeY,
   physicalSheetIndex,
@@ -424,15 +425,26 @@ export function useIntegratedPlotter({
   const progressPercent = plotter.progress.total
     ? (plotter.progress.current / plotter.progress.total) * 100
     : 0;
-  const recoveryAvailable = Boolean(
-    job.recoverable &&
-      plotter.recovery &&
-      plotter.recovery.jobId === job.id &&
-      plotter.recovery.total === job.commands.length &&
-      plotter.recovery.current < plotter.recovery.total &&
-      plotter.recovery.profile === config.profile &&
-      (plotter.recovery.current === 0 || job.resumePoints.includes(plotter.recovery.current)),
-  );
+  const recoveryIndices = plotter.recovery?.sheetIndices;
+  const recoveryCandidate = useMemo(() => {
+    if (!plotter.recovery) return { job: null, problem: "" };
+    try {
+      return { job: recoveryIndices
+        ? createSheetQueue(createJobs(), recoveryIndices, config, settings.pageSize === "NotebookSpread")
+        : createJob(), problem: "" };
+    } catch (reason) {
+      return { job: null, problem: reason instanceof Error ? reason.message : "Не удалось восстановить очередь." };
+    }
+  }, [plotter.recovery?.jobId, recoveryIndices, recoveryIndices ? createJobs : createJob, config, settings.pageSize]);
+  let recoveryProblem = recoveryCandidate.problem;
+  if (plotter.recovery && recoveryCandidate.job && !recoveryProblem) {
+    try { assertRecoveryCompatible(plotter.recovery, recoveryCandidate.job, config.profile); }
+    catch (reason) { recoveryProblem = reason instanceof Error ? reason.message : "Задание изменилось."; }
+  }
+  const recoveryAvailable = Boolean(plotter.recovery && recoveryCandidate.job && !recoveryProblem &&
+    plotter.recovery.current < plotter.recovery.total);
+  const recoverySheet = recoveryCandidate.job?.sheetRanges?.find(range => plotter.recovery && plotter.recovery.current < range.end)?.sheet;
+  const recoveryLabel = recoverySheet === undefined ? "" : sheetLabel(recoverySheet, settings.pageSize === "NotebookSpread");
   const assessDevice = useCallback((placingSheet = false) => assessDeviceReadiness({
     connected, running, busy: busy || pending || penControl.busy || plotter.operationBusy, calibrationActive,
     emergencyStopped: plotter.emergencyStopped, profile: config.profile,
@@ -779,11 +791,19 @@ export function useIntegratedPlotter({
   );
 
   const recover = useCallback(() => safeAction(() => {
-    const prepared = createJob();
-    const readiness = assessJob(activeLayout, prepared.withinWorkArea, prepared.commands);
-    if (!readiness.canStart) throw new Error(readiness.blockers[0]);
+    assertDeviceReady();
+    const prepared = recoveryCandidate.job;
+    assertRecoveryCompatible(plotter.recovery, prepared, config.profile);
+    if (!prepared) throw new Error(recoveryProblem || "Нет задания для продолжения.");
+    for (const index of plotter.recovery?.sheetIndices || [activeIndex]) {
+      const readiness = assessJob(layouts[index], prepared.withinWorkArea !== false);
+      if (!readiness.canStart) throw new Error(`${sheetLabel(index, settings.pageSize === "NotebookSpread")}: ${readiness.blockers[0]}`);
+    }
+    const blockers = preparedProgramBlockers(prepared.commands, config);
+    if (blockers.length) throw new Error(blockers[0]);
     return plotter.recover(prepared);
-  }), [safeAction, assessJob, activeLayout, plotter.recover, createJob]);
+  }), [safeAction, assertDeviceReady, assessJob, layouts, activeIndex, recoveryCandidate, recoveryProblem,
+    plotter.recover, plotter.recovery, config, settings.pageSize]);
 
   return {
     enabled,
@@ -834,6 +854,8 @@ export function useIntegratedPlotter({
     running,
     progressPercent,
     recoveryAvailable,
+    recoveryProblem,
+    recoveryLabel,
     preflight,
     originConfirmed,
     penReferenceConfirmed,

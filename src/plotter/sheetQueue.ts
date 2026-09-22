@@ -36,6 +36,15 @@ export function createSheetQueue(
     )
   )
     throw new Error("Выберите от 1 до 100 листов в порядке документа.");
+  if (indices.length === 1) {
+    const sheet = indices[0];
+    const job = jobs[sheet];
+    if (!job?.commands?.length || !job.strokes?.length || job.withinWorkArea === false)
+      throw new Error(`${sheetLabel(sheet, spread)}: нет безопасной траектории.`);
+    return { ...job, sheetIndices: [...indices], totalSheets: 1,
+      sheetRanges: [{ sheet, start: 0, end: job.commands.length }], barriers: [], paperChanges: [] };
+  }
+  const resumePoints: number[] = [];
   const commands: string[] = [];
   const barriers: number[] = [];
   const sheetRanges: Array<{ sheet: number; start: number; end: number }> = [];
@@ -58,7 +67,9 @@ export function createSheetQueue(
       ...createPenCommand(true, config),
       config.profile === "grbl" ? "G4P0.01" : "M400",
     );
+    resumePoints.push(...(job.resumePoints || []).map((point: number) => start + point));
     barriers.push(commands.length);
+    if (position < indices.length - 1) resumePoints.push(commands.length);
     sheetRanges.push({ sheet, start, end: commands.length });
     if (position < indices.length - 1)
       paperChanges.push({
@@ -79,8 +90,9 @@ export function createSheetQueue(
     sheetRanges,
     paperChanges,
     totalSheets: indices.length,
-    recoverable: false,
-    resumePoints: [],
-    resumePrefix: [],
+    sheetIndices: [...indices],
+    recoverable: indices.every(index => jobs[index].recoverable !== false),
+    resumePoints: [...new Set(resumePoints)].sort((a, b) => a - b),
+    resumePrefix: jobs[indices[0]].resumePrefix || [],
   };
 }
