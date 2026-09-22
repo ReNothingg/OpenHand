@@ -778,7 +778,7 @@ export function useIntegratedPlotter({
   }, [createJob, config, establishSheetOrigin, activeIndex]);
   const assertTextStart = useCallback((prepared) => {
     if (textStartBinding && !sameXY(textStartBinding.point, textStartPoint(prepared, config)))
-      throw new Error("У выбранного задания другая начальная точка. Откройте его первый лист и нажмите «Начало текста здесь».");
+      throw new Error("У выбранного задания другая начальная точка. Откройте его первый лист, выберите «Первый штрих текста» и запомните точку.");
   }, [textStartBinding, config]);
   const setOrigin = useCallback(() => establishSheetOrigin(false), [establishSheetOrigin]);
 
@@ -866,6 +866,7 @@ export function useIntegratedPlotter({
     assessPreparedRecovery: prepared => assessRecovery(plotter.recovery, { ...prepared, source: "workshop" }, config.profile, "workshop"),
     preflight,
     originConfirmed,
+    originMode: originConfirmed ? (textStartBinding ? "text" : "sheet") : null,
     textStartChanged,
     penReferenceConfirmed,
     penSetupPosition,

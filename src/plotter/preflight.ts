@@ -85,6 +85,6 @@ export function assessDeviceReadiness(input: PlotterDeviceReadinessInput, now = 
   else if (!input.penReferenceConfirmed)
     blockers.push("Высота пера неизвестна. В настройке пера укажите его фактическое положение; начало листа высоту не меняет.");
   if (!input.originConfirmed)
-    blockers.push("Задайте положение кнопкой «Начало текста здесь» или «Угол листа здесь».");
+    blockers.push("Поставьте перо в нужную точку и нажмите «Запомнить эту точку».");
   return { blockers, canStart: blockers.length === 0 };
 }
