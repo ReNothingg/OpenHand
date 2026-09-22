@@ -1704,6 +1704,10 @@ export function compilePlotJob(strokes, config) {
   return {
     id: fingerprintCommands(commands),
     commands,
+    firstPoint: machineStrokes.length ? {
+      x: Number(number(machineStrokes[0][0].x)),
+      y: Number(number(machineStrokes[0][0].y)),
+    } : null,
     strokes: preparedStrokes,
     strokeCommandRanges,
     resumePoints,
@@ -1823,10 +1827,15 @@ export function createPenJogCommands(up: boolean, distance: number, config) {
   return ["G21", "G91", `G1Z${delta}F${speed}`, "G90"];
 }
 
-export function createOriginCommands(config) {
-  if (config.profile === "ebb") return [];
-  if (config.profile === "marlin") return [...coordinateFrameCommands(config), "G92X0Y0"];
-  return [...coordinateFrameCommands(config), "G10P0L20X0Y0"];
+export function createOriginCommands(config, position = { x: 0, y: 0 }) {
+  if (![position.x, position.y].every(Number.isFinite)) throw new Error("Некорректная точка привязки на листе.");
+  if (config.profile === "ebb") {
+    if (position.x || position.y) throw new Error("Привязка первого штриха доступна для GRBL и Marlin.");
+    return [];
+  }
+  const axes = `X${number(position.x)}Y${number(position.y)}`;
+  if (config.profile === "marlin") return [...coordinateFrameCommands(config), `G92${axes}`];
+  return [...coordinateFrameCommands(config), `G10P0L20${axes}`];
 }
 
 export function createHomingCommands(config) {

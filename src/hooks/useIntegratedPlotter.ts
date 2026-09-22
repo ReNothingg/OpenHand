@@ -1,5 +1,6 @@
 import { assertManualJogAllowed } from "../plotter/manualMotion";
 import { COORDINATE_FRAME_VERSION } from "../plotter/coordinateFrame";
+import { sameXY, textStartPoint, type XYPoint } from "../plotter/textStart";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { usePenControl } from "./usePenControl";
@@ -143,7 +144,8 @@ export function useIntegratedPlotter({
   const [layouts, setLayouts] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [originConfirmed, setOriginConfirmed] = useState(false);
+  const [originEstablished, setOriginConfirmed] = useState(false);
+  const [textStartBinding, setTextStartBinding] = useState<{ sheet: number; point: XYPoint } | null>(null);
   const calibrationProof = useRef<string | null>(null);
   const [calibrationActive, setCalibrationActive] = useState(false);
   const [importedGcode, setImportedGcode] = useState(null);
@@ -401,6 +403,13 @@ export function useIntegratedPlotter({
       layouts.map((layout) => compilePlotJob(layout?.strokes || [], config)),
     [config, layouts],
   );
+  const liveCreateJob = useRef(createJob);
+  liveCreateJob.current = createJob;
+  const boundTextPoint = useMemo(() => textStartBinding ? createJob(textStartBinding.sheet).firstPoint : null,
+    [textStartBinding, createJob]);
+  const textStartChanged = Boolean(textStartBinding && (!sameXY(textStartBinding.point, boundTextPoint)
+    || config.customStartGcode?.trim() || !["grbl", "marlin"].includes(config.profile)));
+  const originConfirmed = originEstablished && !textStartChanged;
   const connected =
     plotter.status !== "disconnected" && plotter.status !== "connecting";
   const running = ["running", "paused", "waiting-paper"].includes(
@@ -733,7 +742,7 @@ export function useIntegratedPlotter({
     config.startPosition, config.swapAxes, config.invertX, config.invertY, config.workAreaWidth, config.workAreaHeight, controllerPenKey]);
   const livePlacementContext = useRef(placementContext);
   livePlacementContext.current = placementContext;
-  const establishSheetOrigin = useCallback(async (upperLeft: boolean) => {
+  const establishSheetOrigin = useCallback(async (upperLeft: boolean, textStart?: { sheet: number; point: XYPoint }) => {
     if (placementInFlight.current) return false;
     const readiness = assessDevice(true);
     if (!readiness.canStart) { setError(readiness.blockers[0]); return false; }
@@ -743,18 +752,34 @@ export function useIntegratedPlotter({
     try {
       return await safeAction(async () => {
         // XY placement must never relabel the current physical Z/E height.
-        await plotter.sendCommands(createOriginCommands(config), { requireIdle: true });
+        await plotter.sendCommands(createOriginCommands(config, textStart?.point), { requireIdle: true });
         if (livePlacementContext.current !== placementContext)
           throw new DOMException("Установка начала листа отменена.", "AbortError");
+        if (textStart && !sameXY(textStart.point, liveCreateJob.current(textStart.sheet).firstPoint))
+          throw new Error("Начало текста изменилось. Дождитесь предпросмотра и задайте точку заново.");
         // A manually placed sheet always starts at its own upper-left corner,
         // independent of the configured machine travel dimensions.
         if (upperLeft) setConfig(current => ({ ...current, startPosition: "left-top" }));
+        setTextStartBinding(textStart || null);
         setOriginConfirmed(true);
       });
     } finally { placementInFlight.current = false; setBusy(false); }
   }, [assessDevice, plotter.sendCommands, config, placementContext, safeAction, setConfig]);
 
   const setManualStart = useCallback(() => establishSheetOrigin(true), [establishSheetOrigin]);
+  const setTextStart = useCallback(async () => {
+    try {
+      const point = textStartPoint(createJob(), config);
+      return await establishSheetOrigin(false, { sheet: activeIndex, point });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Не удалось задать начало текста.");
+      return false;
+    }
+  }, [createJob, config, establishSheetOrigin, activeIndex]);
+  const assertTextStart = useCallback((prepared) => {
+    if (textStartBinding && !sameXY(textStartBinding.point, textStartPoint(prepared, config)))
+      throw new Error("У выбранного задания другая начальная точка. Откройте его первый лист и нажмите «Начало текста здесь».");
+  }, [textStartBinding, config]);
   const setOrigin = useCallback(() => establishSheetOrigin(false), [establishSheetOrigin]);
 
   const dryRun = useCallback(
@@ -772,6 +797,7 @@ export function useIntegratedPlotter({
 
   const recover = useCallback(() => safeAction(() => {
     assertDeviceReady();
+    assertTextStart(createJob(plotter.recovery?.sheetIndices?.[0] ?? activeIndex));
     const prepared = recoveryCandidate.job;
     assertRecoveryCompatible(plotter.recovery, prepared, config.profile);
     if (!prepared) throw new Error(recoveryProblem || "Нет задания для продолжения.");
@@ -782,7 +808,7 @@ export function useIntegratedPlotter({
     const blockers = preparedProgramBlockers(prepared.commands, config);
     if (blockers.length) throw new Error(blockers[0]);
     return plotter.recover(prepared);
-  }), [safeAction, assertDeviceReady, assessJob, layouts, activeIndex, recoveryCandidate, recoveryProblem,
+  }), [safeAction, assertDeviceReady, assertTextStart, createJob, assessJob, layouts, activeIndex, recoveryCandidate, recoveryProblem,
     plotter.recover, plotter.recovery, config, settings.pageSize]);
 
   return {
@@ -840,6 +866,7 @@ export function useIntegratedPlotter({
     assessPreparedRecovery: prepared => assessRecovery(plotter.recovery, { ...prepared, source: "workshop" }, config.profile, "workshop"),
     preflight,
     originConfirmed,
+    textStartChanged,
     penReferenceConfirmed,
     penSetupPosition,
     penPositionsVerified,
@@ -848,6 +875,7 @@ export function useIntegratedPlotter({
     workAreaConfirmed,
     placementReadiness,
     setManualStart,
+    setTextStart,
     penSetupBusy: penControl.busy,
     moveSavedPen: (up: boolean) => safeAction(() => penControl.moveSaved(up)),
     beginPenSetup: () => safeAction(penControl.begin),
@@ -960,6 +988,7 @@ export function useIntegratedPlotter({
     }),
     run: () => safeAction(() => {
       const prepared = createJob();
+      assertTextStart(prepared);
       const readiness = assessJob(activeLayout, prepared.withinWorkArea, prepared.commands);
       if (!readiness.canStart) throw new Error(readiness.blockers[0]);
       return plotter.run({ ...prepared, source: "document" });
@@ -971,6 +1000,7 @@ export function useIntegratedPlotter({
       const selected = indices.filter(i => layouts[i]?.strokes.length);
       if (!selected.length) throw new Error("В выбранных листах нет траекторий.");
       const jobs = createJobs();
+      assertTextStart(jobs[selected[0]]);
       for (const index of selected) {
         const readiness = assessJob(layouts[index], jobs[index].withinWorkArea, jobs[index].commands);
         if (!readiness.canStart) throw new Error(`Лист ${index + 1}: ${readiness.blockers[0]}`);

@@ -390,7 +390,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
 
       {recoveryAvailable && !originConfirmed && (
         <p className="plotter-warning">
-          Для продолжения установите поднятое перо над прежним началом листа и нажмите «Начало листа здесь».
+          Для продолжения восстановите прежнюю привязку той же кнопкой: «Начало текста здесь» — первый штрих, «Угол листа здесь» — угол бумаги.
         </p>
       )}
       {plotter.progress.total > 0 && (
