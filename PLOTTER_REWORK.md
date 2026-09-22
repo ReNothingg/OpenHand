@@ -27,8 +27,8 @@ configuration writes or factory resets during this implementation.
 - Owner follow-up: manual sheet placement is the normal route; completing the axes
   wizard must not be a prerequisite for writing or manual arrows. Keep configured
   coordinate transforms and program bounds, and keep saved pen heights separate from
-  the live reference. A single explicit motion-free action sets the sheet start and
-  raised-pen reference in the document and workshop.
+  the live reference. A motion-free action sets the XY sheet start in the document
+  and workshop, without inferring or changing the vertical reference.
 
 ## Evidence needed
 
@@ -321,3 +321,39 @@ not yet verified. All temporary test sources are removed before publication.
 Remaining: port ownership/cached-port parity, full manual XY boundary and modal-frame
 audit, paper-change/recovery interactions, setup discoverability and final acceptance.
 Physical motion accuracy remains outside these virtual checks. Goal remains open.
+
+## Incident correction: XY placement must not redefine Z
+
+Owner reported renewed pressure into the sheet after starting a real job, then
+confirmed STOP had halted the pressure. Read the running Xcode app's log/settings
+through accessibility only; issued no controller commands and left STOP latched.
+Observed 07:32:10 G92Z0 in the manual-placement action, followed at 07:32:15 by
+G1G90Z7F1; stored upper/lower values were 0/7 and pen speed 1 mm/min, upward direction
+negative Z. The device later reported Alarm after stop. These are observed commands,
+not proof of the exact physical location or mechanical cause of pressure.
+
+The preceding manual-placement design was unsafe: XY placement silently declared
+the actual Z to be the saved upper height. Removed that behavior and the combined
+reference/origin API. XY placement now sends only XY origin commands and cannot
+make an unknown vertical reference ready for printing. It remains available without
+the axes wizard. Explicit reference buttons now say saved upper/lower point, rather
+than the ambiguous “currently raised/lowered”. Collision/manual height changes are
+not treated as a trustworthy reference.
+
+Also fixed the job estimate, which omitted stepper lift travel entirely. For the
+observed 7 mm/F1 configuration, each full vertical move is 420 seconds in G94 mode;
+the per-move estimate is now shown before printing and in pen setup, and the overall
+estimate includes both vertical moves per stroke. Existing heights and speeds were
+not changed. GRBL jobs, recovery, pen actions, frame and return explicitly set G94;
+G93 remains rejected by command policy. Upstream reference:
+https://raw.githubusercontent.com/gnea/grbl/master/grbl/gcode.c
+
+Regression checks reproduced 420 seconds per move and the 826-second per-stroke
+difference between F1 and F60; verified no Z/E in origin commands, unknown vertical
+reference still blocks writing, generated GRBL commands pass policy with G94, and
+Marlin generation remains free of G94. Native builds are software verification only.
+The physical cause of contact force is not claimed solved by these checks.
+
+Further concrete audit item: generated G0 XY travel includes F even though GRBL rapid
+uses controller rapid limits. Review travel generation, timing and preview pen-state
+interpretation together before changing this behavior.

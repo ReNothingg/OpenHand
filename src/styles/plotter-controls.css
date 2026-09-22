@@ -182,3 +182,5 @@
 .plotter-manual-start { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 16px; }
 .plotter-manual-start p { flex-basis: 100%; margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
 .plotter-manual-start .button { min-height: 40px; }
+
+.plotter-manual-start .pen-travel-info { flex-basis: 100%; margin: 4px 0 0; }

@@ -82,7 +82,9 @@ export function assessDeviceReadiness(input: PlotterDeviceReadinessInput, now = 
     else if (input.machineState !== "Idle") blockers.push("Контроллер ещё не готов к запуску. Дождитесь состояния Idle.");
   }
   if (!input.penPositionsVerified) blockers.push("Сохраните верхнее и нижнее положения пера во вкладке «Плоттер».");
-  else if (!input.penReferenceConfirmed || !input.originConfirmed)
-    blockers.push("Поставьте поднятое перо над началом листа и нажмите «Начало листа здесь».");
+  else if (!input.penReferenceConfirmed)
+    blockers.push("Высота пера неизвестна. В настройке пера укажите его фактическое положение; начало листа высоту не меняет.");
+  if (!input.originConfirmed)
+    blockers.push("Поставьте перо над началом листа и нажмите «Начало листа здесь».");
   return { blockers, canStart: blockers.length === 0 };
 }

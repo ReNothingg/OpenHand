@@ -7,11 +7,12 @@ import PlotterManualStart from "./PlotterManualStart";
 export function formatDuration(seconds: number) {
   if (!Number.isFinite(seconds)) return "—";
   const rounded = Math.ceil(seconds);
+  if (rounded >= 3600) return `${Math.floor(rounded / 3600)} ч. ${Math.floor((rounded % 3600) / 60)} мин.`;
   if (rounded < 60) return `${rounded} сек.`;
   return `${Math.floor(rounded / 60)} мин. ${rounded % 60} сек.`;
 }
 
-export const timingExplanation = "Расчёт по длине пути, заданным скоростям и паузам пера. Без разгона, торможения, задержек связи и пользовательских G-code-команд. Реальное время не измерено.";
+export const timingExplanation = "Расчёт по длине пути, заданным скоростям, ходу шагового пера и паузам. Без разгона, торможения, задержек связи и пользовательских G-code-команд. Реальное время не измерено.";
 export function formatNominalDuration(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return "—";
   return `≈ ${formatDuration(Math.ceil(seconds / 5) * 5)}`;

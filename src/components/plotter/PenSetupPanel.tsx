@@ -1,4 +1,5 @@
-import { penLiftDistance, penPositionKey, normalizePenJogStep, PEN_JOG_STEPS_MM } from "../../plotter/penLift";
+import PenTravelInfo from "./PenTravelInfo";
+import { penPositionKey, normalizePenJogStep, PEN_JOG_STEPS_MM } from "../../plotter/penLift";
 
 type Props = { workspace: any; execute: (action: () => Promise<unknown>) => Promise<void>; disabled: boolean };
 
@@ -31,17 +32,17 @@ export default function PenSetupPanel({ workspace, execute, disabled }: Props) {
       : !freshIdle ? <p className="pen-next-step">Ждём готовности контроллера к ручному движению.</p>
       : !referenced ? <div className="pen-next-step">
         <strong>{saved ? "Где перо сейчас?" : "Начните с текущего положения"}</strong>
-        <p>{saved ? "Высоты сохранены. Укажите положение механизма, чтобы продолжить без повторной настройки." : "Начало отсчёта не двигает перо. Затем подведите его короткими шагами и запомните две высоты."}</p>
+        <p>{saved ? "Эти кнопки подходят только если механизм находится точно в одной из сохранённых точек. Просто держать перо над бумагой недостаточно. После упора или ручного изменения высоты используйте «Настроить заново»." : "Начало отсчёта не двигает перо. Затем подведите его короткими шагами и запомните две высоты."}</p>
         {saved ? <div className="device-buttons">
-          <button disabled={unavailable} onClick={() => void execute(() => workspace.setPenReference("up"))}>Сейчас поднято</button>
-          <button disabled={unavailable} onClick={() => void execute(() => workspace.setPenReference("down"))}>Сейчас опущено</button>
+          <button disabled={unavailable} onClick={() => void execute(() => workspace.setPenReference("up"))}>В сохранённой верхней точке</button>
+          <button disabled={unavailable} onClick={() => void execute(() => workspace.setPenReference("down"))}>В сохранённой нижней точке</button>
         </div> : <button disabled={unavailable} onClick={() => void execute(workspace.beginPenSetup)}>Начать настройку</button>}
       </div> : saved ? <div className="pen-ready-controls">
         <div className="pen-step-actions">
           <button disabled={unavailable} data-plotter-motion="" onClick={() => void execute(() => workspace.moveSavedPen(true))}>↑ Поднять перо</button>
           <button disabled={unavailable} data-plotter-motion="" onClick={() => void execute(() => workspace.moveSavedPen(false))}>↓ Опустить перо</button>
         </div>
-        <p className="pen-step-caption">Перемещение между сохранёнными высотами · ход {penLiftDistance(config)} мм</p>
+        <p className="pen-step-caption">Перемещение между сохранёнными высотами</p>
       </div> : adjust}
 
     <div className="pen-height-cards">
@@ -60,6 +61,7 @@ export default function PenSetupPanel({ workspace, execute, disabled }: Props) {
         </section>;
       })}
     </div>
+    <PenTravelInfo config={config} />
     {saved && referenced && <details className="pen-fine-adjustment"><summary>Подстроить положения</summary>
       {position === null ? <p className="device-hint">Сначала нажмите «Поднять перо» или «Опустить перо», затем подстройте высоту.</p> : adjust}
     </details>}

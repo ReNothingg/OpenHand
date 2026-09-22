@@ -438,7 +438,8 @@ export function useIntegratedPlotter({
     emergencyStopped: plotter.emergencyStopped, profile: config.profile,
     machineState: plotter.machineStatus?.state, statusReceivedAt: plotter.machineStatus?.receivedAt,
     originConfirmed: placingSheet || originConfirmed,
-    penReferenceConfirmed: placingSheet || !needsPenReference || penReferenceConfirmed, penPositionsVerified,
+    penReferenceConfirmed: placingSheet || !needsPenReference || penReferenceConfirmed,
+    penPositionsVerified: placingSheet || penPositionsVerified,
     controllerSettingsKnown: plotter.controllerSettingsComplete,
   }), [connected, running, busy, pending, penControl.busy, plotter.operationBusy, calibrationActive, plotter.emergencyStopped,
     config.profile, plotter.machineStatus, originConfirmed, needsPenReference, penReferenceConfirmed, penPositionsVerified, plotter.controllerSettingsComplete]);
@@ -751,8 +752,8 @@ export function useIntegratedPlotter({
     setOriginConfirmed(false);
     try {
       return await safeAction(async () => {
-        if (needsPenReference) await penControl.reference("up", true);
-        else await plotter.sendCommands(createOriginCommands(config));
+        // XY placement must never relabel the current physical Z/E height.
+        await plotter.sendCommands(createOriginCommands(config));
         if (livePlacementContext.current !== placementContext)
           throw new DOMException("Установка начала листа отменена.", "AbortError");
         // A manually placed sheet always starts at its own upper-left corner,
@@ -761,7 +762,7 @@ export function useIntegratedPlotter({
         setOriginConfirmed(true);
       });
     } finally { placementInFlight.current = false; setBusy(false); }
-  }, [assessDevice, needsPenReference, penControl.reference, plotter.sendCommands, config, placementContext, safeAction, setConfig]);
+  }, [assessDevice, plotter.sendCommands, config, placementContext, safeAction, setConfig]);
 
   const dryRun = useCallback(
     () =>

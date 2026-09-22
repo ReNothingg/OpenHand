@@ -2,6 +2,13 @@ export function penLiftDistance(config: { zUp: number; zDown: number }): number 
   return Number(Math.abs(config.zUp - config.zDown).toFixed(3));
 }
 
+export function penTravelSeconds(config: { zUp: number; zDown: number; zSpeed: number; penMode: string }): number {
+  if (!["stepper", "estepper"].includes(config.penMode)) return 0;
+  const speed = Number(config.zSpeed);
+  const distance = penLiftDistance(config);
+  return Number.isFinite(speed) && speed > 0 && Number.isFinite(distance) ? distance * 60 / speed : 0;
+}
+
 export const PEN_TEST_STEP_MM = 0.1;
 export const PEN_JOG_STEPS_MM = [0.1, 0.25, 0.5, 1] as const;
 export const MAX_PEN_JOG_MM = 1;

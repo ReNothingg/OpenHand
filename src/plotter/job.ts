@@ -1,5 +1,5 @@
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
-import { MAX_PEN_JOG_MM, PEN_TEST_STEP_MM } from "./penLift";
+import { MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, penTravelSeconds } from "./penLift";
 import { chooseForm, formGlyph, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
 import { layoutFormula } from "./mathLayout";
 import {
@@ -1464,7 +1464,7 @@ function penCommand(up, config, pressure = 1) {
     return `M280P0S${Math.round(up ? config.penUp : pressuredPenDown)}`;
   }
   if (config.penMode === "stepper")
-    return `G1G90Z${number(up ? config.zUp : config.zDown)}F${config.zSpeed}`;
+    return `G1G90G94Z${number(up ? config.zUp : config.zDown)}F${config.zSpeed}`;
   if (config.penMode === "laser") return up ? "M5" : `M3S${config.laserPower}`;
   return `M3S${Math.round(up ? config.penUp : pressuredPenDown)}`;
 }
@@ -1626,7 +1626,7 @@ export function compilePlotJob(strokes, config) {
   let penChanges = 0;
   let penLifts = 0;
 
-  if (config.profile !== "ebb") commands.push("G21", "G90");
+  if (config.profile !== "ebb") commands.push("G21", "G90", ...(config.profile === "grbl" ? ["G94"] : []));
   addPen(true);
   penChanges += 1;
 
@@ -1635,7 +1635,7 @@ export function compilePlotJob(strokes, config) {
   if (startCommands.length && config.profile !== "ebb") {
     // User macros must not leak units, relative mode or a lowered pen into
     // the generated document trajectory.
-    commands.push("G21", "G90");
+    commands.push("G21", "G90", ...(config.profile === "grbl" ? ["G94"] : []));
     addPen(true);
     penChanges += 1;
     penLifts += 1;
@@ -1695,7 +1695,7 @@ export function compilePlotJob(strokes, config) {
   const endCommands = parseCustomGcode(config.customEndGcode);
   commands.push(...endCommands);
   if (endCommands.length && config.profile !== "ebb") {
-    commands.push("G21", "G90");
+    commands.push("G21", "G90", ...(config.profile === "grbl" ? ["G94"] : []));
     addPen(true);
     penChanges += 1;
     penLifts += 1;
@@ -1703,13 +1703,14 @@ export function compilePlotJob(strokes, config) {
 
   const estimatedSeconds =
     drawSeconds +
+    penLifts * 2 * penTravelSeconds(config) +
     (travelDistance / Math.max(1, Number(config.jogSpeed))) * 60 +
     (penLifts + 1) * penDelay(true, config) +
     Math.max(0, penChanges - penLifts - 1) * penDelay(false, config);
   const resumePrefix =
     config.profile === "ebb"
       ? [penCommand(true, config)]
-      : ["G21", "G90", penCommand(true, config)];
+      : ["G21", "G90", ...(config.profile === "grbl" ? ["G94"] : []), penCommand(true, config)];
   return {
     id: fingerprintCommands(commands),
     commands,
@@ -1785,6 +1786,7 @@ export function createDryRunCommands(strokes, config) {
   return [
     "G21",
     "G90",
+    ...(config.profile === "grbl" ? ["G94"] : []),
     penCommand(true, config),
     ...machineCorners.map(
       ({ x, y }) => `G0X${number(x)}Y${number(y)}F${config.jogSpeed}`,
@@ -1853,6 +1855,7 @@ export function createReturnToOriginCommands(config) {
   return [
     "G21",
     "G90",
+    ...(config.profile === "grbl" ? ["G94"] : []),
     penCommand(true, config),
     `G0X0Y0F${config.jogSpeed}`,
   ];
