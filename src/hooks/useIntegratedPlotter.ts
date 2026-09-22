@@ -143,7 +143,6 @@ export function useIntegratedPlotter({
   const [layouts, setLayouts] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [stopNotice, setStopNotice] = useState("");
   const [originConfirmed, setOriginConfirmed] = useState(false);
   const calibrationProof = useRef<string | null>(null);
   const [calibrationActive, setCalibrationActive] = useState(false);
@@ -717,18 +716,8 @@ export function useIntegratedPlotter({
   const stop = useCallback(async () => {
       setOriginConfirmed(false);
       penControl.invalidate();
-      setStopNotice("Очередь отменена. Отправляю СТОП… Если движение продолжается — отключите питание и USB.");
-      try {
-        const result = await plotter.stop();
-        setStopNotice(result.controllerState
-          ? `Очередь отменена. Ответ контроллера: ${result.controllerState}. Новые движения заблокированы. Если механизм продолжает двигаться — отключите питание.`
-          : "Очередь отменена. СТОП передан, но ответ о состоянии не получен. Не считайте механизм остановленным: если он движется — отключите питание и USB.");
-        return true;
-      } catch (reason) {
-        const detail = reason instanceof Error ? ` Причина: ${reason.message.slice(0, 400)}` : "";
-        setStopNotice(`Очередь отменена. Передача СТОП не подтверждена.${detail} Если механизм движется — отключите питание плоттера и USB.`);
-        return false;
-      }
+      try { await plotter.stop(); return true; }
+      catch { return false; }
   }, [plotter.stop, penControl.invalidate]);
   const cancelCalibration = useCallback(
     async ({ emergency = false } = {}) => {
@@ -995,11 +984,11 @@ export function useIntegratedPlotter({
     discardRecovery: plotter.discardRecovery,
     pause: () => safeAction(plotter.pause),
     resume: () => safeAction(plotter.resume),
-    stopNotice,
+    stopNotice: plotter.stopNotice,
     emergencyStopped: plotter.emergencyStopped,
     releaseEmergencyStop: async () => {
-      try { await plotter.releaseEmergencyStop(); setStopNotice(""); }
-      catch (reason) { setStopNotice(reason.message); }
+      try { await plotter.releaseEmergencyStop(); }
+      catch { /* The shared STOP notice owns the delivery/release error. */ }
     },
     stop,
   };

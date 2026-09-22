@@ -563,3 +563,46 @@ EEPROM writes must remain serialized. This is a remaining transport/performance
 audit item, not proof that buffering caused the user's pressure incident. Reviewed
 frames of IMG_0300.MOV; they do not establish an idle-induced spring return or
 calibrated vertical scale. Firmware retention settings remain untouched.
+
+## Bounded GRBL motion streaming and unified stop feedback
+
+Implemented an independent FIFO motion window from the verified protocol behavior.
+Capacity comes only from valid OPT feedback during the tracked $I request; unknown
+or malformed capacity keeps sequential sending. Budget is min(100, RX)-1 including
+the one LF per line, at most eight outstanding lines. Only fully parsed explicit G1
+XYZ/F motion with optional G90/G91/G94 enters the window. Configuration, coordinate
+assignment, spindle/servo changes, other modes and barriers remain serialized.
+Lookahead scanning is bounded to 256 commands to avoid blocking the UI on a large
+import. One host write must finish before the next is issued; pending ACK failures
+can still interrupt a blocked host write. Job prefixes/suffixes, completed recovery
+checkpoints and paper confirmation retain their ordering and exclusive ownership.
+
+Controller error now latches and requests native STOP/reset immediately, before
+later ACKs in the same input packet can refill the window. Hold alone could leave
+queued commands resumable. Automatic failure preserves only the latest completed
+checkpoint; explicit STOP removes it, including during an automatic stop already
+in flight. Shared stop feedback now lives in the transport hook, so automatic and
+manual stops both display the global notice and release control. Delivery failure
+stays visible and latched. No motor settings or saved motion values are changed.
+
+Actual usePlotter simulations verified FIFO byte/line limits, delayed and batched
+ACKs, unsolicited status/message isolation, pause/resume, firmware error plus a
+later ACK in the same packet, native STOP failure, a blocked host write, partial
+write failure, disconnect, smaller capacity, malformed/missing OPT fallback,
+unchanged Marlin sequencing, completed recovery barriers, paper confirmation,
+import prefix/suffix ordering, and failed/successful latch release. With 48 identical
+movements and 15ms batched USB replies the virtual model required 49 response batches
+sequentially versus 8 buffered (including the completion barrier). This is a protocol
+simulation, not a measured hardware speedup or proof of physical pen force.
+
+A browser fixture using real React/usePlotter and a virtual serial port independently
+reproduced eight in-flight lines, error:20 followed by an extra ok, exactly one native
+reset request, blocked launch, preserved completed checkpoint 2 while the transmitted
+counter was 3/40, and visible global-style stop feedback with release control. Clicking
+release sent only $$ and did not resume. A 600-command imported stream also crossed
+the bounded scan chunks without changing order or adding extra dwells.
+
+Temporary checks are removed before publication. npm run build, macOS build,
+Windows cross-build and web parity are verified for the shared implementation.
+Remaining work includes broader application acceptance, Windows saved-port startup,
+raw-file preview controls, and the unresolved physical pen/contact boundary.
