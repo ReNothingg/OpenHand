@@ -196,7 +196,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
               type="button"
               onClick={workspace.pause}
             >
-              Пауза
+              Приостановить
             </button>
           )}
           {plotter.status === "paused" && (
@@ -205,7 +205,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
               type="button"
               onClick={workspace.resume}
             >
-              Продолжить
+              Продолжить передачу
             </button>
           )}
           {running && (
@@ -385,6 +385,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         </section>
       </div>
       {error && <p className="plotter-error" role="alert">{error}</p>}
+      {plotter.recoveryWarning && <p className="plotter-warning" role="status">{plotter.recoveryWarning}</p>}
 
       {recoveryAvailable && !originConfirmed && (
         <p className="plotter-warning">

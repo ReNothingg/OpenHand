@@ -1,4 +1,5 @@
 export interface PlotterRecoveryState {
+  checkpointVersion: 2;
   jobId: string;
   current: number;
   total: number;
@@ -10,12 +11,14 @@ export interface RecoverablePlotterJob {
   id: string;
   commands: unknown[];
   recoverable?: boolean;
+  resumePoints?: number[];
 }
 
 export function normalizeRecoveryState(
   value: Partial<PlotterRecoveryState> | null | undefined,
 ): PlotterRecoveryState | null {
   if (
+    value?.checkpointVersion !== 2 ||
     typeof value?.jobId !== "string" ||
     !Number.isInteger(value.current) ||
     !Number.isInteger(value.total) ||
@@ -51,6 +54,8 @@ export function assertRecoveryCompatible(
       "Текст или настройки изменились. Продолжение старой траектории небезопасно.",
     );
   }
+  if (recovery.checkpointVersion !== 2 || (recovery.current !== 0 && !job.resumePoints?.includes(recovery.current)))
+    throw new Error("Сохранённая точка не подтверждена выполнением контроллера. Начните задание заново.");
   if (recovery.profile !== profile) {
     throw new Error(
       "Профиль контроллера изменился. Верните прежнюю прошивку перед продолжением.",

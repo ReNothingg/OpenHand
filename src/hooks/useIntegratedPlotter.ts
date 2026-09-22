@@ -429,7 +429,9 @@ export function useIntegratedPlotter({
       plotter.recovery &&
       plotter.recovery.jobId === job.id &&
       plotter.recovery.total === job.commands.length &&
-      plotter.recovery.current < plotter.recovery.total,
+      plotter.recovery.current < plotter.recovery.total &&
+      plotter.recovery.profile === config.profile &&
+      (plotter.recovery.current === 0 || job.resumePoints.includes(plotter.recovery.current)),
   );
   const assessDevice = useCallback(() => assessDeviceReadiness({
     connected, running, busy: busy || pending || penControl.busy || plotter.operationBusy, calibrationActive,
@@ -862,7 +864,7 @@ export function useIntegratedPlotter({
       if (
         !command ||
         command.length > 256 ||
-        /[\r\n\u0000-\u001f]/.test(command)
+        /[^\x09\x20-\x7e]/.test(command)
       ) {
         setError("Введите одну корректную команду длиной до 256 символов.");
         return Promise.resolve(false);

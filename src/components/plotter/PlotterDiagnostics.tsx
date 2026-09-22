@@ -18,6 +18,7 @@ export default function PlotterDiagnostics({ workspace }: { workspace: any }) {
           profile: workspace.config.profile, baudRate: workspace.config.baudRate },
         readiness: workspace.deviceReadiness,
         emergencyStopped: workspace.emergencyStopped, stopNotice: workspace.stopNotice,
+        recovery: workspace.plotter.recovery, recoveryWarning: workspace.plotter.recoveryWarning,
         reference: { origin: workspace.originConfirmed, pen: workspace.penReferenceConfirmed, setupPosition: workspace.penSetupPosition },
         deviceProfile: workspace.activeProfile,
         controllerCompatibility: { settingsComplete: workspace.plotter.controllerSettingsComplete, axes: workspace.controllerAxisKey, pen: workspace.controllerPenKey, workAreaConfirmed: workspace.workAreaConfirmed },

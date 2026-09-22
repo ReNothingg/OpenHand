@@ -594,7 +594,7 @@ export default function PlotterWorkshop({
                       : workspace.pause
                   }
                 >
-                  {plotter.status === "paused" ? "Продолжить" : "Пауза"}
+                  {plotter.status === "paused" ? "Продолжить передачу" : "Приостановить"}
                 </button>
               )}
               <button

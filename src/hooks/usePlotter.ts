@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { acknowledgementTimeout, controllerStillBusy } from "../plotter/acknowledgement";
 import { GRBL_SETTINGS_REQUIRED } from "../plotter/controllerFingerprint";
 import { notifyPlotter } from "../lib/notifications";
 import type { PaperChange } from "../plotter/sheetQueue";
@@ -60,12 +61,14 @@ export function usePlotter() {
   }, []);
   const [controllerEpoch, setControllerEpoch] = useState(0);
   const operationRef = useRef(false);
+  const jobActiveRef = useRef(false);
   const [operationBusy, setOperationBusy] = useState(false);
   const connectingRef = useRef(false);
   const connectionEpochRef = useRef(0);
   const cancelConnectRef = useRef(false);
   const desynchronizedRef = useRef(false);
   const [recovery, setRecovery] = useState(loadRecovery);
+  const [recoveryWarning, setRecoveryWarning] = useState("");
   const portRef = useRef(null);
   const readerRef = useRef(null);
   const writerRef = useRef(null);
@@ -118,15 +121,17 @@ export function usePlotter() {
 
   const saveRecovery = useCallback((value) => {
     if (!value) {
-      removeStoredValue(RECOVERY_KEY);
+      const removed = removeStoredValue(RECOVERY_KEY);
+      setRecoveryWarning(removed ? "" : "Не удалось очистить сохранённый прогресс. После перезапуска может появиться старая точка продолжения.");
       setRecovery(null);
       return;
     }
     const next = { ...value, updatedAt: Date.now() };
     try {
-      saveStoredValues({ [RECOVERY_KEY]: JSON.stringify(next) });
+      const saved = saveStoredValues({ [RECOVERY_KEY]: JSON.stringify(next) });
+      setRecoveryWarning(saved ? "" : "Не удалось сохранить новую точку продолжения. Не закрывайте приложение, если нужно продолжить это задание.");
     } catch {
-      /* storage may be full */
+      setRecoveryWarning("Не удалось сохранить новую точку продолжения. Не закрывайте приложение, если нужно продолжить это задание.");
     }
     setRecovery(next);
   }, []);
@@ -178,11 +183,22 @@ export function usePlotter() {
             if (!line) continue;
             if (line.startsWith("<")) {
               const report = parseGrblStatus(line, machineReportRef.current, (controllerSettingsRef.current[13] === 0 || controllerSettingsRef.current[13] === 1) ? controllerSettingsRef.current[13] === 1 : null);
-              const wasAlarm = statusReportRef.current.state === "Alarm";
+              const previousControllerState = statusReportRef.current.state;
+              const wasAlarm = previousControllerState === "Alarm";
               if (report) statusReportRef.current = {
                 sequence: statusReportRef.current.sequence + 1,
                 state: report.state,
               };
+              if (report && jobActiveRef.current && !abortRef.current && !emergencyStopRef.current) {
+                if (/^Hold(?::\d+)?$/.test(report.state)) {
+                  pausedRef.current = true;
+                  setStatus("paused");
+                } else if (/^Hold(?::\d+)?$/.test(previousControllerState) && report.state === "Run" && pausedRef.current) {
+                  pausedRef.current = false;
+                  setStatus("running");
+                  pauseWaitersRef.current.splice(0).forEach(resume => resume());
+                }
+              }
               if (report?.state === "Alarm" && !wasAlarm) {
                 abortRef.current = true;
                 setControllerEpoch((epoch) => epoch + 1);
@@ -312,6 +328,8 @@ export function usePlotter() {
 
   const sendCommand = useCallback(
     async (command, timeoutMs = commandTimeoutRef.current) => {
+      if (typeof command !== "string" || !command.trim() || /[^\x09\x20-\x7e]/.test(command))
+        throw new Error("Команда должна быть одной строкой G-code без управляющих или не-ASCII символов.");
       if (!writerRef.current) throw new Error("Плоттер не подключён.");
       if (emergencyStopRef.current) throw new Error("СТОП: управление заблокировано.");
       if (desynchronizedRef.current)
@@ -324,25 +342,33 @@ export function usePlotter() {
       const connectionEpoch = connectionEpochRef.current;
       if (command === "$$") settingsSeenRef.current = new Set();
       let pending = null;
+      const effectiveTimeout = acknowledgementTimeout(command, profileRef.current, timeoutMs);
       const acknowledgement = new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
+        let expiresAt = Date.now() + effectiveTimeout;
+        const checkTimeout = () => {
+          if (!pendingRef.current.includes(pending)) return;
           if (connectionEpochRef.current !== connectionEpoch) {
             reject(new Error("Предыдущее соединение закрыто."));
             return;
           }
-          const index = pendingRef.current.findIndex(
-            (item) => item.timeout === timeout,
-          );
+          const now = Date.now();
+          const liveBusy = profileRef.current === "grbl" && controllerStillBusy(machineReportRef.current, now);
+          if (!abortRef.current && (pausedRef.current || liveBusy)) expiresAt = now + effectiveTimeout;
+          if (now < expiresAt) {
+            pending.timeout = setTimeout(checkTimeout, Math.min(1000, expiresAt - now));
+            return;
+          }
+          const index = pendingRef.current.indexOf(pending);
           if (index >= 0) pendingRef.current.splice(index, 1);
           if (command === "$$") { settingsSeenRef.current = null; setControllerSettingsComplete(false); }
           desynchronizedRef.current = true;
-          setControllerEpoch((epoch) => epoch + 1);
+          setControllerEpoch(epoch => epoch + 1);
           abortRef.current = true;
-          if (profileRef.current === "grbl")
-            void writeRaw(new Uint8Array([33])).catch(() => {});
+          if (profileRef.current === "grbl") void writeRaw(new Uint8Array([33])).catch(() => {});
           reject(new Error(`Плоттер не ответил на команду: ${command}`));
-        }, timeoutMs);
-        pending = { resolve, reject, timeout, command };
+        };
+        pending = { resolve, reject, timeout: setTimeout(checkTimeout, effectiveTimeout), command,
+          renewDeadline: () => { expiresAt = Date.now() + effectiveTimeout; } };
         pendingRef.current.push(pending);
       });
       void acknowledgement.catch(() => {});
@@ -628,7 +654,16 @@ export function usePlotter() {
       if (operationRef.current)
         throw new Error("Дождитесь завершения текущей операции.");
       if (!writerRef.current) throw new Error("Плоттер не подключён.");
+      const requestedStart = options.startIndex ?? 0;
+      if (!Number.isInteger(requestedStart) || requestedStart < 0 ||
+          (requestedStart > 0 && (Array.isArray(jobOrCommands) || !jobOrCommands?.resumePoints?.includes(requestedStart))))
+        throw new Error("Начать можно только с подтверждённой границы штриха.");
+      if (requestedStart > 0) {
+        assertRecoveryCompatible(recovery, jobOrCommands, profileRef.current);
+        if (recovery?.current !== requestedStart) throw new Error("Эта точка продолжения не подтверждена контроллером.");
+      }
       operationRef.current = true;
+      jobActiveRef.current = true;
       setOperationBusy(true);
       const job = Array.isArray(jobOrCommands)
         ? {
@@ -660,6 +695,7 @@ export function usePlotter() {
       setProgress({ current: startIndex, total: commands.length });
       if (recoverable) {
         saveRecovery({
+          checkpointVersion: 2,
           jobId: job.id,
           current: safeCheckpoint,
           total: commands.length,
@@ -705,8 +741,17 @@ export function usePlotter() {
               total: range.end - range.start,
             });
           if (recoverable && checkpoints.has(index + 1)) {
+            // An accepted pen-up may still be queued. Persist only after the
+            // controller has drained the preceding motion, never just after ok.
+            const barrier = profileRef.current === "grbl" ? "G4P0.01" : "M400";
+            const alreadyBarrier = profileRef.current === "grbl"
+              ? /^G0?4P/i.test(commands[index].replace(/\s/g, ""))
+              : /^M400$/i.test(commands[index].trim());
+            if (!alreadyBarrier) await sendCommand(barrier, 60000);
+            if (abortRef.current) throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
             safeCheckpoint = index + 1;
             saveRecovery({
+              checkpointVersion: 2,
               jobId: job.id,
               current: safeCheckpoint,
               total: commands.length,
@@ -764,6 +809,7 @@ export function usePlotter() {
         }
         throw error;
       } finally {
+        jobActiveRef.current = false;
         cancelPaperWait();
         setPrintingSheet(null);
         setSheetProgress(null);
@@ -778,6 +824,7 @@ export function usePlotter() {
       sendCommand,
       waitWhilePaused,
       writeRaw,
+      recovery,
     ],
   );
 
@@ -808,6 +855,7 @@ export function usePlotter() {
     if (emergencyStopRef.current || status !== "paused") return;
     if (profileRef.current === "grbl") await writeRaw(new Uint8Array([126]));
     pausedRef.current = false;
+    pendingRef.current.forEach(pending => pending.renewDeadline?.());
     setStatus("running");
     pauseWaitersRef.current.splice(0).forEach((resolve) => resolve());
   }, [status, writeRaw]);
@@ -973,6 +1021,7 @@ export function usePlotter() {
     controllerSettingsComplete,
     realtime,
     recovery,
+    recoveryWarning,
     connect,
     disconnect,
     run,

@@ -216,3 +216,23 @@ job/paper-change/recovery acceptance pass. Goal remains incomplete.
 Verified GRBL planner synchronization against upstream mc_dwell (protocol_buffer_synchronize):
 https://github.com/gnea/grbl/blob/master/grbl/motion_control.c . This is controller completion,
 not evidence from a physical position sensor.
+
+## Executed recovery checkpoints and acknowledgement deadlines
+
+Recovery records now require version 2 and an actual declared stroke boundary.
+Before storing a new boundary, GRBL drains its planner through G4 and Marlin through
+M400. An accepted command alone no longer advances persisted recovery. Legacy
+accepted-only records are discarded. Failed persistence is visible in the document
+and diagnostic export. This confirms controller execution, not physical position.
+
+Acknowledgement deadlines account for explicit dwell duration and fresh GRBL busy
+reports. Pausing suspends the deadline; resuming renews it. Fresh Idle reports with
+a missing acknowledgement still fail. Controller Hold/Run changes update the job
+pause state. Command framing rejects embedded newlines and non-ASCII bytes before
+writing. Marlin pen dwell values now use milliseconds as required by its P parameter.
+
+Virtual-controller checks passed: withheld planner acknowledgement preserves the
+previous checkpoint, disconnect cannot save an unexecuted boundary, long pause and
+fresh busy reports do not lose the queue, Idle missing-ACK still times out, invalid
+recovery points and command framing are rejected. No physical-device I/O was used.
+Remaining acceptance work listed above is still required; the overall goal is open.

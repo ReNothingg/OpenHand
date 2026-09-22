@@ -1613,7 +1613,7 @@ export function compilePlotJob(strokes, config) {
     commands.push(penCommand(up, config, pressure));
     const delay = penDelay(up, config);
     if (config.profile !== "ebb" && delay > 0)
-      commands.push(`G4P${number(delay)}`);
+      commands.push(`G4P${number(config.profile === "marlin" ? delay * 1000 : delay)}`);
   };
   let current = { x: 0, y: 0 };
   const residue = { x: 0, y: 0 };
