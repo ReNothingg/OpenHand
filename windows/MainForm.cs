@@ -6,7 +6,7 @@ using Microsoft.Web.WebView2.WinForms;
 
 namespace OpenHand;
 
-internal sealed class MainForm : Form
+internal sealed class MainForm : Form, IMessageFilter
 {
     private const string ApplicationHost = "app.openhand.local";
     private const long MaximumDocumentBytes = 64L * 1024 * 1024;
@@ -32,6 +32,7 @@ internal sealed class MainForm : Form
     private string _menuAppearance = "system";
     private bool _runtimeReady;
     private bool _loadingErrorShown;
+    private bool _escapePressed;
 
     public MainForm(string? initialDocument)
     {
@@ -75,6 +76,12 @@ internal sealed class MainForm : Form
         MainMenuStrip = menu;
         Controls.Add(menu);
 
+        var plotterMenu = new ToolStripMenuItem("Плоттер");
+        var stopItem = new ToolStripMenuItem("СТОП — отменить движения") { ShortcutKeys = Keys.Control | Keys.OemPeriod };
+        stopItem.Click += async (_, _) => { if (_nativeBridge is { } bridge) await bridge.StopFromNativeUIAsync(); };
+        plotterMenu.DropDownItems.Add(stopItem);
+        menu.Items.Add(plotterMenu);
+        Application.AddMessageFilter(this);
         LoadApplicationIcon();
         Shown += async (_, _) => await InitializeWebViewAsync();
         DragEnter += HandleDragEnter;
@@ -157,6 +164,17 @@ internal sealed class MainForm : Form
         var core = _webView.CoreWebView2;
         ConfigureWebView(core, webRoot);
         _nativeBridge = new NativeBridge(this, core, ApplyWindowTheme);
+        _webView.KeyDown += (_, args) => {
+            if (args.KeyCode != Keys.Escape || _nativeBridge?.HasActiveConnection != true) return;
+            args.Handled = true;
+            if (!_escapePressed) {
+                _escapePressed = true;
+                _nativeBridge.LatchEmergencyStop();
+                BeginInvoke(new Action(() => { _ = _nativeBridge.StopFromNativeUIAsync(); }));
+            }
+        };
+        _webView.KeyUp += (_, args) => { if (args.KeyCode == Keys.Escape) _escapePressed = false; };
+        _webView.LostFocus += (_, _) => _escapePressed = false;
         core.WebMessageReceived += _nativeBridge.HandleWebMessage;
         core.WebMessageReceived += ReceiveMenuState;
         await core.AddScriptToExecuteOnDocumentCreatedAsync(
@@ -553,10 +571,20 @@ internal sealed class MainForm : Form
         }
     }
 
+    public bool PreFilterMessage(ref Message message)
+    {
+        // Common file dialogs run their own message loop; Form.KeyDown misses it.
+        if (message.Msg is not (0x100 or 0x104) || message.WParam.ToInt64() != (long)Keys.Escape ||
+            _nativeBridge?.HasActiveConnection != true) return false;
+        if ((message.LParam.ToInt64() & (1L << 30)) == 0) _ = _nativeBridge.StopFromNativeUIAsync();
+        return true;
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            Application.RemoveMessageFilter(this);
             if (_webView.CoreWebView2 is not null && _nativeBridge is not null)
             {
                 _webView.CoreWebView2.WebMessageReceived -=

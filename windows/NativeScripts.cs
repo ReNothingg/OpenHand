@@ -16,6 +16,7 @@ internal static class NativeScripts
           let stopPending = null;
           let writesStopped = false;
           let stopGeneration = 0;
+          const nativeStops = new Map();
 
           function bytesToBase64(bytes) {
             let binary = "";
@@ -206,6 +207,24 @@ internal static class NativeScripts
           };
           serial.getPorts = async () => [];
 
+          Object.defineProperty(window, "__openhandNativeStopStarted", { value: ({ token }) => {
+            writesStopped = true;
+            ++stopGeneration;
+            if (!stopPending) {
+              let resolve, reject;
+              const request = new Promise((yes, no) => { resolve = yes; reject = no; });
+              stopPending = request;
+              nativeStops.set(token, { resolve, reject });
+              const clear = () => { if (stopPending === request) stopPending = null; nativeStops.delete(token); };
+              request.then(clear, clear);
+            }
+            window.dispatchEvent(new Event("openhand:native-stop"));
+          } });
+          Object.defineProperty(window, "__openhandNativeStopFinished", { value: ({ token, error }) => {
+            const request = nativeStops.get(token);
+            if (error) request?.reject(new Error(error));
+            else request?.resolve({ sent: true });
+          } });
           Object.defineProperty(window, "__openhandEmergencyStop", { value: profile => {
             writesStopped = true;
             ++stopGeneration;
@@ -224,7 +243,7 @@ internal static class NativeScripts
             if (stopPending) throw new Error("Остановка ещё выполняется.");
             writesStopped = false;
           } });
-          Object.defineProperty(window, "__openhandBridgeVersion", { value: 3 });
+          Object.defineProperty(window, "__openhandBridgeVersion", { value: 4 });
           Object.defineProperty(window, "__openhandNativePlatform", {
             value: "windows",
             configurable: false,

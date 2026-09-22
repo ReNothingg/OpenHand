@@ -71,6 +71,84 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         }
     }
 
+    private var stopWaiters: [SerialConnection.Completion] = []
+    private var nativeStopInFlight = false
+    private var escapeMonitor: Any?
+    var hasActiveConnection: Bool { activeTransport != nil }
+
+    func installEmergencyKeys() {
+        guard escapeMonitor == nil else { return }
+        escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.hasActiveConnection, event.keyCode == 53,
+                  let owner = self.webView?.window else { return event }
+            var window = event.window
+            while let parent = window?.sheetParent { window = parent }
+            guard window === owner else { return event }
+            if !event.isARepeat { self.stopFromNativeUI() }
+            return nil
+        }
+    }
+
+    func removeEmergencyKeys() {
+        if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
+        escapeMonitor = nil
+    }
+
+    func stopFromNativeUI() {
+        guard !nativeStopInFlight else { return }
+        nativeStopInFlight = true
+        // Block writes synchronously, before waiting for the web process.
+        emergencyStopped = true
+        let token = UUID().uuidString
+        callJavaScript(function: "window.__openhandNativeStopStarted", payload: ["token": token])
+        performEmergencyStop(profile: nil) { [weak self] result in
+            guard let self else { return }
+            self.nativeStopInFlight = false
+            var payload: [String: Any] = ["token": token]
+            if case let .failure(error) = result { payload["error"] = error.localizedDescription }
+            self.callJavaScript(function: "window.__openhandNativeStopFinished", payload: payload)
+        }
+    }
+
+    private func performEmergencyStop(profile: String?, completion: @escaping SerialConnection.Completion) {
+        if emergencyInFlight { stopWaiters.append(completion); return }
+        let data: Data
+        switch lastProtocol ?? profile {
+        case "grbl": data = Data([0x85, 0x21, 0x18])
+        case "marlin": data = Data("M410\n".utf8)
+        case "ebb": data = Data("R\r\n".utf8)
+        default: completion(.failure(NSError(domain: "OpenHand", code: 1, userInfo: [NSLocalizedDescriptionKey: "Неизвестный протокол остановки."]))); return
+        }
+        emergencyStopped = true
+        emergencyInFlight = true
+        stopWaiters.append(completion)
+        let finish: SerialConnection.Completion = { [weak self] result in
+            guard let self else { return }
+            self.emergencyInFlight = false
+            let waiters = self.stopWaiters
+            self.stopWaiters.removeAll()
+            waiters.forEach { $0(result) }
+        }
+        if lastRequestedTransport == "network" {
+            tcp.write(data, completion: finish)
+        } else if let saved = lastSerialOpen {
+            serial.write(data) { [weak self] result in
+                guard let self else { return }
+                if case .success = result { finish(result); return }
+                // Recover only the explicitly selected port. No discovery,
+                // configuration commands, DTR pulse, homing or job replay.
+                self.serial.open(path: saved.path, options: saved.options) { [weak self] opened in
+                    guard let self else { return }
+                    if case .failure = opened { finish(opened); return }
+                    self.activeTransport = "serial"
+                    self.serial.write(data, completion: finish)
+                }
+            }
+        } else {
+            finish(.failure(NSError(domain: "OpenHand", code: 2, userInfo: [NSLocalizedDescriptionKey: "USB-порт ещё не выбран. Не удалось передать СТОП."])))
+        }
+    }
+
     private func handleSerialMessage(_ body: Any) {
         guard let payload = body as? [String: Any],
               let requestID = payload["id"] as? NSNumber,
@@ -197,41 +275,11 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             resolve(id, result: ["released": true])
 
         case "emergencyStop":
-            guard !emergencyInFlight else { reject(id, message: "Остановка уже выполняется."); return }
-            let data: Data
-            switch lastProtocol ?? (payload["profile"] as? String) {
-            case "grbl": data = Data([0x85, 0x21, 0x18])
-            case "marlin": data = Data("M410\n".utf8)
-            case "ebb": data = Data("R\r\n".utf8)
-            default: reject(id, message: "Неизвестный протокол остановки."); return
-            }
-            emergencyStopped = true
-            emergencyInFlight = true
-            let finish: SerialConnection.Completion = { [weak self] result in
-                self?.emergencyInFlight = false
+            performEmergencyStop(profile: payload["profile"] as? String) { [weak self] result in
                 switch result {
                 case .success: self?.resolve(id, result: ["sent": true])
                 case let .failure(error): self?.reject(id, error: error)
                 }
-            }
-            if lastRequestedTransport == "network" {
-                tcp.write(data, completion: finish)
-            } else if let saved = lastSerialOpen {
-                serial.write(data) { [weak self] result in
-                    guard let self else { return }
-                    if case .success = result { finish(result); return }
-                    // Recover only the explicitly selected port. No discovery,
-                    // configuration commands, DTR pulse, homing or job replay.
-                    self.serial.open(path: saved.path, options: saved.options) { [weak self] opened in
-                        guard let self else { return }
-                        if case .failure = opened { finish(opened); return }
-                        self.activeTransport = "serial"
-                        self.serial.write(data, completion: finish)
-                    }
-                }
-            } else {
-                emergencyInFlight = false
-                reject(id, message: "USB-порт ещё не выбран. Не удалось передать СТОП.")
             }
 
         case "setSignals":

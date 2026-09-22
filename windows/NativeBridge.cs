@@ -48,6 +48,71 @@ internal sealed class NativeBridge : IDisposable
         };
     }
 
+    public void LatchEmergencyStop() => _emergencyStopped = true;
+    public bool HasActiveConnection => _activeTransport is not null;
+    private Task? _stopTask;
+    private bool _nativeStopInFlight;
+
+    public async Task StopFromNativeUIAsync()
+    {
+        if (_nativeStopInFlight) return;
+        _nativeStopInFlight = true;
+        _emergencyStopped = true;
+        var token = Guid.NewGuid().ToString();
+        // Script notification never gates the transport write.
+        NotifyNativeStop("Started", new { token });
+        string? error = null;
+        try { await PerformEmergencyStopAsync(null); }
+        catch (Exception failure) { error = failure.Message; }
+        finally
+        {
+            _nativeStopInFlight = false;
+            NotifyNativeStop("Finished", new { token, error });
+        }
+    }
+
+    private async void NotifyNativeStop(string phase, object payload)
+    {
+        try { await _webView.ExecuteScriptAsync($"window.__openhandNativeStop{phase}?.({JsonSerializer.Serialize(payload)});"); }
+        catch (Exception) { /* Native writes remain independent of the web process. */ }
+    }
+
+    private Task PerformEmergencyStopAsync(string? profile)
+    {
+        if (_stopTask is { IsCompleted: false }) return _stopTask;
+        _stopTask = SendEmergencyStopAsync(profile);
+        return _stopTask;
+    }
+
+    private async Task SendEmergencyStopAsync(string? profile)
+    {
+        _emergencyStopped = true;
+        byte[] bytes = (_lastProtocol ?? profile) switch
+        {
+            "grbl" => new byte[] { 0x85, 0x21, 0x18 },
+            "marlin" => System.Text.Encoding.ASCII.GetBytes("M410\n"),
+            "ebb" => System.Text.Encoding.ASCII.GetBytes("R\r\n"),
+            _ => throw new ArgumentException("Неизвестный протокол остановки.")
+        };
+        _emergencyInFlight = true;
+        try
+        {
+            if (_lastRequestedTransport == "network") await _network.WriteAsync(bytes);
+            else if (_lastSerialOpen is { } saved)
+            {
+                try { await _serial.EmergencyWriteAsync(bytes); }
+                catch (Exception error) when (error is IOException or InvalidOperationException)
+                {
+                    await _serial.OpenAsync(saved);
+                    _activeTransport = "serial";
+                    await _serial.EmergencyWriteAsync(bytes);
+                }
+            }
+            else throw new InvalidOperationException("USB-порт ещё не выбран. Не удалось передать СТОП.");
+        }
+        finally { _emergencyInFlight = false; }
+    }
+
     public async void HandleWebMessage(
         object? sender,
         CoreWebView2WebMessageReceivedEventArgs eventArgs)
@@ -179,33 +244,8 @@ internal sealed class NativeBridge : IDisposable
                     break;
                 case "emergencyStop":
                 {
-                    if (_emergencyInFlight) throw new InvalidOperationException("Остановка уже выполняется.");
-                    byte[] bytes = (_lastProtocol ?? GetRequiredString(payload, "profile")) switch
-                    {
-                        "grbl" => new byte[] { 0x85, 0x21, 0x18 },
-                        "marlin" => System.Text.Encoding.ASCII.GetBytes("M410\n"),
-                        "ebb" => System.Text.Encoding.ASCII.GetBytes("R\r\n"),
-                        _ => throw new ArgumentException("Неизвестный протокол остановки.")
-                    };
-                    _emergencyStopped = true;
-                    _emergencyInFlight = true;
-                    try
-                    {
-                    if (_lastRequestedTransport == "network") await _network.WriteAsync(bytes);
-                    else if (_lastSerialOpen is { } saved)
-                    {
-                        try { await _serial.EmergencyWriteAsync(bytes); }
-                        catch (Exception error) when (error is IOException or InvalidOperationException)
-                        {
-                            await _serial.OpenAsync(saved);
-                            _activeTransport = "serial";
-                            await _serial.EmergencyWriteAsync(bytes);
-                        }
-                    }
-                    else throw new InvalidOperationException("USB-порт ещё не выбран. Не удалось передать СТОП.");
+                    await PerformEmergencyStopAsync(GetOptionalString(payload, "profile", ""));
                     Resolve(id, new { sent = true });
-                    }
-                    finally { _emergencyInFlight = false; }
                     break;
                 }
                 case "write":

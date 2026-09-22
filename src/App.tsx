@@ -695,8 +695,13 @@ export default function App() {
       event.preventDefault();
       void plotterWorkspace.stop();
     };
+    const nativeStop = () => { void plotterWorkspace.stop(); };
     window.addEventListener("keydown", emergencyKey, true);
-    return () => window.removeEventListener("keydown", emergencyKey, true);
+    window.addEventListener("openhand:native-stop", nativeStop);
+    return () => {
+      window.removeEventListener("keydown", emergencyKey, true);
+      window.removeEventListener("openhand:native-stop", nativeStop);
+    };
   }, [plotterWorkspace.stop]);
   useEffect(() => {
     if (plotterWorkspace.running) {

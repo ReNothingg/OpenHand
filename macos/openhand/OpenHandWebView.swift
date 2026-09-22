@@ -24,6 +24,7 @@ private let serialShim = #"""
   let stopPending = null;
   let writesStopped = false;
   let stopGeneration = 0;
+  const nativeStops = new Map();
 
   function bytesToBase64(bytes) {
     let binary = "";
@@ -196,6 +197,24 @@ private let serialShim = #"""
   };
   serial.getPorts = async () => [];
 
+  Object.defineProperty(window, "__openhandNativeStopStarted", { value: ({ token }) => {
+    writesStopped = true;
+    ++stopGeneration;
+    if (!stopPending) {
+      let resolve, reject;
+      const request = new Promise((yes, no) => { resolve = yes; reject = no; });
+      stopPending = request;
+      nativeStops.set(token, { resolve, reject });
+      const clear = () => { if (stopPending === request) stopPending = null; nativeStops.delete(token); };
+      request.then(clear, clear);
+    }
+    window.dispatchEvent(new Event("openhand:native-stop"));
+  } });
+  Object.defineProperty(window, "__openhandNativeStopFinished", { value: ({ token, error }) => {
+    const request = nativeStops.get(token);
+    if (error) request?.reject(new Error(error));
+    else request?.resolve({ sent: true });
+  } });
   Object.defineProperty(window, "__openhandEmergencyStop", { value: profile => {
     writesStopped = true;
     ++stopGeneration;
@@ -214,7 +233,7 @@ private let serialShim = #"""
     if (stopPending) throw new Error("Остановка ещё выполняется.");
     writesStopped = false;
   } });
-  Object.defineProperty(window, "__openhandBridgeVersion", { value: 3 });
+  Object.defineProperty(window, "__openhandBridgeVersion", { value: 4 });
   Object.defineProperty(window, "__openhandNativePlatform", {
     value: "macos",
     configurable: false,
@@ -296,6 +315,7 @@ struct OpenHandWebView: NSViewRepresentable {
 #endif
 
         context.coordinator.bridge.webView = webView
+        context.coordinator.bridge.installEmergencyKeys()
         context.coordinator.webView = webView
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.changeWorkspace(_:)), name: Notification.Name("OpenHandWorkspace"), object: nil)
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.menuCommand(_:)), name: Notification.Name("OpenHandMenuCommand"), object: nil)
@@ -312,6 +332,7 @@ struct OpenHandWebView: NSViewRepresentable {
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
         NotificationCenter.default.removeObserver(coordinator, name: Notification.Name("OpenHandWorkspace"), object: nil)
         NotificationCenter.default.removeObserver(coordinator, name: Notification.Name("OpenHandMenuCommand"), object: nil)
+        coordinator.bridge.removeEmergencyKeys()
         let controller = webView.configuration.userContentController
         controller.removeScriptMessageHandler(forName: "serialBridge")
         controller.removeScriptMessageHandler(forName: "fileBridge")
@@ -336,9 +357,11 @@ struct OpenHandWebView: NSViewRepresentable {
         }
 
         @objc func menuCommand(_ notification: Notification) {
-            guard let webView, let window = webView.window, window.isKeyWindow,
+            guard let webView, let window = webView.window, (window.isKeyWindow || window.attachedSheet?.isKeyWindow == true),
                   let action = notification.object as? String else { return }
-            if action == "open" {
+            if action == "stop" {
+                bridge.stopFromNativeUI()
+            } else if action == "open" {
                 let panel = NSOpenPanel()
                 panel.allowedContentTypes = ["gcode", "nc", "tap"].compactMap { UTType(filenameExtension: $0) }
                 panel.allowsMultipleSelection = false

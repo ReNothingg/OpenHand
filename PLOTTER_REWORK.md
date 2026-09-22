@@ -236,3 +236,26 @@ previous checkpoint, disconnect cannot save an unexecuted boundary, long pause a
 fresh busy reports do not lose the queue, Idle missing-ACK still times out, invalid
 recovery points and command framing are rejected. No physical-device I/O was used.
 Remaining acceptance work listed above is still required; the overall goal is open.
+
+## Native Escape and menu STOP
+
+Bridge version 4 adds a native STOP entry point, independent of JavaScript response.
+macOS monitors Escape in the owning window and its sheet hierarchy while connected;
+Windows handles WebView key events and the common-dialog message loop. Both expose
+a native Plotter > STOP menu item. Repeat keydown is suppressed. Native-origin stop
+notifications join the existing JS stop promise; concurrent web/native calls share
+the native write, and new writes remain latched until explicit release.
+
+Evidence: actual embedded Mac/Windows shims executed in VM verified native-origin
+join, overlapping web STOP, release denial during STOP, and delivery-error propagation.
+Extracted actual Swift stop methods with fake transports verified immediate latch,
+exact protocol bytes, coalescence, saved-port failure and network dispatch. An isolated
+macOS GUI fixture using the actual Escape monitor received Escape
+through computer-use in a real NSOpenPanel sheet: native-stop-started was recorded
+while the sheet remained open. The fixture had no physical serial implementation.
+macOS build, Windows cross-build and 153-file web parity passed. Windows native UI
+execution was not available on this Mac; compilation is not runtime UI evidence.
+
+Still outstanding: quit/window-close handling, port ownership and Windows cached-port
+parity, manual XY bounds/canonical modal setup, setup discoverability, and final full
+job/paper-change/recovery acceptance. This checkpoint does not complete the goal.

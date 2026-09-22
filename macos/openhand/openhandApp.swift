@@ -49,6 +49,10 @@ struct openhandApp: App {
                 Button("Печать…") { state.command("print") }.keyboardShortcut("p")
                     .disabled(!state.ready || state.workspace != "document")
             }
+            CommandMenu("Плоттер") {
+                Button("СТОП — отменить движения") { state.command("stop") }
+                    .keyboardShortcut(".", modifiers: [.command])
+            }
             CommandMenu("Рабочее пространство") {
                 Toggle("Документ", isOn: Binding(get: { state.workspace == "document" }, set: { _ in state.select("document") }))
                     .keyboardShortcut("1", modifiers: [.command, .shift]).disabled(!state.ready || state.locked)

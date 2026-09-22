@@ -404,7 +404,7 @@ export function usePlotter() {
         throw new Error("Сначала дождитесь завершения СТОП и разрешите управление.");
       if (writerRef.current || operationRef.current || connectingRef.current)
         throw new Error("Сначала закройте текущее соединение.");
-      if (typeof window !== "undefined" && window.__openhandNativePlatform && (window.__openhandBridgeVersion ?? 0) < 3)
+      if (typeof window !== "undefined" && window.__openhandNativePlatform && (window.__openhandBridgeVersion ?? 0) < 4)
         throw new Error("Открыта старая версия OpenHand. Полностью закройте приложение и запустите новую сборку.");
       if (!supported)
         throw new Error(
