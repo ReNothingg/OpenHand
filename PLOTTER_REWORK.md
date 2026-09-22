@@ -543,3 +543,23 @@ removed the origin restriction. The trace had no Z reference assignment. Key-rep
 guards cover the added motion entry points. Temporary fixtures were removed before
 commit. npm run build (including macOS), Windows cross-build, web parity (153 files)
 and git diff --check passed. No physical device was connected by these checks.
+
+## Independently unpacked the official macOS KDraw package
+
+Downloaded the actual macOS package linked by the vendor, extracted xar/Payload
+without running installer scripts, and decoded its Java classes. version.xml says
+3.9.6/build 188; this is not the already examined Linux 3.9.8. Rechecked the pen,
+zero, reset, normal pause/completion, queue and server-generation paths with JADX
+and javap. The equivalent wire behavior is confirmed in both; queue classes moved
+from machine.g to machine.f. The archive and JAR hashes plus exact boundaries are
+recorded in KDRAW_PROTOCOL.md. No vendor executable or library was run, and no
+user document/account was sent to the vendor service.
+
+New comparison boundaries: buffered KDraw sending can avoid per-line round trips,
+but its ordinary pause also queues pen-up behind existing data. OpenHand currently
+uses send-response and completed-stroke barriers. Upstream GRBL documents both
+throughput tradeoffs and the hazard of already-buffered commands after an error;
+EEPROM writes must remain serialized. This is a remaining transport/performance
+audit item, not proof that buffering caused the user's pressure incident. Reviewed
+frames of IMG_0300.MOV; they do not establish an idle-induced spring return or
+calibrated vertical scale. Firmware retention settings remain untouched.
