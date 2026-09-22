@@ -17,6 +17,8 @@ internal sealed class NativeBridge : IDisposable
     private string? _lastStopFailure;
     private bool _pageTransitionPending;
     private string? _activeTransport;
+    private string? _activeConnectionId;
+    private bool _transportClosing;
     private string? _lastRequestedTransport;
     private string? _lastProtocol;
     private SerialOpenOptions? _lastSerialOpen;
@@ -25,7 +27,7 @@ internal sealed class NativeBridge : IDisposable
     private int _openingCount;
     private int _openGeneration;
     private Task? _closeTask;
-    public bool NeedsShutdown => HasActiveConnection || _openingCount > 0 || _emergencyInFlight || _closeTask is { IsCompleted: false };
+    public bool NeedsShutdown => _transportClosing || HasActiveConnection || _openingCount > 0 || _emergencyInFlight || _closeTask is { IsCompleted: false };
     public bool NeedsPageTransitionStop => HasActiveConnection || _openingCount > 0 || _emergencyInFlight;
 
     public async Task PrepareForPageChangeAsync()
@@ -49,24 +51,10 @@ internal sealed class NativeBridge : IDisposable
         _owner = owner;
         _webView = webView;
         _applyWindowTheme = applyWindowTheme;
-        _serial.DataReceived += data => PostSerial("receive", new
-        {
-            data = Convert.ToBase64String(data)
-        });
-        _serial.Disconnected += reason =>
-        {
-            _activeTransport = null;
-            PostSerial("disconnected", new { error = reason });
-        };
-        _network.DataReceived += data => PostSerial("receive", new
-        {
-            data = Convert.ToBase64String(data)
-        });
-        _network.Disconnected += reason =>
-        {
-            _activeTransport = null;
-            PostSerial("disconnected", new { error = reason });
-        };
+        _serial.DataReceived += (connectionId, data) => PostConnectionEvent("receive", connectionId, data);
+        _serial.Disconnected += (connectionId, reason) => PostConnectionEvent("disconnected", connectionId, reason);
+        _network.DataReceived += (connectionId, data) => PostConnectionEvent("receive", connectionId, data);
+        _network.Disconnected += (connectionId, reason) => PostConnectionEvent("disconnected", connectionId, reason);
     }
 
     public void LatchEmergencyStop() => _emergencyStopped = true;
@@ -125,7 +113,7 @@ internal sealed class NativeBridge : IDisposable
             deadline.Token.ThrowIfCancellationRequested();
             await _network.CloseAsync().WaitAsync(deadline.Token);
             _activeTransport = null;
-            PostSerial("disconnected", new { error = "Соединение закрыто перед выходом." });
+            if (_activeConnectionId is { } closedId) PostConnectionEvent("disconnected", closedId, "Соединение закрыто перед выходом.");
         }
         catch (OperationCanceledException)
         {
@@ -169,9 +157,13 @@ internal sealed class NativeBridge : IDisposable
             else if (_lastSerialOpen is { } saved)
             {
                 try { await _serial.EmergencyWriteAsync(bytes); }
-                catch (Exception error) when ((error is IOException or InvalidOperationException) && !_closingRequested && !_pageTransitionPending)
+                catch (Exception error) when ((error is IOException or InvalidOperationException) && !_closingRequested && !_pageTransitionPending && !_transportClosing)
                 {
-                    await _serial.OpenAsync(saved);
+                    if (_activeConnectionId is { } oldId) PostConnectionEvent("disconnected", oldId, "Предыдущее соединение закрыто при восстановлении СТОП.");
+                    var stopSession = "stop:" + Guid.NewGuid().ToString("N");
+                    _activeConnectionId = stopSession;
+                    try { await _serial.OpenAsync(saved, stopSession); }
+                    catch { if (_activeConnectionId == stopSession) _activeConnectionId = null; throw; }
                     _activeTransport = "serial";
                     await _serial.EmergencyWriteAsync(bytes);
                 }
@@ -247,6 +239,16 @@ internal sealed class NativeBridge : IDisposable
             var action = GetRequiredString(payload, "action");
             if ((_closingRequested || _pageTransitionPending) && action is "open" or "openNetwork" or "write" or "setSignals" or "releaseEmergencyStop" or "requestPort")
                 throw new InvalidOperationException("Интерфейс или соединение перезапускается. Новые команды заблокированы.");
+            var connectionId = GetOptionalString(payload, "connectionId", "");
+            if (action is "open" or "openNetwork" or "write" or "setSignals" or "close")
+            {
+                if (connectionId.Length is 0 or > 128) throw new InvalidDataException("Не указан идентификатор соединения.");
+                if ((action is "write" or "setSignals" or "close") && connectionId != _activeConnectionId)
+                {
+                    if (action == "close") { Resolve(id, new { closed = true }); return; }
+                    throw new IOException("Предыдущее соединение уже закрыто. Подключитесь заново.");
+                }
+            }
             switch (action)
             {
                 case "sessionState":
@@ -283,6 +285,7 @@ internal sealed class NativeBridge : IDisposable
                 case "open":
                 {
                     if (_emergencyStopped) throw new InvalidOperationException("СТОП: сначала разрешите управление.");
+                    if (_transportClosing) throw new InvalidOperationException("Дождитесь закрытия предыдущего соединения.");
                     if (_openingCount != 0) throw new InvalidOperationException("Подключение ещё выполняется.");
                     if (_emergencyInFlight) throw new InvalidOperationException("Остановка ещё выполняется.");
                     var options = new SerialOpenOptions(
@@ -291,6 +294,7 @@ internal sealed class NativeBridge : IDisposable
                         ParseParity(GetOptionalString(payload, "parity", "none")),
                         ParseHandshake(GetOptionalString(payload, "flowControl", "none")));
                     var generation = _openGeneration;
+                    _activeConnectionId = connectionId;
                     ++_openingCount;
                     try
                     {
@@ -299,26 +303,29 @@ internal sealed class NativeBridge : IDisposable
                         if (generation != _openGeneration) throw new OperationCanceledException("Подключение отменено закрытием.");
                         _lastSerialOpen = options;
                         _lastRequestedTransport = "serial";
-                        await _serial.OpenAsync(options);
-                        if (generation != _openGeneration)
+                        await _serial.OpenAsync(options, connectionId);
+                        if (generation != _openGeneration || _activeConnectionId != connectionId)
                         {
-                            await _serial.CloseAsync();
+                            await _serial.CloseAsync(connectionId);
                             throw new OperationCanceledException("Подключение отменено закрытием.");
                         }
                         _activeTransport = "serial";
                         Resolve(id, new { opened = true });
                     }
+                    catch { if (_activeConnectionId == connectionId) { _activeConnectionId = null; _activeTransport = null; } throw; }
                     finally { --_openingCount; }
                     break;
                 }
                 case "openNetwork":
                 {
                     if (_emergencyStopped) throw new InvalidOperationException("СТОП: сначала разрешите управление.");
+                    if (_transportClosing) throw new InvalidOperationException("Дождитесь закрытия предыдущего соединения.");
                     if (_openingCount != 0) throw new InvalidOperationException("Подключение ещё выполняется.");
                     if (_emergencyInFlight) throw new InvalidOperationException("Остановка ещё выполняется.");
                     var host = GetRequiredString(payload, "host");
                     var port = GetRequiredInt32(payload, "port");
                     var generation = _openGeneration;
+                    _activeConnectionId = connectionId;
                     ++_openingCount;
                     try
                     {
@@ -326,15 +333,16 @@ internal sealed class NativeBridge : IDisposable
                         await _serial.CloseAsync();
                         if (generation != _openGeneration) throw new OperationCanceledException("Подключение отменено закрытием.");
                         _lastRequestedTransport = "network";
-                        await _network.OpenAsync(host, port);
-                        if (generation != _openGeneration)
+                        await _network.OpenAsync(host, port, connectionId);
+                        if (generation != _openGeneration || _activeConnectionId != connectionId)
                         {
-                            await _network.CloseAsync();
+                            await _network.CloseAsync(connectionId);
                             throw new OperationCanceledException("Подключение отменено закрытием.");
                         }
                         _activeTransport = "network";
                         Resolve(id, new { opened = true });
                     }
+                    catch { if (_activeConnectionId == connectionId) { _activeConnectionId = null; _activeTransport = null; } throw; }
                     finally { --_openingCount; }
                     break;
                 }
@@ -356,8 +364,8 @@ internal sealed class NativeBridge : IDisposable
                     if (_emergencyStopped && !(data.Length == 1 && data[0] == 0x3f))
                         throw new InvalidOperationException("СТОП: отправка команд заблокирована.");
                     var written = _activeTransport == "network"
-                        ? await _network.WriteAsync(data)
-                        : await _serial.WriteAsync(data);
+                        ? await _network.WriteAsync(data, connectionId)
+                        : await _serial.WriteAsync(data, connectionId);
                     Resolve(id, new { written });
                     break;
                 }
@@ -366,15 +374,21 @@ internal sealed class NativeBridge : IDisposable
                     {
                         _serial.SetSignals(
                             GetOptionalBoolean(payload, "dataTerminalReady"),
-                            GetOptionalBoolean(payload, "requestToSend"));
+                            GetOptionalBoolean(payload, "requestToSend"), connectionId);
                     }
                     Resolve(id, new { updated = true });
                     break;
                 case "close":
-                    await _serial.CloseAsync();
-                    await _network.CloseAsync();
-                    _activeTransport = null;
-                    Resolve(id, new { closed = true });
+                    _transportClosing = true;
+                    ++_openGeneration;
+                    try
+                    {
+                        await _serial.CloseAsync(connectionId);
+                        await _network.CloseAsync(connectionId);
+                        if (_activeConnectionId == connectionId) { _activeTransport = null; _activeConnectionId = null; }
+                        Resolve(id, new { closed = true });
+                    }
+                    finally { _transportClosing = false; }
                     break;
                 default:
                     Reject(
@@ -464,6 +478,22 @@ internal sealed class NativeBridge : IDisposable
     private void Reject(string id, string error)
     {
         PostSerial("resolve", new { id, error });
+    }
+
+    private void PostConnectionEvent(string type, string connectionId, object value)
+    {
+        if (_owner.IsDisposed || !_owner.IsHandleCreated) return;
+        void Deliver()
+        {
+            // Check after UI dispatch, not just when the background read completed.
+            if (_owner.IsDisposed || _activeConnectionId != connectionId) return;
+            if (type == "disconnected") { _activeConnectionId = null; _activeTransport = null; }
+            PostSerial(type, type == "receive"
+                ? new { connectionId, data = Convert.ToBase64String((byte[])value) } as object
+                : new { connectionId, error = (string)value });
+        }
+        if (_owner.InvokeRequired) _owner.BeginInvoke(Deliver);
+        else Deliver();
     }
 
     private void PostSerial(string type, object payload)

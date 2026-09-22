@@ -2,8 +2,8 @@ import Foundation
 import Network
 
 final class TcpConnection: @unchecked Sendable {
-    typealias DataHandler = @MainActor @Sendable (Data) -> Void
-    typealias DisconnectHandler = @MainActor @Sendable (String) -> Void
+    typealias DataHandler = @MainActor @Sendable (String, Data) -> Void
+    typealias DisconnectHandler = @MainActor @Sendable (String, String) -> Void
     typealias Completion = @MainActor @Sendable (Result<Void, Error>) -> Void
     typealias CloseCompletion = @MainActor @Sendable () -> Void
 
@@ -11,11 +11,12 @@ final class TcpConnection: @unchecked Sendable {
     private var connection: NWConnection?
     private var openCompletion: Completion?
     private var manuallyClosing = false
+    private var sessionID: String?
 
     var onData: DataHandler?
     var onDisconnect: DisconnectHandler?
 
-    func open(host: String, port: Int, completion: @escaping Completion) {
+    func open(host: String, port: Int, sessionID: String = UUID().uuidString, completion: @escaping Completion) {
         queue.async { [weak self] in
             guard let self else { return }
             self.closeLocked()
@@ -36,6 +37,7 @@ final class TcpConnection: @unchecked Sendable {
                 using: .tcp
             )
             self.connection = connection
+            self.sessionID = sessionID
             self.openCompletion = completion
             self.manuallyClosing = false
             connection.stateUpdateHandler = { [weak self, weak connection] state in
@@ -46,10 +48,10 @@ final class TcpConnection: @unchecked Sendable {
         }
     }
 
-    func write(_ data: Data, completion: @escaping Completion) {
+    func write(_ data: Data, sessionID: String? = nil, completion: @escaping Completion) {
         queue.async { [weak self] in
             guard let self else { return }
-            guard let connection = self.connection else {
+            guard let connection = self.connection, sessionID == nil || sessionID == self.sessionID else {
                 self.complete(.failure(self.error("TCP-соединение не открыто.")), completion)
                 return
             }
@@ -64,9 +66,13 @@ final class TcpConnection: @unchecked Sendable {
         }
     }
 
-    func close(completion: CloseCompletion? = nil) {
+    func close(sessionID: String? = nil, completion: CloseCompletion? = nil) {
         queue.async { [weak self] in
             guard let self else { return }
+            if let sessionID, self.sessionID != sessionID {
+                if let completion { DispatchQueue.main.async(execute: completion) }
+                return
+            }
             self.manuallyClosing = true
             self.closeLocked()
             guard let completion else { return }
@@ -100,8 +106,8 @@ final class TcpConnection: @unchecked Sendable {
             maximumLength: 65_536
         ) { [weak self, weak candidate] data, _, complete, error in
             guard let self, let candidate, self.connection === candidate else { return }
-            if let data, !data.isEmpty, let handler = self.onData {
-                DispatchQueue.main.async { handler(data) }
+            if let data, !data.isEmpty, let sessionID = self.sessionID, let handler = self.onData {
+                DispatchQueue.main.async { handler(sessionID, data) }
             }
             if let error {
                 self.fail(candidate, error: error)
@@ -118,18 +124,21 @@ final class TcpConnection: @unchecked Sendable {
 
     private func fail(_ candidate: NWConnection, error: Error) {
         guard connection === candidate else { return }
+        let closedSessionID = sessionID
+        sessionID = nil
         connection = nil
         candidate.stateUpdateHandler = nil
         candidate.cancel()
         if let completion = openCompletion {
             openCompletion = nil
             complete(.failure(error), completion)
-        } else if !manuallyClosing, let handler = onDisconnect {
-            DispatchQueue.main.async { handler(error.localizedDescription) }
+        } else if !manuallyClosing, let closedSessionID, let handler = onDisconnect {
+            DispatchQueue.main.async { handler(closedSessionID, error.localizedDescription) }
         }
     }
 
     private func closeLocked() {
+        sessionID = nil
         let candidate = connection
         connection = nil
         candidate?.stateUpdateHandler = nil

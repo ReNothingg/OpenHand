@@ -78,6 +78,7 @@ export function usePlotter() {
   const jobActiveRef = useRef(false);
   const [operationBusy, setOperationBusy] = useState(false);
   const connectingRef = useRef(false);
+  const disconnectInFlightRef = useRef<Promise<void> | null>(null);
   const connectionEpochRef = useRef(0);
   const cancelConnectRef = useRef(false);
   const desynchronizedRef = useRef(false);
@@ -362,22 +363,18 @@ export function usePlotter() {
 
   const writeRaw = useCallback(
     async (value, visible = true, timeoutMs = commandTimeoutRef.current) => {
-      if (!writerRef.current) throw new Error("Плоттер не подключён.");
+      const writer = writerRef.current;
+      if (!writer) throw new Error("Плоттер не подключён.");
       const bytes = typeof value === "string" ? encoder.encode(value) : value;
+      if (visible)
+        log("out", typeof value === "string" ? value.trim() : `[${Array.from(bytes).join(", ")}]`);
       let timer: ReturnType<typeof setTimeout>;
       try {
         await Promise.race([
-          writerRef.current.write(bytes),
+          writer.write(bytes),
           new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Запись в порт не завершилась. Соединение требует восстановления.")), timeoutMs); }),
         ]);
       } finally { clearTimeout(timer!); }
-      if (visible)
-        log(
-          "out",
-          typeof value === "string"
-            ? value.trim()
-            : `[${Array.from(bytes).join(", ")}]`,
-        );
     },
     [log],
   );
@@ -498,11 +495,12 @@ export function usePlotter() {
   const connect = useCallback(
     async (profile, incomingOptions) => {
       await nativeSessionReady.promise;
+      if (disconnectInFlightRef.current) await disconnectInFlightRef.current;
       if (stopInFlightRef.current || emergencyStopRef.current)
         throw new Error("Сначала дождитесь завершения СТОП и разрешите управление.");
       if (writerRef.current || operationRef.current || connectingRef.current)
         throw new Error("Сначала закройте текущее соединение.");
-      if (typeof window !== "undefined" && window.__openhandNativePlatform && (window.__openhandBridgeVersion ?? 0) < 7)
+      if (typeof window !== "undefined" && window.__openhandNativePlatform && (window.__openhandBridgeVersion ?? 0) < 8)
         throw new Error("Открыта старая версия OpenHand. Полностью закройте приложение и запустите новую сборку.");
       if (!supported)
         throw new Error(
@@ -636,6 +634,10 @@ export function usePlotter() {
         throw new Error("Realtime-команды доступны для GRBL.");
       const byte = GRBL_REALTIME[action];
       if (byte === undefined) throw new Error("Неизвестная realtime-команда.");
+      if (action === "status" && typeof window !== "undefined" && window.__openhandRequestStatus) {
+        await window.__openhandRequestStatus();
+        return;
+      }
       await writeRaw(new Uint8Array([byte]), action !== "status");
     },
     [writeRaw],
@@ -665,44 +667,45 @@ export function usePlotter() {
     return () => clearInterval(timer);
   }, [realtime, status]);
 
-  const disconnect = useCallback(async () => {
-    cancelConnectRef.current = true;
-    ++connectionEpochRef.current;
-    cancelPaperWait();
-    abortRef.current = true;
-    pausedRef.current = false;
-    pauseWaitersRef.current.splice(0).forEach((resume) => resume());
-    for (const pending of pendingRef.current.splice(0)) {
-      clearTimeout(pending.timeout);
-      pending.reject(new Error("Соединение закрыто."));
-    }
-    try {
-      await readerRef.current?.cancel();
-    } catch {
-      /* already closed */
-    }
-    try {
-      writerRef.current?.releaseLock();
-    } catch {
-      /* already released */
-    }
-    readerRef.current = null;
-    writerRef.current = null;
-    try {
-      await portRef.current?.close();
-    } catch {
-      /* already closed */
-    }
-    portRef.current = null;
-    setStatus("disconnected");
-    clearMachineStatus();
-    log("system", "Соединение закрыто");
-  }, [cancelPaperWait, log]);
+  const disconnect = useCallback(() => {
+    if (disconnectInFlightRef.current) return disconnectInFlightRef.current;
+    const operation = (async () => {
+      cancelConnectRef.current = true;
+      const epoch = ++connectionEpochRef.current;
+      const reader = readerRef.current, writer = writerRef.current, port = portRef.current;
+      readerRef.current = null;
+      writerRef.current = null;
+      portRef.current = null;
+      cancelPaperWait();
+      abortRef.current = true;
+      pausedRef.current = false;
+      pauseWaitersRef.current.splice(0).forEach((resume) => resume());
+      for (const pending of pendingRef.current.splice(0)) {
+        clearTimeout(pending.timeout);
+        pending.reject(new Error("Соединение закрыто."));
+      }
+      try { await reader?.cancel(); } catch { /* already closed */ }
+      try { writer?.releaseLock(); } catch { /* already closed */ }
+      try { await port?.close(); } catch { /* already closed */ }
+      if (epoch === connectionEpochRef.current) {
+        setStatus("disconnected");
+        clearMachineStatus();
+        log("system", "Соединение закрыто");
+      }
+    })();
+    disconnectInFlightRef.current = operation;
+    const clear = () => { if (disconnectInFlightRef.current === operation) disconnectInFlightRef.current = null; };
+    void operation.then(clear, clear);
+    return operation;
+  }, [cancelPaperWait, clearMachineStatus, log]);
 
   useEffect(() => {
     if (!supported || typeof navigator.serial.addEventListener !== "function")
       return undefined;
-    const handleDeviceDisconnect = () => {
+    const handleDeviceDisconnect = (event: Event & { port?: unknown }) => {
+      const disconnectedPort = event.port || event.target;
+      // Browser events identify a port; the native shim emits only current-session events.
+      if (disconnectedPort && disconnectedPort !== navigator.serial && disconnectedPort !== portRef.current) return;
       cancelConnectRef.current = true;
       ++connectionEpochRef.current;
       cancelPaperWait("Устройство отключено.");
@@ -1040,7 +1043,7 @@ export function usePlotter() {
         const sequence = statusReportRef.current.sequence;
         const deadline = Date.now() + 1800;
         while (Date.now() < deadline && writerRef.current) {
-          try { await writeRaw("?", false); }
+          try { await realtime("status"); }
           catch { break; }
           await new Promise(resolve => setTimeout(resolve, 150));
           const report = statusReportRef.current;
@@ -1064,7 +1067,7 @@ export function usePlotter() {
       clear();
     });
     return operation;
-  }, [cancelPaperWait, log, saveRecovery, writeRaw]);
+  }, [cancelPaperWait, log, saveRecovery, writeRaw, realtime]);
 
   const stop = useCallback(() => halt(false), [halt]);
   haltFailedJobRef.current = () => halt(true);

@@ -753,3 +753,45 @@ References: https://learn.microsoft.com/en-us/windows/win32/devio/read-and-write
 and https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.IO.Ports/src/System/IO/Ports/SerialStream.Windows.cs .
 Remaining: saved-device identity/cold STOP fallback parity, transport-data epochs and
 network teardown audit, broader final acceptance, and physical pen/contact verification.
+
+## Connection-scoped transport events and cancelled writers (bridge 8)
+
+Each native port opening now has an immutable connection ID. macOS serial/TCP and
+Windows serial/TCP callbacks carry that ID through UI dispatch; both native bridges
+and JavaScript shims reject data or disconnect events from an earlier connection.
+Writes, modem changes and closes are scoped too. Queued writes retain their original
+transport; cancelled or late openings cannot replace a later connection. Windows
+TCP captures its socket before waiting for the write lock and checks its generation
+afterwards. Windows serial emergency writes similarly retain the original port.
+
+STOP permanently errors the current JavaScript writable stream, cancelling its
+queued records even if the operator releases STOP before an old RPC finishes.
+A separate read-only status request remains usable after that cancellation.
+Ordinary commands require a newly opened stream. The shared hook coalesces disconnect
+requests, captures the resources it is closing and makes a new connect await that
+close. Browser disconnect events for other devices are ignored. Outgoing log entries
+are recorded before the asynchronous write so fast replies cannot precede them.
+
+Evidence without the physical plotter:
+- Both actual embedded JavaScript shims passed old/untagged input, stale disconnect,
+  same-object reopen, cancelled open, stale writer, STOP/release and status-query cases.
+- Actual macOS SerialConnection with owned PTYs passed delayed callback tagging,
+  stale write/close/modem rejection and continued use of the replacement connection.
+- Actual macOS TcpConnection with local sockets passed delayed data/disconnect and
+  stale write/close isolation while the replacement remained usable.
+- Actual Windows NetworkConnection on .NET with local sockets passed stale events,
+  close/write isolation, cancellation during a real asynchronous connect and a
+  backpressured 16 MB write whose queued follower never reached the replacement socket.
+  This checks the C# transport logic on macOS, not a Windows device driver.
+- Actual usePlotter with the actual macOS shim and controlled native replies passed
+  ordered disconnect/reconnect, unrelated-device events, delayed old alarms, fresh
+  Idle after STOP, log ordering and no cancelled-job replay after release/reconnect.
+
+Final npm/macOS build, Windows cross-build and web parity are checked for this
+revision. Temporary scenarios are removed before publication. No real plotter port
+was opened, no firmware settings changed and no physical movement was requested.
+The macOS KDraw package hash and decompiled pen/zero/server-generation methods were
+also rechecked in response to the user's request to inspect the vendor program.
+
+Remaining: saved-device identity/cold STOP fallback parity, network emergency priority
+and teardown, broader final acceptance, and physical pen/contact verification.

@@ -67,9 +67,11 @@ internal static class NativeScripts
               else request.resolve(message.result);
             },
             receive(message) {
+              if (!activePort || message.connectionId !== activePort._connectionId) return;
               activePort?._receive(base64ToBytes(message.data));
             },
             disconnected(message) {
+              if (!activePort || message.connectionId !== activePort._connectionId) return;
               activePort?._disconnect(message.error || "Устройство отключено.");
               activePort = null;
               serial.dispatchEvent(new Event("disconnect"));
@@ -102,6 +104,8 @@ internal static class NativeScripts
               this._writeController = null;
               this._queuedInput = [];
               this._opened = false;
+              this._connectionId = null;
+              this._opening = false;
             }
 
             getInfo() {
@@ -109,19 +113,24 @@ internal static class NativeScripts
             }
 
             async open(options) {
-              if (this._opened) {
-                throw new DOMException("Порт уже открыт.", "InvalidStateError");
-              }
+              if (this._opened || this._opening || activePort?._opened || activePort?._opening)
+                throw new DOMException("Сначала закройте предыдущее соединение.", "InvalidStateError");
+              const connectionId = `${pageToken}:connection:${nextRequestID++}`;
+              this._connectionId = connectionId;
+              this._opening = true;
+              this._queuedInput = [];
               activePort = this;
               try {
                 if (this.info.network) {
                   await bridge.call("openNetwork", {
+                    connectionId,
                     host: this.info.host,
                     port: this.info.port,
                     profile: options.profile,
                   });
                 } else {
                   await bridge.call("open", {
+                    connectionId,
                     path: this.info.path,
                     profile: options.profile,
                     baudRate: Number(options.baudRate),
@@ -131,9 +140,15 @@ internal static class NativeScripts
                     flowControl: options.flowControl ?? "none",
                   });
                 }
+                if (this._connectionId !== connectionId) {
+                  await bridge.call("close", { connectionId });
+                  throw new DOMException("Подключение отменено.", "AbortError");
+                }
               } catch (error) {
-                if (activePort === this) activePort = null;
+                if (activePort === this && this._connectionId === connectionId) activePort = null;
                 throw error;
+              } finally {
+                if (this._connectionId === connectionId) this._opening = false;
               }
 
               this._opened = true;
@@ -143,7 +158,7 @@ internal static class NativeScripts
                   this._queuedInput.splice(0).forEach((chunk) => controller.enqueue(chunk));
                 },
                 cancel: () => {
-                  this._readController = null;
+                  if (this._connectionId === connectionId) this._readController = null;
                 },
               });
               this.writable = new WritableStream({
@@ -154,9 +169,10 @@ internal static class NativeScripts
                   const bytes = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk);
                   if (writesStopped && !(bytes.length === 1 && bytes[0] === 0x3f))
                     throw new Error("СТОП: отправка команд заблокирована.");
-                  return bridge.call("write", { data: bytesToBase64(bytes) });
+                  return bridge.call("write", { connectionId, data: bytesToBase64(bytes) });
                 },
               });
+              if (writesStopped) this._interruptWrites();
             }
 
             async setSignals(signals) {
@@ -165,21 +181,33 @@ internal static class NativeScripts
               }
               if (this.info.network) return;
               return bridge.call("setSignals", {
+                connectionId: this._connectionId,
                 dataTerminalReady: signals.dataTerminalReady,
                 requestToSend: signals.requestToSend,
               });
             }
 
             async close() {
+              const connectionId = this._connectionId;
               if (stopPending) { try { await stopPending; } catch {} }
-              if (!this._opened) return;
-              await bridge.call("close");
+              if ((!this._opened && !this._opening) || this._connectionId !== connectionId) return;
+              this._interruptWrites();
+              await bridge.call("close", { connectionId });
+              if (this._connectionId !== connectionId) return;
               this._opened = false;
+              this._opening = false;
+              this._connectionId = null;
               if (activePort === this) activePort = null;
+              try { this._readController?.close(); } catch {}
               this._readController = null;
               this._writeController = null;
+              this._queuedInput = [];
               this.readable = null;
               this.writable = null;
+            }
+
+            _interruptWrites() {
+              try { this._writeController?.error(new DOMException("Предыдущая очередь отменена СТОП.", "AbortError")); } catch {}
             }
 
             _receive(bytes) {
@@ -189,6 +217,9 @@ internal static class NativeScripts
 
             _disconnect(reason) {
               this._opened = false;
+              this._opening = false;
+              this._connectionId = null;
+              this._queuedInput = [];
               const error = new DOMException(reason, "NetworkError");
               try { this._readController?.error(error); } catch {}
               try { this._writeController?.error(error); } catch {}
@@ -210,6 +241,7 @@ internal static class NativeScripts
 
           Object.defineProperty(window, "__openhandNativeStopStarted", { value: ({ token }) => {
             writesStopped = true;
+            activePort?._interruptWrites();
             ++stopGeneration;
             if (!stopPending) {
               let resolve, reject;
@@ -228,6 +260,7 @@ internal static class NativeScripts
           } });
           Object.defineProperty(window, "__openhandEmergencyStop", { value: profile => {
             writesStopped = true;
+            activePort?._interruptWrites();
             ++stopGeneration;
             if (stopPending) return stopPending;
             const request = bridge.call("emergencyStop", { profile });
@@ -251,7 +284,11 @@ internal static class NativeScripts
             if (generation === stopGeneration) writesStopped = writesStopped || Boolean(state.emergencyStopped);
             return state;
           } });
-          Object.defineProperty(window, "__openhandBridgeVersion", { value: 7 });
+          Object.defineProperty(window, "__openhandRequestStatus", { value: () => {
+            if (!activePort?._opened) return Promise.reject(new Error("Порт не открыт."));
+            return bridge.call("write", { connectionId: activePort._connectionId, data: bytesToBase64(new Uint8Array([0x3f])) });
+          } });
+          Object.defineProperty(window, "__openhandBridgeVersion", { value: 8 });
           Object.defineProperty(window, "__openhandNativePlatform", {
             value: "windows",
             configurable: false,

@@ -22,11 +22,14 @@ internal sealed class SerialConnection : IDisposable
     private SerialPort? _port;
     private CancellationTokenSource? _readCancellation;
     private bool _disposed;
+    private long _connectionEpoch;
+    private string? _connectionId;
+    private string? _openingId;
     private long _writeEpoch;
     private CancellationTokenSource? _writeCancellation;
 
-    public event Action<byte[]>? DataReceived;
-    public event Action<string>? Disconnected;
+    public event Action<string, byte[]>? DataReceived;
+    public event Action<string, string>? Disconnected;
 
     public static IReadOnlyList<SerialPortDescriptor> AvailablePorts()
     {
@@ -39,10 +42,15 @@ internal sealed class SerialConnection : IDisposable
             .ToArray();
     }
 
-    public async Task OpenAsync(SerialOpenOptions options)
+    public async Task OpenAsync(SerialOpenOptions options, string? connectionId = null)
     {
         ThrowIfDisposed();
-        await CloseAsync();
+        connectionId ??= Guid.NewGuid().ToString("N");
+        long epoch;
+        lock (_sync) { epoch = ++_connectionEpoch; _openingId = connectionId; }
+        try { await CloseCurrentAsync(expectedOpen: epoch); }
+        catch { lock (_sync) { if (epoch == _connectionEpoch) _openingId = null; } throw; }
+        lock (_sync) { if (epoch != _connectionEpoch) throw new OperationCanceledException("Предыдущее подключение отменено."); }
 
         var port = new SerialPort(
             options.Path,
@@ -65,11 +73,13 @@ internal sealed class SerialConnection : IDisposable
         }
         catch (UnauthorizedAccessException error)
         {
+            lock (_sync) { if (epoch == _connectionEpoch) _openingId = null; }
             port.Dispose();
             throw new IOException($"Порт {options.Path} занят другой программой или доступ запрещён. Отключите порт в другой копии OpenHand, UGS или другом приложении и повторите попытку.", error);
         }
         catch (Exception error) when (error is IOException or ArgumentException)
         {
+            lock (_sync) { if (epoch == _connectionEpoch) _openingId = null; }
             port.Dispose();
             throw new IOException(
                 $"Не удалось настроить {options.Path} ({options.BaudRate} бод, " +
@@ -79,22 +89,31 @@ internal sealed class SerialConnection : IDisposable
         }
         catch
         {
+            lock (_sync) { if (epoch == _connectionEpoch) _openingId = null; }
             port.Dispose();
             throw;
         }
 
         var cancellation = new CancellationTokenSource();
+        var readToken = cancellation.Token;
         lock (_sync)
         {
-            ThrowIfDisposed();
+            if (_disposed || epoch != _connectionEpoch)
+            {
+                cancellation.Dispose();
+                port.Dispose();
+                throw new OperationCanceledException("Предыдущее подключение отменено.");
+            }
+            _openingId = null;
+            _connectionId = connectionId;
             _port = port;
             _readCancellation = cancellation;
         }
 
-        _ = Task.Run(() => ReadLoopAsync(port, cancellation.Token));
+        _ = Task.Run(() => ReadLoopAsync(port, connectionId, readToken));
     }
 
-    public async Task<int> WriteAsync(byte[] data)
+    public async Task<int> WriteAsync(byte[] data, string? connectionId = null)
     {
         ThrowIfDisposed();
         var epoch = Interlocked.Read(ref _writeEpoch);
@@ -105,7 +124,8 @@ internal sealed class SerialConnection : IDisposable
             var port = GetOpenPort();
             lock (_sync)
             {
-                if (epoch != _writeEpoch) throw new IOException("Предыдущая запись отменена остановкой.");
+                if (epoch != _writeEpoch || (connectionId is not null && connectionId != _connectionId))
+                    throw new IOException("Запись отменена остановкой или относится к предыдущему соединению.");
                 cancellation = new CancellationTokenSource();
                 _writeCancellation = cancellation;
             }
@@ -123,17 +143,25 @@ internal sealed class SerialConnection : IDisposable
 
     public async Task EmergencyWriteAsync(byte[] data)
     {
+        SerialPort port;
+        long connectionEpoch;
         // Cancel the current overlapped write before waiting for its lock.
         // Any already queued ordinary writer belongs to the previous epoch.
         lock (_sync)
         {
+            port = _port ?? throw new InvalidOperationException("Последовательный порт не открыт.");
+            connectionEpoch = _connectionEpoch;
             ++_writeEpoch;
             _writeCancellation?.Cancel();
         }
         await _writeLock.WaitAsync();
         try
         {
-            var port = GetOpenPort();
+            lock (_sync)
+            {
+                if (connectionEpoch != _connectionEpoch || !ReferenceEquals(port, _port))
+                    throw new IOException("Соединение изменилось до отправки СТОП.");
+            }
             port.DiscardOutBuffer();
             await port.BaseStream.WriteAsync(data);
             await port.BaseStream.FlushAsync();
@@ -141,9 +169,10 @@ internal sealed class SerialConnection : IDisposable
         finally { _writeLock.Release(); }
     }
 
-    public void SetSignals(bool? dataTerminalReady, bool? requestToSend)
+    public void SetSignals(bool? dataTerminalReady, bool? requestToSend, string? connectionId = null)
     {
         var port = GetOpenPort();
+        lock (_sync) { if (connectionId is not null && connectionId != _connectionId) throw new IOException("Предыдущее соединение уже закрыто."); }
         if (dataTerminalReady.HasValue)
         {
             port.DtrEnable = dataTerminalReady.Value;
@@ -154,12 +183,18 @@ internal sealed class SerialConnection : IDisposable
         }
     }
 
-    public Task CloseAsync()
+    public Task CloseAsync(string? connectionId = null) => CloseCurrentAsync(connectionId: connectionId);
+
+    private Task CloseCurrentAsync(long? expectedOpen = null, string? connectionId = null)
     {
         SerialPort? port;
         CancellationTokenSource? cancellation;
         lock (_sync)
         {
+            if (expectedOpen is { } epoch && epoch != _connectionEpoch) throw new OperationCanceledException("Предыдущее подключение отменено.");
+            if (connectionId is not null && connectionId != _connectionId && connectionId != _openingId) return Task.CompletedTask;
+            if (expectedOpen is null) { ++_connectionEpoch; _openingId = null; }
+            _connectionId = null;
             port = _port;
             cancellation = _readCancellation;
             _port = null;
@@ -191,7 +226,7 @@ internal sealed class SerialConnection : IDisposable
         });
     }
 
-    private async Task ReadLoopAsync(SerialPort port, CancellationToken cancellationToken)
+    private async Task ReadLoopAsync(SerialPort port, string connectionId, CancellationToken cancellationToken)
     {
         var buffer = new byte[64 * 1024];
         try
@@ -206,7 +241,8 @@ internal sealed class SerialConnection : IDisposable
 
                 var received = new byte[count];
                 Buffer.BlockCopy(buffer, 0, received, 0, count);
-                DataReceived?.Invoke(received);
+                lock (_sync) { if (!ReferenceEquals(port, _port) || cancellationToken.IsCancellationRequested) return; }
+                DataReceived?.Invoke(connectionId, received);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -216,7 +252,7 @@ internal sealed class SerialConnection : IDisposable
         {
             if (DetachIfCurrent(port))
             {
-                Disconnected?.Invoke(
+                Disconnected?.Invoke(connectionId,
                     string.IsNullOrWhiteSpace(error.Message)
                         ? "Устройство отключено."
                         : error.Message);
@@ -234,6 +270,9 @@ internal sealed class SerialConnection : IDisposable
                 return false;
             }
             _port = null;
+            _connectionId = null;
+            ++_connectionEpoch;
+            ++_writeEpoch;
             cancellation = _readCancellation;
             _readCancellation = null;
         }
@@ -280,6 +319,7 @@ internal sealed class SerialConnection : IDisposable
             return;
         }
         _disposed = true;
+        lock (_sync) { ++_connectionEpoch; _openingId = null; _connectionId = null; }
 
         SerialPort? port;
         CancellationTokenSource? cancellation;

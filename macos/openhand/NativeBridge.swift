@@ -17,6 +17,8 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
     private var lastStopFailure: String?
     private var pageTransitionPending = false
     private var activeTransport: String?
+    private var activeConnectionID: String?
+    private var transportClosing = false
     static let liveBridges = NSHashTable<NativeBridge>.weakObjects()
     private var closingRequested = false
     private var closeWaiters: [SerialConnection.Completion] = []
@@ -24,7 +26,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
     private var closeGeneration = 0
     private var openingCount = 0
     private var openGeneration = 0
-    var needsShutdown: Bool { activeTransport != nil || openingCount > 0 || emergencyInFlight || closeInFlight }
+    var needsShutdown: Bool { activeTransport != nil || openingCount > 0 || emergencyInFlight || closeInFlight || transportClosing }
     var needsPageTransitionStop: Bool { activeTransport != nil || openingCount > 0 || emergencyInFlight }
     var isClosing: Bool { closingRequested }
 
@@ -61,19 +63,17 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             lastProtocol = saved["profile"] as? String
         }
 
-        serial.onData = { [weak self] data in
-            self?.sendSerialData(data)
+        serial.onData = { [weak self] sessionID, data in
+            self?.sendSerialData(data, sessionID: sessionID)
         }
-        serial.onDisconnect = { [weak self] reason in
-            self?.activeTransport = nil
-            self?.sendSerialDisconnect(reason)
+        serial.onDisconnect = { [weak self] sessionID, reason in
+            self?.sendSerialDisconnect(reason, sessionID: sessionID)
         }
-        tcp.onData = { [weak self] data in
-            self?.sendSerialData(data)
+        tcp.onData = { [weak self] sessionID, data in
+            self?.sendSerialData(data, sessionID: sessionID)
         }
-        tcp.onDisconnect = { [weak self] reason in
-            self?.activeTransport = nil
-            self?.sendSerialDisconnect(reason)
+        tcp.onDisconnect = { [weak self] sessionID, reason in
+            self?.sendSerialDisconnect(reason, sessionID: sessionID)
         }
     }
 
@@ -177,12 +177,18 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 guard let self else { return }
                 if case .success = result { finish(result); return }
                 // A close/reload must never reopen a channel that has already been torn down.
-                if self.closingRequested || self.pageTransitionPending { finish(result); return }
+                if self.closingRequested || self.pageTransitionPending || self.transportClosing { finish(result); return }
                 // Recover only the explicitly selected port. No discovery,
                 // configuration commands, DTR pulse, homing or job replay.
-                self.serial.open(path: saved.path, options: saved.options) { [weak self] opened in
+                self.sendSerialDisconnect("Предыдущее соединение закрыто при восстановлении СТОП.")
+                let stopSession = "stop:" + UUID().uuidString
+                self.activeConnectionID = stopSession
+                self.serial.open(path: saved.path, options: saved.options, sessionID: stopSession) { [weak self] opened in
                     guard let self else { return }
-                    if case .failure = opened { finish(opened); return }
+                    if case .failure = opened {
+                        if self.activeConnectionID == stopSession { self.activeConnectionID = nil }
+                        finish(opened); return
+                    }
                     self.activeTransport = "serial"
                     self.serial.write(data, completion: finish)
                 }
@@ -255,6 +261,17 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             reject(id, message: "Интерфейс или соединение перезапускается. Новые команды заблокированы.")
             return
         }
+        let sessionID = payload["connectionId"] as? String
+        if ["open", "openNetwork", "write", "setSignals", "close"].contains(action) {
+            guard let sessionID, !sessionID.isEmpty, sessionID.count <= 128 else {
+                reject(id, message: "Не указан идентификатор соединения."); return
+            }
+            if ["write", "setSignals", "close"].contains(action) && activeConnectionID != sessionID {
+                if action == "close" { resolve(id, result: ["closed": true]) }
+                else { reject(id, message: "Предыдущее соединение уже закрыто. Подключитесь заново.") }
+                return
+            }
+        }
         switch action {
         case "sessionState":
             resolve(id, result: ["emergencyStopped": emergencyStopped, "stopPending": emergencyInFlight,
@@ -288,6 +305,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
 
         case "open":
             guard !emergencyStopped else { reject(id, message: "СТОП: сначала разрешите управление."); return }
+            guard !transportClosing else { reject(id, message: "Дождитесь закрытия предыдущего соединения."); return }
             guard openingCount == 0 else { reject(id, message: "Подключение ещё выполняется."); return }
             guard !emergencyInFlight else { reject(id, message: "Остановка ещё выполняется."); return }
             guard let path = payload["path"] as? String,
@@ -313,6 +331,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 "stopBits": options.stopBits, "parity": options.parity,
                 "flowControl": options.flowControl
             ], forKey: "OpenHandLastSerialPort")
+            activeConnectionID = sessionID
             openingCount += 1
             let generation = openGeneration
             tcp.close { [weak self] in
@@ -320,10 +339,10 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 guard generation == self.openGeneration else {
                     self.openingCount -= 1; self.reject(id, message: "Подключение отменено закрытием."); return
                 }
-                self.serial.open(path: path, options: options) { [weak self] result in
+                self.serial.open(path: path, options: options, sessionID: sessionID!) { [weak self] result in
                     guard let self else { return }
-                    guard generation == self.openGeneration else {
-                        self.serial.close { [weak self] in
+                    guard generation == self.openGeneration, self.activeConnectionID == sessionID else {
+                        self.serial.close(sessionID: sessionID) { [weak self] in
                             self?.openingCount -= 1
                             self?.reject(id, message: "Подключение отменено закрытием.")
                         }
@@ -335,6 +354,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                         self.activeTransport = "serial"
                         self.resolve(id, result: ["opened": true])
                     case let .failure(error):
+                        if self.activeConnectionID == sessionID { self.activeConnectionID = nil; self.activeTransport = nil }
                         self.reject(id, error: error)
                     }
                 }
@@ -342,6 +362,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
 
         case "openNetwork":
             guard !emergencyStopped else { reject(id, message: "СТОП: сначала разрешите управление."); return }
+            guard !transportClosing else { reject(id, message: "Дождитесь закрытия предыдущего соединения."); return }
             guard openingCount == 0 else { reject(id, message: "Подключение ещё выполняется."); return }
             guard !emergencyInFlight else { reject(id, message: "Остановка ещё выполняется."); return }
             lastProtocol = payload["profile"] as? String
@@ -352,6 +373,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             }
             lastRequestedTransport = "network"
             UserDefaults.standard.set("network", forKey: "OpenHandLastTransport")
+            activeConnectionID = sessionID
             openingCount += 1
             let generation = openGeneration
             serial.close { [weak self] in
@@ -359,10 +381,10 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 guard generation == self.openGeneration else {
                     self.openingCount -= 1; self.reject(id, message: "Подключение отменено закрытием."); return
                 }
-                self.tcp.open(host: host, port: port.intValue) { [weak self] result in
+                self.tcp.open(host: host, port: port.intValue, sessionID: sessionID!) { [weak self] result in
                     guard let self else { return }
-                    guard generation == self.openGeneration else {
-                        self.tcp.close { [weak self] in
+                    guard generation == self.openGeneration, self.activeConnectionID == sessionID else {
+                        self.tcp.close(sessionID: sessionID) { [weak self] in
                             self?.openingCount -= 1
                             self?.reject(id, message: "Подключение отменено закрытием.")
                         }
@@ -374,6 +396,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                         self.activeTransport = "network"
                         self.resolve(id, result: ["opened": true])
                     case let .failure(error):
+                        if self.activeConnectionID == sessionID { self.activeConnectionID = nil; self.activeTransport = nil }
                         self.reject(id, error: error)
                     }
                 }
@@ -399,9 +422,9 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 }
             }
             if activeTransport == "network" {
-                tcp.write(data, completion: completion)
+                tcp.write(data, sessionID: sessionID, completion: completion)
             } else {
-                serial.write(data, completion: completion)
+                serial.write(data, sessionID: sessionID, completion: completion)
             }
 
         case "releaseEmergencyStop":
@@ -424,7 +447,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             }
             serial.setSignals(
                 dataTerminalReady: payload["dataTerminalReady"] as? Bool,
-                requestToSend: payload["requestToSend"] as? Bool
+                requestToSend: payload["requestToSend"] as? Bool, sessionID: sessionID
             ) { [weak self] result in
                 switch result {
                 case .success:
@@ -435,10 +458,14 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             }
 
         case "close":
-            serial.close { [weak self] in
-                self?.tcp.close { [weak self] in
-                    self?.activeTransport = nil
-                    self?.resolve(id, result: ["closed": true])
+            transportClosing = true
+            openGeneration += 1
+            serial.close(sessionID: sessionID) { [weak self] in
+                self?.tcp.close(sessionID: sessionID) { [weak self] in
+                    guard let self else { return }
+                    if self.activeConnectionID == sessionID { self.activeTransport = nil; self.activeConnectionID = nil }
+                    self.transportClosing = false
+                    self.resolve(id, result: ["closed": true])
                 }
             }
 
@@ -508,17 +535,21 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         return value.components(separatedBy: invalid).joined(separator: "-")
     }
 
-    private func sendSerialData(_ data: Data) {
+    private func sendSerialData(_ data: Data, sessionID: String) {
+        guard activeConnectionID == sessionID else { return }
         callJavaScript(
             function: "window.__openhandSerialBridge?.receive",
-            payload: ["data": data.base64EncodedString()]
+            payload: ["connectionId": sessionID, "data": data.base64EncodedString()]
         )
     }
 
-    private func sendSerialDisconnect(_ reason: String) {
+    private func sendSerialDisconnect(_ reason: String, sessionID: String? = nil) {
+        guard let connectionID = sessionID ?? activeConnectionID, connectionID == activeConnectionID else { return }
+        activeConnectionID = nil
+        activeTransport = nil
         callJavaScript(
             function: "window.__openhandSerialBridge?.disconnected",
-            payload: ["error": reason]
+            payload: ["connectionId": connectionID, "error": reason]
         )
     }
 

@@ -65,8 +65,8 @@ enum SerialConnectionError: LocalizedError {
 }
 
 final class SerialConnection: @unchecked Sendable {
-    typealias DataHandler = @MainActor @Sendable (Data) -> Void
-    typealias DisconnectHandler = @MainActor @Sendable (String) -> Void
+    typealias DataHandler = @MainActor @Sendable (String, Data) -> Void
+    typealias DisconnectHandler = @MainActor @Sendable (String, String) -> Void
     typealias Completion = @MainActor @Sendable (Result<Void, Error>) -> Void
     typealias CloseCompletion = @MainActor @Sendable () -> Void
 
@@ -76,6 +76,7 @@ final class SerialConnection: @unchecked Sendable {
     private var readSource: DispatchSourceRead?
     private var manuallyClosing = false
     private var connectionGeneration: UInt64 = 0
+    private var sessionID: String?
 
     var onData: DataHandler?
     var onDisconnect: DisconnectHandler?
@@ -115,7 +116,7 @@ final class SerialConnection: @unchecked Sendable {
         return "\(kind) — \(identifier)"
     }
 
-    func open(path: String, options: SerialOpenOptions, completion: @escaping Completion) {
+    func open(path: String, options: SerialOpenOptions, sessionID: String = UUID().uuidString, completion: @escaping Completion) {
         queue.async { [weak self] in
             guard let self else { return }
             self.closeLocked(notify: false)
@@ -133,9 +134,10 @@ final class SerialConnection: @unchecked Sendable {
                     try SerialPortLease.assertNoOwners(path: path, ignoring: getpid())
                     try self.configure(fileDescriptor, path: path, options: options)
                     self.descriptor = fileDescriptor
+                    self.sessionID = sessionID
                     self.portLease = lease
                     self.manuallyClosing = false
-                    self.startReading(fileDescriptor)
+                    self.startReading(fileDescriptor, sessionID: sessionID)
                     self.complete(.success(()), completion)
                 } catch {
                     Darwin.close(fileDescriptor)
@@ -147,10 +149,10 @@ final class SerialConnection: @unchecked Sendable {
         }
     }
 
-    func write(_ data: Data, completion: @escaping Completion) {
+    func write(_ data: Data, sessionID: String? = nil, completion: @escaping Completion) {
         queue.async { [weak self] in
             guard let self else { return }
-            guard self.descriptor >= 0 else {
+            guard self.descriptor >= 0, sessionID == nil || sessionID == self.sessionID else {
                 self.complete(.failure(SerialConnectionError.notOpen), completion)
                 return
             }
@@ -217,10 +219,10 @@ final class SerialConnection: @unchecked Sendable {
         }
     }
 
-    func setSignals(dataTerminalReady: Bool?, requestToSend: Bool?, completion: @escaping Completion) {
+    func setSignals(dataTerminalReady: Bool?, requestToSend: Bool?, sessionID: String? = nil, completion: @escaping Completion) {
         queue.async { [weak self] in
             guard let self else { return }
-            guard self.descriptor >= 0 else {
+            guard self.descriptor >= 0, sessionID == nil || sessionID == self.sessionID else {
                 self.complete(.failure(SerialConnectionError.notOpen), completion)
                 return
             }
@@ -235,9 +237,13 @@ final class SerialConnection: @unchecked Sendable {
         }
     }
 
-    func close(completion: CloseCompletion? = nil) {
+    func close(sessionID: String? = nil, completion: CloseCompletion? = nil) {
         queue.async { [weak self] in
             guard let self else { return }
+            if let sessionID, self.sessionID != sessionID {
+                if let completion { DispatchQueue.main.async(execute: completion) }
+                return
+            }
             self.manuallyClosing = true
             self.closeLocked(notify: false)
             guard let completion else { return }
@@ -348,10 +354,10 @@ final class SerialConnection: @unchecked Sendable {
         _ = ioctl(descriptor, request, &value)
     }
 
-    private func startReading(_ fileDescriptor: Int32) {
+    private func startReading(_ fileDescriptor: Int32, sessionID: String) {
         let source = DispatchSource.makeReadSource(fileDescriptor: fileDescriptor, queue: queue)
         source.setEventHandler { [weak self, weak source] in
-            guard let self, let source, self.descriptor == fileDescriptor else { return }
+            guard let self, let source, self.descriptor == fileDescriptor, self.sessionID == sessionID else { return }
             let suggestedSize = max(1, min(Int(source.data), 65_536))
             var buffer = [UInt8](repeating: 0, count: suggestedSize)
             let count = Darwin.read(fileDescriptor, &buffer, buffer.count)
@@ -360,7 +366,7 @@ final class SerialConnection: @unchecked Sendable {
                 let data = Data(buffer.prefix(count))
                 if let handler = self.onData {
                     DispatchQueue.main.async {
-                        handler(data)
+                        handler(sessionID, data)
                     }
                 }
             } else if count == 0 {
@@ -375,6 +381,8 @@ final class SerialConnection: @unchecked Sendable {
     }
 
     private func closeLocked(notify: Bool, reason: String = "Устройство отключено.") {
+        let closedSessionID = sessionID
+        sessionID = nil
         connectionGeneration &+= 1
         let oldDescriptor = descriptor
         descriptor = -1
@@ -390,9 +398,9 @@ final class SerialConnection: @unchecked Sendable {
 
         portLease = nil
 
-        if notify, let handler = onDisconnect {
+        if notify, let closedSessionID, let handler = onDisconnect {
             DispatchQueue.main.async {
-                handler(reason)
+                handler(closedSessionID, reason)
             }
         }
     }
