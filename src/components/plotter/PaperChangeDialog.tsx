@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import EmergencyStopButton from "./EmergencyStopButton";
 import { createPortal } from "react-dom";
 
 export default function PaperChangeDialog({ workspace }: { workspace: any }) {
@@ -42,9 +43,7 @@ export default function PaperChangeDialog({ workspace }: { workspace: any }) {
         Бумага закреплена и выровнена по прежней нулевой точке
       </label>
       <div>
-        <button className="button" onClick={workspace.stop}>
-          Остановить очередь
-        </button>
+        <EmergencyStopButton onStop={workspace.stop} />
         <button
           className="button primary"
           disabled={!confirmed}

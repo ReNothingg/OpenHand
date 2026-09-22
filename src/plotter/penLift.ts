@@ -5,11 +5,12 @@ export function penLiftDistance(config: { zUp: number; zDown: number }): number 
 export const PEN_TEST_STEP_MM = 0.1;
 
 export function penPositionKey(config: any, up: boolean): string {
-  return `${config.profile}:${config.penMode}:${config.zUpDirection}:${up ? config.zUp : config.zDown}`;
+  return `${config.profile}:${config.penMode}:${config.penControllerKey || ""}:${config.zUpDirection}:${up ? config.zUp : config.zDown}`;
 }
 
-export function hasVerifiedPenPositions(config: any): boolean {
+export function hasVerifiedPenPositions(config: any, controllerKey?: string | null): boolean {
   if (!["stepper", "estepper"].includes(config.penMode)) return true;
+  if (config.profile === "grbl" && controllerKey !== undefined && (controllerKey === null || config.penControllerKey !== controllerKey)) return false;
   return Number.isFinite(config.zUp) && Number.isFinite(config.zDown)
     && (config.zUp - config.zDown) * config.zUpDirection > 0
     && config.penVerifiedUp === penPositionKey(config, true)

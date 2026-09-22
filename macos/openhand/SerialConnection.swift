@@ -69,7 +69,7 @@ final class SerialConnection: @unchecked Sendable {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: "/dev")) ?? []
         let callout = names
             .filter { $0.hasPrefix("cu.") }
-            .filter { !$0.localizedCaseInsensitiveContains("Bluetooth-Incoming-Port") }
+            .filter { !$0.localizedCaseInsensitiveContains("Bluetooth-Incoming-Port") && $0 != "cu.debug-console" }
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
 
         return callout.map { device in

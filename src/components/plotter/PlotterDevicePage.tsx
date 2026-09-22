@@ -36,7 +36,7 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
   const inFlight = useRef(false);
   const stepper = ["stepper", "estepper"].includes(config.penMode);
   const alarm = plotter.machineStatus?.state === "Alarm";
-  const locked = busy || workspace.penSetupBusy || running || calibrationActive;
+  const locked = busy || workspace.penSetupBusy || workspace.plotter.operationBusy || running || calibrationActive;
   const canMove = connected && !locked && !alarm && !workspace.emergencyStopped;
   const execute = async (action: () => Promise<unknown>) => {
     if (inFlight.current) return;

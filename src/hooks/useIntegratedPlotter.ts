@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { usePenControl } from "./usePenControl";
 import { usePlotter } from "./usePlotter";
@@ -31,6 +31,7 @@ import {
   ORIGIN_CONFIG_KEYS,
   updateProfileConfig,
 } from "../plotter/profiles";
+import { controllerFingerprint, matchesControllerCalibration } from "../plotter/controllerFingerprint";
 import { hasVerifiedPenPositions } from "../plotter/penLift";
 import { assessDeviceReadiness, assessPlotterPreflight } from "../plotter/preflight";
 import { preparedProgramBlockers } from "../plotter/importSafety";
@@ -142,6 +143,7 @@ export function useIntegratedPlotter({
   const [error, setError] = useState("");
   const [stopNotice, setStopNotice] = useState("");
   const [originConfirmed, setOriginConfirmed] = useState(false);
+  const calibrationProof = useRef<string | null>(null);
   const [calibrationActive, setCalibrationActive] = useState(false);
   const [importedGcode, setImportedGcode] = useState(null);
   const plotter = usePlotter();
@@ -150,7 +152,10 @@ export function useIntegratedPlotter({
       (profile) => profile.id === profileStore.activeProfileId,
     ) || profileStore.profiles[0];
   const config = activeProfile.config;
-  const penPositionsVerified = hasVerifiedPenPositions(config);
+  const controllerAxisKey = controllerFingerprint(config.profile, plotter.controllerSettings, plotter.controllerSettingsComplete, "axes");
+  const controllerPenKey = controllerFingerprint(config.profile, plotter.controllerSettings, plotter.controllerSettingsComplete, "pen");
+  const workAreaConfirmed = matchesControllerCalibration(activeProfile, controllerAxisKey);
+  const penPositionsVerified = hasVerifiedPenPositions(config, controllerPenKey);
   const needsPenReference = ["stepper", "estepper"].includes(config.penMode);
   const setConfig = useCallback((updater) => {
     setProfileStore((current) => {
@@ -402,7 +407,7 @@ export function useIntegratedPlotter({
   );
   const penControl = usePenControl({
     config, profileId: activeProfile.id, connected, running,
-    stopped: plotter.emergencyStopped, controllerEpoch: plotter.controllerEpoch,
+    stopped: plotter.emergencyStopped, controllerEpoch: plotter.controllerEpoch, controllerPenKey,
     machineState: plotter.machineStatus?.state, statusReceivedAt: plotter.machineStatus?.receivedAt,
     setConfig, sendCommands: plotter.sendCommands,
   });
@@ -427,13 +432,13 @@ export function useIntegratedPlotter({
       plotter.recovery.current < plotter.recovery.total,
   );
   const assessDevice = useCallback(() => assessDeviceReadiness({
-    connected, running, busy: busy || pending || penControl.busy, calibrationActive,
+    connected, running, busy: busy || pending || penControl.busy || plotter.operationBusy, calibrationActive,
     emergencyStopped: plotter.emergencyStopped, profile: config.profile,
     machineState: plotter.machineStatus?.state, statusReceivedAt: plotter.machineStatus?.receivedAt,
     originConfirmed, penReferenceConfirmed: !needsPenReference || penReferenceConfirmed, penPositionsVerified,
-    workAreaConfirmed: Boolean(activeProfile.calibratedAt),
-  }), [connected, running, busy, pending, penControl.busy, calibrationActive, plotter.emergencyStopped,
-    config.profile, plotter.machineStatus, originConfirmed, needsPenReference, penReferenceConfirmed, penPositionsVerified, activeProfile.calibratedAt]);
+    workAreaConfirmed, controllerSettingsKnown: plotter.controllerSettingsComplete,
+  }), [connected, running, busy, pending, penControl.busy, plotter.operationBusy, calibrationActive, plotter.emergencyStopped,
+    config.profile, plotter.machineStatus, originConfirmed, needsPenReference, penReferenceConfirmed, penPositionsVerified, workAreaConfirmed, plotter.controllerSettingsComplete]);
   const assessJob = useCallback((layout, withinWorkArea = true, commands?: string[]) => {
     const content = assessPlotterPreflight(layout, {
       withinWorkArea,
@@ -462,11 +467,11 @@ export function useIntegratedPlotter({
 
   const updateConfig = useCallback(
     (key, value) => {
-      if (calibrationActive) return;
+      if (calibrationActive || running || plotter.operationBusy || plotter.status === "connecting") return;
       setConfig((current) => ({ ...current, [key]: value }));
       if (ORIGIN_CONFIG_KEYS.includes(key)) setOriginConfirmed(false);
     },
-    [calibrationActive, setConfig],
+    [calibrationActive, running, plotter.operationBusy, plotter.status, setConfig],
   );
   const boundedConfig = useCallback(
     (key, value, min, max) => {
@@ -517,7 +522,7 @@ export function useIntegratedPlotter({
       await action();
       return true;
     } catch (reason) {
-      setError(reason.message);
+      if (reason?.name !== "AbortError") setError(reason.message);
       return false;
     }
   }, []);
@@ -601,6 +606,7 @@ export function useIntegratedPlotter({
       const profile = createPlotterProfile(
         name || `${source.name} — копия`,
         source.config,
+        { calibratedAt: source.calibratedAt, calibrationRevision: source.calibrationRevision, calibrationControllerKey: source.calibrationControllerKey },
       );
       setProfileStore((current) => ({
         ...current,
@@ -634,6 +640,7 @@ export function useIntegratedPlotter({
   );
   const importDeviceProfile = useCallback(async (file) => {
     const profile = parsePlotterProfile(await file.text());
+    setOriginConfirmed(false);
     setProfileStore((current) => ({
       ...current,
       activeProfileId: profile.id,
@@ -642,18 +649,23 @@ export function useIntegratedPlotter({
     return profile;
   }, []);
   const completeCalibration = useCallback(() => {
+    if (!connected || !controllerAxisKey || calibrationProof.current !== `${activeProfile.id}:${plotter.controllerEpoch}:${controllerAxisKey}`) {
+      setError("Проверка области устарела или параметры платы ещё не прочитаны. Повторите проверку направлений.");
+      return false;
+    }
     const calibratedAt = Date.now();
     setProfileStore((current) => ({
       ...current,
       profiles: current.profiles.map((profile) =>
         profile.id === current.activeProfileId
-          ? { ...profile, calibratedAt, calibrationRevision: 2, updatedAt: calibratedAt }
+          ? { ...profile, calibratedAt, calibrationRevision: 2, calibrationControllerKey: controllerAxisKey, updatedAt: calibratedAt }
           : profile,
       ),
     }));
     setCalibrationActive(false);
     setOriginConfirmed(true);
-  }, []);
+    return true;
+  }, [controllerAxisKey, connected, activeProfile.id, plotter.controllerEpoch]);
   const updateCalibrationConfig = useCallback((key, value) => {
     if (!calibrationActive) return;
     const allowed = ["invertX", "invertY", "swapAxes", "calibrationStep", "workAreaWidth", "workAreaHeight"];
@@ -665,6 +677,13 @@ export function useIntegratedPlotter({
     async (action) => {
       setError("");
       try {
+        if (action !== "probe") {
+          if (!controllerAxisKey) throw new Error("Дождитесь чтения параметров контроллера.");
+          const proof = `${activeProfile.id}:${plotter.controllerEpoch}:${controllerAxisKey}`;
+          if (calibrationProof.current && calibrationProof.current !== proof)
+            throw new Error("Контроллер изменился во время проверки. Закройте мастер и начните заново.");
+          calibrationProof.current = proof;
+        }
         const result = await runCalibrationAction(action, config, plotter.sendCommands);
         return result;
       } catch (reason) {
@@ -672,23 +691,40 @@ export function useIntegratedPlotter({
         throw reason;
       }
     },
-    [config, plotter.sendCommands],
+    [config, plotter.sendCommands, controllerAxisKey, activeProfile.id, plotter.controllerEpoch],
   );
   const startCalibration = useCallback(() => {
-    if (running) return false;
+    if (running || plotter.emergencyStopped) return false;
+    calibrationProof.current = null;
     setCalibrationActive(true);
     setOriginConfirmed(false);
     return true;
-  }, [running]);
+  }, [running, plotter.emergencyStopped]);
+  const stop = useCallback(async () => {
+      setOriginConfirmed(false);
+      penControl.invalidate();
+      setStopNotice("Очередь отменена. Отправляю СТОП… Если движение продолжается — отключите питание и USB.");
+      try {
+        const result = await plotter.stop();
+        setStopNotice(result.controllerState
+          ? `Очередь отменена. Ответ контроллера: ${result.controllerState}. Новые движения заблокированы. Если механизм продолжает двигаться — отключите питание.`
+          : "Очередь отменена. СТОП передан, но ответ о состоянии не получен. Не считайте механизм остановленным: если он движется — отключите питание и USB.");
+        return true;
+      } catch {
+        setStopNotice("Очередь отменена. Передача СТОП не подтверждена. Если механизм движется — отключите питание плоттера и USB.");
+        return false;
+      }
+  }, [plotter.stop, penControl.invalidate]);
   const cancelCalibration = useCallback(
     async ({ emergency = false } = {}) => {
-      if (emergency) await safeAction(plotter.stop);
       setCalibrationActive(false);
+      if (emergency) await stop();
     },
-    [plotter.stop, safeAction],
+    [stop],
   );
 
   const setOrigin = useCallback(async () => {
+    setOriginConfirmed(false);
     const success = await safeAction(() =>
       plotter.sendCommands(createOriginCommands(config)),
     );
@@ -770,6 +806,9 @@ export function useIntegratedPlotter({
     penReferenceConfirmed,
     penSetupPosition,
     penPositionsVerified,
+    controllerPenKey,
+    controllerAxisKey,
+    workAreaConfirmed,
     penSetupBusy: penControl.busy,
     moveSavedPen: (up: boolean) => safeAction(() => penControl.moveSaved(up)),
     beginPenSetup: () => safeAction(penControl.begin),
@@ -796,10 +835,10 @@ export function useIntegratedPlotter({
       await plotter.sendCommands(["$X"]);
       await plotter.realtime("status");
     }),
-    jog: (dx, dy) =>
-      safeAction(() =>
-        plotter.sendCommands(createPageJogCommands(dx, dy, config)),
-      ),
+    jog: (dx, dy) => safeAction(() => {
+      if (!workAreaConfirmed) throw new Error("Сначала проверьте направления и размеры рабочей области.");
+      return plotter.sendCommands(createPageJogCommands(dx, dy, config), { waitForMotion: true });
+    }),
     pen: (up, value?: number) => safeAction(() => {
       if (calibrationActive) throw new Error("Завершите мастер настройки.");
       return penControl.test(up, value);
@@ -894,20 +933,6 @@ export function useIntegratedPlotter({
       try { await plotter.releaseEmergencyStop(); setStopNotice(""); }
       catch (reason) { setStopNotice(reason.message); }
     },
-    stop: async () => {
-      setOriginConfirmed(false);
-      penControl.invalidate();
-      setStopNotice("Очередь отменена. Отправляю СТОП… Если движение продолжается — отключите питание и USB.");
-      try {
-        const result = await plotter.stop();
-        setStopNotice(result.controllerState
-          ? `Очередь отменена. Ответ контроллера: ${result.controllerState}. Новые движения заблокированы. Если механизм продолжает двигаться — отключите питание.`
-          : "Очередь отменена. СТОП передан, но ответ о состоянии не получен. Не считайте механизм остановленным: если он движется — отключите питание и USB.");
-        return true;
-      } catch {
-        setStopNotice("Передать СТОП не удалось. Немедленно отключите питание плоттера и USB. Очередь приложения отменена.");
-        return false;
-      }
-    },
+    stop,
   };
 }

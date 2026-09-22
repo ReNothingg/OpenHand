@@ -19,7 +19,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
     override init() {
         super.init()
         if let saved = UserDefaults.standard.dictionary(forKey: "OpenHandLastSerialPort"),
-           let path = saved["path"] as? String, path.hasPrefix("/dev/cu."),
+           let path = saved["path"] as? String, path.hasPrefix("/dev/cu."), path != "/dev/cu.debug-console",
            let baud = saved["baudRate"] as? Int {
             lastSerialOpen = (path, SerialOpenOptions(
                 baudRate: baud, dataBits: saved["dataBits"] as? Int ?? 8,

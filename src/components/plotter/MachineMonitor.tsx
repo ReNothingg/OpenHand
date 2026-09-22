@@ -6,6 +6,7 @@ export default function MachineMonitor({ workspace, compact = false }: { workspa
   const status = plotter.machineStatus;
   const [now, setNow] = useState(Date.now());
   const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -27,13 +28,23 @@ export default function MachineMonitor({ workspace, compact = false }: { workspa
       <div className="machine-heading">
         <strong>GRBL</strong>
         <span>
-          {fresh
+          {plotter.status === "connecting" ? "Устанавливаю связь…" : fresh
             ? status.state
             : connected
               ? "Ожидание телеметрии"
-              : "Не подключён"}
+              : "Связь не установлена"}
         </span>
       </div>
+      {connected && !plotter.controllerSettingsComplete && <div>
+        <p className="calibration-note">Параметры платы ещё не прочитаны. Это нужно для сверки сохранённой настройки.</p>
+        <button type="button" disabled={refreshing || plotter.operationBusy || workspace.running || workspace.emergencyStopped}
+          onClick={async () => {
+            setRefreshing(true); setError("");
+            try { await plotter.sendCommands(["$$"]); }
+            catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+            finally { setRefreshing(false); }
+          }}>{refreshing ? "Читаю параметры…" : "Прочитать параметры платы"}</button>
+      </div>}
       {fresh && status.state === "Alarm" && (
         <div>
           <p className="plotter-error">Контроллер в аварийном состоянии. Устраните упор или другую причину перед снятием блокировки.</p>

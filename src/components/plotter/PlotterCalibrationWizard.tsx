@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef } from "react";
+import EmergencyStopButton from "./EmergencyStopButton";
 import { createPortal } from "react-dom";
 import {
   CALIBRATION_CHECKS,
@@ -10,7 +11,7 @@ import {
 
 const STEP_TEXT = {
   connect:
-    "Подключите выбранный профиль. OpenHand отправит безопасную команду идентификации и дождётся ответа.",
+    "Подключите выбранный профиль. OpenHand отправит только запрос сведений о контроллере, без команд движения.",
   "axis-x-negative":
     "Каретка должна сместиться на небольшой шаг в направлении X−.",
   "axis-x-positive":
@@ -46,6 +47,13 @@ export default function PlotterCalibrationWizard({ workspace }) {
   );
   const wasConnected = useRef(workspace.connected);
   const actionInFlight = useRef(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const element = dialog.current;
+    element?.showModal();
+    element?.querySelector<HTMLElement>("#calibration-title")?.focus();
+    return () => element?.close();
+  }, []);
   const step = currentCalibrationStep(state);
   const running = state.phase === "running";
   const stepText =
@@ -135,20 +143,16 @@ export default function PlotterCalibrationWizard({ workspace }) {
     : stepText;
 
   return createPortal(
-    <div className="calibration-backdrop" role="presentation">
-      <section
-        className="calibration-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="calibration-title"
-      >
+    <dialog ref={dialog} className="calibration-dialog" aria-labelledby="calibration-title"
+      onCancel={event => { event.preventDefault(); close(); }}>
         <header>
           <div>
             <small>
               Направления и область · шаг {state.index + 1} из {state.steps.length}
             </small>
-            <h2 id="calibration-title">{step.title}</h2>
+            <h2 id="calibration-title" tabIndex={-1}>{step.title}</h2>
           </div>
+          <EmergencyStopButton onStop={() => workspace.cancelCalibration({ emergency: true })} />
           <button
             type="button"
             aria-label="Закрыть мастер калибровки"
@@ -227,7 +231,9 @@ export default function PlotterCalibrationWizard({ workspace }) {
               <button
                 className="button primary"
                 type="button"
-                onClick={workspace.completeCalibration}
+                onClick={() => {
+                  if (!workspace.completeCalibration()) dispatch({ type: "action-error", error: "Проверка устарела или нет связи с платой. Закройте мастер и повторите проверку направлений." });
+                }}
               >
                 Сохранить калибровку
               </button>
@@ -269,14 +275,14 @@ export default function PlotterCalibrationWizard({ workspace }) {
                   <button
                     type="button"
                     disabled={!workspace.connected || running}
-                    onClick={() => jog(0, -workspace.config.calibrationStep)}
+                    data-plotter-motion="" onClick={() => jog(0, -workspace.config.calibrationStep)}
                   >
                     ↑
                   </button>
                   <button
                     type="button"
                     disabled={!workspace.connected || running}
-                    onClick={() => jog(-workspace.config.calibrationStep, 0)}
+                    data-plotter-motion="" onClick={() => jog(-workspace.config.calibrationStep, 0)}
                   >
                     ←
                   </button>
@@ -284,14 +290,14 @@ export default function PlotterCalibrationWizard({ workspace }) {
                   <button
                     type="button"
                     disabled={!workspace.connected || running}
-                    onClick={() => jog(workspace.config.calibrationStep, 0)}
+                    data-plotter-motion="" onClick={() => jog(workspace.config.calibrationStep, 0)}
                   >
                     →
                   </button>
                   <button
                     type="button"
                     disabled={!workspace.connected || running}
-                    onClick={() => jog(0, workspace.config.calibrationStep)}
+                    data-plotter-motion="" onClick={() => jog(0, workspace.config.calibrationStep)}
                   >
                     ↓
                   </button>
@@ -325,7 +331,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
                   disabled={
                     running || (step.kind !== "connect" && !workspace.connected)
                   }
-                  onClick={runStep}
+                  data-plotter-motion="" onClick={runStep}
                 >
                   {running
                     ? "Выполняется…"
@@ -351,8 +357,7 @@ export default function PlotterCalibrationWizard({ workspace }) {
             Отменить калибровку
           </button>
         </footer>
-      </section>
-    </div>,
+    </dialog>,
     document.body,
   );
 }

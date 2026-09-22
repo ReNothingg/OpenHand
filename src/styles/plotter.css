@@ -308,18 +308,9 @@
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
-.calibration-backdrop {
-  position: fixed;
-  z-index: 1000;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgb(15 23 42 / 0.56);
-}
-
 .calibration-dialog {
-  width: min(620px, 100%);
+  width: min(620px, calc(100vw - 32px));
+  padding: 0;
   max-height: min(760px, calc(100vh - 40px));
   overflow: auto;
   border: 1px solid var(--line);
@@ -329,7 +320,13 @@
   box-shadow: none;
 }
 
+.calibration-dialog::backdrop { background: rgb(0 0 0 / .6); }
+
 .calibration-dialog > header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-panel);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -350,7 +347,7 @@
   font-size: 20px;
 }
 
-.calibration-dialog > header > button {
+.calibration-dialog > header > button:not(.emergency-stop) {
   width: 32px;
   height: 32px;
   border: 1px solid var(--line);

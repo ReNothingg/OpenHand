@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { GRBL_SETTINGS_REQUIRED } from "../plotter/controllerFingerprint";
 import { notifyPlotter } from "../lib/notifications";
 import type { PaperChange } from "../plotter/sheetQueue";
 import {
@@ -52,8 +53,14 @@ export function usePlotter() {
     reject: (reason: Error) => void;
   } | null>(null);
   const [machineStatus, setMachineStatus] = useState<GrblStatus | null>(null);
+  const machineReportRef = useRef<GrblStatus | null>(null);
+  const clearMachineStatus = useCallback(() => {
+    machineReportRef.current = null;
+    setMachineStatus(null);
+  }, []);
   const [controllerEpoch, setControllerEpoch] = useState(0);
   const operationRef = useRef(false);
+  const [operationBusy, setOperationBusy] = useState(false);
   const connectingRef = useRef(false);
   const connectionEpochRef = useRef(0);
   const cancelConnectRef = useRef(false);
@@ -65,6 +72,7 @@ export function usePlotter() {
   const profileRef = useRef("grbl");
   const pendingRef = useRef([]);
   const abortRef = useRef(false);
+  const interruptionRef = useRef<Error | null>(null);
   const emergencyStopRef = useRef(false);
   const emergencyGenerationRef = useRef(0);
   const stopInFlightRef = useRef<Promise<{ delivered: boolean; controllerState: string | null }> | null>(null);
@@ -73,12 +81,15 @@ export function usePlotter() {
   const pauseWaitersRef = useRef([]);
   const commandTimeoutRef = useRef(12000);
   const statusReportRef = useRef({ sequence: 0, state: "" });
+  const settingsSeenRef = useRef<Set<number> | null>(null);
   const controllerSettingsRef = useRef<Record<number, number>>({});
+  const [controllerSettingsComplete, setControllerSettingsComplete] = useState(false);
   const [controllerSettings, setControllerSettings] = useState<Record<number, number>>({});
 
   const rememberSetting = useCallback((line: string) => {
     const match = /^\$(\d+)=(-?\d+(?:\.\d+)?)$/.exec(line.trim());
     if (!match) return;
+    settingsSeenRef.current?.add(Number(match[1]));
     const next = { ...controllerSettingsRef.current, [Number(match[1])]: Number(match[2]) };
     controllerSettingsRef.current = next;
     setControllerSettings(next);
@@ -132,9 +143,17 @@ export function usePlotter() {
     const pending = pendingRef.current.shift();
     if (!pending) return;
     clearTimeout(pending.timeout);
-    if (error) pending.reject(new Error(line));
-    else {
+    if (error) {
+      if (pending.command === "$$") { settingsSeenRef.current = null; setControllerSettingsComplete(false); }
+      pending.reject(new Error(line));
+    } else {
       rememberSetting(pending.command);
+      if (pending.command === "$$") {
+        const complete = GRBL_SETTINGS_REQUIRED.every(key => settingsSeenRef.current?.has(key) && Number.isFinite(controllerSettingsRef.current[key]));
+        settingsSeenRef.current = null;
+        setControllerSettingsComplete(complete);
+        if (!complete) { pending.reject(new Error("Контроллер не вернул полный набор параметров GRBL. Проверьте выбранную прошивку и соединение.")); return; }
+      }
       pending.resolve(line);
     }
   }, [rememberSetting]);
@@ -158,7 +177,7 @@ export function usePlotter() {
             const line = rawLine.trim();
             if (!line) continue;
             if (line.startsWith("<")) {
-              const report = parseGrblStatus(line, undefined, (controllerSettingsRef.current[13] === 0 || controllerSettingsRef.current[13] === 1) ? controllerSettingsRef.current[13] === 1 : null);
+              const report = parseGrblStatus(line, machineReportRef.current, (controllerSettingsRef.current[13] === 0 || controllerSettingsRef.current[13] === 1) ? controllerSettingsRef.current[13] === 1 : null);
               const wasAlarm = statusReportRef.current.state === "Alarm";
               if (report) statusReportRef.current = {
                 sequence: statusReportRef.current.sequence + 1,
@@ -178,21 +197,23 @@ export function usePlotter() {
                   pending.reject(new Error("Авария контроллера."));
                 }
               }
-              setMachineStatus(
-                (previous) => parseGrblStatus(line, previous, (controllerSettingsRef.current[13] === 0 || controllerSettingsRef.current[13] === 1) ? controllerSettingsRef.current[13] === 1 : null) || previous,
-              );
+              if (report) {
+                machineReportRef.current = report;
+                setMachineStatus(report);
+              }
               continue;
             }
             log("in", line);
             if (profileRef.current === "grbl") rememberSetting(line);
             if (/^(ALARM|Grbl\s)/i.test(line)) {
               setControllerEpoch((epoch) => epoch + 1);
-              setMachineStatus(null);
+              clearMachineStatus();
               if (/^ALARM/i.test(line)) statusReportRef.current = {
                 sequence: statusReportRef.current.sequence + 1, state: "Alarm",
               };
             }
             if (/^(ALARM|Grbl\s)/i.test(line) && operationRef.current) {
+              if (!emergencyStopRef.current) interruptionRef.current = new Error(`Контроллер прервал выполнение: ${line}`);
               cancelPaperWait("Контроллер сброшен или сообщил об аварии.");
               abortRef.current = true;
               if (/^Grbl\s/i.test(line)) desynchronizedRef.current = true;
@@ -207,7 +228,9 @@ export function usePlotter() {
             }
             if (/^Grbl\s/i.test(line)) {
               controllerSettingsRef.current = {};
+              settingsSeenRef.current = null;
               setControllerSettings({});
+      setControllerSettingsComplete(false);
               // The startup banner is a stream boundary: reset discarded the
               // old command queue. Reject its waiters BEFORE accepting new
               // commands. Keep the operation aborted and physical zeros lost;
@@ -237,7 +260,7 @@ export function usePlotter() {
             );
           }
           setStatus("disconnected");
-          setMachineStatus(null);
+          clearMachineStatus();
           try {
             writerRef.current?.releaseLock();
           } catch {
@@ -269,7 +292,13 @@ export function usePlotter() {
     async (value, visible = true) => {
       if (!writerRef.current) throw new Error("Плоттер не подключён.");
       const bytes = typeof value === "string" ? encoder.encode(value) : value;
-      await writerRef.current.write(bytes);
+      let timer: ReturnType<typeof setTimeout>;
+      try {
+        await Promise.race([
+          writerRef.current.write(bytes),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Запись в порт не завершилась. Соединение требует восстановления.")), commandTimeoutRef.current); }),
+        ]);
+      } finally { clearTimeout(timer!); }
       if (visible)
         log(
           "out",
@@ -293,6 +322,7 @@ export function usePlotter() {
           && !/^\$(?:X|I|G|#|\$)$/i.test(command))
         throw new Error("GRBL в состоянии Alarm. Устраните причину и нажмите «Снять Alarm» в состоянии плоттера. Затем проверьте ноль.");
       const connectionEpoch = connectionEpochRef.current;
+      if (command === "$$") settingsSeenRef.current = new Set();
       let pending = null;
       const acknowledgement = new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -304,6 +334,7 @@ export function usePlotter() {
             (item) => item.timeout === timeout,
           );
           if (index >= 0) pendingRef.current.splice(index, 1);
+          if (command === "$$") { settingsSeenRef.current = null; setControllerSettingsComplete(false); }
           desynchronizedRef.current = true;
           setControllerEpoch((epoch) => epoch + 1);
           abortRef.current = true;
@@ -400,10 +431,11 @@ export function usePlotter() {
       };
       profileRef.current = profile;
       desynchronizedRef.current = false;
-      setMachineStatus(null);
+      clearMachineStatus();
       statusReportRef.current = { sequence: 0, state: "" };
       controllerSettingsRef.current = {};
       setControllerSettings({});
+      setControllerSettingsComplete(false);
       try {
         const port = await navigator.serial.requestPort(
           connectionType === "network"
@@ -539,7 +571,7 @@ export function usePlotter() {
     }
     portRef.current = null;
     setStatus("disconnected");
-    setMachineStatus(null);
+    clearMachineStatus();
     log("system", "Соединение закрыто");
   }, [cancelPaperWait, log]);
 
@@ -571,7 +603,7 @@ export function usePlotter() {
       writerRef.current = null;
       portRef.current = null;
       setStatus("disconnected");
-      setMachineStatus(null);
+      clearMachineStatus();
       log("error", "Устройство отключено");
     };
     navigator.serial.addEventListener("disconnect", handleDeviceDisconnect);
@@ -597,6 +629,7 @@ export function usePlotter() {
         throw new Error("Дождитесь завершения текущей операции.");
       if (!writerRef.current) throw new Error("Плоттер не подключён.");
       operationRef.current = true;
+      setOperationBusy(true);
       const job = Array.isArray(jobOrCommands)
         ? {
             id: `legacy-${jobOrCommands.length}`,
@@ -619,6 +652,7 @@ export function usePlotter() {
       const checkpoints = new Set(job?.resumePoints || []);
       let safeCheckpoint = startIndex;
       abortRef.current = false;
+      interruptionRef.current = null;
       pausedRef.current = false;
       setStatus("running");
       setPrintingSheet(null);
@@ -634,7 +668,11 @@ export function usePlotter() {
       } else saveRecovery(null);
       try {
         let sheetRangeIndex = 0;
-        for (const command of options.prefix || []) await sendCommand(command);
+        for (const command of options.prefix || []) {
+          if (abortRef.current) throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
+          await sendCommand(command);
+          if (abortRef.current) throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
+        }
         for (let index = startIndex; index < commands.length; index += 1) {
           const ranges = job.sheetRanges || [];
           while (
@@ -651,14 +689,15 @@ export function usePlotter() {
             });
           }
           if (abortRef.current)
-            throw new DOMException("Задание остановлено.", "AbortError");
+            throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
           await waitWhilePaused();
           if (abortRef.current)
-            throw new DOMException("Задание остановлено.", "AbortError");
+            throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
           await sendCommand(
             commands[index],
             barriers.has(index + 1) ? 60000 : commandTimeoutRef.current,
           );
+          if (abortRef.current) throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
           setProgress({ current: index + 1, total: commands.length });
           if (range)
             setSheetProgress({
@@ -705,7 +744,7 @@ export function usePlotter() {
         else if (profileRef.current === "marlin")
           await sendCommand("M400", 60000);
         if (abortRef.current)
-          throw new DOMException("Задание остановлено.", "AbortError");
+          throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
         setStatus("connected");
         log("system", "Задание завершено");
         saveRecovery(null);
@@ -717,16 +756,19 @@ export function usePlotter() {
       } catch (error) {
         setStatus(writerRef.current ? "connected" : "disconnected");
         if (error.name !== "AbortError") {
+          // A failed job must not leave a usable physical reference behind.
+          setControllerEpoch(epoch => epoch + 1);
           if (profileRef.current === "grbl" && writerRef.current)
-            await writeRaw(new Uint8Array([33])).catch(() => {});
+            void writeRaw(new Uint8Array([33])).catch(() => {});
           log("error", error.message);
-          throw error;
         }
+        throw error;
       } finally {
         cancelPaperWait();
         setPrintingSheet(null);
         setSheetProgress(null);
         operationRef.current = false;
+        setOperationBusy(false);
       }
     },
     [
@@ -779,6 +821,7 @@ export function usePlotter() {
       setEmergencyStopped(true);
       cancelPaperWait();
       abortRef.current = true;
+      interruptionRef.current = null;
       pausedRef.current = false;
       pauseWaitersRef.current.splice(0).forEach((resolve) => resolve());
       for (const pending of pendingRef.current.splice(0)) {
@@ -788,7 +831,7 @@ export function usePlotter() {
       saveRecovery(null);
       desynchronizedRef.current = true;
       setControllerEpoch((epoch) => epoch + 1);
-      setMachineStatus(null);
+      clearMachineStatus();
       const nativeStop = typeof window !== "undefined" && window.__openhandEmergencyStop;
       let delivery: Promise<unknown>;
       if (nativeStop) {
@@ -825,7 +868,7 @@ export function usePlotter() {
     })();
     stopInFlightRef.current = operation;
     const clear = () => { if (stopInFlightRef.current === operation) stopInFlightRef.current = null; };
-    void operation.then(clear, clear);
+    void operation.then(clear, error => { log("error", `Остановка: ${error instanceof Error ? error.message : String(error)}`); clear(); });
     return operation;
   }, [cancelPaperWait, log, saveRecovery, writeRaw]);
 
@@ -835,13 +878,16 @@ export function usePlotter() {
       if (operationRef.current)
         throw new Error("Дождитесь завершения текущей операции.");
       operationRef.current = true;
+      setOperationBusy(true);
       abortRef.current = false;
+      interruptionRef.current = null;
       try {
         for (const command of commands) {
           if (abortRef.current) throw new Error("Операция прервана.");
           await sendCommand(command);
+          if (abortRef.current) throw interruptionRef.current || new DOMException("Операция прервана.", "AbortError");
         }
-        if (options.waitForMotion && profileRef.current === "grbl") {
+        if (options.waitForMotion && profileRef.current === "grbl" && commands.some(command => /^\$J=/i.test(command))) {
           // Jog's ok means queued. Wait for a NEW Idle report; the previous
           // cached Idle can predate the movement. G-code barriers cannot be
           // sent while GRBL is in Jog state.
@@ -863,11 +909,15 @@ export function usePlotter() {
             // Keep the initial sequence so fast replies are not skipped.
             await writeRaw("?", false);
           }
+        } else if (options.waitForMotion && profileRef.current === "grbl") {
+          await sendCommand("G4P0.01", 120000);
         } else if (options.waitForMotion && profileRef.current === "marlin") {
           await sendCommand("M400", 120000);
         }
+        if (abortRef.current) throw interruptionRef.current || new DOMException("Операция прервана.", "AbortError");
       } finally {
         operationRef.current = false;
+        setOperationBusy(false);
       }
     },
     [sendCommand, writeRaw],
@@ -908,6 +958,7 @@ export function usePlotter() {
 
   return {
     supported,
+    operationBusy,
     networkSupported,
     status,
     logs,
@@ -919,6 +970,7 @@ export function usePlotter() {
     machineStatus,
     controllerEpoch,
     controllerSettings,
+    controllerSettingsComplete,
     realtime,
     recovery,
     connect,
@@ -946,9 +998,11 @@ export function usePlotter() {
       emergencyStopRef.current = false;
       if (writerRef.current && profileRef.current === "grbl") {
         operationRef.current = true;
+      setOperationBusy(true);
         try { await sendCommand("$$"); }
         catch (error) { emergencyStopRef.current = true; throw error; }
-        finally { operationRef.current = false; }
+        finally { operationRef.current = false;
+        setOperationBusy(false); }
       }
       if (generation !== emergencyGenerationRef.current) throw new Error("Запрошен новый СТОП.");
       setEmergencyStopped(false);

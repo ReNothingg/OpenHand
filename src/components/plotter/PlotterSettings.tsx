@@ -40,7 +40,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
   const [manualCommand, setManualCommand] = useState("");
   const { enabled, config, connected, running, plotter, calibrationActive } =
     workspace;
-  const locked = !enabled || running || calibrationActive;
+  const locked = !enabled || running || calibrationActive || plotter.operationBusy || plotter.status === "connecting";
   const number = (key, min, max) => (event) =>
     workspace.boundedConfig(key, event.target.value, min, max);
   const createProfile = () => {
@@ -98,7 +98,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
           <h2 id="device-connection-title">Подключение</h2>
           <MachineMonitor workspace={workspace} compact />
           {config.profile !== "grbl" && <p className="device-connection-state">{connected ? "Подключён" : "Не подключён"}</p>}
-          <fieldset disabled={!enabled || calibrationActive}>
+          <fieldset disabled={locked}>
           <div className="device-connection-fields settings-content">
             <label className="field">
               <Caption help="USB и Bluetooth используют системный последовательный порт. TCP подключается к сетевому модулю плоттера по адресу и порту.">
@@ -286,7 +286,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
                 }
                 onClick={workspace.connect}
               >
-                {config.connectionType === "network"
+                {plotter.status === "connecting" ? "Проверка связи…" : config.connectionType === "network"
                   ? "Подключиться по TCP"
                   : "Выбрать USB / Bluetooth-порт"}
               </button>
@@ -318,7 +318,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
         </section>
       </div>
       <h2 className="device-secondary-title">Настройки устройства</h2>
-      <fieldset disabled={!enabled || calibrationActive}>
+      <fieldset disabled={locked}>
         <div className="device-settings-sections">
           <SettingSection title="Профиль устройства" open={false}>
             <label className="field">
@@ -430,7 +430,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
             <button
               className="button primary settings-wide-button"
               type="button"
-              disabled={!enabled || running}
+              disabled={!enabled || running || workspace.emergencyStopped}
               onClick={workspace.startCalibration}
             >
               Калибровать
@@ -656,16 +656,16 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
             <div className="jog-control">
               <button
                 type="button"
-                aria-label="Переместить каретку вверх"
-                disabled={!connected || running}
+                data-plotter-motion="" aria-label="Переместить каретку вверх"
+                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped || !workspace.workAreaConfirmed}
                 onClick={() => workspace.jog(0, -config.jogDistance)}
               >
                 ↑
               </button>
               <button
                 type="button"
-                aria-label="Переместить каретку влево"
-                disabled={!connected || running}
+                data-plotter-motion="" aria-label="Переместить каретку влево"
+                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped || !workspace.workAreaConfirmed}
                 onClick={() => workspace.jog(-config.jogDistance, 0)}
               >
                 ←
@@ -673,16 +673,16 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               <span>{config.jogDistance} мм</span>
               <button
                 type="button"
-                aria-label="Переместить каретку вправо"
-                disabled={!connected || running}
+                data-plotter-motion="" aria-label="Переместить каретку вправо"
+                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped || !workspace.workAreaConfirmed}
                 onClick={() => workspace.jog(config.jogDistance, 0)}
               >
                 →
               </button>
               <button
                 type="button"
-                aria-label="Переместить каретку вниз"
-                disabled={!connected || running}
+                data-plotter-motion="" aria-label="Переместить каретку вниз"
+                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped || !workspace.workAreaConfirmed}
                 onClick={() => workspace.jog(0, config.jogDistance)}
               >
                 ↓
@@ -709,7 +709,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
                 className="button compact"
                 type="button"
                 disabled={!connected || running || config.profile === "ebb"}
-                onClick={workspace.setOrigin}
+                data-plotter-motion="" onClick={workspace.setOrigin}
               >
                 Здесь начало листа
               </button>

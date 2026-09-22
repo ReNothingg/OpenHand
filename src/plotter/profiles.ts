@@ -236,6 +236,7 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
     zDown: clamp(incoming.zDown, -50, 50, DEFAULT_PLOTTER_CONFIG.zDown),
     zUpDirection: incoming.zUpDirection === 1 || incoming.zUpDirection === -1
       ? incoming.zUpDirection : (Math.sign(Number(incoming.zUp) - Number(incoming.zDown)) || -1),
+    penControllerKey: typeof incoming.penControllerKey === "string" ? incoming.penControllerKey.slice(0, 2048) : "",
     penVerifiedUp: typeof incoming.penVerifiedUp === "string" ? incoming.penVerifiedUp : "",
     penVerifiedDown: typeof incoming.penVerifiedDown === "string" ? incoming.penVerifiedDown : "",
     zSpeed: clamp(incoming.zSpeed, 1, 10000, DEFAULT_PLOTTER_CONFIG.zSpeed),
@@ -321,6 +322,7 @@ export function createPlotterProfile(
         .slice(0, 64) || "Плоттер",
     config: normalizedConfig,
     calibrationRevision: 2,
+    calibrationControllerKey: typeof options.calibrationControllerKey === "string" ? options.calibrationControllerKey.slice(0, 2048) : null,
     calibratedAt: options.calibrationRevision === 2 && Number.isFinite(options.calibratedAt)
       ? options.calibratedAt
       : null,
@@ -344,6 +346,7 @@ export function normalizePlotterProfile(
     ...options,
     calibratedAt: incoming.calibratedAt,
     calibrationRevision: incoming.calibrationRevision,
+    calibrationControllerKey: incoming.calibrationControllerKey,
     createdAt: incoming.createdAt,
     updatedAt: incoming.updatedAt,
   });
@@ -443,7 +446,10 @@ export function parsePlotterProfile(value) {
   ) {
     throw new Error("Это не профиль плоттера OpenHand версии 1.");
   }
-  return normalizePlotterProfile(document.profile);
+  const profile = normalizePlotterProfile(document.profile);
+  // A file transfers parameters, not evidence of a physical check on this machine.
+  return { ...profile, calibratedAt: null, calibrationControllerKey: null,
+    config: { ...profile.config, penVerifiedUp: "", penVerifiedDown: "" } };
 }
 
 export function safeProfileFilename(name) {

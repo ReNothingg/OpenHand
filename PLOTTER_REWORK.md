@@ -37,7 +37,7 @@ configuration writes or factory resets during this implementation.
 6. Device-specific physical accuracy is not inferred from software tests. Any remaining
    hardware validation must be identified separately and coordinated with the owner.
 
-## Current audit findings
+## Initial audit findings
 
 - The old read loop can process data after its reader was replaced. A late ok can settle
   a new connection's pending command. Session ownership needs to cover parsing and cleanup.
@@ -175,3 +175,44 @@ Verification without plotter access:
 Remaining acceptance work: full UI/job/paper-change/recovery pass, stop access around modal
 and native file dialogs, hardware-setting fingerprint/reference invalidation review, Windows
 cold-start saved-port parity, and final requirement-by-requirement audit.
+
+
+## Controller fingerprint, operation completion and web-dialog checkpoint
+
+GRBL settings snapshots now require the expected fields plus the batch acknowledgement.
+Axes calibration and taught pen values are bound to independent fingerprints. Unchanged
+reconnects preserve verification; steps/direction/limits/holding changes invalidate the
+relevant scope. Calibration in progress is tied to profile/epoch/axes key and cannot certify
+a restarted controller. External profile imports retain values but discard physical proof;
+ordinary local reload and trusted profile duplication retain it. Unknown settings expose an
+explicit read-only refresh action. macOS system debug-console is excluded from plotter ports.
+
+The shared STOP component now exists inside calibration and paper-change dialogs. Calibration
+uses a real HTML dialog, initial heading focus and a sticky stop header; narrow layout no
+longer clips the button. Its emergency close uses the central workspace stop handler. Motion
+buttons suppress keyboard auto-repeat. Transport operation busy state disables conflicting
+controls; ordinary manual jogs wait for completion and require checked axes. Non-jog GRBL
+moves use G4 planner synchronization, while $J waits for a fresh Idle report.
+
+A same-packet ok/reset can no longer finish a command or continue a recovery prefix. Cancelled
+jobs reject instead of returning apparent success. Unexpected job failure invalidates physical
+references. Stuck writes have bounded waits, and status units are captured at receipt rather
+than reread during a later React update.
+
+Observed evidence, without physical-device I/O:
+- Fingerprint stability/change scope, local profile round trip, imported proof removal.
+- Complete settings require final ok; never-resolving writer times out and sends no next move.
+- ok + startup/reset in the same input packet rejects both ordinary action and recovery prefix.
+- Deferred state updates preserve report-unit interpretation; operation busy clears on completion.
+- Non-jog move remains busy after movement ok until its synchronization barrier acknowledges.
+- Browser: 390px stop fits; native HTML modal exposes only dialog controls in accessibility,
+  Tab moves from heading to STOP, activation closes it and shows the stopped state honestly.
+
+Remaining priority work: native OS file-dialog/quit emergency handling and Windows cold-start
+port parity; executed recovery checkpoints and pause/backpressure behavior; manual XY bounds
+and canonical modal setup/common import headers; discoverable setup entry points and final
+job/paper-change/recovery acceptance pass. Goal remains incomplete.
+
+Verified GRBL planner synchronization against upstream mc_dwell (protocol_buffer_synchronize):
+https://github.com/gnea/grbl/blob/master/grbl/motion_control.c . This is controller completion,
+not evidence from a physical position sensor.

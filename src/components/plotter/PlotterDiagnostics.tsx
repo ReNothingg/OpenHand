@@ -20,6 +20,7 @@ export default function PlotterDiagnostics({ workspace }: { workspace: any }) {
         emergencyStopped: workspace.emergencyStopped, stopNotice: workspace.stopNotice,
         reference: { origin: workspace.originConfirmed, pen: workspace.penReferenceConfirmed, setupPosition: workspace.penSetupPosition },
         deviceProfile: workspace.activeProfile,
+        controllerCompatibility: { settingsComplete: workspace.plotter.controllerSettingsComplete, axes: workspace.controllerAxisKey, pen: workspace.controllerPenKey, workAreaConfirmed: workspace.workAreaConfirmed },
         controllerSettings: workspace.plotter.controllerSettings,
         controllerState: workspace.plotter.machineStatus,
         log: workspace.plotter.logs,

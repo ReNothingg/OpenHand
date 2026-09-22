@@ -12,6 +12,7 @@ type Options = {
   running: boolean;
   stopped: boolean;
   controllerEpoch: number;
+  controllerPenKey: string | null;
   machineState?: string;
   statusReceivedAt?: number;
   setConfig: (update: (config: Config) => Config) => void;
@@ -21,7 +22,7 @@ type Options = {
 /** Session-only pose. Profile values never imply a known physical position. */
 export function usePenControl(options: Options) {
   const context = JSON.stringify([options.profileId, options.connected, options.controllerEpoch,
-    options.config.profile, options.config.penMode, options.config.zUpDirection]);
+    options.config.profile, options.config.penMode, options.config.zUpDirection, options.controllerPenKey]);
   const current = useRef({ ...options, context });
   current.current = { ...options, context };
   const revision = useRef(0);
@@ -81,12 +82,14 @@ export function usePenControl(options: Options) {
 
   const begin = useCallback(() => operate(async (live, commit) => {
     if (!["stepper", "estepper"].includes(live.config.penMode)) throw new Error("Выберите шаговый механизм пера.");
-    await live.sendCommands(createPenReferenceCommands(clearPenSetup(live.config), "up"));
+    if (!live.controllerPenKey) throw new Error("Дождитесь чтения параметров контроллера перед настройкой пера.");
+    const setup = clearPenSetup({ ...live.config, penControllerKey: live.controllerPenKey });
+    await live.sendCommands(createPenReferenceCommands(setup, "up"));
     commit(0);
-    live.setConfig(clearPenSetup);
+    live.setConfig(() => setup);
   }), [operate]);
   const reference = useCallback((position: "up" | "down") => operate(async (live, commit) => {
-    if (!hasVerifiedPenPositions(live.config)) throw new Error("Сначала сохраните два положения пера.");
+    if (!hasVerifiedPenPositions(live.config, live.controllerPenKey)) throw new Error("Сначала сохраните два положения пера.");
     await live.sendCommands(createPenReferenceCommands(live.config, position));
     commit(position === "up" ? live.config.zUp : live.config.zDown);
   }), [operate]);
@@ -101,7 +104,7 @@ export function usePenControl(options: Options) {
     commit(position);
   }), [operate, pose]);
   const moveSaved = useCallback((up: boolean) => operate(async (live, commit) => {
-    if (!hasVerifiedPenPositions(live.config) || !pose().referenced)
+    if (!hasVerifiedPenPositions(live.config, live.controllerPenKey) || !pose().referenced)
       throw new Error("Сначала сохраните две высоты и укажите текущее положение пера.");
     await live.sendCommands(createPenCommand(up, live.config), { waitForMotion: true });
     commit(up ? live.config.zUp : live.config.zDown);

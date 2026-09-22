@@ -2408,3 +2408,15 @@ body,
   .emergency-stop-notice { flex-wrap: wrap; }
 }
 @media print { .emergency-stop-notice { display: none; } }
+
+:root button.emergency-stop.emergency-stop {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-width: 112px; width: auto; height: auto; min-height: 42px; padding: 10px 16px; border: 2px solid #ff8c85; border-radius: 8px;
+  background: #b42318; color: #fff; font-size: 15px; font-weight: 800;
+  letter-spacing: .5px; cursor: pointer; flex-shrink: 0;
+}
+:root button.emergency-stop.emergency-stop:hover:not(:disabled) { background: #8e1a12; }
+:root button.emergency-stop.emergency-stop:focus-visible { outline: 3px solid var(--text-primary); outline-offset: 3px; }
+:root .calibration-dialog > header > .emergency-stop { margin-left: auto; }
+:root .calibration-dialog > header { flex-wrap: wrap; }
+:root .calibration-dialog > header > div { flex: 1 1 220px; min-width: 0; }

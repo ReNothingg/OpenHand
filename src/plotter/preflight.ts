@@ -65,6 +65,7 @@ export interface PlotterDeviceReadinessInput {
   penReferenceConfirmed: boolean;
   penPositionsVerified: boolean;
   workAreaConfirmed: boolean;
+  controllerSettingsKnown: boolean;
 }
 
 /** Hardware gate shared by document, workshop, frame, imported and recovery jobs. */
@@ -75,6 +76,7 @@ export function assessDeviceReadiness(input: PlotterDeviceReadinessInput, now = 
   if (input.running || input.busy) blockers.push("Дождитесь завершения текущей операции.");
   if (input.calibrationActive) blockers.push("Завершите настройку направлений и рабочей области.");
   if (input.connected && input.profile === "grbl") {
+    if (!input.controllerSettingsKnown) blockers.push("Прочитайте параметры платы в блоке подключения.");
     if (!input.statusReceivedAt || now - input.statusReceivedAt > 3000)
       blockers.push("Нет свежего ответа контроллера. Проверьте соединение.");
     else if (input.machineState === "Alarm") blockers.push("Контроллер сообщает Alarm. Устраните причину и снимите блокировку.");

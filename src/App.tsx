@@ -12,6 +12,7 @@ import EditorPanel from "./components/editor/EditorPanel";
 import PreviewPanel from "./components/preview/PreviewPanel";
 import SettingsPanel from "./components/settings/SettingsPanel";
 import PlotterWorkshop from "./components/plotter/PlotterWorkshop";
+import EmergencyStopButton from "./components/plotter/EmergencyStopButton";
 import PlotterDevicePage from "./components/plotter/PlotterDevicePage";
 import AppearanceControl from "./components/AppearanceControl";
 import { useDocumentPersistence } from "./hooks/useDocumentPersistence";
@@ -685,6 +686,11 @@ export default function App() {
   });
   useEffect(() => {
     const emergencyKey = (event: KeyboardEvent) => {
+      if (event.repeat && ["Enter", " "].includes(event.key) && event.target instanceof Element
+          && event.target.closest("[data-plotter-motion]")) {
+        event.preventDefault();
+        return;
+      }
       if (event.key !== "Escape" || event.repeat) return;
       event.preventDefault();
       void plotterWorkspace.stop();
@@ -829,10 +835,7 @@ export default function App() {
         </div>
         <div ref={setToolbarHost} className="document-toolbar-host" />
         <AppearanceControl />
-        <button type="button" className="emergency-stop" aria-label="СТОП — аварийная остановка плоттера"
-          title="Остановить плоттер и отменить очередь · Esc" onClick={() => void plotterWorkspace.stop()}>
-          <span aria-hidden="true">■</span> СТОП <kbd>Esc</kbd>
-        </button>
+        <EmergencyStopButton onStop={plotterWorkspace.stop} />
       </nav>
       {plotterWorkspace.stopNotice && <div className="emergency-stop-notice" role="alert">
         <span>{plotterWorkspace.stopNotice}</span>
