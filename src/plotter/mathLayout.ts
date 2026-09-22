@@ -44,6 +44,7 @@ const SYMBOLS = Object.freeze({
   sim: "∼",
   to: "→",
   rightarrow: "→",
+  Rightarrow: "⇒",
   leftarrow: "←",
   partial: "∂",
   nabla: "∇",
@@ -103,21 +104,37 @@ function parser(source) {
     }
     return atom();
   };
+  const delimiter = () => {
+    while (/\s/.test(peek() || "")) index++;
+    const name = peek() === "\\" ? command() : take() || "";
+    if (name === ".") return "";
+    return ({ lbrace: "{", rbrace: "}", lbrack: "[", rbrack: "]", langle: "⟨", rangle: "⟩", vert: "|", Vert: "‖" })[name] || name;
+  };
   const atom = () => {
     if (index >= source.length) return sequence();
     if (peek() === "{") return argument();
     if (peek() !== "\\") return { type: "text", value: take() };
     const name = command();
+    if (name === "left") {
+      const left = delimiter();
+      const body = expression("", true);
+      let right = "";
+      if (/^\\right(?![A-Za-z])/.test(source.slice(index))) { command(); right = delimiter(); }
+      return { type: "delimited", left, body, right };
+    }
     if (name === "frac" || name === "dfrac" || name === "tfrac")
       return { type: "frac", numerator: argument(), denominator: argument() };
     if (name === "sqrt") {
+      while (/\s/.test(peek() || "")) index++;
+      let degree = null;
       if (peek() === "[") {
-        while (index < source.length && take() !== "]") {
-          /* optional root index */
-        }
+        take();
+        degree = expression("]");
+        if (peek() === "]") take();
       }
-      return { type: "sqrt", body: argument() };
+      return { type: "sqrt", body: argument(), degree };
     }
+    if (name === "boxed") return { type: "boxed", body: argument() };
     if (name === "hat" || name === "widehat")
       return { type: "accent", body: argument(), accent: "hat" };
     if (GROUP_COMMANDS.has(name)) return argument();
@@ -129,9 +146,10 @@ function parser(source) {
       };
     return { type: "text", value: SYMBOLS[name] || name };
   };
-  const expression = (stop = "") => {
+  const expression = (stop = "", stopAtRight = false) => {
     const children = [];
     while (index < source.length && peek() !== stop) {
+      if (stopAtRight && /^\\right(?![A-Za-z])/.test(source.slice(index))) break;
       if (/\s/.test(peek())) {
         index += 1;
         continue;
@@ -196,6 +214,11 @@ function emptyBox(width = 0) {
 function constructedSymbol(char, size) {
   const line = (...points) =>
     points.map(([x, y]) => ({ x: x * size, y: y * size }));
+  if (char === "⇒") return {
+    width: size * 0.85, ascent: size * 0.65, descent: 0,
+    strokes: [line([0.05, -0.42], [0.63, -0.42]), line([0.05, -0.22], [0.63, -0.22]),
+      line([0.52, -0.62], [0.82, -0.32], [0.52, -0.02])],
+  };
   if (char === "ℏ") {
     return {
       width: size * 0.62,
@@ -485,6 +508,8 @@ export async function layoutFormula(
     }
     if (node.type === "sqrt") {
       const body = await render(node.body, size * 0.92);
+      const degree = node.degree ? await render(node.degree, size * 0.42) : emptyBox();
+      const prefix = node.degree ? Math.max(0, degree.width - size * 0.2) : 0;
       const lead = size * 0.42;
       const top = -Math.max(body.ascent + size * 0.08, size * 0.72);
       const width = lead + body.width + size * 0.1;
@@ -498,11 +523,41 @@ export async function layoutFormula(
         ],
       ];
       return {
-        width,
-        ascent: Math.max(-top, body.ascent),
+        width: width + prefix,
+        ascent: Math.max(-top, body.ascent, node.degree ? size * 0.45 + degree.ascent + degree.descent : 0),
         descent: Math.max(body.descent, size * 0.03),
-        strokes: [...radical, ...shift(body.strokes, lead, 0)],
+        strokes: [...shift(radical, prefix, 0), ...shift(body.strokes, prefix + lead, 0),
+          ...shift(degree.strokes, 0, -size * 0.45 - degree.descent)],
       };
+    }
+    if (node.type === "delimited") {
+      const body = await render(node.body, size);
+      const top = -Math.max(body.ascent, size * 0.72) - size * 0.06;
+      const bottom = Math.max(body.descent, size * 0.08) + size * 0.06;
+      const stretch = async (value) => {
+        if (!value) return emptyBox();
+        const box = await render({ type: "text", value }, size);
+        const points = box.strokes.flat();
+        if (!points.length) return box;
+        const min = Math.min(...points.map(p => p.y)), max = Math.max(...points.map(p => p.y));
+        if (max - min < 0.001) return box;
+        return { ...box, strokes: box.strokes.map(stroke => stroke.map(p => ({ ...p,
+          y: top + (p.y - min) / (max - min) * (bottom - top),
+        }))) };
+      };
+      const left = await stretch(node.left), right = await stretch(node.right);
+      return { width: left.width + body.width + right.width, ascent: -top, descent: bottom,
+        strokes: [...left.strokes, ...shift(body.strokes, left.width, 0), ...shift(right.strokes, left.width + body.width, 0)] };
+    }
+    if (node.type === "boxed") {
+      const body = await render(node.body, size);
+      const padding = size * 0.16;
+      const width = body.width + padding * 2;
+      const top = -body.ascent - padding, bottom = body.descent + padding;
+      return { width, ascent: -top, descent: bottom, strokes: [
+        ...shift(body.strokes, padding, 0),
+        [{ x: 0, y: top }, { x: width, y: top }, { x: width, y: bottom }, { x: 0, y: bottom }, { x: 0, y: top }],
+      ] };
     }
     if (node.type === "accent") {
       const body = await render(node.body, size);

@@ -490,6 +490,10 @@ export async function layoutText(
   const activeTextStyles = new Set<string>();
   let x = page.left;
   let baseline = page.top + page.fontSize;
+  let lineStrokeStart = 0;
+  let lineFormulaDescent = 0;
+  const formulaLineGap = Math.max(0.2, page.lineHeight - page.fontSize);
+  let previousLineBottom = page.top - formulaLineGap;
   const maxX = page.pageWidth - Math.max(0, page.right);
   const maxY = page.pageHeight - page.bottom;
   let clipped = false;
@@ -684,8 +688,12 @@ export async function layoutText(
 
   const nextLine = () => {
     closeLineDecorations();
+    for (let i = lineStrokeStart; i < strokes.length; i++)
+      for (const point of strokes[i]) previousLineBottom = Math.max(previousLineBottom, point.y);
     x = page.left + (activeQuote ? quoteIndent : 0);
-    baseline += page.lineHeight + pendingHeadingGap;
+    baseline += page.lineHeight + pendingHeadingGap + lineFormulaDescent;
+    lineFormulaDescent = 0;
+    lineStrokeStart = strokes.length;
     pendingHeadingGap = 0;
     activeDecorations.forEach((style) => decorationStarts.set(style, x));
     if (baseline > maxY) clipped = true;
@@ -855,11 +863,25 @@ export async function layoutText(
             break;
           }
         }
-        if (baseline + formula.descent > maxY) {
+        const formulaAscent = formula.ascent * headingScale();
+        const formulaDescent = formula.descent * headingScale();
+        const formulaBaseline = Math.max(baseline, page.top + formulaAscent,
+          previousLineBottom + formulaLineGap + formulaAscent);
+        if (formulaBaseline + formulaDescent > maxY) {
           clipped = true;
           preserveOverflow(tokenIndex);
           break;
         }
+        // Fractions and roots can be taller than an ordinary text line. Move
+        // the already drawn inline prefix with its baseline, and reserve the
+        // denominator's depth before placing the next line.
+        const baselineShift = formulaBaseline - baseline;
+        if (baselineShift > 0) {
+          for (let i = lineStrokeStart; i < strokes.length; i++)
+            for (const point of strokes[i]) point.y += baselineShift;
+          baseline = formulaBaseline;
+        }
+        lineFormulaDescent = Math.max(lineFormulaDescent, formulaDescent);
         const formulaStrokes = formula.strokes.map((stroke) => {
           const currentScale = headingScale();
           const placed = stroke.map((point) => ({
