@@ -357,3 +357,23 @@ The physical cause of contact force is not claimed solved by these checks.
 Further concrete audit item: generated G0 XY travel includes F even though GRBL rapid
 uses controller rapid limits. Review travel generation, timing and preview pen-state
 interpretation together before changing this behavior.
+
+## Revisited KDraw reverse engineering at the owner's request
+
+Revalidated the existing 3.9.8 installer by SHA-256, read the complete relevant
+client call chains, and independently checked them with javap bytecode. Replaced
+the contradictory historical KDRAW_PROTOCOL.md with a current evidence report.
+Newly traced: startup autoSetZero path; G92 after the settings-read flag; separate
+emergency reset versus normal pen-up/return; 100-byte ACK-budget queue; editable
+speed presets; and server-side command generation via drawsoftapp rather than a
+generator class shipped in this client. Inspected UGS's public GRBL controller and
+coordinate helpers as the second application named in the supplied reviews.
+
+An offline compatibility check verified the existing Ozon preset produces the same
+Stepper 0/3/1000 pen grammar as the KDraw client (apart from explicit G21/G94), with
+zero pen delays. The incident's 0/7/1 profile is distinct, not the built-in preset.
+No customer account, remote document submission, vendor executable or hardware was
+used. Server-side generation and actual mechanics are not claimed reverse engineered.
+The next implementation work should use these verified boundaries, including rapid
+travel/feed behavior and pen-state interpretation, rather than adding more guessed
+calibration behavior. The overall software goal is still incomplete.
