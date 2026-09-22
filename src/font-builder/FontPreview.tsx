@@ -4,7 +4,8 @@ import {
   type FontStroke,
   type PenSettings,
 } from "./penInput";
-import { chooseForm, type LetterForms } from "./letterForms";
+import { chooseForm, formGlyph, type LetterForms } from "./letterForms";
+import { varyLetterGlyph } from "../handwriting/letterGeometry";
 import { createCursiveConnector } from "../plotter/job";
 
 function glyphWidth(strokes: FontStroke[]) {
@@ -36,12 +37,14 @@ export default function FontPreview({
   size = 32,
   penSettings = DEFAULT_PEN_SETTINGS,
   forms = {},
+  variation = 58,
 }: {
   text: string;
   glyphs: Record<string, FontStroke[]>;
   size?: number;
   penSettings?: PenSettings;
   forms?: LetterForms;
+  variation?: number;
 }) {
   const scale = size / 168;
   const baseline = 118;
@@ -72,9 +75,16 @@ export default function FontPreview({
       previous.get(character),
     );
     previous.set(character, index);
-    const strokes = variants[index]?.strokes.length
+    const sourceStrokes = variants[index]?.strokes.length
       ? variants[index].strokes
       : glyphs[character] || [];
+    const varied = varyLetterGlyph(formGlyph({ strokes: sourceStrokes }, character.codePointAt(0)!), 31847, characterIndex, variation, position);
+    let offset = 0;
+    const strokes = sourceStrokes.map(stroke => {
+      const points = varied.points.slice(offset, offset + stroke.length);
+      offset += stroke.length;
+      return points;
+    });
     const metrics = glyphWidth(strokes);
     const form = variants[index];
     const anchorPoint = (kind: "entry" | "exit") => {

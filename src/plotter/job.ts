@@ -1,4 +1,5 @@
 import { coordinateFrameCommands } from "./coordinateFrame";
+import { varyLetterGlyph } from "../handwriting/letterGeometry";
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
 import { MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, penTravelSeconds } from "./penLift";
 import { chooseForm, formGlyph, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
@@ -135,12 +136,6 @@ function splitGlyphStrokes(
   const scaleX =
     motion.width * authorWidth * evolution.width *
     (1 + (seededRandom(handwriting?.seed, `${handwriting?.key}:width`) - 0.5) * variation * 0.0012);
-  // One smooth deformation field per occurrence, never independent point jitter.
-  // The same seed gives identical preview, export and recovery trajectories.
-  const glyphHeight = Math.max(1, glyph.bounds.maxY - glyph.bounds.minY);
-  const bend = handwriting?.isLetter
-    ? (seededRandom(handwriting.seed, `${handwriting.key}:bend`) - 0.5) * variation * 0.0012
-    : 0;
   const scaleY =
     1 +
     (seededRandom(handwriting?.seed, `${handwriting?.key}:height`) - 0.5) *
@@ -169,7 +164,7 @@ function splitGlyphStrokes(
     const localX =
       (source.x - glyph.bounds.minX) * scale * scaleX - localY * (slant - randomSlant * motion.coherence * 0.85 + Math.tan(motion.slant * Math.PI / 180));
     const point = {
-      x: cursorX + localX + Math.sin(Math.PI * (source.y - glyph.bounds.minY) / glyphHeight) * glyphHeight * scale * bend,
+      x: cursorX + localX,
       y: baseline + localY + baselineDrift + rhythmDrift * (1 - motion.coherence * 0.85) + motion.baseline * scale * FONT_EM,
     };
     if (glyph.flags[index] === 0 || !stroke) {
@@ -1079,10 +1074,14 @@ export async function layoutText(
         }
         if (clipped) break;
         const variants = forms.get(char) || [];
-        const selected = config.trueHandwriting ? chooseForm(variants, config.seed, glyphOccurrence, visibleIndex === 1 ? 'initial' : visibleIndex === visibleChars.length ? 'final' : 'medial', previousForms.get(char)) : 0;
+        const letterPosition = visibleIndex === 1 ? 'initial' : visibleIndex === visibleChars.length ? 'final' : 'medial';
+        const selected = config.trueHandwriting ? chooseForm(variants, config.seed, glyphOccurrence, letterPosition, previousForms.get(char)) : 0;
         const selectedForm = variants[selected];
         previousForms.set(char, selected);
-        const glyph = selectedForm?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
+        const baseGlyph = selectedForm?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
+        const glyph = baseGlyph && config.trueHandwriting
+          ? varyLetterGlyph(baseGlyph, config.seed, glyphOccurrence, config.glyphVariation, letterPosition)
+          : baseGlyph;
         if (glyph) {
           const sourceGlyphStrokes = splitGlyphStrokes(
             glyph,

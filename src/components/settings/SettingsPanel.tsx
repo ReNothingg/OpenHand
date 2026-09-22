@@ -242,13 +242,13 @@ export default function SettingsPanel({
         {settings.trueHandwriting && (
           <>
             <RangeControl
-              label="Автоматический разброс букв"
+              label="Автоварианты формы букв"
               value={settings.glyphVariation}
               min={0}
               max={100}
               suffix="%"
               onChange={(value) => updateSetting("glyphVariation", value)}
-              hint="Повторения отличаются шириной, высотой и наклоном. У GFont слегка меняется изгиб штриха, без дрожания отдельных точек."
+              hint="У GFont меняется геометрия петель, дуг и хвостов, а также пропорции букв. Варианты создаются автоматически из вашего начертания и сохраняются в траектории задания."
             />
             <SettingSection title="Изменение почерка по странице" open={false}>
             <Toggle

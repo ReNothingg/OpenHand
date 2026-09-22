@@ -80,6 +80,7 @@ export default function FontStudio({ onClose, deviceControls }: { onClose?: () =
   const [activeCharacter, setActiveCharacter] = useState("А");
   const [history, setHistory] = useState<LetterForm[]>([]);
   const [previewText, setPreviewText] = useState(PREVIEW_TEXT.ru);
+  const [previewVariation, setPreviewVariation] = useState(58);
   const [previewSize, setPreviewSize] = useState(32);
   const [notice, setNotice] = useState("");
   const [photoOpen, setPhotoOpen] = useState(false);
@@ -589,7 +590,15 @@ export default function FontStudio({ onClose, deviceControls }: { onClose?: () =
               forms={forms}
               penSettings={penSettings}
               size={previewSize}
+              variation={previewVariation}
             />
+            <label className="font-preview-variation">
+              <span>Автоварианты формы букв · {previewVariation}%</span>
+              <LiquidRange min="0" max="100" value={previewVariation}
+                aria-label="Автоварианты формы букв"
+                onChange={event => setPreviewVariation(Number(event.target.value))} />
+              <small>Плавно меняет петли, дуги и хвосты. 0% — исходные начертания. Записанные глифы остаются прежними.</small>
+            </label>
           </section>
           <details className="studio-detail">
             <summary>Повторяемость начертаний</summary>
