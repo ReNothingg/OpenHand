@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { downloadFile } from "../lib/files";
 import AppearanceControl from "../components/AppearanceControl";
 import GCodePenControls from "./GCodePenControls";
@@ -133,9 +133,13 @@ function VirtualizedSource({
 export default function GCodeViewer({
   payload,
   onClose,
+  deviceControls,
+  backLabel = "← К документу",
 }: {
   payload?: OpenHandFilePayload | null;
   onClose: () => void;
+  deviceControls?: ReactNode;
+  backLabel?: string;
 }) {
   const [document, setDocument] = useState<GCodeDocument | null>(() =>
     initialDocument(payload),
@@ -320,7 +324,7 @@ export default function GCodeViewer({
       <header className="gcode-viewer-header">
         <div className="gcode-viewer-title">
           <button className="button compact" type="button" onClick={onClose}>
-            ← К документу
+            {backLabel}
           </button>
           <div>
             <strong>Редактор G-code</strong>
@@ -346,6 +350,7 @@ export default function GCodeViewer({
         )}
         <div className="gcode-viewer-actions">
           <AppearanceControl />
+          {deviceControls}
           {document && (
             <>
               <button

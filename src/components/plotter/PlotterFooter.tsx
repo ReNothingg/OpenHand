@@ -2,7 +2,6 @@ import { serializePlotterGcode } from "../../gcode/penModel";
 import { downloadFile } from "../../lib/files";
 import { useRef, useState } from "react";
 import { enablePlotterNotifications } from "../../lib/notifications";
-import PaperChangeDialog from "./PaperChangeDialog";
 import PlotterManualStart from "./PlotterManualStart";
 
 export function formatDuration(seconds: number) {
@@ -47,10 +46,6 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
       className={`integrated-plotter-footer ${collapsed ? "is-collapsed" : ""}`}
       aria-label="Управление и запуск плоттера"
     >
-      <PaperChangeDialog
-        key={plotter.paperChange?.nextSheet ?? "idle"}
-        workspace={workspace}
-      />
       <div className="plotter-footer-heading">
         <button type="button" aria-expanded={!collapsed} onClick={() => setCollapsed(value => !value)}>
           <span aria-hidden="true">{collapsed ? "▸" : "▾"}</span> Запись и предпросмотр

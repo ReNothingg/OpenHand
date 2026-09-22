@@ -1,13 +1,10 @@
-import { lazy, StrictMode, Suspense, useEffect, useState } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "katex/dist/katex.min.css";
 import "./styles/index.css";
 import { readAppearance } from "./components/AppearanceControl";
-import { useDisclosureMotion } from "./hooks/useDisclosureMotion";
-
-const App = lazy(() => import("./App"));
-const FontStudio = lazy(() => import("./font-builder/FontStudio"));
-const GCodeViewer = lazy(() => import("./gcode/GCodeViewer"));
+import ApplicationViews from "./app/ApplicationViews";
+import { PlotterSessionProvider } from "./plotter/PlotterSession";
 
 const path = window.location.pathname.replace(/\/+$/, "") || "/";
 const searchParams = new URLSearchParams(window.location.search);
@@ -71,97 +68,10 @@ window.__openhandReceiveFile = (payload) => {
   );
 };
 
-function Root() {
-  useDisclosureMotion();
-  const [activeView, setActiveView] = useState(
-    path === "/font" || view === "font"
-      ? "font"
-      : path === "/gcode" || view === "gcode"
-        ? "gcode"
-        : "document",
-  );
-  const [filePayload, setFilePayload] = useState(
-    () => window.__openhandPendingFile || null,
-  );
-
-  useEffect(() => {
-    const openFile = (event) => {
-      setFilePayload(event.detail);
-      setActiveView("gcode");
-    };
-    window.addEventListener("openhand:open-file", openFile);
-    return () => window.removeEventListener("openhand:open-file", openFile);
-  }, []);
-
-  useEffect(() => {
-    const showWorkspace = (event: Event) => {
-      const mode = (event as CustomEvent).detail;
-      if (mode !== "workshop" && mode !== "document") return;
-      if (activeView === "document") return;
-      try {
-        sessionStorage.setItem("openhand.workspace", mode);
-      } catch {
-        /* optional */
-      }
-      setActiveView("document");
-    };
-    window.addEventListener("openhand:workspace", showWorkspace);
-    return () =>
-      window.removeEventListener("openhand:workspace", showWorkspace);
-  }, [activeView]);
-
-  useEffect(() => {
-    if (activeView !== "document") window.dispatchEvent(new CustomEvent("openhand:menu-state", { detail: {
-      workspace: activeView, editor: false, settings: false, locked: false,
-    } }));
-  }, [activeView]);
-
-  if (activeView === "font")
-    return (
-      <Suspense
-        fallback={
-          <div className="view-loading">Загрузка редактора шрифта…</div>
-        }
-      >
-        <FontStudio />
-      </Suspense>
-    );
-  if (activeView === "gcode") {
-    return (
-      <Suspense
-        fallback={
-          <div className="view-loading">Загрузка просмотра G-code…</div>
-        }
-      >
-        <GCodeViewer
-          payload={filePayload}
-          onClose={() => {
-            const url = new URL(window.location.href);
-            if (url.pathname.replace(/\/+$/, "") === "/gcode")
-              url.pathname = "/";
-            url.searchParams.delete("view");
-            window.history.replaceState(
-              null,
-              "",
-              `${url.pathname}${url.search}${url.hash}`,
-            );
-            setActiveView("document");
-            setFilePayload(null);
-            window.__openhandPendingFile = null;
-          }}
-        />
-      </Suspense>
-    );
-  }
-  return (
-    <Suspense fallback={<div className="view-loading">Загрузка OpenHand…</div>}>
-      <App />
-    </Suspense>
-  );
-}
-
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <Root />
+    <PlotterSessionProvider>
+      <ApplicationViews initialView={path === "/font" || view === "font" ? "font" : path === "/gcode" || view === "gcode" ? "gcode" : "document"} />
+    </PlotterSessionProvider>
   </StrictMode>,
 );

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AppearanceControl from "../components/AppearanceControl";
 import { loadGFont } from "../plotter/gfont";
@@ -66,7 +67,7 @@ function splitGlyph(glyph: {
   return strokes.filter((item) => item.length > 1);
 }
 
-export default function FontStudio() {
+export default function FontStudio({ onClose, deviceControls }: { onClose?: () => void; deviceControls?: ReactNode }) {
   const initial = useMemo(readDraft, []);
   const [penSettings, setPenSettings] = useState(initial.penSettings);
   const [tool, setTool] = useState<"pen" | "eraser" | "trim">("pen");
@@ -320,7 +321,8 @@ export default function FontStudio() {
   return (
     <main className="font-studio">
       <header className="font-studio-toolbar">
-        <a href="?">← В редактор</a>
+        <a href="?" onClick={event => { if (onClose && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); onClose(); } }}>← В редактор</a>
+        {deviceControls}
         <label className="font-name-field">
           <span>Название</span>
           <input

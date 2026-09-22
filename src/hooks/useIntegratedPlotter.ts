@@ -3,7 +3,7 @@ import { COORDINATE_FRAME_VERSION } from "../plotter/coordinateFrame";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { usePenControl } from "./usePenControl";
-import { usePlotter } from "./usePlotter";
+import { usePlotterSession } from "../plotter/PlotterSession";
 import { usePlotterPlayback } from "./usePlotterPlayback";
 import { loadBundledGFont, loadGFont } from "../plotter/gfont";
 import {
@@ -147,7 +147,7 @@ export function useIntegratedPlotter({
   const calibrationProof = useRef<string | null>(null);
   const [calibrationActive, setCalibrationActive] = useState(false);
   const [importedGcode, setImportedGcode] = useState(null);
-  const plotter = usePlotter();
+  const plotter = usePlotterSession();
   const activeProfile =
     profileStore.profiles.find(
       (profile) => profile.id === profileStore.activeProfileId,

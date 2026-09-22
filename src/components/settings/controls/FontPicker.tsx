@@ -147,7 +147,11 @@ export default function FontPicker({
           Загрузить
         </button>
       </div>
-      <a className="font-studio-link" href="?view=font">
+      <a className="font-studio-link" href="?view=font" onClick={event => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent("openhand:view", { detail: "font" }));
+      }}>
         Создать свой шрифт в мастерской <span>→</span>
       </a>
       <input

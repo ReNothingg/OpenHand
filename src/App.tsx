@@ -13,6 +13,7 @@ import PreviewPanel from "./components/preview/PreviewPanel";
 import SettingsPanel from "./components/settings/SettingsPanel";
 import PlotterWorkshop from "./components/plotter/PlotterWorkshop";
 import EmergencyStopButton from "./components/plotter/EmergencyStopButton";
+import EmergencyStopNotice from "./components/plotter/EmergencyStopNotice";
 import PlotterDevicePage from "./components/plotter/PlotterDevicePage";
 import AppearanceControl from "./components/AppearanceControl";
 import { useDocumentPersistence } from "./hooks/useDocumentPersistence";
@@ -42,7 +43,7 @@ import {
   profilePatch,
 } from "./handwriting/profiles";
 
-export default function App() {
+export default function App({ active = true }: { active?: boolean }) {
   const [workspaceMode, setWorkspaceMode] = useState(() => {
     try {
       const saved = sessionStorage.getItem("openhand.workspace");
@@ -685,25 +686,6 @@ export default function App() {
     pending: calculationPending,
   });
   useEffect(() => {
-    const emergencyKey = (event: KeyboardEvent) => {
-      if (event.repeat && ["Enter", " "].includes(event.key) && event.target instanceof Element
-          && event.target.closest("[data-plotter-motion]")) {
-        event.preventDefault();
-        return;
-      }
-      if (event.key !== "Escape" || event.repeat) return;
-      event.preventDefault();
-      void plotterWorkspace.stop();
-    };
-    const nativeStop = () => { void plotterWorkspace.stop(); };
-    window.addEventListener("keydown", emergencyKey, true);
-    window.addEventListener("openhand:native-stop", nativeStop);
-    return () => {
-      window.removeEventListener("keydown", emergencyKey, true);
-      window.removeEventListener("openhand:native-stop", nativeStop);
-    };
-  }, [plotterWorkspace.stop]);
-  useEffect(() => {
     if (plotterWorkspace.running) {
       setEditorExpanded(false);
       setManualEditing(false);
@@ -788,6 +770,7 @@ export default function App() {
   }, [plotterWorkspace.running, plotterWorkspace.calibrationActive]);
 
   useEffect(() => {
+    if (!active) return;
     const publish = () => window.dispatchEvent(new CustomEvent("openhand:menu-state", { detail: {
       workspace: workspaceMode, editor: !editorCollapsed, settings: !settingsCollapsed,
       locked: plotterWorkspace.running || plotterWorkspace.calibrationActive,
@@ -802,7 +785,7 @@ export default function App() {
     window.addEventListener("focus", publish);
     window.addEventListener("openhand:menu-command", command);
     return () => { window.removeEventListener("focus", publish); window.removeEventListener("openhand:menu-command", command); };
-  }, [workspaceMode, editorCollapsed, settingsCollapsed, plotterWorkspace.running, plotterWorkspace.calibrationActive]);
+  }, [active, workspaceMode, editorCollapsed, settingsCollapsed, plotterWorkspace.running, plotterWorkspace.calibrationActive]);
 
   return (
     <div
@@ -842,10 +825,7 @@ export default function App() {
         <AppearanceControl />
         <EmergencyStopButton onStop={plotterWorkspace.stop} />
       </nav>
-      {plotterWorkspace.stopNotice && <div className="emergency-stop-notice" role="alert">
-        <span>{plotterWorkspace.stopNotice}</span>
-        {plotterWorkspace.emergencyStopped && <button type="button" onClick={plotterWorkspace.releaseEmergencyStop}>Разрешить управление</button>}
-      </div>}
+      {active && <EmergencyStopNotice workspace={plotterWorkspace} />}
       {workspaceMode === "device" ? (
         <PlotterDevicePage workspace={plotterWorkspace} />
       ) : workspaceMode === "workshop" ? (

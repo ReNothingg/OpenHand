@@ -184,3 +184,11 @@
 .plotter-manual-start .button { min-height: 40px; }
 
 .plotter-manual-start .pen-travel-info { flex-basis: 100%; margin: 4px 0 0; }
+
+.document-view-shell[hidden] { display: none !important; }
+.auxiliary-view-shell { height: 100vh; display: flex; flex-direction: column; min-height: 0; }
+.auxiliary-view-shell > .gcode-viewer, .auxiliary-view-shell > .font-studio { flex: 1 1 auto; min-height: 0; height: auto; }
+.auxiliary-plotter-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.auxiliary-plotter-controls > span { font-size: 12px; color: var(--text-secondary); }
+.auxiliary-plotter-controls > [role="alert"] { max-width: 320px; color: var(--danger); }
+@media print { .auxiliary-plotter-controls { display: none; } }

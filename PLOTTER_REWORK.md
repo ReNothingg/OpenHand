@@ -653,3 +653,40 @@ a file during motion can discard the application's session while the device stil
 has buffered movement. This must be addressed at the shared session/navigation
 boundary before a final acceptance claim or further physical testing. The current
 viewer tests were isolated and did not exercise a live document session.
+
+## Application-owned session across document, G-code and font editors
+
+Addressed the route issue above. PlotterSessionProvider owns exactly one usePlotter
+instance per application window. useIntegratedPlotter consumes that session. Once
+visited, App stays mounted while an auxiliary view is shown, preserving its session
+pen reference, XY origin and document state. Cold viewer startup still leaves the
+document unmounted until requested and does not open a port. The FontPicker link
+and font-editor return now navigate inside the app instead of reloading the page.
+
+Moved Escape/native-stop handling to the session provider and the paper dialog out
+of the document footer. G-code/font headers expose the same running/paused state,
+pause/resume and STOP; the shared stop notice appears only on the visible surface.
+Paper changes remain modal above any view. Hidden App no longer overwrites the
+active auxiliary view's native menu state; returning republishes the document state.
+Lazy-loading auxiliary views also retains an accessible STOP. During the UI pass,
+fixed very short pen-time estimates that previously rounded to an impossible 0 sec.
+
+Full ApplicationViews + real React + virtual serial fixture verified: a single open
+and zero closes through document/device -> G-code -> font editor -> device and back;
+a 3000-command job continued through the transition; pause retained exactly 617/3000
+across views; resume advanced the same job; Escape from G-code requested one reset.
+The declared sheet origin survived return. Two taught pen endpoints (0 / 0.1) and
+the live 0.1 reference survived a viewer round trip with no extra reset or reopen.
+The actual FontPicker link changed editors without a reload or port close.
+
+The paper dialog appeared over G-code only after its completion barrier; first Tab
+focused STOP, Escape cancelled once, and a later queue required a new unchecked
+confirmation before continuing to 4/4. Cold G-code startup had no App mounted, no
+port opens and one visible STOP; returning mounted App without connecting. Browser
+console had no warnings/errors in that cold-start check. Native hardware was not
+used. Temporary fixture files are removed before commit, with npm build, macOS,
+Windows cross-build and web parity checked for the final shared bundle.
+
+Remaining: saved-device identity/cold STOP fallback parity, full native navigation
+and reload/termination audit (ordinary SPA routes are now covered), broader final
+acceptance, and physical pen/contact verification. The overall goal is still active.
