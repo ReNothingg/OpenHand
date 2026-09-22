@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPenCommand, createPenJogCommands, createPenReferenceCommands } from "../plotter/job";
+import { createOriginCommands, createPenCommand, createPenJogCommands, createPenReferenceCommands } from "../plotter/job";
 import { normalizePlotterConfig } from "../plotter/profiles";
 import { clearPenSetup, hasVerifiedPenPositions, penTestDelta, PEN_TEST_STEP_MM, MAX_PEN_JOG_MM, savePenPosition } from "../plotter/penLift";
 
@@ -88,9 +88,12 @@ export function usePenControl(options: Options) {
     commit(0);
     live.setConfig(() => setup);
   }), [operate]);
-  const reference = useCallback((position: "up" | "down") => operate(async (live, commit) => {
+  const reference = useCallback((position: "up" | "down", includeSheetOrigin = false) => operate(async (live, commit) => {
     if (!hasVerifiedPenPositions(live.config, live.controllerPenKey)) throw new Error("Сначала сохраните два положения пера.");
-    await live.sendCommands(createPenReferenceCommands(live.config, position));
+    await live.sendCommands([
+      ...createPenReferenceCommands(live.config, position),
+      ...(includeSheetOrigin ? createOriginCommands(live.config) : []),
+    ]);
     commit(position === "up" ? live.config.zUp : live.config.zDown);
   }), [operate]);
   const jog = useCallback((up: boolean, distance = PEN_TEST_STEP_MM) => operate(async (live, commit) => {

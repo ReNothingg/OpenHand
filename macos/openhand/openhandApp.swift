@@ -27,6 +27,7 @@ private final class OpenHandAppState: ObservableObject {
 
 @main
 struct openhandApp: App {
+    @NSApplicationDelegateAdaptor(OpenHandLifecycle.self) private var lifecycle
     @StateObject private var state = OpenHandAppState()
     var body: some Scene {
         WindowGroup("OpenHand", id: "main") {

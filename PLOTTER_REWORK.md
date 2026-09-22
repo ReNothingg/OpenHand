@@ -24,6 +24,11 @@ configuration writes or factory resets during this implementation.
   controller actions are explicit and backed up, never hidden in connection/setup.
 - Local assets, no gradients, coherent light/dark layout, readable at compact window sizes.
 - macOS is the primary delivery. Shared features also exist on Windows.
+- Owner follow-up: manual sheet placement is the normal route; completing the axes
+  wizard must not be a prerequisite for writing or manual arrows. Keep configured
+  coordinate transforms and program bounds, and keep saved pen heights separate from
+  the live reference. A single explicit motion-free action sets the sheet start and
+  raised-pen reference in the document and workshop.
 
 ## Evidence needed
 
@@ -277,3 +282,42 @@ all four distances and both signs, invalid input rejection and preserved calibra
 were checked separately. The rendered picker and labels were inspected. No hardware
 commands were issued. Native close/quit work remains unfinished and is not included
 in this user-requested step adjustment.
+
+## Manual sheet placement and native close checkpoint
+
+The owner explicitly requested manual positioning instead of compulsory checks.
+Removed axes-wizard certification from shared device readiness and manual jog gates;
+the configured transform, program bounds, fresh Idle, stop latch, saved pen endpoints
+and command policy still apply. Document/workshop now expose “Начало листа здесь”.
+The user positions the raised pen over the upper-left sheet corner, then this action
+sets XY zero and the saved upper Z/E reference in one transport operation without
+movement. It sets the profile origin to upper-left so placement is independent of
+machine travel width/height; it does not alter axis direction. Duplicate clicks are
+ignored and a changed connection/profile context cannot confirm a stale placement.
+The two missing-reference blockers became one actionable instruction.
+
+Observed real component/usePenControl fixture: no initial port commands; placement
+emitted only G21, G92Z0, G10P0L20X0Y0; the recording button became enabled without an
+axes certificate; subsequent simulated recording produced the expected job commands.
+Pure checks covered retained stop/Idle/connection/pen/bounds guards, motion-free
+reference commands and upper-left coordinates independent of machine dimensions.
+
+Native bridge 5 adds bounded shutdown preparation and native window/quit hooks on
+both platforms. New writes/open/release requests are rejected during close; active
+STOP precedes transport close; no live connection means no remembered-port reopen.
+Open-generation checks discard late connection completions, and only one opening
+may own the native transport. Failed delivery/timeout cancels normal app closure.
+Concurrent window close/quit requests join the same preparation. SwiftUI window
+delegate behavior is forwarded, with guards installed on view attachment and keying.
+
+Actual Swift shutdown methods with fake transports passed ordering/coalescing,
+no cached reopen, failure, timeout and stale-completion cases. In a native GUI fixture
+using the actual close guard, closing the window produced: 852118 write, delivered,
+serial close, TCP close, disconnect, original delegate approval, window close.
+The fixture had no physical transport implementation. macOS and Windows builds and
+bundle parity passed; Windows runtime and macOS failed-close dialog interaction are
+not yet verified. All temporary test sources are removed before publication.
+
+Remaining: port ownership/cached-port parity, full manual XY boundary and modal-frame
+audit, paper-change/recovery interactions, setup discoverability and final acceptance.
+Physical motion accuracy remains outside these virtual checks. Goal remains open.

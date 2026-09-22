@@ -15,9 +15,19 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
     private var emergencyStopped = false
     private var emergencyInFlight = false
     private var activeTransport: String?
+    static let liveBridges = NSHashTable<NativeBridge>.weakObjects()
+    private var closingRequested = false
+    private var closeWaiters: [SerialConnection.Completion] = []
+    private var closeInFlight = false
+    private var closeGeneration = 0
+    private var openingCount = 0
+    private var openGeneration = 0
+    var needsShutdown: Bool { activeTransport != nil || openingCount > 0 || emergencyInFlight || closeInFlight }
+
 
     override init() {
         super.init()
+        Self.liveBridges.add(self)
         if let saved = UserDefaults.standard.dictionary(forKey: "OpenHandLastSerialPort"),
            let path = saved["path"] as? String, path.hasPrefix("/dev/cu."), path != "/dev/cu.debug-console",
            let baud = saved["baudRate"] as? Int {
@@ -73,6 +83,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
 
     private var stopWaiters: [SerialConnection.Completion] = []
     private var nativeStopInFlight = false
+    private var nativeStopWaiters: [SerialConnection.Completion] = []
     private var escapeMonitor: Any?
     var hasActiveConnection: Bool { activeTransport != nil }
 
@@ -94,7 +105,8 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         escapeMonitor = nil
     }
 
-    func stopFromNativeUI() {
+    func stopFromNativeUI(completion: SerialConnection.Completion? = nil) {
+        if let completion { nativeStopWaiters.append(completion) }
         guard !nativeStopInFlight else { return }
         nativeStopInFlight = true
         // Block writes synchronously, before waiting for the web process.
@@ -107,6 +119,9 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             var payload: [String: Any] = ["token": token]
             if case let .failure(error) = result { payload["error"] = error.localizedDescription }
             self.callJavaScript(function: "window.__openhandNativeStopFinished", payload: payload)
+            let waiters = self.nativeStopWaiters
+            self.nativeStopWaiters.removeAll()
+            waiters.forEach { $0(result) }
         }
     }
 
@@ -149,6 +164,55 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         }
     }
 
+    func cancelCloseRequest() {
+        if !closeInFlight { closingRequested = false }
+    }
+
+    func prepareForClose(completion: @escaping SerialConnection.Completion) {
+        closeWaiters.append(completion)
+        guard !closeInFlight else { return }
+        closeInFlight = true
+        closeGeneration += 1
+        let generation = closeGeneration
+        closingRequested = true
+        emergencyStopped = true
+        openGeneration += 1
+        let finish: SerialConnection.Completion = { [self] result in
+            guard closeInFlight && closeGeneration == generation else { return }
+            closeInFlight = false
+            if case .failure = result { closingRequested = false }
+            let waiters = closeWaiters
+            closeWaiters.removeAll()
+            waiters.forEach { $0(result) }
+        }
+        let timer = DispatchWorkItem { [self] in
+            guard closeInFlight && closeGeneration == generation else { return }
+            finish(.failure(NSError(domain: "OpenHand", code: 3, userInfo: [NSLocalizedDescriptionKey:
+                "Остановка перед закрытием не подтверждена за 4 секунды. Если механизм движется, отключите питание и USB."])))
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: timer)
+        let closePorts: SerialConnection.Completion = { [self] stopped in
+            guard closeInFlight && closeGeneration == generation else { return }
+            if case .failure = stopped { timer.cancel(); finish(stopped); return }
+            serial.close { [self] in
+                guard closeInFlight && closeGeneration == generation else { return }
+                tcp.close { [self] in
+                    guard closeInFlight && closeGeneration == generation else { return }
+                    timer.cancel()
+                    activeTransport = nil
+                    sendSerialDisconnect("Соединение закрыто перед выходом.")
+                    finish(.success(()))
+                }
+            }
+        }
+        if activeTransport != nil || emergencyInFlight {
+            stopFromNativeUI(completion: closePorts)
+        } else {
+            // No live session: never reopen a remembered device merely to quit.
+            closePorts(.success(()))
+        }
+    }
+
     private func handleSerialMessage(_ body: Any) {
         guard let payload = body as? [String: Any],
               let requestID = payload["id"] as? NSNumber,
@@ -157,6 +221,10 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         }
 
         let id = requestID.intValue
+        if closingRequested && ["open", "openNetwork", "write", "setSignals", "releaseEmergencyStop", "requestPort"].contains(action) {
+            reject(id, message: "Соединение закрывается. Новые команды заблокированы.")
+            return
+        }
         switch action {
         case "enableNotifications":
             Task {
@@ -186,6 +254,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             }
 
         case "open":
+            guard openingCount == 0 else { reject(id, message: "Подключение ещё выполняется."); return }
             guard !emergencyInFlight else { reject(id, message: "Остановка ещё выполняется."); return }
             guard let path = payload["path"] as? String,
                   let baudRate = payload["baudRate"] as? NSNumber else {
@@ -210,19 +279,35 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
                 "stopBits": options.stopBits, "parity": options.parity,
                 "flowControl": options.flowControl
             ], forKey: "OpenHandLastSerialPort")
+            openingCount += 1
+            let generation = openGeneration
             tcp.close { [weak self] in
-                self?.serial.open(path: path, options: options) { [weak self] result in
+                guard let self else { return }
+                guard generation == self.openGeneration else {
+                    self.openingCount -= 1; self.reject(id, message: "Подключение отменено закрытием."); return
+                }
+                self.serial.open(path: path, options: options) { [weak self] result in
+                    guard let self else { return }
+                    guard generation == self.openGeneration else {
+                        self.serial.close { [weak self] in
+                            self?.openingCount -= 1
+                            self?.reject(id, message: "Подключение отменено закрытием.")
+                        }
+                        return
+                    }
+                    self.openingCount -= 1
                     switch result {
                     case .success:
-                        self?.activeTransport = "serial"
-                        self?.resolve(id, result: ["opened": true])
+                        self.activeTransport = "serial"
+                        self.resolve(id, result: ["opened": true])
                     case let .failure(error):
-                        self?.reject(id, error: error)
+                        self.reject(id, error: error)
                     }
                 }
             }
 
         case "openNetwork":
+            guard openingCount == 0 else { reject(id, message: "Подключение ещё выполняется."); return }
             guard !emergencyInFlight else { reject(id, message: "Остановка ещё выполняется."); return }
             lastProtocol = payload["profile"] as? String
             guard let host = payload["host"] as? String,
@@ -232,14 +317,29 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
             }
             lastRequestedTransport = "network"
             UserDefaults.standard.set("network", forKey: "OpenHandLastTransport")
+            openingCount += 1
+            let generation = openGeneration
             serial.close { [weak self] in
-                self?.tcp.open(host: host, port: port.intValue) { [weak self] result in
+                guard let self else { return }
+                guard generation == self.openGeneration else {
+                    self.openingCount -= 1; self.reject(id, message: "Подключение отменено закрытием."); return
+                }
+                self.tcp.open(host: host, port: port.intValue) { [weak self] result in
+                    guard let self else { return }
+                    guard generation == self.openGeneration else {
+                        self.tcp.close { [weak self] in
+                            self?.openingCount -= 1
+                            self?.reject(id, message: "Подключение отменено закрытием.")
+                        }
+                        return
+                    }
+                    self.openingCount -= 1
                     switch result {
                     case .success:
-                        self?.activeTransport = "network"
-                        self?.resolve(id, result: ["opened": true])
+                        self.activeTransport = "network"
+                        self.resolve(id, result: ["opened": true])
                     case let .failure(error):
-                        self?.reject(id, error: error)
+                        self.reject(id, error: error)
                     }
                 }
             }

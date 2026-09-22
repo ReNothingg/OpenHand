@@ -233,7 +233,7 @@ private let serialShim = #"""
     if (stopPending) throw new Error("Остановка ещё выполняется.");
     writesStopped = false;
   } });
-  Object.defineProperty(window, "__openhandBridgeVersion", { value: 4 });
+  Object.defineProperty(window, "__openhandBridgeVersion", { value: 5 });
   Object.defineProperty(window, "__openhandNativePlatform", {
     value: "macos",
     configurable: false,
@@ -291,7 +291,10 @@ struct OpenHandWebView: NSViewRepresentable {
             forURLScheme: "openhand"
         )
 
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let webView = CloseAwareWebView(frame: .zero, configuration: configuration)
+        webView.onWindowReady = { [weak coordinator = context.coordinator] window in
+            coordinator?.attachCloseGuard(to: window)
+        }
         // The document canvas owns pinch zoom; never magnify the surrounding UI.
         webView.allowsMagnification = false
         webView.magnification = 1
@@ -319,6 +322,7 @@ struct OpenHandWebView: NSViewRepresentable {
         context.coordinator.webView = webView
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.changeWorkspace(_:)), name: Notification.Name("OpenHandWorkspace"), object: nil)
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.menuCommand(_:)), name: Notification.Name("OpenHandMenuCommand"), object: nil)
+        NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.windowReady(_:)), name: NSWindow.didBecomeKeyNotification, object: nil)
         context.coordinator.loadApplication()
         return webView
     }
@@ -332,6 +336,7 @@ struct OpenHandWebView: NSViewRepresentable {
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
         NotificationCenter.default.removeObserver(coordinator, name: Notification.Name("OpenHandWorkspace"), object: nil)
         NotificationCenter.default.removeObserver(coordinator, name: Notification.Name("OpenHandMenuCommand"), object: nil)
+        NotificationCenter.default.removeObserver(coordinator, name: NSWindow.didBecomeKeyNotification, object: nil)
         coordinator.bridge.removeEmergencyKeys()
         let controller = webView.configuration.userContentController
         controller.removeScriptMessageHandler(forName: "serialBridge")
@@ -345,6 +350,14 @@ struct OpenHandWebView: NSViewRepresentable {
         private static let maximumDocumentBytes = 64 * 1024 * 1024
         let bridge = NativeBridge()
         let assetHandler = LocalAssetSchemeHandler()
+        private lazy var closeGuard = NativeCloseGuard(bridge: bridge)
+
+        @objc func windowReady(_ notification: Notification) {
+            guard let window = webView?.window, notification.object as? NSWindow === window else { return }
+            attachCloseGuard(to: window)
+        }
+
+        func attachCloseGuard(to window: NSWindow) { closeGuard.install(on: window) }
         weak var webView: WKWebView?
         private var lastDocumentRequestID: UUID?
         private var pendingDocument: [String: Any]?

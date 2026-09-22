@@ -657,7 +657,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               <button
                 type="button"
                 data-plotter-motion="" aria-label="Переместить каретку вверх"
-                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped || !workspace.workAreaConfirmed}
+                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped}
                 onClick={() => workspace.jog(0, -config.jogDistance)}
               >
                 ↑
@@ -665,7 +665,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               <button
                 type="button"
                 data-plotter-motion="" aria-label="Переместить каретку влево"
-                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped || !workspace.workAreaConfirmed}
+                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped}
                 onClick={() => workspace.jog(-config.jogDistance, 0)}
               >
                 ←
@@ -674,7 +674,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               <button
                 type="button"
                 data-plotter-motion="" aria-label="Переместить каретку вправо"
-                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped || !workspace.workAreaConfirmed}
+                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped}
                 onClick={() => workspace.jog(config.jogDistance, 0)}
               >
                 →
@@ -682,7 +682,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               <button
                 type="button"
                 data-plotter-motion="" aria-label="Переместить каретку вниз"
-                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped || !workspace.workAreaConfirmed}
+                disabled={!connected || running || plotter.operationBusy || workspace.emergencyStopped}
                 onClick={() => workspace.jog(0, config.jogDistance)}
               >
                 ↓

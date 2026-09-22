@@ -2,6 +2,7 @@ import { downloadFile } from "../../lib/files";
 import { useRef, useState } from "react";
 import { enablePlotterNotifications } from "../../lib/notifications";
 import PaperChangeDialog from "./PaperChangeDialog";
+import PlotterManualStart from "./PlotterManualStart";
 
 export function formatDuration(seconds: number) {
   if (!Number.isFinite(seconds)) return "—";
@@ -83,7 +84,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
       </ul>}
       {preflight.warnings.map(message => <p className="plotter-note" key={message}>{message}</p>)}
       </details>
-      {!workspace.deviceReadiness.canStart && !running && <button className="text-button" type="button"
+      {!workspace.placementReadiness.canStart && workspace.penPositionsVerified && !running && <button className="text-button" type="button"
         onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>
         Открыть настройки плоттера →
       </button>}
@@ -91,6 +92,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
       <div className="plotter-control-grid">
         <section className="plotter-control-card recording-card" aria-label="Запись на бумаге">
           <h3>Запись на бумаге</h3>
+          <PlotterManualStart workspace={workspace} />
       <div className="plotter-sheet-options">
         <label>
           Записать
@@ -389,7 +391,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
 
       {recoveryAvailable && !originConfirmed && (
         <p className="plotter-warning">
-          Для продолжения задайте начало листа и текущее положение пера во вкладке «Плоттер».
+          Для продолжения установите поднятое перо над прежним началом листа и нажмите «Начало листа здесь».
         </p>
       )}
       {plotter.progress.total > 0 && (

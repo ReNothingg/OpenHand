@@ -1,4 +1,5 @@
 import SceneCanvas from "./SceneCanvas";
+import PlotterManualStart from "./PlotterManualStart";
 import { mapSceneObjects, type SceneTool } from "../../plotter/scene";
 import ImageImportDialog from "./ImageImportDialog";
 import Icon from "../Icon";
@@ -546,7 +547,8 @@ export default function PlotterWorkshop({
             {!running && <p className={canRun ? "plotter-note" : "plotter-warning"}>
               {canRun ? "Готово к записи" : readiness.blockers[0]}
             </p>}
-            {!workspace.deviceReadiness.canStart && !running && <button className="text-button"
+            <PlotterManualStart workspace={workspace} workshop />
+            {!workspace.placementReadiness.canStart && workspace.penPositionsVerified && !running && <button className="text-button"
               onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>Открыть настройки плоттера →</button>}
             <div className="workshop-run-actions">
               <button

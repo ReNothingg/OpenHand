@@ -19,6 +19,12 @@ internal sealed class NativeBridge : IDisposable
     private string? _lastProtocol;
     private SerialOpenOptions? _lastSerialOpen;
     private NotifyIcon? _notification;
+    private bool _closingRequested;
+    private int _openingCount;
+    private int _openGeneration;
+    private Task? _closeTask;
+    public bool NeedsShutdown => HasActiveConnection || _openingCount > 0 || _emergencyInFlight || _closeTask is { IsCompleted: false };
+
 
     public NativeBridge(
         Form owner,
@@ -51,23 +57,70 @@ internal sealed class NativeBridge : IDisposable
     public void LatchEmergencyStop() => _emergencyStopped = true;
     public bool HasActiveConnection => _activeTransport is not null;
     private Task? _stopTask;
-    private bool _nativeStopInFlight;
+    private Task<Exception?>? _nativeStopTask;
 
-    public async Task StopFromNativeUIAsync()
+    public Task<Exception?> StopFromNativeUIAsync()
     {
-        if (_nativeStopInFlight) return;
-        _nativeStopInFlight = true;
+        if (_nativeStopTask is { IsCompleted: false }) return _nativeStopTask;
+        _nativeStopTask = SendNativeStopAsync();
+        return _nativeStopTask;
+    }
+
+    private async Task<Exception?> SendNativeStopAsync()
+    {
         _emergencyStopped = true;
         var token = Guid.NewGuid().ToString();
         // Script notification never gates the transport write.
         NotifyNativeStop("Started", new { token });
-        string? error = null;
+        Exception? error = null;
         try { await PerformEmergencyStopAsync(null); }
-        catch (Exception failure) { error = failure.Message; }
-        finally
+        catch (Exception failure) { error = failure; }
+        finally { NotifyNativeStop("Finished", new { token, error = error?.Message }); }
+        return error;
+    }
+
+    public void CancelCloseRequest()
+    {
+        if (_closeTask is not { IsCompleted: false }) _closingRequested = false;
+    }
+
+    public Task PrepareForCloseAsync()
+    {
+        if (_closeTask is { IsCompleted: false }) return _closeTask;
+        _closeTask = CloseAfterStopAsync();
+        return _closeTask;
+    }
+
+    private async Task CloseAfterStopAsync()
+    {
+        _closingRequested = true;
+        _emergencyStopped = true;
+        ++_openGeneration;
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(4));
+        try
         {
-            _nativeStopInFlight = false;
-            NotifyNativeStop("Finished", new { token, error });
+            if (HasActiveConnection || _emergencyInFlight)
+            {
+                var failure = await StopFromNativeUIAsync().WaitAsync(deadline.Token);
+                if (failure is not null) throw failure;
+            }
+            // No live session: never reopen a remembered device merely to quit.
+            deadline.Token.ThrowIfCancellationRequested();
+            await _serial.CloseAsync().WaitAsync(deadline.Token);
+            deadline.Token.ThrowIfCancellationRequested();
+            await _network.CloseAsync().WaitAsync(deadline.Token);
+            _activeTransport = null;
+            PostSerial("disconnected", new { error = "Соединение закрыто перед выходом." });
+        }
+        catch (OperationCanceledException)
+        {
+            _closingRequested = false;
+            throw new TimeoutException("Остановка перед закрытием не подтверждена за 4 секунды.");
+        }
+        catch
+        {
+            _closingRequested = false;
+            throw;
         }
     }
 
@@ -175,6 +228,8 @@ internal sealed class NativeBridge : IDisposable
         try
         {
             var action = GetRequiredString(payload, "action");
+            if (_closingRequested && action is "open" or "openNetwork" or "write" or "setSignals" or "releaseEmergencyStop" or "requestPort")
+                throw new InvalidOperationException("Соединение закрывается. Новые команды заблокированы.");
             switch (action)
             {
                 case "enableNotifications":
@@ -207,34 +262,58 @@ internal sealed class NativeBridge : IDisposable
                 }
                 case "open":
                 {
+                    if (_openingCount != 0) throw new InvalidOperationException("Подключение ещё выполняется.");
                     if (_emergencyInFlight) throw new InvalidOperationException("Остановка ещё выполняется.");
-                    _lastProtocol = GetOptionalString(payload, "profile", "grbl");
-                    await _network.CloseAsync();
                     var options = new SerialOpenOptions(
-                        GetRequiredString(payload, "path"),
-                        GetRequiredInt32(payload, "baudRate"),
-                        GetOptionalInt32(payload, "dataBits", 8),
-                        ParseStopBits(GetOptionalInt32(payload, "stopBits", 1)),
+                        GetRequiredString(payload, "path"), GetRequiredInt32(payload, "baudRate"),
+                        GetOptionalInt32(payload, "dataBits", 8), ParseStopBits(GetOptionalInt32(payload, "stopBits", 1)),
                         ParseParity(GetOptionalString(payload, "parity", "none")),
                         ParseHandshake(GetOptionalString(payload, "flowControl", "none")));
-                    _lastSerialOpen = options;
-                    _lastRequestedTransport = "serial";
-                    await _serial.OpenAsync(options);
-                    _activeTransport = "serial";
-                    Resolve(id, new { opened = true });
+                    var generation = _openGeneration;
+                    ++_openingCount;
+                    try
+                    {
+                        _lastProtocol = GetOptionalString(payload, "profile", "grbl");
+                        await _network.CloseAsync();
+                        if (generation != _openGeneration) throw new OperationCanceledException("Подключение отменено закрытием.");
+                        _lastSerialOpen = options;
+                        _lastRequestedTransport = "serial";
+                        await _serial.OpenAsync(options);
+                        if (generation != _openGeneration)
+                        {
+                            await _serial.CloseAsync();
+                            throw new OperationCanceledException("Подключение отменено закрытием.");
+                        }
+                        _activeTransport = "serial";
+                        Resolve(id, new { opened = true });
+                    }
+                    finally { --_openingCount; }
                     break;
                 }
                 case "openNetwork":
                 {
+                    if (_openingCount != 0) throw new InvalidOperationException("Подключение ещё выполняется.");
                     if (_emergencyInFlight) throw new InvalidOperationException("Остановка ещё выполняется.");
-                    _lastProtocol = GetOptionalString(payload, "profile", "grbl");
-                    await _serial.CloseAsync();
                     var host = GetRequiredString(payload, "host");
                     var port = GetRequiredInt32(payload, "port");
-                    _lastRequestedTransport = "network";
-                    await _network.OpenAsync(host, port);
-                    _activeTransport = "network";
-                    Resolve(id, new { opened = true });
+                    var generation = _openGeneration;
+                    ++_openingCount;
+                    try
+                    {
+                        _lastProtocol = GetOptionalString(payload, "profile", "grbl");
+                        await _serial.CloseAsync();
+                        if (generation != _openGeneration) throw new OperationCanceledException("Подключение отменено закрытием.");
+                        _lastRequestedTransport = "network";
+                        await _network.OpenAsync(host, port);
+                        if (generation != _openGeneration)
+                        {
+                            await _network.CloseAsync();
+                            throw new OperationCanceledException("Подключение отменено закрытием.");
+                        }
+                        _activeTransport = "network";
+                        Resolve(id, new { opened = true });
+                    }
+                    finally { --_openingCount; }
                     break;
                 }
                 case "releaseEmergencyStop":

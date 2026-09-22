@@ -64,7 +64,6 @@ export interface PlotterDeviceReadinessInput {
   originConfirmed: boolean;
   penReferenceConfirmed: boolean;
   penPositionsVerified: boolean;
-  workAreaConfirmed: boolean;
   controllerSettingsKnown: boolean;
 }
 
@@ -82,9 +81,8 @@ export function assessDeviceReadiness(input: PlotterDeviceReadinessInput, now = 
     else if (input.machineState === "Alarm") blockers.push("Контроллер сообщает Alarm. Устраните причину и снимите блокировку.");
     else if (input.machineState !== "Idle") blockers.push("Контроллер ещё не готов к запуску. Дождитесь состояния Idle.");
   }
-  if (!input.workAreaConfirmed) blockers.push("Проверьте направления и размеры рабочей области во вкладке «Плоттер». Это сохраняется в профиле.");
   if (!input.penPositionsVerified) blockers.push("Сохраните верхнее и нижнее положения пера во вкладке «Плоттер».");
-  else if (!input.penReferenceConfirmed) blockers.push("Укажите текущее положение пера во вкладке «Плоттер».");
-  if (!input.originConfirmed) blockers.push("Задайте начало листа во вкладке «Плоттер».");
+  else if (!input.penReferenceConfirmed || !input.originConfirmed)
+    blockers.push("Поставьте поднятое перо над началом листа и нажмите «Начало листа здесь».");
   return { blockers, canStart: blockers.length === 0 };
 }

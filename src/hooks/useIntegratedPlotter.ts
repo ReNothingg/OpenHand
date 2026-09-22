@@ -433,14 +433,15 @@ export function useIntegratedPlotter({
       plotter.recovery.profile === config.profile &&
       (plotter.recovery.current === 0 || job.resumePoints.includes(plotter.recovery.current)),
   );
-  const assessDevice = useCallback(() => assessDeviceReadiness({
+  const assessDevice = useCallback((placingSheet = false) => assessDeviceReadiness({
     connected, running, busy: busy || pending || penControl.busy || plotter.operationBusy, calibrationActive,
     emergencyStopped: plotter.emergencyStopped, profile: config.profile,
     machineState: plotter.machineStatus?.state, statusReceivedAt: plotter.machineStatus?.receivedAt,
-    originConfirmed, penReferenceConfirmed: !needsPenReference || penReferenceConfirmed, penPositionsVerified,
-    workAreaConfirmed, controllerSettingsKnown: plotter.controllerSettingsComplete,
+    originConfirmed: placingSheet || originConfirmed,
+    penReferenceConfirmed: placingSheet || !needsPenReference || penReferenceConfirmed, penPositionsVerified,
+    controllerSettingsKnown: plotter.controllerSettingsComplete,
   }), [connected, running, busy, pending, penControl.busy, plotter.operationBusy, calibrationActive, plotter.emergencyStopped,
-    config.profile, plotter.machineStatus, originConfirmed, needsPenReference, penReferenceConfirmed, penPositionsVerified, workAreaConfirmed, plotter.controllerSettingsComplete]);
+    config.profile, plotter.machineStatus, originConfirmed, needsPenReference, penReferenceConfirmed, penPositionsVerified, plotter.controllerSettingsComplete]);
   const assessJob = useCallback((layout, withinWorkArea = true, commands?: string[]) => {
     const content = assessPlotterPreflight(layout, {
       withinWorkArea,
@@ -449,6 +450,7 @@ export function useIntegratedPlotter({
     return { ...content, originConfirmed, blockers, canStart: blockers.length === 0 };
   }, [assessDevice, originConfirmed, config]);
   const deviceReadiness = assessDevice();
+  const placementReadiness = assessDevice(true);
   const preflight = assessJob(activeLayout, job.withinWorkArea, job.commands);
   const assertDeviceReady = useCallback(() => {
     const readiness = assessDevice();
@@ -734,6 +736,33 @@ export function useIntegratedPlotter({
     return success;
   }, [config, plotter.sendCommands, safeAction]);
 
+  const placementInFlight = useRef(false);
+  const placementContext = JSON.stringify([activeProfile.id, connected, plotter.controllerEpoch,
+    config.profile, config.penMode, config.zUp, config.zDown, config.zUpDirection,
+    config.startPosition, config.swapAxes, config.invertX, config.invertY, controllerPenKey]);
+  const livePlacementContext = useRef(placementContext);
+  livePlacementContext.current = placementContext;
+  const setManualStart = useCallback(async () => {
+    if (placementInFlight.current) return false;
+    const readiness = assessDevice(true);
+    if (!readiness.canStart) { setError(readiness.blockers[0]); return false; }
+    placementInFlight.current = true;
+    setBusy(true);
+    setOriginConfirmed(false);
+    try {
+      return await safeAction(async () => {
+        if (needsPenReference) await penControl.reference("up", true);
+        else await plotter.sendCommands(createOriginCommands(config));
+        if (livePlacementContext.current !== placementContext)
+          throw new DOMException("Установка начала листа отменена.", "AbortError");
+        // A manually placed sheet always starts at its own upper-left corner,
+        // independent of the configured machine travel dimensions.
+        setConfig(current => ({ ...current, startPosition: "left-top" }));
+        setOriginConfirmed(true);
+      });
+    } finally { placementInFlight.current = false; setBusy(false); }
+  }, [assessDevice, needsPenReference, penControl.reference, plotter.sendCommands, config, placementContext, safeAction, setConfig]);
+
   const dryRun = useCallback(
     () =>
       safeAction(() => {
@@ -811,6 +840,8 @@ export function useIntegratedPlotter({
     controllerPenKey,
     controllerAxisKey,
     workAreaConfirmed,
+    placementReadiness,
+    setManualStart,
     penSetupBusy: penControl.busy,
     moveSavedPen: (up: boolean) => safeAction(() => penControl.moveSaved(up)),
     beginPenSetup: () => safeAction(penControl.begin),
@@ -838,7 +869,6 @@ export function useIntegratedPlotter({
       await plotter.realtime("status");
     }),
     jog: (dx, dy) => safeAction(() => {
-      if (!workAreaConfirmed) throw new Error("Сначала проверьте направления и размеры рабочей области.");
       return plotter.sendCommands(createPageJogCommands(dx, dy, config), { waitForMotion: true });
     }),
     pen: (up, value?: number) => safeAction(() => {

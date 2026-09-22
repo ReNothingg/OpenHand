@@ -33,6 +33,8 @@ internal sealed class MainForm : Form, IMessageFilter
     private bool _runtimeReady;
     private bool _loadingErrorShown;
     private bool _escapePressed;
+    private bool _awaitingClose;
+    private bool _allowClose;
 
     public MainForm(string? initialDocument)
     {
@@ -578,6 +580,33 @@ internal sealed class MainForm : Form, IMessageFilter
             _nativeBridge?.HasActiveConnection != true) return false;
         if ((message.LParam.ToInt64() & (1L << 30)) == 0) _ = _nativeBridge.StopFromNativeUIAsync();
         return true;
+    }
+
+    protected override async void OnFormClosing(FormClosingEventArgs args)
+    {
+        base.OnFormClosing(args);
+        if (args.Cancel)
+        {
+            _allowClose = false;
+            _nativeBridge?.CancelCloseRequest();
+            return;
+        }
+        if (_allowClose || _nativeBridge is null || !_nativeBridge.NeedsShutdown) return;
+        args.Cancel = true;
+        if (_awaitingClose) return;
+        _awaitingClose = true;
+        try
+        {
+            await _nativeBridge.PrepareForCloseAsync();
+            _allowClose = true;
+            BeginInvoke(new Action(Close));
+        }
+        catch (Exception error)
+        {
+            MessageBox.Show(this, error.Message + "\nПриложение оставлено открытым. Если плоттер движется или визжит, отключите питание и USB.",
+                "Не удалось подтвердить остановку", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        finally { _awaitingClose = false; }
     }
 
     protected override void Dispose(bool disposing)
