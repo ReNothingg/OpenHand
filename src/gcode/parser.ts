@@ -1,3 +1,5 @@
+import { isPenDownAt, readPenModel, validatePenModel, type GCodePenModel } from "./penModel";
+
 const NUMBER_PATTERN = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)";
 const WORD_PATTERN = new RegExp(`([A-Z])\\s*(${NUMBER_PATTERN})`, "gi");
 const FULL_CIRCLE = Math.PI * 2;
@@ -38,11 +40,13 @@ export interface GCodeParseResult {
   unsupportedMotionLines: number[];
   drawDistance: number;
   travelDistance: number;
+  penInterpretation: "settings" | "file" | "heuristic";
 }
 
 export interface GCodeParseOptions {
   includeLines?: boolean;
   maxSegmentsPerKind?: number;
+  penModel?: GCodePenModel;
 }
 
 interface GCodeWord {
@@ -274,6 +278,8 @@ export function parseGCode(
 ): GCodeParseResult {
   const normalizedSource = normalizeGCodeSource(source);
   const lines = normalizedSource.split("\n");
+  const configuredPen = validatePenModel(options.penModel);
+  const penModel = configuredPen || readPenModel(normalizedSource);
   const drawing = new SegmentCollector(options.maxSegmentsPerKind);
   const travel = new SegmentCollector(options.maxSegmentsPerKind);
   const bounds = createBounds();
@@ -281,10 +287,13 @@ export function parseGCode(
   const unsupportedMotionLines: number[] = [];
   let units = 1;
   let absolute = true;
+  let extrusionRelative = false;
+  let extrusionPosition = 0;
   let arcCenterAbsolute = false;
   let plane: "xy" | "xz" | "yz" = "xy";
   let motion: 0 | 1 | 2 | 3 | null = null;
   let penDown: boolean | null = null;
+  let spindleOn = false;
   let position: GCodePoint = { x: 0, y: 0, z: 0 };
   let commandCount = 0;
 
@@ -309,8 +318,10 @@ export function parseGCode(
       .map((word) => word.value);
     if (gCodes.includes(20)) units = 25.4;
     if (gCodes.includes(21)) units = 1;
-    if (gCodes.includes(90)) absolute = true;
-    if (gCodes.includes(91)) absolute = false;
+    if (gCodes.includes(90)) { absolute = true; extrusionRelative = false; }
+    if (gCodes.includes(91)) { absolute = false; extrusionRelative = true; }
+    if (mCodes.includes(82)) extrusionRelative = false;
+    if (mCodes.includes(83)) extrusionRelative = true;
     if (gCodes.includes(90.1)) arcCenterAbsolute = true;
     if (gCodes.includes(91.1)) arcCenterAbsolute = false;
     if (gCodes.includes(17)) plane = "xy";
@@ -327,8 +338,19 @@ export function parseGCode(
     if (hasUnsupportedMotion) {
       unsupportedMotionLines.push(lineNumber);
     }
-    if (mCodes.includes(3) || mCodes.includes(4)) penDown = true;
-    if (mCodes.includes(5)) penDown = false;
+    if (mCodes.includes(3) || mCodes.includes(4)) spindleOn = true;
+    if (mCodes.includes(5)) spindleOn = false;
+    if (!penModel || penModel.kind === "spindle") {
+      if (mCodes.includes(3) || mCodes.includes(4)) penDown = true;
+      if (mCodes.includes(5)) penDown = false;
+      if (penModel?.kind === "spindle" && spindleOn && lastValue(words, "S") !== undefined)
+        penDown = lastValue(words, "S")! > 0;
+    } else if (penModel.kind === "servo") {
+      const s = lastValue(words, "S");
+      if (s !== undefined && ((penModel.command === "M3" && spindleOn) ||
+          (penModel.command === "M280" && mCodes.includes(280) && lastValue(words, "P") === 0)))
+        penDown = isPenDownAt(s, penModel);
+    }
 
     const coordinate = (letter: string) => {
       const value = lastValue(words, letter);
@@ -338,11 +360,13 @@ export function parseGCode(
       x: coordinate("X"),
       y: coordinate("Y"),
       z: coordinate("Z"),
+      e: coordinate("E"),
       i: coordinate("I"),
       j: coordinate("J"),
       r: coordinate("R"),
     };
     if (gCodes.includes(92)) {
+      extrusionPosition = coordinates.e ?? extrusionPosition;
       position = {
         x: coordinates.x ?? position.x,
         y: coordinates.y ?? position.y,
@@ -374,9 +398,15 @@ export function parseGCode(
             ? coordinates.z
             : position.z + coordinates.z,
     };
-    if (coordinates.z !== undefined && next.z !== position.z) {
+    const nextExtrusion = coordinates.e === undefined ? extrusionPosition
+      : extrusionRelative ? extrusionPosition + coordinates.e : coordinates.e;
+    if (penModel?.kind === "axis") {
+      if (penModel.axis === "Z" && coordinates.z !== undefined) penDown = isPenDownAt(next.z, penModel);
+      if (penModel.axis === "E" && coordinates.e !== undefined) penDown = isPenDownAt(nextExtrusion, penModel);
+    } else if (!penModel && coordinates.z !== undefined && next.z !== position.z) {
       penDown = next.z < position.z;
     }
+    extrusionPosition = nextExtrusion;
 
     const hasPlanarMove =
       coordinates.x !== undefined || coordinates.y !== undefined ||
@@ -433,6 +463,7 @@ export function parseGCode(
     unsupportedMotionLines: [...new Set(unsupportedMotionLines)],
     drawDistance: drawing.distance,
     travelDistance: travel.distance,
+    penInterpretation: configuredPen ? "settings" : penModel ? "file" : "heuristic",
   };
 }
 

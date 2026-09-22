@@ -1653,7 +1653,7 @@ export function compilePlotJob(strokes, config) {
       );
     else
       commands.push(
-        `G0X${number(start.x)}Y${number(start.y)}F${config.jogSpeed}`,
+        `G1X${number(start.x)}Y${number(start.y)}F${config.jogSpeed}`,
       );
     current = start;
     addPen(false, stroke.pressure || 1);
@@ -1690,7 +1690,7 @@ export function compilePlotJob(strokes, config) {
     const travel = Math.hypot(current.x, current.y);
     distance += travel;
     travelDistance += travel;
-    commands.push(`G0X0Y0F${config.jogSpeed}`);
+    commands.push(`G1X0Y0F${config.jogSpeed}`);
   }
   const endCommands = parseCustomGcode(config.customEndGcode);
   commands.push(...endCommands);
@@ -1789,7 +1789,7 @@ export function createDryRunCommands(strokes, config) {
     ...(config.profile === "grbl" ? ["G94"] : []),
     penCommand(true, config),
     ...machineCorners.map(
-      ({ x, y }) => `G0X${number(x)}Y${number(y)}F${config.jogSpeed}`,
+      ({ x, y }) => `G1X${number(x)}Y${number(y)}F${config.jogSpeed}`,
     ),
   ];
 }
@@ -1804,7 +1804,7 @@ export function createJogCommands(dx, dy, config) {
     ];
   }
   if (config.profile === "marlin")
-    return ["G21", "G91", `G0X${number(dx)}Y${number(dy)}F${config.jogSpeed}`, "G90"];
+    return ["G21", "G91", `G1X${number(dx)}Y${number(dy)}F${config.jogSpeed}`, "G90"];
   return [`$J=G21G91X${number(dx)}Y${number(dy)}F${config.jogSpeed}`];
 }
 
@@ -1857,6 +1857,6 @@ export function createReturnToOriginCommands(config) {
     "G90",
     ...(config.profile === "grbl" ? ["G94"] : []),
     penCommand(true, config),
-    `G0X0Y0F${config.jogSpeed}`,
+    `G1X0Y0F${config.jogSpeed}`,
   ];
 }

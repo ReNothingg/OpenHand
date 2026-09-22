@@ -1,3 +1,4 @@
+import { serializePlotterGcode } from "../../gcode/penModel";
 import { downloadFile } from "../../lib/files";
 import { useRef, useState } from "react";
 import { enablePlotterNotifications } from "../../lib/notifications";
@@ -275,7 +276,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
               const currentJob = workspace.createJob();
               downloadFile(
                 `openhand-page-${workspace.activeIndex + 1}.${config.profile === "ebb" ? "ebb.txt" : "gcode"}`,
-                `${currentJob.commands.join("\n")}\n`,
+                serializePlotterGcode(currentJob.commands, config),
                 "text/plain;charset=utf-8",
               );
             }}

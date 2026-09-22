@@ -1,3 +1,4 @@
+import { penModelForConfig } from "../gcode/penModel";
 import { parseGCode } from "../gcode/parser";
 import { isWithinWorkArea } from "./job";
 /** Execution policy; the viewer may display a file that is not safe to stream. */
@@ -92,7 +93,7 @@ export function preparedProgramBlockers(commands: string[], config: any): string
   const cached = programCache.get(commands);
   if (cached?.signature === signature) return cached.blockers;
   const blockers = importedCommandBlockers(commands, config);
-  const parsed = parseGCode(commands.join("\n"), { includeLines: false, maxSegmentsPerKind: 1 });
+  const parsed = parseGCode(commands.join("\n"), { includeLines: false, maxSegmentsPerKind: 1, penModel: penModelForConfig(config) });
   if (parsed.unsupportedMotionLines.length) blockers.push("Часть движений не поддерживается проверкой траектории.");
   if (parsed.drawingSegmentCount + parsed.travelSegmentCount > 0) {
     const b = parsed.bounds;

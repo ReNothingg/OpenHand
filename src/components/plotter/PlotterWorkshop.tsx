@@ -1,3 +1,4 @@
+import { serializePlotterGcode } from "../../gcode/penModel";
 import SceneCanvas from "./SceneCanvas";
 import PlotterManualStart from "./PlotterManualStart";
 import { mapSceneObjects, type SceneTool } from "../../plotter/scene";
@@ -556,7 +557,7 @@ export default function PlotterWorkshop({
                 onClick={() =>
                   void downloadFile(
                     "openhand-workshop.gcode",
-                    job.commands.join("\n") + "\n",
+                    serializePlotterGcode(job.commands, config),
                     "text/plain",
                   )
                 }

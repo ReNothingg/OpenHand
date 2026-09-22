@@ -248,7 +248,7 @@ export default function GCodeViewer({
     }
   };
 
-  const hasDrawing = result.drawing.length > 0;
+  const hasGeometry = result.drawing.length + result.travel.length > 0;
 
   return (
     <main
@@ -343,6 +343,9 @@ export default function GCodeViewer({
         </div>
       </header>
 
+      {document && !parsing && result.penInterpretation === "heuristic" && <p className="gcode-viewer-warning neutral" role="status">
+        В файле нет настроек пера. Цвета штрихов и холостого хода определены приблизительно; координаты показаны как в файле.
+      </p>}
       {error && (
         <p className="gcode-viewer-warning" role="alert">
           {error}
@@ -422,7 +425,7 @@ export default function GCodeViewer({
               </label>
             </div>
             <div className="gcode-canvas">
-              {hasDrawing ? (
+              {hasGeometry ? (
                 <svg
                   viewBox={viewBox}
                   style={{ transform: `scale(${zoom})` }}
@@ -455,8 +458,8 @@ export default function GCodeViewer({
                 </svg>
               ) : (
                 <div className="gcode-empty-preview">
-                  <strong>Нет линий для просмотра</strong>
-                  <span>В файле не найдены движения с опущенным пером.</span>
+                  <strong>Нет перемещений для просмотра</strong>
+                  <span>В файле не найдены поддерживаемые перемещения по листу.</span>
                 </div>
               )}
             </div>

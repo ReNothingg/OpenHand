@@ -377,3 +377,33 @@ used. Server-side generation and actual mechanics are not claimed reverse engine
 The next implementation work should use these verified boundaries, including rapid
 travel/feed behavior and pen-state interpretation, rather than adding more guessed
 calibration behavior. The overall software goal is still incomplete.
+
+## Controlled travel and explicit preview pen model
+
+Confirmed GRBL G0 behavior against gcode.c and planner.c: the rapid condition uses
+the controller rapid rate, not the F value beside G0. Generated inter-stroke travel,
+frame, return-to-origin and Marlin relative jog now use G1 with the configured feed.
+GRBL manual $J remains unchanged. Imported/custom commands are not rewritten.
+Source: https://raw.githubusercontent.com/gnea/grbl/master/grbl/planner.c
+
+Document/workshop/calibration-file exports now add a bounded JSON comment describing
+the pen mechanism and up/down values. Streaming command arrays remain comment-free.
+Parser models support Z, E with M82/M83 and relative state, servo M3/M280, and spindle
+output; the first explicit upper-height command is recognized even if its numeric
+Z equals the initial parser value. Explicit trusted profile options take precedence
+over file metadata during execution-policy inspection. Metadata changes only display
+classification and never bypasses program or hardware readiness checks. Unknown
+files retain the heuristic with a visible notice. Travel-only files are displayed.
+
+Evidence without hardware: 9 firmware/pen combinations have exactly 2 drawing
+segments/3 mm and matching travel distance; no generated G0 remains; F300 applies
+to generated travel; frame-only geometry stays travel; export/import preserves the
+original command array; relative E, standalone servo S, malformed metadata and
+profile-over-file precedence passed. Real worker/browser preview of positive-Z-down
+export displayed two strokes and hid travel on toggle; frame-only export displayed
+geometry with zero drawing distance. Temporary fixtures were removed. npm build,
+macOS build, Windows cross-build and web parity passed.
+
+Still required: raw-file pen interpretation controls, remaining transport ownership
+and reconnect/reference issues, paper-change/recovery full interaction pass, and
+final scope audit. This does not establish physical pen force or travel accuracy.

@@ -1,3 +1,4 @@
+import { serializePlotterGcode } from "../../gcode/penModel";
 import { useMemo, useState } from "react";
 import { createPenCalibration } from "../../plotter/penCalibration";
 import { downloadFile } from "../../lib/files";
@@ -75,7 +76,7 @@ export default function PenCalibrationSheet({ workspace }) {
               config.profile === "ebb"
                 ? "pen-calibration.ebb"
                 : "pen-calibration.gcode",
-              sheet.commands.join("\n"),
+              serializePlotterGcode(sheet.commands, config),
               "text/plain",
             )
           }
