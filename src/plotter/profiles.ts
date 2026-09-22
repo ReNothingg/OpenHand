@@ -1,4 +1,5 @@
 import { DEFAULT_PLOTTER_CONFIG } from "./job";
+import { normalizePenJogStep } from "./penLift";
 
 export const PLOTTER_PROFILES_KEY = "openhand.plotter.profiles.v1";
 export const LEGACY_PLOTTER_SETTINGS_KEY = "openhand.plotter.settings.v1";
@@ -229,6 +230,7 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
       50,
       DEFAULT_PLOTTER_CONFIG.jogDistance,
     ),
+    penJogStep: normalizePenJogStep(incoming.penJogStep),
     penMode: penModes.includes(incoming.penMode) ? incoming.penMode : "servo",
     penUp: clamp(incoming.penUp, 0, servoMax, fallbackPenUp),
     penDown: clamp(incoming.penDown, 0, servoMax, fallbackPenDown),

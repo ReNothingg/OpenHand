@@ -1,4 +1,4 @@
-import { penLiftDistance, penPositionKey } from "../../plotter/penLift";
+import { penLiftDistance, penPositionKey, normalizePenJogStep, PEN_JOG_STEPS_MM } from "../../plotter/penLift";
 
 type Props = { workspace: any; execute: (action: () => Promise<unknown>) => Promise<void>; disabled: boolean };
 
@@ -8,12 +8,20 @@ export default function PenSetupPanel({ workspace, execute, disabled }: Props) {
     && Date.now() - workspace.plotter.machineStatus.receivedAt < 3000);
   const unavailable = disabled || !connected || !freshIdle || !workspace.controllerPenKey || workspace.emergencyStopped;
   const canTeach = !unavailable && referenced && position !== null;
+  const step = normalizePenJogStep(config.penJogStep);
+  const stepLabel = step.toLocaleString("ru-RU");
   const adjust = <div className="pen-adjustment">
-    <div className="pen-step-actions">
-      <button disabled={!canTeach} data-plotter-motion="" onClick={() => void execute(() => workspace.jogPen(true, 0.1))}>↑ Чуть выше</button>
-      <button disabled={!canTeach} data-plotter-motion="" onClick={() => void execute(() => workspace.jogPen(false, 0.1))}>↓ Чуть ниже</button>
+    <div className="pen-step-picker" role="group" aria-label="Шаг пера">
+      <span>Шаг пера</span>
+      <div>{PEN_JOG_STEPS_MM.map(value => <button key={value} type="button"
+        disabled={disabled} aria-pressed={step === value}
+        onClick={() => workspace.updateConfig("penJogStep", value)}>{value.toLocaleString("ru-RU")} мм</button>)}</div>
     </div>
-    <p className="pen-step-caption">Один шаг — 0,1 мм. Кнопка выполняет только одно движение.</p>
+    <div className="pen-step-actions">
+      <button disabled={!canTeach} data-plotter-motion="" onClick={() => void execute(() => workspace.jogPen(true, step))}>↑ Выше на {stepLabel} мм</button>
+      <button disabled={!canTeach} data-plotter-motion="" onClick={() => void execute(() => workspace.jogPen(false, step))}>↓ Ниже на {stepLabel} мм</button>
+    </div>
+    <p className="pen-step-caption">Одно нажатие — одно движение. Выбор шага не двигает перо.</p>
   </div>;
 
   return <div className="pen-setup">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPenCommand, createPenJogCommands, createPenReferenceCommands } from "../plotter/job";
 import { normalizePlotterConfig } from "../plotter/profiles";
-import { clearPenSetup, hasVerifiedPenPositions, penTestDelta, PEN_TEST_STEP_MM, savePenPosition } from "../plotter/penLift";
+import { clearPenSetup, hasVerifiedPenPositions, penTestDelta, PEN_TEST_STEP_MM, MAX_PEN_JOG_MM, savePenPosition } from "../plotter/penLift";
 
 type Config = ReturnType<typeof normalizePlotterConfig>;
 type Snapshot = { context: string; referenced: boolean; position: number | null };
@@ -94,8 +94,8 @@ export function usePenControl(options: Options) {
     commit(position === "up" ? live.config.zUp : live.config.zDown);
   }), [operate]);
   const jog = useCallback((up: boolean, distance = PEN_TEST_STEP_MM) => operate(async (live, commit) => {
-    if (!Number.isFinite(distance) || distance <= 0 || distance > PEN_TEST_STEP_MM)
-      throw new Error("Для настройки доступен один шаг до 0,1 мм.");
+    if (!Number.isFinite(distance) || distance < 0.01 || distance > MAX_PEN_JOG_MM)
+      throw new Error("Для настройки доступен один шаг от 0,01 до 1 мм.");
     const before = pose();
     if (!before.referenced || before.position === null) throw new Error("Сначала начните настройку в текущем положении.");
     const position = Number((before.position + distance * live.config.zUpDirection * (up ? 1 : -1)).toFixed(3));

@@ -1,4 +1,5 @@
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
+import { MAX_PEN_JOG_MM, PEN_TEST_STEP_MM } from "./penLift";
 import { chooseForm, formGlyph, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
 import { layoutFormula } from "./mathLayout";
 import {
@@ -49,6 +50,7 @@ export const DEFAULT_PLOTTER_CONFIG = {
   feedRate: 1500,
   jogSpeed: 2500,
   jogDistance: 10,
+  penJogStep: PEN_TEST_STEP_MM,
   penMode: "servo",
   penUp: 12000,
   penDown: 18000,
@@ -1821,8 +1823,8 @@ export function createPenReferenceCommands(config, position: "up" | "down" = "up
 export function createPenJogCommands(up: boolean, distance: number, config) {
   if (!["stepper", "estepper"].includes(config.penMode) || config.profile === "ebb")
     throw new Error("Короткий шаг доступен для шагового пера Z/E.");
-  if (!Number.isFinite(distance) || distance <= 0 || distance > 0.5)
-    throw new Error("Выберите шаг пера от 0,1 до 0,5 мм.");
+  if (!Number.isFinite(distance) || distance < 0.01 || distance > MAX_PEN_JOG_MM)
+    throw new Error("Выберите шаг пера от 0,01 до 1 мм.");
   const direction = config.zUpDirection === 1 ? 1 : config.zUpDirection === -1 ? -1 : Math.sign(config.zUp - config.zDown) || -1;
   const delta = number(distance * direction * (up ? 1 : -1));
   const speed = Math.min(60, Number(config.zSpeed));

@@ -259,3 +259,21 @@ execution was not available on this Mac; compilation is not runtime UI evidence.
 Still outstanding: quit/window-close handling, port ownership and Windows cached-port
 parity, manual XY bounds/canonical modal setup, setup discoverability, and final full
 job/paper-change/recovery acceptance. This checkpoint does not complete the goal.
+
+## Owner-requested adjustable pen step
+
+The owner requested adjustable jog distance during pen teaching. The panel now offers
+0.1 / 0.25 / 0.5 / 1 mm, defaults to 0.1, and stores the choice in the shared profile.
+Both movement buttons show the selected distance; changing it sends no commands and
+does not invalidate taught positions, reference or axis calibration. The hook and
+command generator enforce the same 1 mm maximum. The existing one-operation lock,
+completion wait, direction setting and 60 mm/min speed cap are unchanged.
+
+Verified using the real component and usePenControl with a virtual command callback:
+choosing 1 mm sends nothing; down sends exactly $J=G21G91Z1F60; choosing 0.25 then up
+sends exactly $J=G21G91Z-0.25F60 and updates the position to 0.75. Reload preserves
+the selected step while requiring a fresh live reference. Profile serialization,
+all four distances and both signs, invalid input rejection and preserved calibration
+were checked separately. The rendered picker and labels were inspected. No hardware
+commands were issued. Native close/quit work remains unfinished and is not included
+in this user-requested step adjustment.

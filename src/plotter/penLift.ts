@@ -3,6 +3,12 @@ export function penLiftDistance(config: { zUp: number; zDown: number }): number 
 }
 
 export const PEN_TEST_STEP_MM = 0.1;
+export const PEN_JOG_STEPS_MM = [0.1, 0.25, 0.5, 1] as const;
+export const MAX_PEN_JOG_MM = 1;
+
+export function normalizePenJogStep(value: unknown): number {
+  return typeof value === "number" && PEN_JOG_STEPS_MM.some(step => step === value) ? value : PEN_TEST_STEP_MM;
+}
 
 export function penPositionKey(config: any, up: boolean): string {
   return `${config.profile}:${config.penMode}:${config.penControllerKey || ""}:${config.zUpDirection}:${up ? config.zUp : config.zDown}`;
