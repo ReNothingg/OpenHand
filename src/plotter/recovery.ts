@@ -1,3 +1,5 @@
+export type RecoverySource = "document" | "workshop";
+
 export interface PlotterRecoveryState {
   checkpointVersion: 2;
   jobId: string;
@@ -6,6 +8,7 @@ export interface PlotterRecoveryState {
   profile: string;
   updatedAt?: number;
   sheetIndices?: number[];
+  source?: RecoverySource;
 }
 
 export interface RecoverablePlotterJob {
@@ -14,6 +17,7 @@ export interface RecoverablePlotterJob {
   recoverable?: boolean;
   resumePoints?: number[];
   sheetIndices?: number[];
+  source?: RecoverySource;
 }
 
 export function normalizeRecoveryState(
@@ -34,6 +38,7 @@ export function normalizeRecoveryState(
   if (value.sheetIndices !== undefined && (!Array.isArray(value.sheetIndices) ||
       !value.sheetIndices.length || value.sheetIndices.length > 100 ||
       value.sheetIndices.some((n, i, indices) => !Number.isInteger(n) || n < 0 || (i > 0 && n <= indices[i - 1]!)))) return null;
+  if (value.source !== undefined && value.source !== "document" && value.source !== "workshop") return null;
   return value as PlotterRecoveryState;
 }
 
@@ -56,16 +61,31 @@ export function assertRecoveryCompatible(
     job.commands.length !== recovery.total
   ) {
     throw new Error(
-      "Текст или настройки изменились. Продолжение старой траектории небезопасно.",
+      "Траектория или настройки изменились. Начните обновлённое задание заново.",
     );
   }
   if (recovery.checkpointVersion !== 2 || (recovery.current !== 0 && !job.resumePoints?.includes(recovery.current)))
     throw new Error("Сохранённая точка не подтверждена выполнением контроллера. Начните задание заново.");
   if (JSON.stringify(recovery.sheetIndices || null) !== JSON.stringify(job.sheetIndices || null))
     throw new Error("Выбор листов изменился. Продолжение относится к прежней очереди.");
+  if (recovery.source !== undefined && recovery.source !== job.source)
+    throw new Error("Продолжение относится к другому рабочему пространству.");
   if (recovery.profile !== profile) {
     throw new Error(
-      "Профиль контроллера изменился. Верните прежнюю прошивку перед продолжением.",
+      "Выбран другой тип контроллера. Для продолжения нужен прежний профиль задания.",
     );
+  }
+}
+
+export function assessRecovery(recovery: PlotterRecoveryState | null, job: RecoverablePlotterJob | null | undefined,
+  profile: string, source: RecoverySource) {
+  if (!recovery) return { available: false, problem: "", otherSource: undefined as RecoverySource | undefined };
+  if (recovery.source && recovery.source !== source)
+    return { available: false, problem: "", otherSource: recovery.source };
+  try {
+    assertRecoveryCompatible(recovery, job, profile);
+    return { available: recovery.current < recovery.total, problem: "", otherSource: undefined };
+  } catch (reason) {
+    return { available: false, problem: reason instanceof Error ? reason.message : "Задание изменилось.", otherSource: undefined };
   }
 }

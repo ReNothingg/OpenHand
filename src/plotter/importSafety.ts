@@ -3,7 +3,7 @@ import { parseGCode } from "../gcode/parser";
 import { isWithinWorkArea } from "./job";
 /** Execution policy; the viewer may display a file that is not safe to stream. */
 const WORD = /([A-Z])\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))/gi;
-const SAFE_G = new Set([0, 1, 2, 3, 4, 17, 20, 21, 90, 91, 94, 90.1, 91.1]);
+const SAFE_G = new Set([0, 1, 2, 3, 4, 17, 20, 21, 40, 49, 54, 90, 91, 94, 90.1, 91.1]);
 const SAFE_M = new Set([2, 3, 4, 5, 30, 82, 83, 280, 400]);
 
 export function importedCommandBlockers(commands: string[], config?: any): string[] {
@@ -28,8 +28,12 @@ export function importedCommandBlockers(commands: string[], config?: any): strin
       fail("команда меняет координатную систему, оборудование или не поддерживается проверкой траектории."); continue;
     }
     if (words.some(w => !'GMNXYZEFIJKRSP'.includes(w.key))) { fail("неподдерживаемая ось или параметр."); continue; }
-    if (g.includes(94) && config && config.profile !== "grbl")
-      fail("режим G94 поддержан отправкой только для GRBL.");
+    if (config && config.profile !== "grbl" && g.some(code => [40, 49, 54, 94].includes(code)))
+      fail("этот режим системы координат поддержан отправкой только для GRBL.");
+    if (g.includes(49) && (g.some(code => [0, 1, 2, 3].includes(code)) || words.some(word => "XYZEIJKR".includes(word.key))))
+      fail("G49 не должен содержать координаты или параметры движения.");
+    if (config?.profile === "marlin" && m.some(code => [2, 30].includes(code)))
+      fail("M2/M30 не используются как завершение задания Marlin; M30 удаляет файл с SD-карты.");
     if (g.includes(20)) units = 25.4;
     if (g.includes(21)) units = 1;
     if (g.includes(90)) { absolute = true; extrusionRelative = false; }

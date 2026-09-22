@@ -114,6 +114,7 @@ export default function PlotterWorkshop({
   const withinPaper = box.minX >= 0 && box.minY >= 0 && box.maxX <= paperWidth && box.maxY <= paperHeight;
   const readiness = workspace.assessJob({ strokes: document.strokes, clipped: !withinPaper }, job.withinWorkArea, job.commands);
   const canRun = readiness.canStart;
+  const recovery = workspace.assessPreparedRecovery(job);
   const path = useMemo(
     () =>
       document.strokes
@@ -549,6 +550,9 @@ export default function PlotterWorkshop({
               {canRun ? "Готово к записи" : readiness.blockers[0]}
             </p>}
             <PlotterManualStart workspace={workspace} workshop />
+            {recovery.problem && !running && <p className="plotter-warning">Продолжение рисунка недоступно: {recovery.problem}</p>}
+            {recovery.otherSource === "document" && !running && <button className="text-button"
+              onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "document" }))}>К прерванной записи документа →</button>}
             {!workspace.placementReadiness.canStart && workspace.penPositionsVerified && !running && <button className="text-button"
               onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>Открыть настройки плоттера →</button>}
             <div className="workshop-run-actions">
@@ -579,11 +583,13 @@ export default function PlotterWorkshop({
                 disabled={!canRun}
                 onClick={() =>
                   void attempt(() => {
-                    return workspace.runPreparedJob(job, { strokes: document.strokes, clipped: !withinPaper });
+                    return recovery.available
+                      ? workspace.recoverPreparedJob(job, { strokes: document.strokes, clipped: !withinPaper })
+                      : workspace.runPreparedJob(job, { strokes: document.strokes, clipped: !withinPaper });
                   })
                 }
               >
-                Начать рисунок
+                {recovery.available ? "Продолжить рисунок" : "Начать рисунок"}
               </button>
               <button disabled={running || workspace.calibrationActive} onClick={workspace.resetProgress}
                 title="Сбросить прогресс без движения и изменения нуля">

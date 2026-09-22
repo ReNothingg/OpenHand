@@ -1,4 +1,5 @@
-import { importedCommandBlockers } from "./importSafety";
+import { createPenCommand } from "./job";
+import { importedCommandBlockers, preparedProgramBlockers } from "./importSafety";
 import { normalizeGCodeSource, parseGCode } from "../gcode/parser";
 
 export const MAX_IMPORTED_GCODE_BYTES = 16 * 1024 * 1024;
@@ -85,4 +86,18 @@ export function prepareImportedGcode(
     launchBlockers,
     withinWorkArea,
   };
+}
+
+/** Original file stays unchanged; host preparation/finalization are checked separately. */
+export function prepareImportedExecution(job: ReturnType<typeof prepareImportedGcode>, config: any) {
+  if (config.profile === "ebb") throw new Error("Обычный G-code доступен для GRBL и Marlin.");
+  const prefix = createPenCommand(true, config);
+  const suffix = createPenCommand(true, config);
+  const blockers = [
+    ...preparedProgramBlockers(job.commands, config),
+    ...preparedProgramBlockers(prefix, config),
+    ...preparedProgramBlockers(suffix, config),
+  ];
+  if (blockers.length) throw new Error(blockers[0]);
+  return { job, prefix, suffix };
 }

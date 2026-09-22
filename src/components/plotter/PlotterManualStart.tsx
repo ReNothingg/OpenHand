@@ -10,7 +10,7 @@ export default function PlotterManualStart({ workspace, workshop = false }: { wo
       «Начало листа здесь» задаёт только положение на листе и не меняет высоту пера.
       {workshop ? " Рисунок расположится как на рабочем поле." : " Поля и отступы берутся из документа."}</p>
     <button className="button ghost compact" type="button" disabled={!canSet}
-      title={canSet ? "Задаёт только ноль X/Y. Высота Z/E остаётся прежней. Механизм не двигается." : workspace.placementReadiness.blockers[0]}
+      title={canSet ? "Задаёт начало листа по X/Y. Перо остаётся на месте; его поднятое положение эта кнопка не задаёт." : workspace.placementReadiness.blockers[0]}
       onClick={workspace.setManualStart}>
       {workspace.originConfirmed ? "Начало нового листа здесь" : "Начало листа здесь"}
     </button>

@@ -675,7 +675,7 @@ export function usePlotter() {
   const run = useCallback(
     async (
       jobOrCommands,
-      options: { startIndex?: number; prefix?: string[] } = {},
+      options: { startIndex?: number; prefix?: string[]; suffix?: string[] } = {},
     ) => {
       if (emergencyStopRef.current) throw new Error("СТОП: управление заблокировано.");
       if (operationRef.current)
@@ -728,6 +728,7 @@ export function usePlotter() {
           total: commands.length,
           profile: profileRef.current,
           sheetIndices: job.sheetIndices,
+          source: job.source,
         });
       } else saveRecovery(null);
       const waitForPaper = async (change: PaperChange) => {
@@ -813,6 +814,7 @@ export function usePlotter() {
               total: commands.length,
               profile: profileRef.current,
               sheetIndices: job.sheetIndices,
+              source: job.source,
             });
           }
           const change = paperChanges.get(index + 1);
@@ -822,6 +824,13 @@ export function usePlotter() {
               throw new DOMException("Очередь остановлена.", "AbortError");
             await waitForPaper(change);
           }
+        }
+        for (const command of options.suffix || []) {
+          if (abortRef.current) throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
+          await waitWhilePaused();
+          if (abortRef.current) throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
+          await sendCommand(command);
+          if (abortRef.current) throw interruptionRef.current || new DOMException("Задание остановлено.", "AbortError");
         }
         // An ok acknowledges parsing, not completed motion. Drain the planner
         // before exposing the next operation or declaring the job complete.

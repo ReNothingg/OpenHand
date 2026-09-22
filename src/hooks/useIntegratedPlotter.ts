@@ -1,3 +1,4 @@
+import { COORDINATE_FRAME_VERSION } from "../plotter/coordinateFrame";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { usePenControl } from "./usePenControl";
@@ -10,7 +11,6 @@ import {
   createHomingCommands,
   createPageJogCommands,
   createOriginCommands,
-  createPenCommand,
   createReturnToOriginCommands,
   DEFAULT_PLOTTER_CONFIG,
   isWithinWorkArea,
@@ -35,9 +35,9 @@ import { controllerFingerprint, matchesControllerCalibration } from "../plotter/
 import { hasVerifiedPenPositions } from "../plotter/penLift";
 import { assessDeviceReadiness, assessPlotterPreflight } from "../plotter/preflight";
 import { preparedProgramBlockers } from "../plotter/importSafety";
-import { prepareImportedGcode } from "../plotter/gcodeImport";
+import { prepareImportedGcode, prepareImportedExecution } from "../plotter/gcodeImport";
 import { createSheetQueue, sheetLabel } from "../plotter/sheetQueue";
-import { assertRecoveryCompatible } from "../plotter/recovery";
+import { assertRecoveryCompatible, assessRecovery } from "../plotter/recovery";
 import {
   minStrokeY,
   physicalSheetIndex,
@@ -421,28 +421,24 @@ export function useIntegratedPlotter({
   }, [connected, plotter.machineStatus?.state]);
   useEffect(() => {
     setOriginConfirmed(false);
-  }, [plotter.controllerEpoch]);
+  }, [`${plotter.controllerEpoch}:${COORDINATE_FRAME_VERSION}`]);
   const progressPercent = plotter.progress.total
     ? (plotter.progress.current / plotter.progress.total) * 100
     : 0;
   const recoveryIndices = plotter.recovery?.sheetIndices;
   const recoveryCandidate = useMemo(() => {
-    if (!plotter.recovery) return { job: null, problem: "" };
+    if (!plotter.recovery || plotter.recovery.source === "workshop") return { job: null, problem: "" };
     try {
       return { job: recoveryIndices
         ? createSheetQueue(createJobs(), recoveryIndices, config, settings.pageSize === "NotebookSpread")
-        : createJob(), problem: "" };
+        : { ...createJob(), source: "document" }, problem: "" };
     } catch (reason) {
       return { job: null, problem: reason instanceof Error ? reason.message : "Не удалось восстановить очередь." };
     }
-  }, [plotter.recovery?.jobId, recoveryIndices, recoveryIndices ? createJobs : createJob, config, settings.pageSize]);
-  let recoveryProblem = recoveryCandidate.problem;
-  if (plotter.recovery && recoveryCandidate.job && !recoveryProblem) {
-    try { assertRecoveryCompatible(plotter.recovery, recoveryCandidate.job, config.profile); }
-    catch (reason) { recoveryProblem = reason instanceof Error ? reason.message : "Задание изменилось."; }
-  }
-  const recoveryAvailable = Boolean(plotter.recovery && recoveryCandidate.job && !recoveryProblem &&
-    plotter.recovery.current < plotter.recovery.total);
+  }, [plotter.recovery?.jobId, plotter.recovery?.source, recoveryIndices, recoveryIndices ? createJobs : createJob, config, settings.pageSize]);
+  const documentRecovery = assessRecovery(plotter.recovery, recoveryCandidate.job, config.profile, "document");
+  const recoveryProblem = recoveryCandidate.problem || documentRecovery.problem;
+  const recoveryAvailable = documentRecovery.available && !recoveryProblem;
   const recoverySheet = recoveryCandidate.job?.sheetRanges?.find(range => plotter.recovery && plotter.recovery.current < range.end)?.sheet;
   const recoveryLabel = recoverySheet === undefined ? "" : sheetLabel(recoverySheet, settings.pageSize === "NotebookSpread");
   const assessDevice = useCallback((placingSheet = false) => assessDeviceReadiness({
@@ -856,6 +852,8 @@ export function useIntegratedPlotter({
     recoveryAvailable,
     recoveryProblem,
     recoveryLabel,
+    recoveryOtherSource: documentRecovery.otherSource,
+    assessPreparedRecovery: prepared => assessRecovery(plotter.recovery, { ...prepared, source: "workshop" }, config.profile, "workshop"),
     preflight,
     originConfirmed,
     penReferenceConfirmed,
@@ -901,17 +899,16 @@ export function useIntegratedPlotter({
     }),
     setOrigin,
     home: async () => {
+      setOriginConfirmed(false);
       penControl.invalidate();
-      const success = await safeAction(() =>
-        plotter.sendCommands(createHomingCommands(config)),
+      return safeAction(() =>
+        plotter.sendCommands(createHomingCommands(config), { waitForMotion: true }),
       );
-      if (success) setOriginConfirmed(false);
-      return success;
     },
     returnToOrigin: () => safeAction(() => {
       assertDeviceReady();
       penControl.forgetPosition();
-      return plotter.sendCommands(createReturnToOriginCommands(config));
+      return plotter.sendCommands(createReturnToOriginCommands(config), { waitForMotion: true });
     }),
     sendManualCommand: (value) => {
       const command = String(value || "").trim();
@@ -934,7 +931,14 @@ export function useIntegratedPlotter({
       const readiness = assessJob(layout, preparedJob.withinWorkArea !== false, preparedJob.commands);
       if (!readiness.canStart) throw new Error(readiness.blockers[0]);
       if (!preparedJob.commands?.length) throw new Error("В задании нет команд.");
-      return plotter.run(preparedJob);
+      return plotter.run({ ...preparedJob, source: "workshop" });
+    }),
+    recoverPreparedJob: (preparedJob, layout) => safeAction(() => {
+      const readiness = assessJob(layout, preparedJob.withinWorkArea !== false, preparedJob.commands);
+      if (!readiness.canStart) throw new Error(readiness.blockers[0]);
+      const prepared = { ...preparedJob, source: "workshop" };
+      assertRecoveryCompatible(plotter.recovery, prepared, config.profile);
+      return plotter.recover(prepared);
     }),
     runPreparedFrame: (strokes, withinPaper = true) => safeAction(() => {
       const prepared = compilePlotJob(strokes, config);
@@ -946,7 +950,7 @@ export function useIntegratedPlotter({
     runPenCalibration: (sheet) => safeAction(() => {
       const readiness = assessJob({ strokes: sheet.strokes }, sheet.withinWorkArea, sheet.commands);
       if (!readiness.canStart) throw new Error(readiness.blockers[0]);
-      return plotter.run(sheet);
+      return plotter.run({ ...sheet, recoverable: false });
     }),
     runImportedGcode: () => safeAction(() => {
       assertDeviceReady();
@@ -954,14 +958,15 @@ export function useIntegratedPlotter({
       if (config.profile === "ebb") throw new Error("Обычный G-code доступен для GRBL и Marlin.");
       if (importedLaunchBlockers.length) throw new Error(importedLaunchBlockers[0]);
       if (!importedWithinWorkArea) throw new Error("Импортированная траектория выходит за рабочую область.");
+      const execution = prepareImportedExecution(importedGcode, config);
       penControl.forgetPosition();
-      return plotter.run({ ...importedGcode, commands: ["G21", "G90", ...createPenCommand(true, config), ...importedGcode.commands] });
+      return plotter.run(execution.job, { prefix: execution.prefix, suffix: execution.suffix });
     }),
     run: () => safeAction(() => {
       const prepared = createJob();
       const readiness = assessJob(activeLayout, prepared.withinWorkArea, prepared.commands);
       if (!readiness.canStart) throw new Error(readiness.blockers[0]);
-      return plotter.run(prepared);
+      return plotter.run({ ...prepared, source: "document" });
     }),
     runSheets: (indices) => safeAction(() => {
       assertDeviceReady();

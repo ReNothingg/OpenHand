@@ -178,11 +178,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
                 }
                 onClick={workspace.recover}
               >
-                {workspace.recoveryLabel ? `Продолжить: ${workspace.recoveryLabel.toLowerCase()} · ` : "Продолжить с "}
-                {Math.round(
-                  (plotter.recovery.current / plotter.recovery.total) * 100,
-                )}
-                %
+                {workspace.recoveryLabel ? `Продолжить: ${workspace.recoveryLabel.toLowerCase()}` : "Продолжить запись"}
               </button>
             </>
           )}
@@ -344,8 +340,9 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         {workspace.importedGcode && (
           <div className="plotter-imported-summary">
             <small>
-              Файл отправляется как есть. Координаты профиля к нему не
-              применяются.
+              Координаты файла не переставляются и не отражаются по профилю.
+              Перед записью и после успешного окончания приложение поднимает перо.
+              Файл использует начало листа, заданное в приложении.
             </small>
             <span title={workspace.importedGcode.name}>
               {workspace.importedGcode.name}
@@ -389,6 +386,8 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
         </section>
       </div>
       {error && <p className="plotter-error" role="alert">{error}</p>}
+      {workspace.recoveryOtherSource === "workshop" && !running && <button className="text-button" type="button"
+        onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "workshop" }))}>К прерванному рисунку в мастерской →</button>}
       {workspace.recoveryProblem && !running && !busy && <p className="plotter-warning">
         Сохранённое продолжение недоступно: {workspace.recoveryProblem} Можно сбросить прогресс и начать заново.
       </p>}

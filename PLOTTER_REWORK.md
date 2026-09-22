@@ -469,3 +469,48 @@ removed before publication. Physical paper/pen position is not measured by these
 Remaining audit includes workshop recovery integration, imported-job final pen pose,
 manual coordinate/frame changes, Windows cold-start cache behavior, raw-file preview
 controls, and the final application-level acceptance pass. Goal remains incomplete.
+
+## Workshop recovery and imported-program completion
+
+Workshop recovery now checks its own exact compiled job, uses the common readiness/
+command policy, and calls recover rather than restarting. Recovery records distinguish
+document/workshop; mismatched workspaces show a navigation link instead of consuming
+the same command index. Legacy records still require exact command identity. Calibration
+probes are deliberately nonrecoverable; their previous records had no matching UI.
+Removed percentages from resume buttons because headers can be over half a small job
+without any ink having been drawn.
+
+Found an import context issue: GRBL M2/M30 resets to G54. Added shared explicit frame
+preparation to reference-setting operations, generated jobs, pen operations, frame,
+return and recovery: G21/G90/G94/G17/G54/G49 for GRBL; Marlin E uses explicit M82.
+Connection initialization remains read-only. Frame selection causes no motion and
+never marks an unknown Z as the saved upper endpoint. XY zero has no G92Z/E. Live
+reference context includes the new frame version. G54/G49/G40 are now allowed in
+GRBL program validation, while G55–G59, G43 and G92 remain blocked. G49 with movement
+parameters is rejected. Verified upstream M30 semantics in GRBL and Marlin; Marlin
+M30 deletes an SD file, so M2/M30 are not accepted as generic Marlin program ends.
+
+Imported execution retains the exact original command array and validates it plus
+separate host prefix/suffix. Both host sections restore modes and raise the selected
+pen. The sender owns the stream through the suffix and final planner barrier. Stop,
+disconnect or a file error skips suffix motion. Return-to-origin now waits for motion;
+homing clears XY and pen reference before dispatch, including the failure path.
+
+Observed evidence without hardware: independent coordinate model starting in G55 with
+an active tool offset proved explicit reference/XY initialization causes no movement;
+XY zero preserves an established Z; a mixed-unit relative file ending M30 finishes at
+the upper endpoint with unchanged final XY. Original file bytes/commands preserved;
+forbidden frames and Marlin M30 rejected. Actual usePlotter simulation verified prefix,
+file, suffix, then barrier ordering; running/lock retained until barrier ACK; STOP and
+controller error do not send suffix, and error advances reference epoch. Actual workshop
+UI rendered “Продолжить рисунок”; clicking called recovery once and initial start zero
+times. Pure recovery checks reject cross-workspace records even for identical commands.
+
+Sources: https://raw.githubusercontent.com/gnea/grbl/master/grbl/gcode.c and
+https://marlinfw.org/docs/gcode/M030.html . Builds/typechecks and bundle parity are run
+before publication; temporary test fixtures are removed. Physical accuracy/force is
+not established by the coordinate model or virtual transport.
+
+Remaining: manual movement bounds and fresh-reference action guards, Windows cold-start
+saved-port behavior, raw-file preview controls, broader rendered app acceptance and
+final audit. The overall goal is still incomplete.

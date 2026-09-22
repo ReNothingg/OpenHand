@@ -41,7 +41,7 @@ export function createSheetQueue(
     const job = jobs[sheet];
     if (!job?.commands?.length || !job.strokes?.length || job.withinWorkArea === false)
       throw new Error(`${sheetLabel(sheet, spread)}: нет безопасной траектории.`);
-    return { ...job, sheetIndices: [...indices], totalSheets: 1,
+    return { ...job, source: "document", sheetIndices: [...indices], totalSheets: 1,
       sheetRanges: [{ sheet, start: 0, end: job.commands.length }], barriers: [], paperChanges: [] };
   }
   const resumePoints: number[] = [];
@@ -90,6 +90,7 @@ export function createSheetQueue(
     sheetRanges,
     paperChanges,
     totalSheets: indices.length,
+    source: "document",
     sheetIndices: [...indices],
     recoverable: indices.every(index => jobs[index].recoverable !== false),
     resumePoints: [...new Set(resumePoints)].sort((a, b) => a - b),

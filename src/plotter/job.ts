@@ -1,3 +1,4 @@
+import { coordinateFrameCommands } from "./coordinateFrame";
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
 import { MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, penTravelSeconds } from "./penLift";
 import { chooseForm, formGlyph, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
@@ -1626,7 +1627,7 @@ export function compilePlotJob(strokes, config) {
   let penChanges = 0;
   let penLifts = 0;
 
-  if (config.profile !== "ebb") commands.push("G21", "G90", ...(config.profile === "grbl" ? ["G94"] : []));
+  if (config.profile !== "ebb") commands.push(...coordinateFrameCommands(config));
   addPen(true);
   penChanges += 1;
 
@@ -1635,7 +1636,7 @@ export function compilePlotJob(strokes, config) {
   if (startCommands.length && config.profile !== "ebb") {
     // User macros must not leak units, relative mode or a lowered pen into
     // the generated document trajectory.
-    commands.push("G21", "G90", ...(config.profile === "grbl" ? ["G94"] : []));
+    commands.push(...coordinateFrameCommands(config));
     addPen(true);
     penChanges += 1;
     penLifts += 1;
@@ -1695,7 +1696,7 @@ export function compilePlotJob(strokes, config) {
   const endCommands = parseCustomGcode(config.customEndGcode);
   commands.push(...endCommands);
   if (endCommands.length && config.profile !== "ebb") {
-    commands.push("G21", "G90", ...(config.profile === "grbl" ? ["G94"] : []));
+    commands.push(...coordinateFrameCommands(config));
     addPen(true);
     penChanges += 1;
     penLifts += 1;
@@ -1710,7 +1711,7 @@ export function compilePlotJob(strokes, config) {
   const resumePrefix =
     config.profile === "ebb"
       ? [penCommand(true, config)]
-      : ["G21", "G90", ...(config.profile === "grbl" ? ["G94"] : []), penCommand(true, config)];
+      : [...coordinateFrameCommands(config), penCommand(true, config)];
   return {
     id: fingerprintCommands(commands),
     commands,
@@ -1784,9 +1785,7 @@ export function createDryRunCommands(strokes, config) {
     );
   }
   return [
-    "G21",
-    "G90",
-    ...(config.profile === "grbl" ? ["G94"] : []),
+    ...coordinateFrameCommands(config),
     penCommand(true, config),
     ...machineCorners.map(
       ({ x, y }) => `G1X${number(x)}Y${number(y)}F${config.jogSpeed}`,
@@ -1814,12 +1813,12 @@ export function createPageJogCommands(dx, dy, config) {
 }
 
 export function createPenCommand(up, config) {
-  return [...(["stepper", "estepper"].includes(config.penMode) ? ["G21"] : []), penCommand(up, config)];
+  return [...coordinateFrameCommands(config), penCommand(up, config)];
 }
 
 export function createPenReferenceCommands(config, position: "up" | "down" = "up") {
   if (!["stepper", "estepper"].includes(config.penMode)) return [];
-  return ["G21", `G92${config.penMode === "estepper" ? "E" : "Z"}${number(Number(position === "down" ? config.zDown : config.zUp))}`];
+  return [...coordinateFrameCommands(config), `G92${config.penMode === "estepper" ? "E" : "Z"}${number(Number(position === "down" ? config.zDown : config.zUp))}`];
 }
 
 export function createPenJogCommands(up: boolean, distance: number, config) {
@@ -1837,8 +1836,8 @@ export function createPenJogCommands(up: boolean, distance: number, config) {
 
 export function createOriginCommands(config) {
   if (config.profile === "ebb") return [];
-  if (config.profile === "marlin") return ["G92X0Y0"];
-  return ["G10P0L20X0Y0"];
+  if (config.profile === "marlin") return [...coordinateFrameCommands(config), "G92X0Y0"];
+  return [...coordinateFrameCommands(config), "G10P0L20X0Y0"];
 }
 
 export function createHomingCommands(config) {
@@ -1853,9 +1852,7 @@ export function createReturnToOriginCommands(config) {
   if (config.profile === "ebb")
     throw new Error("Для EBB возврат к абсолютному нулю недоступен.");
   return [
-    "G21",
-    "G90",
-    ...(config.profile === "grbl" ? ["G94"] : []),
+    ...coordinateFrameCommands(config),
     penCommand(true, config),
     `G1X0Y0F${config.jogSpeed}`,
   ];

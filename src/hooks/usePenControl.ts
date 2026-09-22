@@ -1,3 +1,4 @@
+import { COORDINATE_FRAME_VERSION } from "../plotter/coordinateFrame";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPenCommand, createPenJogCommands, createPenReferenceCommands } from "../plotter/job";
 import { normalizePlotterConfig } from "../plotter/profiles";
@@ -21,7 +22,7 @@ type Options = {
 
 /** Session-only pose. Profile values never imply a known physical position. */
 export function usePenControl(options: Options) {
-  const context = JSON.stringify([options.profileId, options.connected, options.controllerEpoch,
+  const context = JSON.stringify([COORDINATE_FRAME_VERSION, options.profileId, options.connected, options.controllerEpoch,
     options.config.profile, options.config.penMode, options.config.zUpDirection, options.controllerPenKey]);
   const current = useRef({ ...options, context });
   current.current = { ...options, context };
