@@ -514,3 +514,32 @@ not established by the coordinate model or virtual transport.
 Remaining: manual movement bounds and fresh-reference action guards, Windows cold-start
 saved-port behavior, raw-file preview controls, broader rendered app acceptance and
 final audit. The overall goal is still incomplete.
+
+## Fresh manual coordinates and configured movement bounds
+
+GRBL manual arrows with a known sheet origin now validate the complete step using
+fresh work coordinates, the configured area and the same axis/corner mapping as
+the job generator. An out-of-bounds step is rejected rather than silently shortened;
+if already outside, only an inward correction that does not worsen another outside
+axis is accepted. Before origin setup, positioning remains available. The local
+"Переставить начало листа" action clears the sheet reference and its old error,
+without any controller command or pen-reference change. These are configured bounds,
+not a measurement of the hardware end stops.
+
+The sender owns its operation lock throughout a new Idle/position query, validation,
+command dispatch and completion. Coordinate assignment invalidates cached coordinates
+at its ACK boundary, before processing a later status in the same packet. Old WCO
+cannot survive assignment; fresh same-packet WCO is retained. Direct WPos takes
+precedence over a cached offset. Both origin actions share one placement lock and
+refresh work coordinates before committing the local reference. Explicit standalone
+$H can start from Alarm; other motion cannot, and failed homing/STOP abort the path.
+
+Executed virtual checks cover all 32 axis/corner combinations, full-step rejection,
+corrective inward moves, fresh Run refusal, missing WCO, same-packet and delayed WCO,
+STOP during the initial status query, and successful/failed homing from Alarm.
+The full real App with a virtual serial port allowed unbound placement, refused an
+outward step after zero with no jog transmitted, allowed the inward step, and locally
+removed the origin restriction. The trace had no Z reference assignment. Key-repeat
+guards cover the added motion entry points. Temporary fixtures were removed before
+commit. npm run build (including macOS), Windows cross-build, web parity (153 files)
+and git diff --check passed. No physical device was connected by these checks.

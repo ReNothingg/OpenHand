@@ -5,6 +5,7 @@ import { notifyPlotter } from "../lib/notifications";
 import type { PaperChange } from "../plotter/sheetQueue";
 import {
   GRBL_REALTIME,
+  changesWorkCoordinates,
   parseGrblStatus,
   type GrblStatus,
 } from "../plotter/grbl";
@@ -63,8 +64,16 @@ export function usePlotter() {
     machineReportRef.current = null;
     setMachineStatus(null);
   }, []);
+  const invalidateCoordinateCache = useCallback(() => {
+    const previous = machineReportRef.current;
+    if (!previous) return;
+    const report = { ...previous, machine: undefined, work: undefined, offset: undefined };
+    machineReportRef.current = report;
+    setMachineStatus(report);
+  }, []);
   const [controllerEpoch, setControllerEpoch] = useState(0);
   const operationRef = useRef(false);
+  const acceptingHomingAlarmRef = useRef(false);
   const jobActiveRef = useRef(false);
   const [operationBusy, setOperationBusy] = useState(false);
   const connectingRef = useRef(false);
@@ -149,6 +158,9 @@ export function usePlotter() {
       pending.reject(new Error(line));
     } else {
       rememberSetting(pending.command);
+      // Clear at the ACK boundary, before parsing any later status in this
+      // packet. Clearing after await would discard an already-new WCO report.
+      if (profileRef.current === "grbl" && changesWorkCoordinates(pending.command)) invalidateCoordinateCache();
       if (pending.command === "$$") {
         const complete = GRBL_SETTINGS_REQUIRED.every(key => settingsSeenRef.current?.has(key) && Number.isFinite(controllerSettingsRef.current[key]));
         settingsSeenRef.current = null;
@@ -157,7 +169,7 @@ export function usePlotter() {
       }
       pending.resolve(line);
     }
-  }, [rememberSetting]);
+  }, [rememberSetting, invalidateCoordinateCache]);
 
   const readLoop = useCallback(
     async (reader, connectionEpoch: number) => {
@@ -196,17 +208,19 @@ export function usePlotter() {
                 }
               }
               if (report?.state === "Alarm" && !wasAlarm) {
-                abortRef.current = true;
                 setControllerEpoch((epoch) => epoch + 1);
                 log("error", "GRBL сообщает Alarm. Устраните причину аварии, затем снимите блокировку. Движения остановлены.");
-                cancelPaperWait("Авария контроллера.");
-                pausedRef.current = false;
-                pauseWaitersRef.current.splice(0).forEach((resume) => resume());
-                const interrupted = pendingRef.current.filter((pending) => !/^\$(?:X|I|G|#|\$)$/i.test(pending.command));
-                pendingRef.current = pendingRef.current.filter((pending) => !interrupted.includes(pending));
-                for (const pending of interrupted) {
-                  clearTimeout(pending.timeout);
-                  pending.reject(new Error("Авария контроллера."));
+                if (!acceptingHomingAlarmRef.current) {
+                  abortRef.current = true;
+                  cancelPaperWait("Авария контроллера.");
+                  pausedRef.current = false;
+                  pauseWaitersRef.current.splice(0).forEach((resume) => resume());
+                  const interrupted = pendingRef.current.filter((pending) => !/^\$(?:X|I|G|#|\$)$/i.test(pending.command));
+                  pendingRef.current = pendingRef.current.filter((pending) => !interrupted.includes(pending));
+                  for (const pending of interrupted) {
+                    clearTimeout(pending.timeout);
+                    pending.reject(new Error("Авария контроллера."));
+                  }
                 }
               }
               if (report) {
@@ -242,7 +256,7 @@ export function usePlotter() {
               controllerSettingsRef.current = {};
               settingsSeenRef.current = null;
               setControllerSettings({});
-      setControllerSettingsComplete(false);
+              setControllerSettingsComplete(false);
               // The startup banner is a stream boundary: reset discarded the
               // old command queue. Reject its waiters BEFORE accepting new
               // commands. Keep the operation aborted and physical zeros lost;
@@ -301,14 +315,14 @@ export function usePlotter() {
   );
 
   const writeRaw = useCallback(
-    async (value, visible = true) => {
+    async (value, visible = true, timeoutMs = commandTimeoutRef.current) => {
       if (!writerRef.current) throw new Error("Плоттер не подключён.");
       const bytes = typeof value === "string" ? encoder.encode(value) : value;
       let timer: ReturnType<typeof setTimeout>;
       try {
         await Promise.race([
           writerRef.current.write(bytes),
-          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Запись в порт не завершилась. Соединение требует восстановления.")), commandTimeoutRef.current); }),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Запись в порт не завершилась. Соединение требует восстановления.")), timeoutMs); }),
         ]);
       } finally { clearTimeout(timer!); }
       if (visible)
@@ -364,7 +378,7 @@ export function usePlotter() {
           "Потеряна синхронизация ответов. Переподключите плоттер.",
         );
       if (profileRef.current === "grbl" && statusReportRef.current.state === "Alarm"
-          && !/^\$(?:X|I|G|#|\$)$/i.test(command))
+          && !/^\$(?:X|H|I|G|#|\$)$/i.test(command))
         throw new Error("GRBL в состоянии Alarm. Устраните причину и нажмите «Снять Alarm» в состоянии плоттера. Затем проверьте ноль.");
       const connectionEpoch = connectionEpochRef.current;
       if (command === "$$") settingsSeenRef.current = new Set();
@@ -678,6 +692,7 @@ export function usePlotter() {
       options: { startIndex?: number; prefix?: string[]; suffix?: string[] } = {},
     ) => {
       if (emergencyStopRef.current) throw new Error("СТОП: управление заблокировано.");
+      if (connectingRef.current) throw new Error("Дождитесь завершения подключения.");
       if (operationRef.current)
         throw new Error("Дождитесь завершения текущей операции.");
       if (!writerRef.current) throw new Error("Плоттер не подключён.");
@@ -969,9 +984,45 @@ export function usePlotter() {
     return operation;
   }, [cancelPaperWait, log, saveRecovery, writeRaw]);
 
+  const freshIdleReport = useCallback(async (needsPosition = false, allowHomingAlarm = false): Promise<GrblStatus | null> => {
+    if (profileRef.current !== "grbl") return null;
+    const epoch = connectionEpochRef.current;
+    const sequence = statusReportRef.current.sequence;
+    const deadline = Date.now() + 2500;
+    let nextQuery = 0;
+    const interrupted = () => epoch !== connectionEpochRef.current || abortRef.current || emergencyStopRef.current || !writerRef.current;
+    while (Date.now() < deadline) {
+      if (interrupted())
+        throw new DOMException("Операция прервана.", "AbortError");
+      if (Date.now() >= nextQuery) {
+        await writeRaw("?", false, 1000);
+        if (interrupted()) throw new DOMException("Операция прервана.", "AbortError");
+        nextQuery = Date.now() + 200;
+      }
+      const report = machineReportRef.current;
+      if (statusReportRef.current.sequence > sequence && report) {
+        if (report.state !== "Idle" && !(allowHomingAlarm && report.state === "Alarm")) {
+          if (report.state.startsWith("Hold")) throw new Error("Контроллер на паузе. Перед ручным управлением отмените оставшееся движение кнопкой СТОП.");
+          if (report.state === "Alarm") throw new Error("Контроллер сообщает Alarm. Устраните причину и снимите его блокировку в разделе «Подключение».");
+          throw new Error(`Контроллер сейчас ${report.state}. Дождитесь окончания движения или нажмите СТОП.`);
+        }
+        if (!needsPosition || (report.unitsKnown && report.work?.length >= 3 && report.work.every(Number.isFinite))) return report;
+      }
+      await new Promise(resolve => setTimeout(resolve, 40));
+    }
+    if (interrupted()) throw new DOMException("Операция прервана.", "AbortError");
+    throw new Error(needsPosition ? "Не получены актуальные рабочие координаты. Команда движения не отправлена." : "Нет свежего ответа Idle. Команда не отправлена.");
+  }, [writeRaw]);
+
   const sendCommands = useCallback(
-    async (commands, options: { waitForMotion?: boolean } = {}) => {
+    async (commands, options: {
+      waitForMotion?: boolean;
+      requireIdle?: boolean;
+      requireWorkPosition?: boolean;
+      beforeSend?: (report: GrblStatus | null) => void;
+    } = {}) => {
       if (emergencyStopRef.current) throw new Error("СТОП: управление заблокировано.");
+      if (connectingRef.current) throw new Error("Дождитесь завершения подключения.");
       if (operationRef.current)
         throw new Error("Дождитесь завершения текущей операции.");
       operationRef.current = true;
@@ -979,11 +1030,21 @@ export function usePlotter() {
       abortRef.current = false;
       interruptionRef.current = null;
       try {
+        const coordinateChange = commands.some(changesWorkCoordinates);
+        const homing = commands.length === 1 && commands[0].trim().toUpperCase() === "$H";
+        let report: GrblStatus | null = null;
+        acceptingHomingAlarmRef.current = homing;
+        try {
+          if (options.requireIdle || options.waitForMotion || options.beforeSend || coordinateChange || homing)
+            report = await freshIdleReport(Boolean(options.requireWorkPosition), homing);
+        } finally { acceptingHomingAlarmRef.current = false; }
+        options.beforeSend?.(report);
         for (const command of commands) {
-          if (abortRef.current) throw new Error("Операция прервана.");
+          if (abortRef.current) throw interruptionRef.current || new DOMException("Операция прервана.", "AbortError");
           await sendCommand(command);
           if (abortRef.current) throw interruptionRef.current || new DOMException("Операция прервана.", "AbortError");
         }
+        if (homing && profileRef.current === "grbl") await freshIdleReport();
         if (options.waitForMotion && profileRef.current === "grbl" && commands.some(command => /^\$J=/i.test(command))) {
           // Jog's ok means queued. Wait for a NEW Idle report; the previous
           // cached Idle can predate the movement. G-code barriers cannot be
@@ -993,7 +1054,7 @@ export function usePlotter() {
           await writeRaw("?", false);
           while (true) {
             if (abortRef.current || !writerRef.current)
-              throw new Error("Операция прервана.");
+              throw interruptionRef.current || new DOMException("Операция прервана.", "AbortError");
             const report = statusReportRef.current;
             if (report.sequence > sequence && report.state === "Idle") break;
             if (Date.now() >= deadline) {
@@ -1011,13 +1072,14 @@ export function usePlotter() {
         } else if (options.waitForMotion && profileRef.current === "marlin") {
           await sendCommand("M400", 120000);
         }
+        if (coordinateChange && profileRef.current === "grbl") await freshIdleReport(true);
         if (abortRef.current) throw interruptionRef.current || new DOMException("Операция прервана.", "AbortError");
       } finally {
         operationRef.current = false;
         setOperationBusy(false);
       }
     },
-    [sendCommand, writeRaw],
+    [sendCommand, writeRaw, freshIdleReport],
   );
 
   const resetProgress = useCallback(() => {

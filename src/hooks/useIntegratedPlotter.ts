@@ -1,3 +1,4 @@
+import { assertManualJogAllowed } from "../plotter/manualMotion";
 import { COORDINATE_FRAME_VERSION } from "../plotter/coordinateFrame";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "./useDebouncedValue";
@@ -737,22 +738,13 @@ export function useIntegratedPlotter({
     [stop],
   );
 
-  const setOrigin = useCallback(async () => {
-    setOriginConfirmed(false);
-    const success = await safeAction(() =>
-      plotter.sendCommands(createOriginCommands(config)),
-    );
-    if (success) setOriginConfirmed(true);
-    return success;
-  }, [config, plotter.sendCommands, safeAction]);
-
   const placementInFlight = useRef(false);
   const placementContext = JSON.stringify([activeProfile.id, connected, plotter.controllerEpoch,
     config.profile, config.penMode, config.zUp, config.zDown, config.zUpDirection,
-    config.startPosition, config.swapAxes, config.invertX, config.invertY, controllerPenKey]);
+    config.startPosition, config.swapAxes, config.invertX, config.invertY, config.workAreaWidth, config.workAreaHeight, controllerPenKey]);
   const livePlacementContext = useRef(placementContext);
   livePlacementContext.current = placementContext;
-  const setManualStart = useCallback(async () => {
+  const establishSheetOrigin = useCallback(async (upperLeft: boolean) => {
     if (placementInFlight.current) return false;
     const readiness = assessDevice(true);
     if (!readiness.canStart) { setError(readiness.blockers[0]); return false; }
@@ -762,16 +754,19 @@ export function useIntegratedPlotter({
     try {
       return await safeAction(async () => {
         // XY placement must never relabel the current physical Z/E height.
-        await plotter.sendCommands(createOriginCommands(config));
+        await plotter.sendCommands(createOriginCommands(config), { requireIdle: true });
         if (livePlacementContext.current !== placementContext)
           throw new DOMException("Установка начала листа отменена.", "AbortError");
         // A manually placed sheet always starts at its own upper-left corner,
         // independent of the configured machine travel dimensions.
-        setConfig(current => ({ ...current, startPosition: "left-top" }));
+        if (upperLeft) setConfig(current => ({ ...current, startPosition: "left-top" }));
         setOriginConfirmed(true);
       });
     } finally { placementInFlight.current = false; setBusy(false); }
   }, [assessDevice, plotter.sendCommands, config, placementContext, safeAction, setConfig]);
+
+  const setManualStart = useCallback(() => establishSheetOrigin(true), [establishSheetOrigin]);
+  const setOrigin = useCallback(() => establishSheetOrigin(false), [establishSheetOrigin]);
 
   const dryRun = useCallback(
     () =>
@@ -891,8 +886,20 @@ export function useIntegratedPlotter({
       await plotter.realtime("status");
     }),
     jog: (dx, dy) => safeAction(() => {
-      return plotter.sendCommands(createPageJogCommands(dx, dy, config), { waitForMotion: true });
+      if (calibrationActive || running) throw new Error("Дождитесь завершения текущей операции.");
+      if (config.profile === "grbl" && !plotter.controllerSettingsComplete)
+        throw new Error("Прочитайте параметры платы в блоке подключения перед ручным движением.");
+      return plotter.sendCommands(createPageJogCommands(dx, dy, config), {
+        waitForMotion: true,
+        requireWorkPosition: config.profile === "grbl" && originConfirmed,
+        beforeSend: report => assertManualJogAllowed(dx, dy, config, originConfirmed, report),
+      });
     }),
+    clearSheetOrigin: () => {
+      if (running || calibrationActive || plotter.operationBusy || busy) return;
+      setOriginConfirmed(false);
+      setError("");
+    },
     pen: (up, value?: number) => safeAction(() => {
       if (calibrationActive) throw new Error("Завершите мастер настройки.");
       return penControl.test(up, value);

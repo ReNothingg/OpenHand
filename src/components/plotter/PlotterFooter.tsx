@@ -127,14 +127,14 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
               busy ||
               config.profile === "ebb"
             }
-            onClick={workspace.dryRun}
+            data-plotter-motion="" onClick={workspace.dryRun}
           >
             Проверить рамку
           </button>
           {!running && !recoveryAvailable && (
             <button
               className="button primary compact"
-              type="button"
+              data-plotter-motion="" type="button"
               disabled={
                 calibrationActive ||
                 !connected ||
@@ -168,7 +168,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
             <>
               <button
                 className="button primary compact"
-                type="button"
+                data-plotter-motion="" type="button"
                 disabled={
                   calibrationActive ||
                   !connected ||
@@ -202,7 +202,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
           {plotter.status === "paused" && (
             <button
               className="button primary compact"
-              type="button"
+              data-plotter-motion="" type="button"
               onClick={workspace.resume}
             >
               Продолжить передачу
@@ -365,7 +365,7 @@ export default function PlotterFooter({ workspace }: { workspace: any }) {
             {workspace.importedLaunchBlockers.map(message => <p className="plotter-warning" key={message}>{message}</p>)}
             <button
               className="button primary compact"
-              type="button"
+              data-plotter-motion="" type="button"
               disabled={
                 calibrationActive ||
                 !connected ||

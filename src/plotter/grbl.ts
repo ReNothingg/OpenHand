@@ -41,14 +41,17 @@ export function parseGrblStatus(
   );
   const factor = reportInches ? 25.4 : 1;
   const position = (value: string | undefined) => reportInches === null ? undefined : vector(value)?.map(n => n * factor);
-  const offset =
-    reportInches === null ? undefined : fields.WCO === undefined ? previous?.offset : position(fields.WCO);
-  let machine = position(fields.MPos),
-    work = position(fields.WPos);
-  if (machine && offset?.length === machine.length)
-    work = machine.map((n, i) => n - offset![i]);
-  if (work && offset?.length === work.length)
-    machine = work.map((n, i) => n + offset![i]);
+  let machine = position(fields.MPos), work = position(fields.WPos);
+  let offset = reportInches === null ? undefined
+    : fields.WCO === undefined ? previous?.offset : position(fields.WCO);
+  // Direct coordinates in this report outrank a cached offset. Older status
+  // formats may report both positions without a separate WCO field.
+  if (machine && work && machine.length === work.length)
+    offset = machine.map((n, i) => n - work![i]!);
+  if (!work && machine && offset?.length === machine.length)
+    work = machine.map((n, i) => n - offset![i]!);
+  if (!machine && work && offset?.length === work.length)
+    machine = work.map((n, i) => n + offset![i]!);
   const fs = fields.FS?.split(",").map(Number);
   return {
     state,
@@ -75,3 +78,10 @@ export const GRBL_REALTIME = {
   rapid25: 0x97,
   jogCancel: 0x85,
 } as const;
+
+/** Coordinate assignment invalidates cached WCO at its acknowledged stream boundary. */
+export function changesWorkCoordinates(command: string): boolean {
+  const executable = command.replace(/\([^)]*\)/g, "").replace(/;.*$/, "");
+  return [...executable.matchAll(/G\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))/gi)]
+    .some(match => [10, 92, 92.1].includes(Number(match[1])));
+}

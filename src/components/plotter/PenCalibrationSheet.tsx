@@ -54,7 +54,7 @@ export default function PenCalibrationSheet({ workspace }) {
           </figcaption>
         </figure>
         <button
-          className="button primary"
+          className="button primary" data-plotter-motion=""
           type="button"
           disabled={!workspace.deviceReadiness.canStart || !sheet.withinWorkArea}
           onClick={async () => {

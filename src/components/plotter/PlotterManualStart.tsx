@@ -11,7 +11,7 @@ export default function PlotterManualStart({ workspace, workshop = false }: { wo
       {workshop ? " Рисунок расположится как на рабочем поле." : " Поля и отступы берутся из документа."}</p>
     <button className="button ghost compact" type="button" disabled={!canSet}
       title={canSet ? "Задаёт начало листа по X/Y. Перо остаётся на месте; его поднятое положение эта кнопка не задаёт." : workspace.placementReadiness.blockers[0]}
-      onClick={workspace.setManualStart}>
+      data-plotter-motion="" onClick={workspace.setManualStart}>
       {workspace.originConfirmed ? "Начало нового листа здесь" : "Начало листа здесь"}
     </button>
     {!workspace.penPositionsVerified && <button className="text-button" type="button"

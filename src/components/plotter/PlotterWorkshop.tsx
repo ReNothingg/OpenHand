@@ -569,7 +569,7 @@ export default function PlotterWorkshop({
                 Экспорт G-code
               </button>
               <button
-                disabled={!canRun || config.profile === "ebb"}
+                data-plotter-motion="" disabled={!canRun || config.profile === "ebb"}
                 onClick={() =>
                   void attempt(() =>
                     workspace.runPreparedFrame(document.strokes, withinPaper),
@@ -580,7 +580,7 @@ export default function PlotterWorkshop({
               </button>
               <button
                 className="primary"
-                disabled={!canRun}
+                data-plotter-motion="" disabled={!canRun}
                 onClick={() =>
                   void attempt(() => {
                     return recovery.available

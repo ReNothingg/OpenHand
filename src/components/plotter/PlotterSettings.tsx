@@ -117,7 +117,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
             </label>
             <div className="plotter-row two">
               <label className="field">
-                <Caption help="Тип прошивки платы. Неверный вариант не повредит контроллер, но команды не будут распознаны.">
+                <Caption help="Тип прошивки платы определяет команды подключения и движения.">
                   Прошивка
                 </Caption>
                 <select
@@ -653,6 +653,12 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
           </SettingSection>
 
           <SettingSection title="Положение на листе" open={false}>
+            {config.profile === "grbl" && <p className="plotter-note">
+              {workspace.originConfirmed ? "Стрелки ограничены выбранной рабочей областью относительно начала листа." : "Пока начало листа не задано, стрелки двигают механизм на выбранный шаг без проверки границ."}
+            </p>}
+            {workspace.originConfirmed && <button className="text-button" type="button"
+              disabled={running || calibrationActive || workspace.busy || plotter.operationBusy}
+              onClick={workspace.clearSheetOrigin}>Переставить начало листа</button>}
             <div className="jog-control">
               <button
                 type="button"
@@ -708,7 +714,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               <button
                 className="button compact"
                 type="button"
-                disabled={!connected || running || config.profile === "ebb"}
+                disabled={!connected || running || plotter.operationBusy || workspace.busy || workspace.emergencyStopped || config.profile === "ebb"}
                 data-plotter-motion="" onClick={workspace.setOrigin}
               >
                 Здесь начало листа
@@ -716,15 +722,15 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               <button
                 className="button compact"
                 type="button"
-                disabled={!connected || running || config.profile === "ebb"}
-                onClick={workspace.home}
+                disabled={!connected || running || plotter.operationBusy || workspace.busy || workspace.emergencyStopped || config.profile === "ebb"}
+                data-plotter-motion="" onClick={workspace.home}
               >
                 Homing
               </button>
               <button
                 className="button compact"
                 type="button"
-                disabled={!connected || running || config.profile === "ebb"}
+                disabled={!connected || running || plotter.operationBusy || workspace.busy || workspace.emergencyStopped || config.profile === "ebb"}
                 onClick={workspace.returnToOrigin}
               >
                 Вернуться к началу листа
