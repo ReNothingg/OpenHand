@@ -1860,7 +1860,7 @@ export function createPenCommand(up, config) {
 
 export function createPenReferenceCommands(config, position: "up" | "down" = "up") {
   if (!["stepper", "estepper"].includes(config.penMode)) return [];
-  return [...coordinateFrameCommands(config), `G92${config.penMode === "estepper" ? "E" : "Z"}${number(Number(position === "down" ? config.zDown : config.zUp))}`];
+  return [...coordinateFrameCommands(config), `G92${config.penMode === "estepper" ? "E" : "Z"}${number(Number(position === "down" ? config.zDown : automaticPenUpPosition(config)))}`];
 }
 
 export function createPenJogCommands(up: boolean, distance: number, config) {

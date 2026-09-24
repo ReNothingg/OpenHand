@@ -92,7 +92,7 @@ export function usePenControl(options: Options) {
   const reference = useCallback((position: "up" | "down") => operate(async (live, commit) => {
     if (!hasVerifiedPenPositions(live.config, live.controllerPenKey)) throw new Error("Сначала сохраните два положения пера.");
     await live.sendCommands(createPenReferenceCommands(live.config, position));
-    commit(position === "up" ? live.config.zUp : live.config.zDown);
+    commit(position === "up" ? automaticPenUpPosition(live.config) : live.config.zDown);
   }), [operate]);
   const jog = useCallback((up: boolean, distance = PEN_TEST_STEP_MM) => operate(async (live, commit) => {
     if (!Number.isFinite(distance) || distance < 0.01 || distance > MAX_PEN_JOG_MM)

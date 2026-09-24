@@ -1,5 +1,5 @@
 import PenTravelInfo from "./PenTravelInfo";
-import { penPositionKey, normalizePenJogStep, PEN_JOG_STEPS_MM } from "../../plotter/penLift";
+import { automaticPenUpPosition, penPositionKey, normalizePenJogStep, PEN_JOG_STEPS_MM } from "../../plotter/penLift";
 
 type Props = { workspace: any; execute: (action: () => Promise<unknown>) => Promise<void>; disabled: boolean };
 
@@ -11,6 +11,7 @@ export default function PenSetupPanel({ workspace, execute, disabled }: Props) {
   const canTeach = !unavailable && referenced && position !== null;
   const step = normalizePenJogStep(config.penJogStep);
   const stepLabel = step.toLocaleString("ru-RU");
+  const upper = automaticPenUpPosition(config);
   const adjust = <div className="pen-adjustment">
     <div className="pen-step-picker" role="group" aria-label="Шаг пера">
       <span>Шаг пера</span>
@@ -32,10 +33,10 @@ export default function PenSetupPanel({ workspace, execute, disabled }: Props) {
       : !freshIdle ? <p className="pen-next-step">Ждём готовности контроллера к ручному движению.</p>
       : !referenced ? <div className="pen-next-step">
         <strong>{saved ? "Где перо сейчас?" : "Начните с текущего положения"}</strong>
-        <p>{saved ? "Эти кнопки подходят только если механизм находится точно в одной из сохранённых точек. Просто держать перо над бумагой недостаточно. После упора или ручного изменения высоты используйте «Настроить заново»." : "Начало отсчёта не двигает перо. Затем подведите его короткими шагами и запомните две высоты."}</p>
+        <p>{saved ? `Выберите точку только если перо физически уже находится точно в ней: верх записи Z${upper} или письмо Z${config.zDown}. Кнопки не двигают перо. После упора или ручного изменения высоты используйте «Настроить заново».` : "Начало отсчёта не двигает перо. Затем подведите его короткими шагами и запомните две высоты."}</p>
         {saved ? <div className="device-buttons">
-          <button disabled={unavailable} onClick={() => void execute(() => workspace.setPenReference("up"))}>В сохранённой верхней точке</button>
-          <button disabled={unavailable} onClick={() => void execute(() => workspace.setPenReference("down"))}>В сохранённой нижней точке</button>
+          <button disabled={unavailable} onClick={() => void execute(() => workspace.setPenReference("up"))}>Сейчас верх записи · Z{upper}</button>
+          <button disabled={unavailable} onClick={() => void execute(() => workspace.setPenReference("down"))}>Сейчас на бумаге · Z{config.zDown}</button>
         </div> : <button disabled={unavailable} onClick={() => void execute(workspace.beginPenSetup)}>Начать настройку</button>}
       </div> : saved ? <div className="pen-ready-controls">
         <div className="pen-step-actions">
@@ -45,6 +46,7 @@ export default function PenSetupPanel({ workspace, execute, disabled }: Props) {
         <p className="pen-step-caption">Перемещение между сохранёнными высотами</p>
       </div> : adjust}
 
+    <p className="pen-position-caption">Числа ниже — координаты Z относительно точки начала настройки. Они не задают длину одного движения.</p>
     <div className="pen-height-cards">
       {[true, false].map(up => {
         const stored = config[up ? "penVerifiedUp" : "penVerifiedDown"] === penPositionKey(config, up);
@@ -52,7 +54,7 @@ export default function PenSetupPanel({ workspace, execute, disabled }: Props) {
         return <section className={`pen-height-card ${verified ? "is-saved" : ""}`} key={String(up)}>
           <h3>{up ? "Над бумагой" : "На бумаге"}</h3>
           <p>{up ? "Перо не касается листа при перемещении." : "Перо касается листа без чрезмерного нажима."}</p>
-          <output>{stored ? `${up ? config.zUp : config.zDown} мм` : "Не сохранено"}</output>
+          <output>{stored ? `Z${Number(up ? config.zUp : config.zDown).toLocaleString("ru-RU")}` : "Не сохранено"}</output>
           {stored && !verified && <small>{!connected ? "Сохранено · сверим после подключения" : !workspace.controllerPenKey ? "Параметры платы ещё не прочитаны" : "Параметры платы изменились — проверьте высоту"}</small>}
           <button disabled={!canTeach} aria-label={up ? "Сохранить верхнее положение" : "Сохранить нижнее положение"}
             onClick={() => void execute(() => workspace.rememberPenPosition(up))}>
