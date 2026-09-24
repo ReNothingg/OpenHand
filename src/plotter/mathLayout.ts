@@ -29,6 +29,8 @@ const SYMBOLS = Object.freeze({
   sum: "Σ",
   prod: "Π",
   infty: "∞",
+  in: "∈",
+  cup: "∪",
   pm: "±",
   mp: "∓",
   times: "×",
@@ -137,6 +139,14 @@ function parser(source) {
     if (name === "boxed") return { type: "boxed", body: argument() };
     if (name === "hat" || name === "widehat")
       return { type: "accent", body: argument(), accent: "hat" };
+    if (name === "mathbb") {
+      const body = argument();
+      if ((body.type === "text" && body.value === "R") ||
+          (body.type === "sequence" && body.children.length === 1 &&
+            body.children[0].type === "text" && body.children[0].value === "R"))
+        return { type: "text", value: "ℝ" };
+      return body;
+    }
     if (GROUP_COMMANDS.has(name)) return argument();
     if (IGNORED_COMMANDS.has(name)) return sequence();
     if ([",", ";", ":", "!", "quad", "qquad", " "].includes(name))
@@ -214,6 +224,24 @@ function emptyBox(width = 0) {
 function constructedSymbol(char, size) {
   const line = (...points) =>
     points.map(([x, y]) => ({ x: x * size, y: y * size }));
+  if (char === "∈") return {
+    width: size * 0.7, ascent: size * 0.7, descent: 0,
+    strokes: [line([0.59, -0.63], [0.32, -0.63], [0.12, -0.48], [0.08, -0.35],
+      [0.12, -0.22], [0.32, -0.08], [0.59, -0.08]),
+      line([0.09, -0.35], [0.52, -0.35])],
+  };
+  if (char === "∪") return {
+    width: size * 0.68, ascent: size * 0.67, descent: 0,
+    strokes: [line([0.08, -0.61], [0.09, -0.27], [0.18, -0.12], [0.34, -0.07],
+      [0.5, -0.12], [0.59, -0.27], [0.6, -0.61])],
+  };
+  if (char === "ℝ") return {
+    width: size * 0.7, ascent: size * 0.85, descent: 0,
+    strokes: [line([0.08, 0], [0.08, -0.8], [0.39, -0.8], [0.56, -0.69],
+      [0.56, -0.52], [0.39, -0.41], [0.08, -0.41]),
+      line([0.18, 0], [0.18, -0.8]),
+      line([0.3, -0.41], [0.59, 0])],
+  };
   if (char === "⇒") return {
     width: size * 0.85, ascent: size * 0.65, descent: 0,
     strokes: [line([0.05, -0.42], [0.63, -0.42]), line([0.05, -0.22], [0.63, -0.22]),
@@ -379,6 +407,51 @@ function constructedSymbol(char, size) {
       ascent: size * 0.38,
       descent: 0,
       strokes: [line([0.13, -0.28], [0.16, -0.25])],
+    };
+  if (char === "<")
+    return {
+      width: size * 0.62,
+      ascent: size * 0.62,
+      descent: 0,
+      strokes: [line([0.52, -0.56], [0.1, -0.34], [0.52, -0.12])],
+    };
+  if (char === ">")
+    return {
+      width: size * 0.62,
+      ascent: size * 0.62,
+      descent: 0,
+      strokes: [line([0.1, -0.56], [0.52, -0.34], [0.1, -0.12])],
+    };
+  if (char === "≤")
+    return {
+      width: size * 0.62,
+      ascent: size * 0.72,
+      descent: 0,
+      strokes: [
+        line([0.52, -0.66], [0.1, -0.46], [0.52, -0.26]),
+        line([0.1, -0.12], [0.52, -0.12]),
+      ],
+    };
+  if (char === "≥")
+    return {
+      width: size * 0.62,
+      ascent: size * 0.72,
+      descent: 0,
+      strokes: [
+        line([0.1, -0.66], [0.52, -0.46], [0.1, -0.26]),
+        line([0.1, -0.12], [0.52, -0.12]),
+      ],
+    };
+  if (char === "≠")
+    return {
+      width: size * 0.65,
+      ascent: size * 0.68,
+      descent: 0,
+      strokes: [
+        line([0.08, -0.46], [0.57, -0.46]),
+        line([0.08, -0.22], [0.57, -0.22]),
+        line([0.46, -0.64], [0.19, -0.04]),
+      ],
     };
   return null;
 }

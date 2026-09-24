@@ -137,6 +137,9 @@ export default function SettingsPanel({
         />
       </SettingSection>
       <SettingSection title="Страница и поля" open={false}>
+          <Toggle checked={settings.compactLayout} onChange={value => updateSetting("compactLayout", value)} label="Компактная разбивка">
+            <small>Убирает лишние пустые строки. Несколько заданий размещаются на одной странице, если хватает места; заголовок остаётся с началом решения.</small>
+          </Toggle>
           <div className="page-format-field">
             <div className="page-format-row">
               <select

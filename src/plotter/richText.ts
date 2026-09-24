@@ -640,6 +640,8 @@ export function htmlToPlotterText(html) {
     const headingLevel = /^H[1-6]$/.test(element.tagName)
       ? Number(element.tagName.slice(1))
       : 0;
+    const displayFormula = element.classList.contains("katex-display");
+    if (headingLevel || displayFormula) appendBreak(1);
     if (callout) output += PLOTTER_CALLOUT_MARKS.start;
     if (quote) output += PLOTTER_QUOTE_MARKS.start;
     if (headingLevel) output += PLOTTER_HEADING_MARKS[`h${headingLevel}Start`];
@@ -665,7 +667,7 @@ export function htmlToPlotterText(html) {
     if (callout) appendBeforeTrailingBreaks(PLOTTER_CALLOUT_MARKS.end);
 
     if (element.tagName === "LI") appendBreak(1);
-    else if (BLOCK_TAGS.has(element.tagName)) appendBreak(1);
+    else if (BLOCK_TAGS.has(element.tagName) || displayFormula) appendBreak(1);
   };
 
   Array.from(container.childNodes).forEach(walk);

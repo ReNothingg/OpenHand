@@ -1,10 +1,25 @@
-export function penLiftDistance(config: { zUp: number; zDown: number }): number {
-  return Number(Math.abs(config.zUp - config.zDown).toFixed(3));
+// This mechanism's supplied stepper profile uses a 3 mm lift. A larger
+// automatic excursion can drive the holder into its upper stop on each stroke.
+export const MAX_AUTOMATIC_PEN_LIFT_MM = 3;
+export const MAX_GRBL_PEN_SPEED_MM_MIN = 1000;
+
+export function automaticPenSpeed(config: { profile?: string; zSpeed: number }): number {
+  return config.profile === "grbl" ? Math.min(config.zSpeed, MAX_GRBL_PEN_SPEED_MM_MIN) : config.zSpeed;
+}
+
+export function automaticPenUpPosition(config: { zUp: number; zDown: number; profile?: string }): number {
+  const delta = config.zUp - config.zDown;
+  if (config.profile !== "grbl") return config.zUp;
+  return Number((config.zDown + Math.sign(delta) * Math.min(Math.abs(delta), MAX_AUTOMATIC_PEN_LIFT_MM)).toFixed(3));
+}
+
+export function penLiftDistance(config: { zUp: number; zDown: number; profile?: string }): number {
+  return Number(Math.abs(automaticPenUpPosition(config) - config.zDown).toFixed(3));
 }
 
 export function penTravelSeconds(config: { zUp: number; zDown: number; zSpeed: number; penMode: string }): number {
   if (!["stepper", "estepper"].includes(config.penMode)) return 0;
-  const speed = Number(config.zSpeed);
+  const speed = Number(automaticPenSpeed(config));
   const distance = penLiftDistance(config);
   return Number.isFinite(speed) && speed > 0 && Number.isFinite(distance) ? distance * 60 / speed : 0;
 }

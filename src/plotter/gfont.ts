@@ -283,6 +283,7 @@ export class GFont {
   private penEntries = new Map<number, GFontEntry>();
   private formEntries = new Map<number, GFontEntry>();
   private formCache = new Map<number, LetterForm[]>();
+  private synthesizing = new Set<number>();
 
   constructor(arrayBuffer: ArrayBuffer, name = "Шрифт .gfont") {
     if (arrayBuffer.byteLength > MAX_GFONT_ARCHIVE_BYTES) {
@@ -402,14 +403,18 @@ export class GFont {
   }
 
   has(codePoint: number) {
-    return this.entries.has(codePoint);
+    return this.entries.has(codePoint) || [60, 62, 8800, 8804, 8805].includes(codePoint);
   }
 
   async getGlyph(codePoint: number): Promise<GFontGlyph | null> {
     const cached = this.cache.get(codePoint);
     if (cached !== undefined) return cached;
     const entry = this.entries.get(codePoint);
-    if (!entry) return null;
+    if (!entry) {
+      const synthesized = await this.synthesizeSymbol(codePoint);
+      this.cache.set(codePoint, synthesized);
+      return synthesized;
+    }
 
     const decoded = await this.readEntry(entry);
     const glyph = parseGlyph(decoded, codePoint);
@@ -466,6 +471,143 @@ export class GFont {
     }
     this.formCache.set(codePoint, forms);
     return forms;
+  }
+
+  private async synthesizeSymbol(codePoint: number): Promise<GFontGlyph | null> {
+    if (![60, 62, 8800, 8804, 8805].includes(codePoint)) return null;
+    if (this.synthesizing.has(codePoint)) return null;
+    this.synthesizing.add(codePoint);
+
+    try {
+      let refGlyph: GFontGlyph | null = null;
+      for (const refCp of [61, 45, 43, 60, 62]) {
+        if (this.entries.has(refCp)) {
+          refGlyph = await this.getGlyph(refCp);
+          if (refGlyph) break;
+        }
+      }
+
+      const minX = refGlyph ? refGlyph.bounds.minX : 20;
+      const maxX = refGlyph ? refGlyph.bounds.maxX : 160;
+      const width = Math.max(60, maxX - minX);
+      const midX = (minX + maxX) / 2;
+      const minY = refGlyph ? refGlyph.bounds.minY : -180;
+      const maxY = refGlyph ? refGlyph.bounds.maxY : -90;
+      const height = Math.max(40, maxY - minY);
+      const midY = (minY + maxY) / 2;
+
+      const toGlyph = (strokes: GFontPoint[][]): GFontGlyph => {
+        const points: GFontPoint[] = [];
+        const flags: number[] = [];
+        let gMinX = Infinity, gMaxX = -Infinity, gMinY = Infinity, gMaxY = -Infinity;
+        for (const stroke of strokes) {
+          if (stroke.length < 2) continue;
+          stroke.forEach((p, i) => {
+            points.push({ ...p });
+            flags.push(i === 0 ? 0 : 1);
+            gMinX = Math.min(gMinX, p.x);
+            gMaxX = Math.max(gMaxX, p.x);
+            gMinY = Math.min(gMinY, p.y);
+            gMaxY = Math.max(gMaxY, p.y);
+          });
+        }
+        return {
+          codePoint,
+          points,
+          flags,
+          bounds: points.length
+            ? { minX: gMinX, maxX: gMaxX, minY: gMinY, maxY: gMaxY }
+            : { minX: 0, maxX: 0, minY: 0, maxY: 0 },
+        };
+      };
+
+      if (codePoint === 8800) {
+        const eq = this.entries.has(61) ? await this.getGlyph(61) : null;
+        if (eq && eq.points.length >= 2) {
+          const strokes: GFontPoint[][] = [];
+          eq.points.forEach((p, i) => {
+            if (!eq.flags[i] || !strokes.length) strokes.push([]);
+            strokes.at(-1)!.push({ ...p });
+          });
+          const eqW = eq.bounds.maxX - eq.bounds.minX;
+          const eqH = Math.max(30, eq.bounds.maxY - eq.bounds.minY);
+          const slashStart = { x: eq.bounds.maxX - eqW * 0.15, y: eq.bounds.minY - eqH * 0.7 };
+          const slashEnd = { x: eq.bounds.minX + eqW * 0.15, y: eq.bounds.maxY + eqH * 0.7 };
+          strokes.push([slashStart, slashEnd]);
+          return toGlyph(strokes);
+        }
+        const s1 = [{ x: minX, y: midY - height * 0.35 }, { x: maxX, y: midY - height * 0.35 }];
+        const s2 = [{ x: minX, y: midY + height * 0.35 }, { x: maxX, y: midY + height * 0.35 }];
+        const slash = [{ x: midX + width * 0.3, y: midY - height * 0.9 }, { x: midX - width * 0.3, y: midY + height * 0.9 }];
+        return toGlyph([s1, s2, slash]);
+      }
+
+      if (codePoint === 60) {
+        if (this.entries.has(62)) {
+          const gt = await this.getGlyph(62);
+          if (gt) {
+            const flipped: GFontPoint[][] = [];
+            gt.points.forEach((p, i) => {
+              if (!gt.flags[i] || !flipped.length) flipped.push([]);
+              flipped.at(-1)!.push({ x: gt.bounds.maxX - (p.x - gt.bounds.minX), y: p.y });
+            });
+            return toGlyph(flipped);
+          }
+        }
+        const halfH = Math.max(35, width * 0.45);
+        return toGlyph([[{ x: maxX, y: midY - halfH }, { x: minX, y: midY }, { x: maxX, y: midY + halfH }]]);
+      }
+
+      if (codePoint === 62) {
+        if (this.entries.has(60)) {
+          const lt = await this.getGlyph(60);
+          if (lt) {
+            const flipped: GFontPoint[][] = [];
+            lt.points.forEach((p, i) => {
+              if (!lt.flags[i] || !flipped.length) flipped.push([]);
+              flipped.at(-1)!.push({ x: lt.bounds.maxX - (p.x - lt.bounds.minX), y: p.y });
+            });
+            return toGlyph(flipped);
+          }
+        }
+        const halfH = Math.max(35, width * 0.45);
+        return toGlyph([[{ x: minX, y: midY - halfH }, { x: maxX, y: midY }, { x: minX, y: midY + halfH }]]);
+      }
+
+      if (codePoint === 8804) {
+        const lt = await this.getGlyph(60);
+        if (lt && lt.points.length >= 2) {
+          const strokes: GFontPoint[][] = [];
+          const shiftUp = Math.max(25, (lt.bounds.maxY - lt.bounds.minY) * 0.35);
+          lt.points.forEach((p, i) => {
+            if (!lt.flags[i] || !strokes.length) strokes.push([]);
+            strokes.at(-1)!.push({ x: p.x, y: p.y - shiftUp });
+          });
+          const lineY = lt.bounds.maxY - shiftUp + Math.max(20, shiftUp * 0.85);
+          strokes.push([{ x: lt.bounds.minX, y: lineY }, { x: lt.bounds.maxX, y: lineY }]);
+          return toGlyph(strokes);
+        }
+      }
+
+      if (codePoint === 8805) {
+        const gt = await this.getGlyph(62);
+        if (gt && gt.points.length >= 2) {
+          const strokes: GFontPoint[][] = [];
+          const shiftUp = Math.max(25, (gt.bounds.maxY - gt.bounds.minY) * 0.35);
+          gt.points.forEach((p, i) => {
+            if (!gt.flags[i] || !strokes.length) strokes.push([]);
+            strokes.at(-1)!.push({ x: p.x, y: p.y - shiftUp });
+          });
+          const lineY = gt.bounds.maxY - shiftUp + Math.max(20, shiftUp * 0.85);
+          strokes.push([{ x: gt.bounds.minX, y: lineY }, { x: gt.bounds.maxX, y: lineY }]);
+          return toGlyph(strokes);
+        }
+      }
+
+      return null;
+    } finally {
+      this.synthesizing.delete(codePoint);
+    }
   }
 }
 

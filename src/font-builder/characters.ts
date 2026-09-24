@@ -21,7 +21,7 @@ export const CHARACTER_GROUPS = [
   {
     id: "symbols",
     label: "Знаки",
-    characters: Array.from(".,!?;:—-()[]«»\"'№@#+=/"),
+    characters: Array.from(".,!?;:—-()[]«»\"'№@#+=/<>≤≥≠"),
   },
 ];
 
@@ -33,5 +33,5 @@ export const PREVIEW_TEXT = {
   ru: "Съешь ещё этих мягких французских булок",
   en: "The quick brown fox jumps over the lazy dog",
   numbers: "2026 — 12:45",
-  symbols: "«Привет!» — OpenHand.",
+  symbols: "«Привет!» — 1 < 2 ≤ 3 ≠ 4 ≥ 0.",
 };

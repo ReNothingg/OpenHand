@@ -387,6 +387,7 @@ export default function App({ active = true }: { active?: boolean }) {
   );
   const renderSettings = useMemo(
     () => ({
+      compactLayout: deferredSettings.compactLayout,
       seed: deferredSettings.seed,
       directionChance: deferredSettings.directionChance,
       wordFrequency: deferredSettings.wordFrequency,

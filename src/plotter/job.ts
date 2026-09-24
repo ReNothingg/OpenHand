@@ -1,7 +1,8 @@
 import { coordinateFrameCommands } from "./coordinateFrame";
+import { HEADING_SCALES } from "../handwriting/headings";
 import { varyLetterGlyph } from "../handwriting/letterGeometry";
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
-import { MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, penTravelSeconds } from "./penLift";
+import { MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, automaticPenSpeed, automaticPenUpPosition, penTravelSeconds } from "./penLift";
 import { chooseForm, formGlyph, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
 import { layoutFormula } from "./mathLayout";
 import {
@@ -418,6 +419,14 @@ export async function layoutText(
   }
   bodyHeights.sort((a, b) => a - b);
   const bodyTop = -(bodyHeights[Math.floor(bodyHeights.length / 2)] || FONT_EM * 0.55);
+  const capHeights = [];
+  for (const char of "НПАHNA") {
+    const glyph = await getGlyph(char, false);
+    const height = glyph ? glyph.bounds.maxY - glyph.bounds.minY : 0;
+    if (height > 0) capHeights.push(height);
+  }
+  capHeights.sort((a, b) => a - b);
+  const headingReferenceHeight = capHeights[Math.floor(capHeights.length / 2)] || FONT_EM * 0.7;
 
   const formulaLayouts = new Map<string, any>();
   for (const source of formulaSources) {
@@ -504,8 +513,11 @@ export async function layoutText(
   let pendingHeadingGap = 0;
   let glyphOccurrence = 0;
   const quoteIndent = page.fontSize * 0.58;
-  const headingScales = [1, 1.62, 1.38, 1.2, 1.1, 1.02, 0.96];
-  const headingScale = () => headingScales[activeHeadingLevel] || 1;
+  const headingScales = HEADING_SCALES;
+  let headingInkScale = 1;
+  let headingInkAscent = FONT_EM;
+  const scaleForHeading = (level) => (headingScales[level] || 1) * (level ? headingInkScale : 1);
+  const headingScale = () => scaleForHeading(activeHeadingLevel);
 
   const markCalloutContent = () => {
     if (!activeCallout) return;
@@ -760,7 +772,7 @@ export async function layoutText(
       )
       .filter(Boolean)
       .reduce((width, token) => {
-        const measuredScale = headingScales[measuredHeadingLevel] || 1;
+        const measuredScale = scaleForHeading(measuredHeadingLevel);
         if (
           token.startsWith(PLOTTER_FORMULA_START) &&
           token.endsWith(PLOTTER_FORMULA_END)
@@ -782,14 +794,14 @@ export async function layoutText(
         return (
           width +
           String(token).split(/(\s+)/u).reduce((subtotal, part, index, parts) => {
-            if (/^\s+$/u.test(part)) return subtotal + Array.from(part).reduce((sum, char) => sum + spaceWidth * (char === "\t" ? 4 : 1) * (headingScales[measuredHeadingLevel] || 1) * spaceFactor(config, parts[index - 1] || ""), 0);
+            if (/^\s+$/u.test(part)) return subtotal + Array.from(part).reduce((sum, char) => sum + spaceWidth * (char === "\t" ? 4 : 1) * scaleForHeading(measuredHeadingLevel) * spaceFactor(config, parts[index - 1] || ""), 0);
             const visible = Array.from(part).filter((char) => !PLOTTER_CONTROL_MARKS.has(char));
             let position = 0;
             return subtotal + Array.from(part).reduce((total, char) => {
               if (headingStarts.has(char)) { measuredHeadingLevel = headingStarts.get(char); return total; }
               if (headingEnds.has(char)) { measuredHeadingLevel = 0; return total; }
               if (PLOTTER_CONTROL_MARKS.has(char)) return total;
-              return total + advanceFor(char, headingScales[measuredHeadingLevel] || 1, wordMotion(config, part, position++, visible.length).width);
+              return total + advanceFor(char, scaleForHeading(measuredHeadingLevel), wordMotion(config, part, position++, visible.length).width);
             }, 0);
           }, 0)
         );
@@ -804,6 +816,18 @@ export async function layoutText(
     rawLineIndex += 1
   ) {
     const rawLine = rawLines[rawLineIndex];
+    if (Array.from(rawLine).some(char => headingStarts.has(char))) {
+      let inkHeight = 0, inkAscent = 0;
+      for (const char of rawLine) {
+        const glyph = glyphs.get(char);
+        if (!glyph) continue;
+        inkHeight = Math.max(inkHeight, glyph.bounds.maxY - glyph.bounds.minY);
+        inkAscent = Math.max(inkAscent, -glyph.bounds.minY);
+      }
+      headingInkScale = inkHeight && !rawLine.includes(PLOTTER_FORMULA_START)
+        ? Math.max(1, Math.min(2.5, headingReferenceHeight / inkHeight)) : 1;
+      headingInkAscent = inkAscent || FONT_EM;
+    }
     Array.from(rawLine).forEach((char) => {
       if (alignmentStarts.has(char))
         activeAlignment = alignmentStarts.get(char);
@@ -1002,7 +1026,7 @@ export async function layoutText(
         continue;
       }
       const visibleChars = Array.from(token).filter((char) => !PLOTTER_CONTROL_MARKS.has(char));
-      const tokenWidth = visibleChars.reduce((total, char, index) => total + advanceFor(char, headingScale(), wordMotion(config, token, index, visibleChars.length).width), 0);
+      const tokenWidth = widthForLine(token);
       if (x > page.left && x + tokenWidth > maxX) {
         nextLine();
         if (clipped) {
@@ -1052,6 +1076,8 @@ export async function layoutText(
         }
         if (headingStarts.has(char)) {
           activeHeadingLevel = headingStarts.get(char);
+          baseline = Math.max(baseline, previousLineBottom + formulaLineGap + page.fontSize * headingScale() * headingInkAscent / FONT_EM);
+          if (baseline > maxY) { clipped = true; preserveOverflow(tokenIndex, charIndex); break; }
           continue;
         }
         if (headingEnds.has(char)) {
@@ -1280,7 +1306,7 @@ export async function layoutText(
   closeCallout();
   closeQuote();
 
-  return { strokes, missing: [...missing], clipped, overflowText, trajectoryReport: [...repetition.values()].map(r => ({ character: r.character, count: r.count, distinct: r.shapes.size, shapes: [...r.shapes] })).sort((a, b) => b.count / b.distinct - a.count / a.distinct) };
+  return { strokes, missing: [...missing], clipped, overflowText, endBaseline: baseline, trajectoryReport: [...repetition.values()].map(r => ({ character: r.character, count: r.count, distinct: r.shapes.size, shapes: [...r.shapes] })).sort((a, b) => b.count / b.distinct - a.count / a.distinct) };
 }
 
 export async function layoutBlocks(
@@ -1456,6 +1482,7 @@ export function parseCustomGcode(value) {
 }
 
 function penCommand(up, config, pressure = 1) {
+  const stepperPosition = up ? automaticPenUpPosition(config) : config.zDown;
   const servoMax = config.profile === "marlin" ? 180 : 32767;
   const pressuredPenDown = Math.max(
     Math.min(Number(config.penUp), Number(config.penDown)),
@@ -1470,13 +1497,13 @@ function penCommand(up, config, pressure = 1) {
     return `SP,${up ? 1 : 0},${Math.round(penDelay(up, config) * 1000)}`;
   if (config.profile === "marlin") {
     if (config.penMode === "stepper")
-      return `G1G90Z${number(up ? config.zUp : config.zDown)}F${config.zSpeed}`;
+      return `G1G90Z${number(stepperPosition)}F${config.zSpeed}`;
     if (config.penMode === "estepper")
-      return `G1G90E${number(up ? config.zUp : config.zDown)}F${config.zSpeed}`;
+      return `G1G90E${number(stepperPosition)}F${config.zSpeed}`;
     return `M280P0S${Math.round(up ? config.penUp : pressuredPenDown)}`;
   }
   if (config.penMode === "stepper")
-    return `G1G90G94Z${number(up ? config.zUp : config.zDown)}F${config.zSpeed}`;
+    return `G1G90G94Z${number(stepperPosition)}F${automaticPenSpeed(config)}`;
   if (config.penMode === "laser") return up ? "M5" : `M3S${config.laserPower}`;
   return `M3S${Math.round(up ? config.penUp : pressuredPenDown)}`;
 }

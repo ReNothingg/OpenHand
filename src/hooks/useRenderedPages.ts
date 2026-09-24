@@ -41,6 +41,7 @@ export function useRenderedPages(renderedHtml, settings) {
     settings.fontFamily,
     settings.fontSize,
     settings.lineHeight,
+    settings.compactLayout,
     settings.textWidth,
     settings.marginTop,
     settings.writingStartEnabled,

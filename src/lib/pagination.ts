@@ -1,4 +1,5 @@
 import { PAGE_SIZES } from "../app/config";
+import { isExerciseLabel } from "../handwriting/headings";
 import { physicalSheetIndex, writingStartY } from "../plotter/writingStart";
 
 export function getPageMetrics(settings) {
@@ -245,11 +246,39 @@ export function paginateHtml(html, settings, host, finalizePages) {
     for (let i = 0; i < settings.writingStartPage; i++) createPage();
   let content = createPage();
   const nodes = [...template.content.children];
-  nodes.forEach((sourceNode) => {
+  const sectionLevel = (node: Element) => /^H[1-6]$/.test(node.tagName) ? Number(node.tagName.slice(1))
+    : node.tagName === "P" && isExerciseLabel(node.textContent || "") ? 7 : 0;
+  nodes.forEach((sourceNode, sourceIndex) => {
     if (sourceNode.matches("[data-page-break]")) {
       if (content.childElementCount || pages.length === 1)
         content = createPage();
       return;
+    }
+    if (sectionLevel(sourceNode) && content.childElementCount) {
+      const level = sectionLevel(sourceNode);
+      const group = document.createElement("div");
+      for (let i = sourceIndex; i < nodes.length; i++) {
+        const candidate = nodes[i];
+        if (i > sourceIndex && (candidate.matches("[data-page-break]") ||
+          (sectionLevel(candidate) && sectionLevel(candidate) <= level))) break;
+        group.append(candidate.cloneNode(true));
+      }
+      if (!fitsOnPage(content, group)) {
+        const probe = makeMeasurePage(host, settings, pages.length);
+        const fitsEmpty = fitsOnPage(probe.content, group);
+        probe.page.remove();
+        const opening = document.createElement("div");
+        opening.append(sourceNode.cloneNode(true));
+        for (const following of nodes.slice(sourceIndex + 1)) {
+          if (following.matches("[data-page-break]")) break;
+          if (following.matches("[data-preserved-blank]")) continue;
+          if (sectionLevel(following)) { opening.append(following.cloneNode(true)); continue; }
+          const units = getSplitUnits(following);
+          opening.append(units.length > 2 ? cloneThroughUnit(following, units[1]) : following.cloneNode(true));
+          break;
+        }
+        if (fitsEmpty || !fitsOnPage(content, opening)) content = createPage();
+      }
     }
     const node = sourceNode.cloneNode(true) as HTMLElement;
     content.append(node);

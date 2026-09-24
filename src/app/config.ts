@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS = {
   fontSize: 27,
   textWidth: 620,
   lineHeight: 1.55,
+  compactLayout: true,
   marginTop: 74,
   writingStartEnabled: false,
   writingStartPage: 0,
@@ -86,6 +87,7 @@ export function normalizeSettings(
   incoming: Record<string, any> = {},
 ): AppSettings {
   const settings: AppSettings = { ...DEFAULT_SETTINGS, ...incoming };
+  settings.compactLayout = incoming.compactLayout !== false;
   settings.writingStartEnabled = incoming.writingStartEnabled === true;
   settings.writingStartPage = Math.max(0, Math.min(99, Math.floor(Number(incoming.writingStartPage) || 0)));
   const starts = incoming.writingStartPositions;

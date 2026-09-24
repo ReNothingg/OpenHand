@@ -1,6 +1,7 @@
 import { assertManualJogAllowed } from "../plotter/manualMotion";
 import { COORDINATE_FRAME_VERSION } from "../plotter/coordinateFrame";
 import { sameXY, textStartPoint, type XYPoint } from "../plotter/textStart";
+import { layoutSections } from "../plotter/sectionLayout";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { usePenControl } from "./usePenControl";
@@ -91,7 +92,7 @@ async function layoutBelowStart(text, font, page, config) {
   let adjustedPage = page;
   let result;
   for (let pass = 0; pass < 3; pass++) {
-    result = await layoutText(text, font, adjustedPage, config);
+    result = await layoutSections(text, font, adjustedPage, config);
     const minimum = minStrokeY(result.strokes);
     if (minimum >= page.top - 0.001) return { ...result, startLineSafe: true };
     // Reflow, rather than translating a full page and clipping its last line.
@@ -237,6 +238,7 @@ export function useIntegratedPlotter({
     const calculate = async () => {
       const layoutConfig = {
         ...previewConfig,
+        compactLayout: settings.compactLayout,
         seed: settings.seed,
         trueHandwriting: settings.trueHandwriting,
         glyphVariation: settings.glyphVariation,
@@ -352,6 +354,7 @@ export function useIntegratedPlotter({
     settings.marginBottom,
     settings.fontSize,
     settings.lineHeight,
+    settings.compactLayout,
     previewConfig.letterSpacing,
     settings.seed,
     settings.trueHandwriting,

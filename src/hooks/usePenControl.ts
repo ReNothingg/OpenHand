@@ -2,7 +2,7 @@ import { COORDINATE_FRAME_VERSION } from "../plotter/coordinateFrame";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPenCommand, createPenJogCommands, createPenReferenceCommands } from "../plotter/job";
 import { normalizePlotterConfig } from "../plotter/profiles";
-import { clearPenSetup, hasVerifiedPenPositions, penTestDelta, PEN_TEST_STEP_MM, MAX_PEN_JOG_MM, savePenPosition } from "../plotter/penLift";
+import { automaticPenUpPosition, clearPenSetup, hasVerifiedPenPositions, penTestDelta, PEN_TEST_STEP_MM, MAX_PEN_JOG_MM, savePenPosition } from "../plotter/penLift";
 
 type Config = ReturnType<typeof normalizePlotterConfig>;
 type Snapshot = { context: string; referenced: boolean; position: number | null };
@@ -108,7 +108,7 @@ export function usePenControl(options: Options) {
     if (!hasVerifiedPenPositions(live.config, live.controllerPenKey) || !pose().referenced)
       throw new Error("Сначала сохраните две высоты и укажите текущее положение пера.");
     await live.sendCommands(createPenCommand(up, live.config), { waitForMotion: true });
-    commit(up ? live.config.zUp : live.config.zDown);
+    commit(up ? automaticPenUpPosition(live.config) : live.config.zDown);
   }), [operate, pose]);
   const save = useCallback((up: boolean) => {
     const live = ensureIdle();

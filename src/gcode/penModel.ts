@@ -1,4 +1,5 @@
 /** Preview metadata only. It must never authorize or change device commands. */
+import { automaticPenUpPosition } from "../plotter/penLift";
 export type GCodePenModel =
   | { kind: "axis"; axis: "Z" | "E"; up: number; down: number }
   | { kind: "servo"; command: "M3" | "M280"; up: number; down: number }
@@ -23,7 +24,7 @@ export function penModelForConfig(config: any): GCodePenModel | undefined {
   if (config.profile === "ebb") return undefined;
   if (config.penMode === "laser") return { kind: "spindle" };
   if (["stepper", "estepper"].includes(config.penMode))
-    return validatePenModel({ kind: "axis", axis: config.penMode === "estepper" ? "E" : "Z", up: config.zUp, down: config.zDown });
+    return validatePenModel({ kind: "axis", axis: config.penMode === "estepper" ? "E" : "Z", up: automaticPenUpPosition(config), down: config.zDown });
   return validatePenModel({ kind: "servo", command: config.profile === "marlin" ? "M280" : "M3", up: config.penUp, down: config.penDown });
 }
 

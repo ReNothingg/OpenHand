@@ -494,7 +494,13 @@ export function createPhotoTemplateSvg(characters) {
       const y = offsetY + SHEET.insetTop + row * cellHeight;
       const baseline = y + cellHeight * 0.73;
       const escaped =
-        character === "&" ? "&amp;" : character === "<" ? "&lt;" : character;
+        character === "&"
+          ? "&amp;"
+          : character === "<"
+            ? "&lt;"
+            : character === ">"
+              ? "&gt;"
+              : character;
       return `
       <rect x="${x}" y="${y}" width="${cellWidth}" height="${cellHeight}" fill="none" stroke="#dbe4ee" stroke-width="1"/>
       <line x1="${x + 8}" y1="${baseline}" x2="${x + cellWidth - 8}" y2="${baseline}" stroke="#bfdbfe" stroke-width="1"/>

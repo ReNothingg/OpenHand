@@ -7,6 +7,7 @@ import DOMPurify from "dompurify";
 import { marked } from "marked";
 import markedKatex from "marked-katex-extension";
 import { backslashMath } from "./markdownMath";
+import { HEADING_SCALES } from "./handwriting/headings";
 
 marked.setOptions({ gfm: true, breaks: true });
 marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
@@ -277,6 +278,13 @@ export function renderHandwrittenHtml(html, settings, fontPool) {
     "text/html",
   );
   const root = documentNode.querySelector("main");
+  root.querySelectorAll("h1,h2,h3,h4,h5,h6").forEach((heading: HTMLElement) => {
+    heading.style.fontSize = `${HEADING_SCALES[Number(heading.tagName.slice(1))]}em`;
+  });
+  if (settings.compactLayout) {
+    root.querySelectorAll("[data-preserved-blank]").forEach(node => node.remove());
+    root.querySelectorAll("p, .katex-display").forEach((node: HTMLElement) => { node.style.margin = "0.2em 0 0.3em"; });
+  }
   root.querySelectorAll('li > input[type="checkbox"]').forEach((checkbox) => {
     const item = checkbox.closest("li");
     item?.classList.add("task-list-item");

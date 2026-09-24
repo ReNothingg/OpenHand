@@ -1,6 +1,7 @@
 import { penModelForConfig } from "../gcode/penModel";
 import { parseGCode } from "../gcode/parser";
 import { isWithinWorkArea } from "./job";
+import { automaticPenUpPosition } from "./penLift";
 /** Execution policy; the viewer may display a file that is not safe to stream. */
 const WORD = /([A-Z])\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))/gi;
 const SAFE_G = new Set([0, 1, 2, 3, 4, 17, 20, 21, 40, 49, 54, 90, 91, 94, 90.1, 91.1]);
@@ -56,8 +57,9 @@ export function importedCommandBlockers(commands: string[], config?: any): strin
       if (config) {
         const expectedAxis = config.penMode === 'estepper' ? 'E' : config.penMode === 'stepper' ? 'Z' : null;
         if (axis !== expectedAxis) fail(`ось ${axis} не используется выбранным механизмом пера.`);
-        else if (next < Math.min(config.zUp, config.zDown) - .001 || next > Math.max(config.zUp, config.zDown) + .001)
-          fail(`${axis}${next} выходит за сохранённые положения пера.`);
+        else if (next < Math.min(automaticPenUpPosition(config), config.zDown) - .001 ||
+                 next > Math.max(automaticPenUpPosition(config), config.zDown) + .001)
+          fail(`${axis}${next} выходит за допустимый автоматический ход пера.`);
       }
     }
     if (config) {
