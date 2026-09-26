@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import PlotterSettings from "./PlotterSettings";
 import PlotterDiagnostics from "./PlotterDiagnostics";
 import PenSetupPanel from "./PenSetupPanel";
+import { MAX_REQUESTED_PEN_SPEED_MM_MIN } from "../../plotter/penLift";
 import "../../styles/plotter-device.css";
 
 function NumberSetting({ label, value, onChange, min, max, disabled = false, onTest, testLabel, testDisabled, description, unit }: any) {
@@ -78,7 +79,7 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
           {stepper && <>
             <label className="device-number"><span>Направление подъёма</span><select value={config.zUpDirection} disabled={locked} onChange={e => set("zUpDirection", Number(e.target.value))}><option value={-1}>К уменьшению Z/E</option><option value={1}>К увеличению Z/E</option></select></label>
             {config.profile === "grbl" && <p>Параметры удержания моторов в плате автоматически не меняются.</p>}
-            <NumberSetting label="Скорость пера, мм/мин" value={config.zSpeed} min={1} max={3000} disabled={locked} onChange={(v: number) => set("zSpeed", v)} />
+            <NumberSetting label="Скорость пера, мм/мин" description="Значения выше 3000 ускоряют подъём пера. Проверьте короткий ход: на высокой скорости возможны пропуски шагов." value={config.zSpeed} min={1} max={MAX_REQUESTED_PEN_SPEED_MM_MIN} disabled={locked} onChange={(v: number) => set("zSpeed", v)} />
 
           </>}
           {config.profile === "ebb" && <NumberSetting label="Шагов на миллиметр" value={config.mmToSteps} min={1} max={1000} disabled={locked} onChange={(v: number) => set("mmToSteps", v)} />}

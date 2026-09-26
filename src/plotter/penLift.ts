@@ -3,9 +3,15 @@
 export const DEFAULT_AUTOMATIC_PEN_LIFT_MM = 3;
 export const MAX_AUTOMATIC_PEN_LIFT_MM = 15;
 export const MAX_GRBL_PEN_SPEED_MM_MIN = 1000;
+export const MAX_REQUESTED_PEN_SPEED_MM_MIN = 10000;
 
 export function automaticPenSpeed(config: { profile?: string; zSpeed: number }): number {
-  return config.profile === "grbl" ? Math.min(config.zSpeed, MAX_GRBL_PEN_SPEED_MM_MIN) : config.zSpeed;
+  if (config.profile !== "grbl") return config.zSpeed;
+  // Saved 1–3000 settings retain the old GRBL speed cap. A value above 3000
+  // explicitly opts in to faster Z motion, up to the limit shown in the UI.
+  return config.zSpeed > 3000
+    ? Math.min(config.zSpeed, MAX_REQUESTED_PEN_SPEED_MM_MIN)
+    : Math.min(config.zSpeed, MAX_GRBL_PEN_SPEED_MM_MIN);
 }
 
 export function automaticPenUpPosition(config: { zUp: number; zDown: number; profile?: string; maxAutomaticPenLift?: number }): number {
