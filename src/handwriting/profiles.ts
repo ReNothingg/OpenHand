@@ -1,9 +1,25 @@
 import { STRUCTURE_CONTROLS } from "./structure";
+export const PAVEL_NOTES_WRITING_CONFIG = Object.freeze({ feedRate: 900, letterSpacing: 0.1, optimizePath: false, compactPaths: true });
+
 export const HANDWRITING_PROFILES = Object.freeze({
   personal: {
     label: "Мой текущий",
     description: "Не меняет настроенные вручную значения.",
     settings: {},
+  },
+  pavelNotes: {
+    label: "Павел · по конспектам",
+    description: "Реконструкция букв по 14 фото. Наклон и петли уже в шрифте; размер для строки около 10 мм. Письмо 900 мм/мин, интервал 0,1 мм; требуется проба на бумаге.",
+    settings: {
+      fontType: "plotter", plotterFontId: "pavel-notes-original", trueHandwriting: true,
+      fontSize: 27, lineHeight: 1.4, inkColor: "#233266",
+      glyphVariation: 18, connectionStrength: 72, pressureVariation: 0,
+      maxWordTilt: 0.7, maxLift: 0.4, maxLetterSpacing: 0.15,
+      authorSlant: 0, authorWidth: 100, authorRhythm: 22, authorBaseline: 12,
+      wordSpacing: 82, spaceVariation: 16, wordCoherence: 85, endCompression: 4,
+      ascenderScale: 100, descenderScale: 100, correctionChance: 0, fatigueEnabled: false,
+      fontRandomization: 0, maxLineDrift: 0,
+    },
   },
   notebook: {
     label: "Реалистичный",

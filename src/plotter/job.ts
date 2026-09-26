@@ -2,7 +2,7 @@ import { coordinateFrameCommands } from "./coordinateFrame";
 import { HEADING_SCALES } from "../handwriting/headings";
 import { varyLetterGlyph } from "../handwriting/letterGeometry";
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
-import { MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, automaticPenSpeed, automaticPenUpPosition, penTravelSeconds } from "./penLift";
+import { DEFAULT_AUTOMATIC_PEN_LIFT_MM, MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, automaticPenSpeed, automaticPenUpPosition, penTravelSeconds } from "./penLift";
 import { chooseForm, formGlyph, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
 import { layoutFormula } from "./mathLayout";
 import {
@@ -59,6 +59,7 @@ export const DEFAULT_PLOTTER_CONFIG = {
   penDown: 18000,
   zUp: 0,
   zDown: 2,
+  maxAutomaticPenLift: DEFAULT_AUTOMATIC_PEN_LIFT_MM,
   zSpeed: 3000,
   laserPower: 1000,
   mmToSteps: 100,

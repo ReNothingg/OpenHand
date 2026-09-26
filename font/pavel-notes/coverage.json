@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "method": "manual-centreline-reconstruction",
+  "glyphs": "0123456789абвгдежзийклмнопрстуфхцчшщъыьэюяі.,:;-—+=()/!?АБВГДЕЗИКЛМНОПРСТУФЧЯёўЙЁІЎЖХЦШЩЪЫЬЭЮ«»[]№",
+  "inferredCapitals": "ЖХЦШЩЪЫЬЭЮ",
+  "variants": [
+    "а",
+    "е",
+    "о",
+    "и",
+    "н",
+    "т",
+    "с",
+    "я"
+  ],
+  "pressureMeasured": false,
+  "timingMeasured": false
+}

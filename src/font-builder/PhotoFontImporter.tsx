@@ -1,3 +1,4 @@
+import NotebookGlyphImporter from "./NotebookGlyphImporter";
 import { useRef, useState } from "react";
 import {
   vectorizePhotoSheet,
@@ -177,6 +178,8 @@ export default function PhotoFontImporter({
             </label>
           </article>
         </div>
+
+        <NotebookGlyphImporter character={activeCharacter} onImport={onImportCharacter} />
 
         {(status || busy) && (
           <div className="photo-import-status" role="status">

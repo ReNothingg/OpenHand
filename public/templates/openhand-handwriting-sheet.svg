@@ -624,4 +624,20 @@
       <line x1="428" y1="1738.67" x2="552" y2="1738.67" stroke="#bfdbfe" stroke-width="1"/>
       <text x="427" y="1696" fill="#c5ced8" font-family="Arial, sans-serif" font-size="12">≠</text>
 
+      <rect x="560" y="1681" width="140" height="79" fill="none" stroke="#dbe4ee" stroke-width="1"/>
+      <line x1="568" y1="1738.67" x2="692" y2="1738.67" stroke="#bfdbfe" stroke-width="1"/>
+      <text x="567" y="1696" fill="#c5ced8" font-family="Arial, sans-serif" font-size="12">І</text>
+
+      <rect x="700" y="1681" width="140" height="79" fill="none" stroke="#dbe4ee" stroke-width="1"/>
+      <line x1="708" y1="1738.67" x2="832" y2="1738.67" stroke="#bfdbfe" stroke-width="1"/>
+      <text x="707" y="1696" fill="#c5ced8" font-family="Arial, sans-serif" font-size="12">і</text>
+
+      <rect x="840" y="1681" width="140" height="79" fill="none" stroke="#dbe4ee" stroke-width="1"/>
+      <line x1="848" y1="1738.67" x2="972" y2="1738.67" stroke="#bfdbfe" stroke-width="1"/>
+      <text x="847" y="1696" fill="#c5ced8" font-family="Arial, sans-serif" font-size="12">Ў</text>
+
+      <rect x="980" y="1681" width="140" height="79" fill="none" stroke="#dbe4ee" stroke-width="1"/>
+      <line x1="988" y1="1738.67" x2="1112" y2="1738.67" stroke="#bfdbfe" stroke-width="1"/>
+      <text x="987" y="1696" fill="#c5ced8" font-family="Arial, sans-serif" font-size="12">ў</text>
+
   </svg>

@@ -222,6 +222,7 @@ export default function SettingsPanel({
           <span>Профиль автора</span>
           <select
             value={settings.handwritingProfile}
+            disabled={plotterWorkspace.running || plotterWorkspace.calibrationActive || plotterWorkspace.plotter.operationBusy || plotterWorkspace.plotter.status === "connecting"}
             onChange={(event) => applyHandwritingProfile(event.target.value)}
           >
             {Object.entries(HANDWRITING_PROFILES).map(([id, profile]) => (

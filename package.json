@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "node scripts/build-all.mjs",
-    "build:web": "npm run typecheck && vite build && node scripts/write-sites-worker.mjs",
+    "build:web": "npm run font:pavel && npm run typecheck && vite build && node scripts/write-sites-worker.mjs",
     "verify:web-sync": "node scripts/verify-web-sync.mjs",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.strict.json",
     "typecheck:strict": "tsc --noEmit -p tsconfig.strict.json",
@@ -14,7 +14,8 @@
     "macos:build": "sh macos/scripts/build-release.sh",
     "windows:build": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/scripts/build-release.ps1",
     "windows:build:arm64": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/scripts/build-release.ps1 -Runtime win-arm64",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "font:pavel": "node scripts/build-pavel-font.mjs"
   },
   "dependencies": {
     "dompurify": "^3.2.6",

@@ -1,5 +1,5 @@
 import { DEFAULT_PLOTTER_CONFIG } from "./job";
-import { normalizePenJogStep } from "./penLift";
+import { MAX_AUTOMATIC_PEN_LIFT_MM, normalizePenJogStep } from "./penLift";
 
 export const PLOTTER_PROFILES_KEY = "openhand.plotter.profiles.v1";
 export const LEGACY_PLOTTER_SETTINGS_KEY = "openhand.plotter.settings.v1";
@@ -236,6 +236,7 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
     penDown: clamp(incoming.penDown, 0, servoMax, fallbackPenDown),
     zUp: clamp(incoming.zUp, -50, 50, DEFAULT_PLOTTER_CONFIG.zUp),
     zDown: clamp(incoming.zDown, -50, 50, DEFAULT_PLOTTER_CONFIG.zDown),
+    maxAutomaticPenLift: clamp(incoming.maxAutomaticPenLift, 0.1, MAX_AUTOMATIC_PEN_LIFT_MM, DEFAULT_PLOTTER_CONFIG.maxAutomaticPenLift),
     zUpDirection: incoming.zUpDirection === 1 || incoming.zUpDirection === -1
       ? incoming.zUpDirection : (Math.sign(Number(incoming.zUp) - Number(incoming.zDown)) || -1),
     penControllerKey: typeof incoming.penControllerKey === "string" ? incoming.penControllerKey.slice(0, 2048) : "",

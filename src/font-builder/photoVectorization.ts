@@ -237,6 +237,7 @@ interface VectorizeOptions {
   targetHeight?: number;
   targetWidth?: number;
   baseline?: number;
+  sourceBodyHeight?: number;
 }
 
 function vectorizeImageData(
@@ -291,7 +292,9 @@ function vectorizeImageData(
   const inkWidth = Math.max(1, maxX - minX);
   const targetHeight = options.targetHeight || 300;
   const targetWidth = options.targetWidth || 330;
-  const scale = Math.min(targetHeight / inkHeight, targetWidth / inkWidth);
+  const scale = options.sourceBodyHeight && options.sourceBodyHeight > 0
+    ? 220 / options.sourceBodyHeight
+    : Math.min(targetHeight / inkHeight, targetWidth / inkWidth);
   const baseline = Number.isFinite(options.baseline) ? options.baseline : maxY;
   return traced.map((stroke) =>
     stroke.map((point) => ({
@@ -737,4 +740,30 @@ export async function vectorizePlotterImage(file: File, threshold: number | null
     const scale = Math.min(widthMm / Math.max(maxX-minX, 1), maxHeightMm / Math.max(maxY-minY, 1));
     return strokes.map(stroke => stroke.map(p => ({ x: (p.x-minX)*scale + 10, y: (p.y-minY)*scale + 10 })));
   } finally { if ("close" in bitmap) bitmap.close(); }
+}
+
+
+/** Keep the photographed baseline and x-height, including descenders and dots. */
+export function vectorizeNotebookGlyph(
+  imageData: ImageData,
+  baseline: number,
+  bodyTop: number,
+  threshold = 125,
+  blueInk = true,
+) {
+  if (!Number.isFinite(baseline) || !Number.isFinite(bodyTop) ||
+      bodyTop < 0 || baseline > imageData.height || baseline - bodyTop < 8)
+    throw new Error("Укажите базовую линию ниже верха строчной буквы минимум на 8 пикселей.");
+  const data = new Uint8ClampedArray(imageData.data);
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!;
+    // Dark blue ink survives; pale ruling, red margins and show-through do not.
+    const keep = !blueInk || (b > r * 1.04 && b > g * 1.12);
+    const gray = keep ? Math.round(r * .299 + g * .587 + b * .114) : 255;
+    data[i] = data[i + 1] = data[i + 2] = gray;
+    data[i + 3] = 255;
+  }
+  return vectorizeImageData({ width: imageData.width, height: imageData.height, data, colorSpace: "srgb" }, {
+    baseline, sourceBodyHeight: baseline - bodyTop, threshold, keepBorder: true,
+  });
 }

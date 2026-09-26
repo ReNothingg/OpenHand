@@ -41,6 +41,7 @@ import {
   analyzeNaturalness,
   naturalnessAutofix,
   profilePatch,
+  PAVEL_NOTES_WRITING_CONFIG,
 } from "./handwriting/profiles";
 
 export default function App({ active = true }: { active?: boolean }) {
@@ -924,9 +925,15 @@ export default function App({ active = true }: { active?: boolean }) {
             applyNaturalnessFix={() =>
               updateSettings(naturalnessAutofix(settings))
             }
-            applyHandwritingProfile={(profileId) =>
-              updateSettings(profilePatch(profileId))
-            }
+            applyHandwritingProfile={(profileId) => {
+              if (plotterWorkspace.running || plotterWorkspace.calibrationActive ||
+                  plotterWorkspace.plotter.operationBusy || plotterWorkspace.plotter.status === "connecting") return;
+              updateSettings(profilePatch(profileId));
+              if (profileId === "pavelNotes") {
+                Object.entries(PAVEL_NOTES_WRITING_CONFIG).forEach(([key, value]) =>
+                  plotterWorkspace.updateConfig(key, value));
+              }
+            }}
             closeSettings={() => setSettingsCollapsed(true)}
             settingsCollapsed={settingsCollapsed}
           />

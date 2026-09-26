@@ -23,6 +23,7 @@ export const CHARACTER_GROUPS = [
     label: "Знаки",
     characters: Array.from(".,!?;:—-()[]«»\"'№@#+=/<>≤≥≠"),
   },
+  { id: "be", label: "Белорусские буквы", characters: Array.from("ІіЎў") },
 ];
 
 export const ALL_CHARACTERS = [

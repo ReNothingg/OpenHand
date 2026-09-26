@@ -1,5 +1,5 @@
 import PenTravelInfo from "./PenTravelInfo";
-import { automaticPenUpPosition, penPositionKey, normalizePenJogStep, PEN_JOG_STEPS_MM } from "../../plotter/penLift";
+import { automaticPenUpPosition, MAX_AUTOMATIC_PEN_LIFT_MM, penLiftDistance, penPositionKey, normalizePenJogStep, PEN_JOG_STEPS_MM } from "../../plotter/penLift";
 
 type Props = { workspace: any; execute: (action: () => Promise<unknown>) => Promise<void>; disabled: boolean };
 
@@ -12,6 +12,8 @@ export default function PenSetupPanel({ workspace, execute, disabled }: Props) {
   const step = normalizePenJogStep(config.penJogStep);
   const stepLabel = step.toLocaleString("ru-RU");
   const upper = automaticPenUpPosition(config);
+  const availableLift = Math.min(MAX_AUTOMATIC_PEN_LIFT_MM, Math.abs(config.zUp - config.zDown));
+  const lift = penLiftDistance(config);
   const adjust = <div className="pen-adjustment">
     <div className="pen-step-picker" role="group" aria-label="Шаг пера">
       <span>Шаг пера</span>
@@ -63,6 +65,15 @@ export default function PenSetupPanel({ workspace, execute, disabled }: Props) {
         </section>;
       })}
     </div>
+    {config.profile === "grbl" && <section className="pen-lift-setting" aria-labelledby="pen-lift-title">
+      <div className="pen-lift-setting-heading"><h3 id="pen-lift-title">Ход пера при записи</h3><output>{lift.toLocaleString("ru-RU")} мм</output></div>
+      <input type="range" aria-label="Ход пера при записи, мм" min="0.1" max={Math.max(0.1, availableLift)} step="0.1"
+        value={Math.min(Number(config.maxAutomaticPenLift) || 3, Math.max(0.1, availableLift))}
+        disabled={disabled || !saved || availableLift < 0.1}
+        onChange={event => workspace.updateConfig("maxAutomaticPenLift", Number(event.target.value))} />
+      <p>При письме перо идёт от Z{upper.toLocaleString("ru-RU")} до Z{Number(config.zDown).toLocaleString("ru-RU")}. Можно увеличить ход до {availableLift.toLocaleString("ru-RU")} мм — выше сохранённого Z{Number(config.zUp).toLocaleString("ru-RU")} программа не поднимет. Ползунок сам не двигает механизм.</p>
+      {lift > 3 && <p className="pen-lift-caution">Перед длинной записью проверьте новые положения кнопками «Поднять перо» и «Опустить перо» выше. Если перо упирается, нажмите СТОП.</p>}
+    </section>}
     <PenTravelInfo config={config} />
     {saved && referenced && <details className="pen-fine-adjustment"><summary>Подстроить положения</summary>
       {position === null ? <p className="device-hint">Сначала нажмите «Поднять перо» или «Опустить перо», затем подстройте высоту.</p> : adjust}
