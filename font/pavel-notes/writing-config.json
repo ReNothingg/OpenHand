@@ -1,5 +1,5 @@
 {
-  "feedRate": 900,
+  "feedRate": 1800,
   "letterSpacing": 0.1,
   "optimizePath": false,
   "compactPaths": true

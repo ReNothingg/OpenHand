@@ -1,3 +1,4 @@
+import { DEFAULT_WRITING_CONFIG } from "../handwriting/defaults";
 import { coordinateFrameCommands } from "./coordinateFrame";
 import { HEADING_SCALES } from "../handwriting/headings";
 import { varyLetterGlyph } from "../handwriting/letterGeometry";
@@ -39,7 +40,7 @@ function seededRandom(seed, key) {
 }
 
 export const DEFAULT_PLOTTER_CONFIG = {
-  fontId: "ifdream-original",
+  fontId: "pavel-notes-original",
   profile: "grbl",
   connectionType: "serial",
   networkHost: "",
@@ -50,7 +51,6 @@ export const DEFAULT_PLOTTER_CONFIG = {
   parity: "none",
   flowControl: "none",
   connectionTimeoutMs: 12000,
-  feedRate: 1500,
   jogSpeed: 2500,
   jogDistance: 10,
   penJogStep: PEN_TEST_STEP_MM,
@@ -66,9 +66,6 @@ export const DEFAULT_PLOTTER_CONFIG = {
   penDelay: 0.2,
   penUpDelay: 0.2,
   penDownDelay: 0.2,
-  letterSpacing: 0.5,
-  optimizePath: false,
-  compactPaths: true,
   startPosition: "left-bottom",
   swapAxes: false,
   invertX: false,
@@ -77,6 +74,7 @@ export const DEFAULT_PLOTTER_CONFIG = {
   returnToOrigin: false,
   customStartGcode: "",
   customEndGcode: "",
+  ...DEFAULT_WRITING_CONFIG,
 };
 
 export function pageSettingsToMillimeters(

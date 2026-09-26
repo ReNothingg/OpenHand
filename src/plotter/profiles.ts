@@ -47,7 +47,7 @@ export const PLOTTER_DEVICE_PRESETS = [
       stopBits: 1,
       parity: "none",
       flowControl: "none",
-      feedRate: 1500,
+      feedRate: DEFAULT_PLOTTER_CONFIG.feedRate,
       jogSpeed: 300,
       jogDistance: 1,
       calibrationStep: 1,

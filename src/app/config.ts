@@ -1,3 +1,4 @@
+import { DEFAULT_HANDWRITING_SETTINGS } from "../handwriting/defaults";
 import { STRUCTURE_CONTROLS, structureValue } from "../handwriting/structure";
 import { defaultFontPool } from "../fonts";
 
@@ -19,12 +20,8 @@ export const PAGE_SIZES = {
 };
 
 export const DEFAULT_SETTINGS = {
-  fontType: "screen",
   fontFamily: "Caveat",
-  plotterFontId: "ifdream-original",
-  fontSize: 27,
   textWidth: 620,
-  lineHeight: 1.55,
   compactLayout: true,
   marginTop: 74,
   writingStartEnabled: false,
@@ -34,43 +31,22 @@ export const DEFAULT_SETTINGS = {
   marginLeftEven: 94,
   marginBottom: 0,
   textRotation: 0,
-  inkColor: "#1f2937",
   pageColor: "#ffffff",
   pageSize: "NotebookSpread",
   pageOrientation: "landscape",
   ruledPaper: true,
   directionChance: 50,
-  maxWordTilt: 2,
-  maxLift: 2.5,
-  maxLetterSpacing: 0.65,
-  fontRandomization: 0,
-  maxLineDrift: 0,
   maxLineIndent: 0,
   wordFrequency: 4,
   letterFrequency: 25,
-  trueHandwriting: true,
-  glyphVariation: 58,
-  connectionStrength: 62,
-  correctionChance: 1.2,
-  pressureVariation: 18,
-  handwritingProfile: "personal",
-  authorSlant: 0,
-  authorWidth: 100,
-  authorRhythm: 35,
-  authorBaseline: 20,
+  handwritingProfile: "pavelNotes",
   paragraphIndent: 0,
   paragraphGap: 0,
-  wordSpacing: 100,
-  spaceVariation: 0,
-  wordCoherence: 0,
-  endCompression: 0,
-  ascenderScale: 100,
-  descenderScale: 100,
-  fatigueEnabled: false,
   fatigueStrength: 38,
   seed: 31847,
   zoom: 72,
   fontPool: defaultFontPool,
+  ...DEFAULT_HANDWRITING_SETTINGS,
 };
 
 const LEGACY_EFFECTS = [

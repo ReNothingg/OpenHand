@@ -76,18 +76,18 @@ for (const [char, path] of Object.entries(alternates)) {
 const directory = await mkdtemp(join(tmpdir(), 'openhand-font-'));
 try {
   const modulePath=join(directory,'export.mjs');
-  await build({stdin:{contents: `export {createGFontBlob} from './src/font-builder/gfontExport.ts'; export {GFont} from './src/plotter/gfont.ts'; export {layoutText,DEFAULT_PLOTTER_CONFIG} from './src/plotter/job.ts'; export {profilePatch,PAVEL_NOTES_WRITING_CONFIG} from './src/handwriting/profiles.ts';`,resolveDir:process.cwd()},outfile:modulePath,bundle:true,format:'esm',platform:'node',loader:{'.gfont':'file'},logLevel:'silent'});
-  const { createGFontBlob, GFont, layoutText, DEFAULT_PLOTTER_CONFIG, profilePatch, PAVEL_NOTES_WRITING_CONFIG } = await import(pathToFileURL(modulePath).href);
+  await build({stdin:{contents: `export {createGFontBlob} from './src/font-builder/gfontExport.ts'; export {GFont} from './src/plotter/gfont.ts'; export {layoutText,DEFAULT_PLOTTER_CONFIG} from './src/plotter/job.ts'; export {profilePatch,DEFAULT_WRITING_CONFIG} from './src/handwriting/profiles.ts';`,resolveDir:process.cwd()},outfile:modulePath,bundle:true,format:'esm',platform:'node',loader:{'.gfont':'file'},logLevel:'silent'});
+  const { createGFontBlob, GFont, layoutText, DEFAULT_PLOTTER_CONFIG, profilePatch, DEFAULT_WRITING_CONFIG } = await import(pathToFileURL(modulePath).href);
   const blob=createGFontBlob(glyphs,forms);
   await writeFile('font/plotter/pavel-notes.gfont',Buffer.from(await blob.arrayBuffer()));
   await writeFile('font/pavel-notes/coverage.json',JSON.stringify({version:1,method:'manual-centreline-reconstruction',glyphs:Object.keys(glyphs).join(''),inferredCapitals:inferred.join(''),variants:Object.keys(forms),pressureMeasured:false,timingMeasured:false},null,2)+'\n');
   const settings = profilePatch('pavelNotes');
   await writeFile('font/pavel-notes/handwriting-settings.json',JSON.stringify(settings,null,2)+'\n');
-  await writeFile('font/pavel-notes/writing-config.json',JSON.stringify(PAVEL_NOTES_WRITING_CONFIG,null,2)+'\n');
-  const font = new GFont(await blob.arrayBuffer(),'Павел · конспекты');
+  await writeFile('font/pavel-notes/writing-config.json',JSON.stringify(DEFAULT_WRITING_CONFIG,null,2)+'\n');
+  const font = new GFont(await blob.arrayBuffer(),'По умолчанию');
   const page = {pageWidth:148,pageHeight:210,left:12,right:12,top:12,bottom:12,fontSize:settings.fontSize*25.4/96,lineHeight:settings.fontSize*settings.lineHeight*25.4/96};
   const text = await readFile('font/pavel-notes/sample.txt','utf8');
-  const layout = await layoutText(text,font,page,{...DEFAULT_PLOTTER_CONFIG,...settings,...PAVEL_NOTES_WRITING_CONFIG,seed:31847});
+  const layout = await layoutText(text,font,page,{...DEFAULT_PLOTTER_CONFIG,...settings,...DEFAULT_WRITING_CONFIG,seed:31847});
   if (layout.missing.length || layout.clipped) throw new Error('Personal font sample has missing glyphs or overflows.');
   const paths = layout.strokes.map(stroke => `<polyline points="${stroke.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="#233266" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
   await writeFile('font/pavel-notes/writing-sample.svg',`<svg xmlns="http://www.w3.org/2000/svg" width="740" height="1050" viewBox="0 0 148 210"><rect width="148" height="210" fill="white"/>${paths}</svg>\n`);
@@ -98,5 +98,5 @@ try {
     return `<g transform="translate(${x},${y})"><text y="-30" font-size="15" fill="#697386">${escape(char)}</text><path d="M -10 76 H 91" stroke="#d7dce2"/><g transform="translate(0,76) scale(.22)">${strokes.map(s=>`<polyline points="${s.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="#233266" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</g></g>`;
   }).join('');
   await writeFile('font/pavel-notes/specimen.svg',`<svg xmlns="http://www.w3.org/2000/svg" width="1130" height="${Math.ceil(entries.length/10)*145+35}" style="background:white">${tiles}</svg>\n`);
-  console.log(`Pavel Notes: ${entries.length} glyphs; ${Object.keys(forms).length} characters with alternate forms.`);
+  console.log(`Default handwriting: ${entries.length} glyphs; ${Object.keys(forms).length} characters with alternate forms.`);
 } finally { await rm(directory,{recursive:true,force:true}); }
