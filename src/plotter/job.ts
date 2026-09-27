@@ -502,10 +502,26 @@ export async function layoutText(
   let lineFormulaDescent = 0;
   const formulaLineGap = Math.max(0.2, page.lineHeight - page.fontSize);
   let previousLineBottom = page.top - formulaLineGap;
-  const maxX = page.pageWidth - Math.max(0, page.right);
-  const maxY = page.pageHeight - page.bottom;
+  const workWidth = Number(config.workAreaWidth);
+  const workHeight = Number(config.workAreaHeight);
+  const maxX = Math.min(
+    page.pageWidth - Math.max(0, page.right),
+    Number.isFinite(workWidth) && workWidth > 0 ? workWidth : Infinity,
+  );
+  // A baseline can be inside the page while the actual handwriting extends
+  // below it. Reserve space for descenders and handwriting variation before
+  // deciding whether another line fits in the measured plotter area.
+  const inkDescent = page.fontSize * 0.75;
+  const maxY = Math.min(
+    page.pageHeight - page.bottom,
+    Number.isFinite(workHeight) && workHeight > 0 ? workHeight : Infinity,
+  ) - inkDescent;
   let clipped = false;
   let overflowText = "";
+  if (baseline > maxY) {
+    return { strokes, missing: [...missing], clipped: true, overflowText: text,
+      endBaseline: baseline, trajectoryReport: [] };
+  }
   let activeCallout = null;
   let activeQuote = null;
   let activeHeadingLevel = 0;
