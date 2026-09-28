@@ -6,6 +6,7 @@ export const STRUCTURE_CONTROLS = [
   { key: "spaceVariation", label: "Неравномерность пробелов", min: 0, max: 50, initial: 0, hint: "Небольшое различие интервалов между словами." },
   { key: "wordCoherence", label: "Согласованность букв слова", min: 0, max: 100, initial: 0, hint: "Общий наклон и размер внутри слова вместо независимых скачков букв." },
   { key: "endCompression", label: "Сжатие окончания слова", min: 0, max: 18, initial: 0, hint: "Плавно сужает буквы к концу длинного слова." },
+  { key: "lineFitCompression", label: "Сжатие строки для слова", min: 0, max: 12, initial: 8, hint: "Если до края не помещается одно слово, слегка сужает всю строку. При сильном сжатии слово переносится." },
   { key: "ascenderScale", label: "Верхние петли", min: 75, max: 130, initial: 100, plotterOnly: true, hint: "Меняет верхние выносные штрихи GFont, сохраняя тело буквы." },
   { key: "descenderScale", label: "Нижние хвосты", min: 75, max: 130, initial: 100, plotterOnly: true, hint: "Длина штрихов ниже строки в траектории GFont." },
 ] as const;

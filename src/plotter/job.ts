@@ -499,6 +499,7 @@ export async function layoutText(
   let x = page.left;
   let baseline = page.top + page.fontSize;
   let lineStrokeStart = 0;
+  let lineTextOnly = true;
   let lineFormulaDescent = 0;
   const formulaLineGap = Math.max(0.2, page.lineHeight - page.fontSize);
   let previousLineBottom = page.top - formulaLineGap;
@@ -721,6 +722,7 @@ export async function layoutText(
     baseline += page.lineHeight + pendingHeadingGap + lineFormulaDescent;
     lineFormulaDescent = 0;
     lineStrokeStart = strokes.length;
+    lineTextOnly = true;
     pendingHeadingGap = 0;
     activeDecorations.forEach((style) => decorationStarts.set(style, x));
     if (baseline > maxY) clipped = true;
@@ -931,6 +933,7 @@ export async function layoutText(
           return placed;
         });
         strokes.push(...applyTextStyles(formulaStrokes));
+        lineTextOnly = false;
         x += formula.width * headingScale();
         markCalloutContent();
         continue;
@@ -1029,6 +1032,7 @@ export async function layoutText(
           });
         }
         x = drawingX + drawingWidth;
+        lineTextOnly = false;
         baseline = top + drawingHeight;
         markCalloutContent();
         continue;
@@ -1040,16 +1044,28 @@ export async function layoutText(
         }
         continue;
       }
-      const visibleChars = Array.from(token).filter((char) => !PLOTTER_CONTROL_MARKS.has(char));
-      const tokenWidth = widthForLine(token);
-      if (x > page.left && x + tokenWidth > maxX) {
+      const tokenChars = Array.from(token);
+      const visibleChars = tokenChars.filter((char) => !PLOTTER_CONTROL_MARKS.has(char));
+      const plainWord = visibleChars.length === tokenChars.length;
+      const tokenWidth = plainWord
+        ? tokenChars.reduce((width, char, index) => width + advanceFor(
+            char, headingScale(), wordMotion(config, `${rawLineIndex}:${tokenIndex}:${token}`, index, tokenChars.length).width,
+          ), 0)
+        : widthForLine(token);
+      const overflowsLine = x > page.left && x + tokenWidth > maxX;
+      const fitScale = (maxX - page.left) / (x + tokenWidth - page.left);
+      const fitWordOnLine = overflowsLine && config.trueHandwriting && plainWord && lineTextOnly &&
+        lineStrokeStart < strokes.length && activeAlignment === "left" &&
+        !activeQuote && !activeCallout && !activeDecorations.size && !activeTextStyles.size &&
+        fitScale >= 1 - structureValue(config, "lineFitCompression") / 100;
+      if (overflowsLine && !fitWordOnLine) {
         nextLine();
         if (clipped) {
           preserveOverflow(tokenIndex);
           break;
         }
       }
-      const tokenChars = Array.from(token);
+      if (!plainWord) lineTextOnly = false;
       const tokenStartX = x;
       let previousJoin = null;
       let visibleIndex = 0;
@@ -1127,7 +1143,7 @@ export async function layoutText(
         const motion = wordMotion(config, `${rawLineIndex}:${tokenIndex}:${token}`, visibleIndex, visibleChars.length);
         visibleIndex += 1;
         const advance = advanceFor(char, currentHeadingScale, motion.width);
-        if (x > page.left && x + advance > maxX) {
+        if (x > page.left && x + advance > maxX && !fitWordOnLine) {
           nextLine();
           previousJoin = null;
           if (clipped) {
@@ -1307,6 +1323,13 @@ export async function layoutText(
         ];
         correction.pressure = 1.08;
         strokes.push(correction);
+      }
+      if (fitWordOnLine && !clipped) {
+        const scaleX = Math.min(1, (maxX - page.left) / (x - page.left));
+        for (let index = lineStrokeStart; index < strokes.length; index += 1)
+          for (const point of strokes[index])
+            point.x = page.left + (point.x - page.left) * scaleX;
+        x = page.left + (x - page.left) * scaleX;
       }
     }
     if (rawLineIndex < rawLines.length - 1) {

@@ -89,13 +89,13 @@ export function chooseForm(
           form.position === position),
     );
   if (!eligible.length) return 0;
-  const pool =
-    eligible.length > 1
-      ? eligible.filter((item) => item.index !== previous)
-      : eligible;
   let hash = Math.imul((Number(seed) || 0) ^ occurrence, 0x45d9f3b);
   hash = Math.imul(hash ^ (hash >>> 16), 0x45d9f3b);
-  return pool[(hash >>> 0) % pool.length]!.index;
+  // Handwriting can repeat a shape. Prefer a different form, but avoid a rigid
+  // A-B-A-B alternation when only two forms are available.
+  const alternatives = eligible.filter((item) => item.index !== previous);
+  const pool = alternatives.length && (hash & 3) < 2 ? alternatives : eligible;
+  return pool[(hash >>> 3) % pool.length]!.index;
 }
 
 export function formGlyph(form: LetterForm, codePoint: number) {

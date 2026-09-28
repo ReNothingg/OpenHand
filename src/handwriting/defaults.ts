@@ -10,6 +10,7 @@ export const DEFAULT_HANDWRITING_SETTINGS = {
   maxWordTilt: 0.7, maxLift: 0.4, maxLetterSpacing: 0.15,
   authorSlant: 0, authorWidth: 100, authorRhythm: 22, authorBaseline: 12,
   wordSpacing: 82, spaceVariation: 16, wordCoherence: 85, endCompression: 4,
+  lineFitCompression: 8,
   ascenderScale: 100, descenderScale: 100, correctionChance: 0, fatigueEnabled: false,
   fontRandomization: 0, maxLineDrift: 0,
 };

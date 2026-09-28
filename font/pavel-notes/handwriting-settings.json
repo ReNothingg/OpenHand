@@ -6,6 +6,7 @@
   "spaceVariation": 16,
   "wordCoherence": 85,
   "endCompression": 4,
+  "lineFitCompression": 8,
   "ascenderScale": 100,
   "descenderScale": 100,
   "fontType": "plotter",
