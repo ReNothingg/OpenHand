@@ -31,7 +31,7 @@ interface GFontEntry {
 
 export const BUILTIN_GFONT_FAMILIES = [
   { id: "retest", label: "ReTest", description: "личный рукописный GFont", source: "ReTest.gfont", variants: [{ id: "retest-original", label: "оригинал" }] },
-  { id: "pavel-notes", label: "По умолчанию", description: "реконструкция по 14 фотографиям, 98 знаков", source: "pavel-notes.gfont", variants: [{ id: "pavel-notes-original", label: "основной" }] },
+  { id: "pavel-notes", label: "По умолчанию", description: "ваши конспекты: формы по фото, 98 знаков", source: "pavel-notes.gfont", variants: [{ id: "pavel-notes-original", label: "основной" }] },
   {
     id: "ifdream",
     label: "Если Мечта",

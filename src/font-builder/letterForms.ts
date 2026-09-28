@@ -10,6 +10,14 @@ export type LetterForm = {
 };
 export type LetterForms = Record<string, LetterForm[]>;
 
+/** Punctuation ends a word too: the е in «море,» needs its final form. */
+export function letterPosition(characters: string[], index: number) {
+  const isLetter = (value: string | undefined) => Boolean(value && /^\p{L}$/u.test(value));
+  if (!isLetter(characters[index])) return "any";
+  if (!isLetter(characters[index - 1])) return "initial";
+  return isLetter(characters[index + 1]) ? "medial" : "final";
+}
+
 export function validForms(value: unknown): LetterForm[] {
   if (!Array.isArray(value)) return [];
   return value.slice(0, 6).flatMap((form): LetterForm[] => {

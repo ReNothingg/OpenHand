@@ -69,12 +69,21 @@ export function normalizeSettings(
     inkColor: "#233266", glyphVariation: 18, connectionStrength: 72,
     authorRhythm: 22, authorBaseline: 12, spaceVariation: 16, endCompression: 4,
   };
+  const previousPavelNotes = {
+    fontSize: 27, lineHeight: 1.4, inkColor: "#28518f", glyphVariation: 35,
+    connectionStrength: 82, authorRhythm: 32, authorBaseline: 26,
+    wordSpacing: 82, spaceVariation: 22, wordCoherence: 85, endCompression: 5,
+  };
   if (settings.handwritingProfile === "pavelNotes" &&
-      settings.plotterFontId === "pavel-notes-original" &&
-      Object.entries(formerPavelNotes).every(([key, value]) =>
-        !Object.hasOwn(incoming, key) || incoming[key] === value)) {
-    for (const key of Object.keys(formerPavelNotes))
-      settings[key] = DEFAULT_HANDWRITING_SETTINGS[key];
+      settings.plotterFontId === "pavel-notes-original") {
+    for (const previous of [{ ...previousPavelNotes, ...formerPavelNotes }, previousPavelNotes]) {
+      if (Object.entries(previous).every(([key, value]) =>
+          !Object.hasOwn(incoming, key) || incoming[key] === value)) {
+        for (const key of Object.keys(previous))
+          settings[key] = DEFAULT_HANDWRITING_SETTINGS[key];
+        break;
+      }
+    }
   }
   settings.compactLayout = incoming.compactLayout !== false;
   settings.writingStartEnabled = incoming.writingStartEnabled === true;

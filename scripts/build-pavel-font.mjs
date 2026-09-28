@@ -6,7 +6,7 @@ import { build } from 'esbuild';
 
 // Editable centreline geometry, not outlines: a plotter traverses every line once.
 const source = JSON.parse(await readFile('font/pavel-notes/strokes.json', 'utf8'));
-function sample(path) {
+function sample(path, transform = p => ({ x: p.x * 2.2, y: p.y * 2.2 })) {
   const tokens = path.match(/[MLC]|-?\d+(?:\.\d+)?/g) || [];
   let i = 0, cursor = { x: 0, y: 0 };
   const points = [];
@@ -30,12 +30,15 @@ function sample(path) {
       cursor=d;
     } else throw new Error(`Unsupported command ${command}`);
   }
-  return points.map(p => ({x:Math.round(p.x*220)/100,y:Math.round(p.y*220)/100}));
+  return points.map(p => {
+    const value = transform(p);
+    return { x: Math.round(value.x * 100) / 100, y: Math.round(value.y * 100) / 100 };
+  });
 }
 const glyphs = {};
 for (const [char, paths] of Object.entries(source.glyphs)) {
   // Each M starts a real pen lift, including marks and crossbars.
-  glyphs[char] = paths.flatMap(path => path.match(/M[^M]+/g).map(sample));
+  glyphs[char] = paths.flatMap(path => path.match(/M[^M]+/g).map(path => sample(path)));
 }
 const clone = char => structuredClone(glyphs[char]);
 const mark = path => sample(path);
@@ -78,10 +81,50 @@ const alternates = {
 const forms = {};
 for (const [char, path] of Object.entries(alternates)) {
   // Anchor only the first continuous written body; detached accents never join.
-  forms[char] = [glyphs[char], path.match(/M[^M]+/g).map(sample)].map(strokes=>({
+  forms[char] = [glyphs[char], path.match(/M[^M]+/g).map(path => sample(path))].map(strokes=>({
     strokes, position:'any', entry:{stroke:0,end:'start'},
     exit:{stroke:strokes.length-1,end:'end'}
   }));
+}
+// Photo coordinates stay editable and auditable independently of the exporter.
+// Normalize by the photographed body height, preserving ascenders/descenders.
+const photos = JSON.parse(await readFile('font/pavel-notes/photo-traces.json', 'utf8'));
+const tracedForms = {};
+for (const form of photos.forms) {
+  if (!photos.references[form.reference] || form.baseline - form.bodyTop < 8)
+    throw new Error(`Invalid photo reference or body height: ${form.char}`);
+  const factor = 220 / (form.baseline - form.bodyTop);
+  const strokes = form.paths.flatMap(path => path.match(/M[^M]+/g).map(path =>
+    sample(path, p => ({ x: p.x * factor, y: (p.y - form.baseline) * factor }))));
+  const minX = Math.min(...strokes.flat().map(p => p.x));
+  for (const stroke of strokes) for (const p of stroke) p.x = Math.round((p.x - minX) * 100) / 100;
+  const entryStroke = form.entryStroke ?? 0;
+  const exitStroke = form.exitStroke ?? strokes.length - 1;
+  (tracedForms[form.char] ??= []).push({
+    strokes, position: form.position ?? 'any',
+    // High starting strokes (capitals, dotted letters) use the engine's anchor
+    // search. Never connect the next letter to a detached dot or crossbar.
+    ...(strokes[entryStroke][0].y > -120 ? { entry: { stroke: entryStroke, end: 'start' } } : {}),
+    ...(strokes[exitStroke].at(-1).y > -120 ? { exit: { stroke: exitStroke, end: 'end' } } : {}),
+  });
+}
+for (const [char, variants] of Object.entries(tracedForms)) {
+  if (variants.length > 6 || !variants.some(f => f.position === 'any'))
+    throw new Error(`Unsupported forms for ${char}`);
+  forms[char] = variants;
+  glyphs[char] = variants.find(f => f.position === 'any').strokes;
+}
+for (const [char, base, dots] of [['ё', 'е', true], ['ў', 'у', false]]) {
+  forms[char] = forms[base].map(form => {
+    const body = structuredClone(form.strokes);
+    const xs = body.flat().filter(p => p.y < -100).map(p => p.x);
+    const center = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const accents = dots
+      ? [[{x:center-28,y:-282},{x:center-23,y:-291}], [{x:center+28,y:-280},{x:center+33,y:-289}]]
+      : [[{x:center-30,y:-286},{x:center-16,y:-271},{x:center+7,y:-268},{x:center+32,y:-282}]];
+    return { ...form, strokes: [...body, ...accents], exit: {stroke: body.length-1, end:'end'} };
+  });
+  glyphs[char] = forms[char][0].strokes;
 }
 const directory = await mkdtemp(join(tmpdir(), 'openhand-font-'));
 try {
@@ -90,7 +133,7 @@ try {
   const { createGFontBlob, GFont, layoutText, DEFAULT_PLOTTER_CONFIG, profilePatch, DEFAULT_WRITING_CONFIG } = await import(pathToFileURL(modulePath).href);
   const blob=createGFontBlob(glyphs,forms);
   await writeFile('font/plotter/pavel-notes.gfont',Buffer.from(await blob.arrayBuffer()));
-  await writeFile('font/pavel-notes/coverage.json',JSON.stringify({version:1,method:'manual-centreline-reconstruction',glyphs:Object.keys(glyphs).join(''),inferredCapitals:inferred.join(''),variants:Object.keys(forms),pressureMeasured:false,timingMeasured:false},null,2)+'\n');
+  await writeFile('font/pavel-notes/coverage.json',JSON.stringify({version:2,method:'manual-photo-centrelines-with-legacy-fallback',glyphs:Object.keys(glyphs).join(''),photoReferences:photos.references,photoTracedCharacters:Object.keys(tracedForms).join(''),photoTracedForms:photos.forms.length,legacyCharacters:Object.keys(glyphs).filter(c=>!tracedForms[c]&&!['ё','ў'].includes(c)).join(''),inferredCapitals:inferred.filter(c=>!tracedForms[c]).join(''),variants:Object.keys(forms).filter(c=>forms[c].length>1),formCounts:Object.fromEntries(Object.entries(forms).map(([c,f])=>[c,f.length])),pressureMeasured:false,timingMeasured:false,exactCopyVerified:false},null,2)+'\n');
   const settings = profilePatch('pavelNotes');
   await writeFile('font/pavel-notes/handwriting-settings.json',JSON.stringify(settings,null,2)+'\n');
   await writeFile('font/pavel-notes/writing-config.json',JSON.stringify(DEFAULT_WRITING_CONFIG,null,2)+'\n');
@@ -108,5 +151,10 @@ try {
     return `<g transform="translate(${x},${y})"><text y="-30" font-size="15" fill="#697386">${escape(char)}</text><path d="M -10 76 H 91" stroke="#d7dce2"/><g transform="translate(0,76) scale(.22)">${strokes.map(s=>`<polyline points="${s.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="#233266" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</g></g>`;
   }).join('');
   await writeFile('font/pavel-notes/specimen.svg',`<svg xmlns="http://www.w3.org/2000/svg" width="1130" height="${Math.ceil(entries.length/10)*145+35}" style="background:white">${tiles}</svg>\n`);
-  console.log(`Default handwriting: ${entries.length} glyphs; ${Object.keys(forms).length} characters with alternate forms.`);
+  const variantEntries = Object.entries(forms).filter(([, variants]) => variants.length > 1);
+  const variantRows = variantEntries.map(([char, variants], row) =>
+    `<g transform="translate(30,${row * 130 + 90})"><text y="-25" font-size="22">${escape(char)}</text>${variants.map((form, column) =>
+      `<g transform="translate(${65 + column * 155},0)"><path d="M 0 0 H 135" stroke="#d7dce2"/><g transform="scale(.2)">${form.strokes.map(stroke => `<polyline points="${stroke.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="${settings.inkColor}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</g><text y="32" font-size="12" fill="#697386">${form.position === 'final' ? 'окончание' : 'в слове'}</text></g>`).join('')}</g>`).join('');
+  await writeFile('font/pavel-notes/variants.svg', `<svg xmlns="http://www.w3.org/2000/svg" width="760" height="${variantEntries.length*130+20}"><rect width="100%" height="100%" fill="white"/>${variantRows}</svg>\n`);
+  console.log(`Default handwriting: ${entries.length} glyphs; ${photos.forms.length} photo-traced forms; ${Object.values(forms).filter(f=>f.length>1).length} characters with alternatives.`);
 } finally { await rm(directory,{recursive:true,force:true}); }

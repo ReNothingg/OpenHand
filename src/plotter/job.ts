@@ -4,7 +4,7 @@ import { HEADING_SCALES } from "../handwriting/headings";
 import { varyLetterGlyph } from "../handwriting/letterGeometry";
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
 import { DEFAULT_AUTOMATIC_PEN_LIFT_MM, MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, automaticPenSpeed, automaticPenUpPosition, penTravelSeconds } from "./penLift";
-import { chooseForm, formGlyph, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
+import { chooseForm, formGlyph, letterPosition, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
 import { layoutFormula } from "./mathLayout";
 import {
   PLOTTER_ALIGN_MARKS,
@@ -472,7 +472,7 @@ export async function layoutText(
     }
   }
 
-  const advanceFor = (char, textScale = 1, motionWidth = 1) => {
+  const advanceFor = (char, textScale = 1, motionWidth = 1, selectedWidth?: number) => {
     if (char === " " || char === "\t")
       return spaceWidth * (char === "\t" ? 4 : 1) * textScale * spaceFactor(config, "base");
     const glyph = glyphs.get(char);
@@ -482,7 +482,7 @@ export async function layoutText(
     );
     return glyph
       ? Math.max(
-          (maximumWidths.get(char) ?? glyph.bounds.maxX - glyph.bounds.minX) *
+          (selectedWidth ?? maximumWidths.get(char) ?? glyph.bounds.maxX - glyph.bounds.minX) *
             scale *
             widthScale * motionWidth *
             textScale +
@@ -1142,7 +1142,7 @@ export async function layoutText(
         const currentHeadingScale = headingScale();
         const motion = wordMotion(config, `${rawLineIndex}:${tokenIndex}:${token}`, visibleIndex, visibleChars.length);
         visibleIndex += 1;
-        const advance = advanceFor(char, currentHeadingScale, motion.width);
+        let advance = advanceFor(char, currentHeadingScale, motion.width);
         if (x > page.left && x + advance > maxX && !fitWordOnLine) {
           nextLine();
           previousJoin = null;
@@ -1153,13 +1153,19 @@ export async function layoutText(
         }
         if (clipped) break;
         const variants = forms.get(char) || [];
-        const letterPosition = visibleIndex === 1 ? 'initial' : visibleIndex === visibleChars.length ? 'final' : 'medial';
-        const selected = config.trueHandwriting ? chooseForm(variants, config.seed, glyphOccurrence, letterPosition, previousForms.get(char)) : 0;
+        const position = letterPosition(visibleChars, visibleIndex - 1);
+        const selected = config.trueHandwriting ? chooseForm(variants, config.seed, glyphOccurrence, position, previousForms.get(char)) : 0;
         const selectedForm = variants[selected];
         previousForms.set(char, selected);
         const baseGlyph = selectedForm?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
+        // Reserve the widest form when wrapping, but place the next character
+        // after the form actually written. Otherwise narrow photo variants get
+        // the wide variant's blank gap in the middle of a connected word.
+        // Centered/right-aligned text keeps the metrics used by widthForLine.
+        if (baseGlyph && activeAlignment === "left") advance = advanceFor(char, currentHeadingScale, motion.width,
+          baseGlyph.bounds.maxX - baseGlyph.bounds.minX);
         const glyph = baseGlyph && config.trueHandwriting
-          ? varyLetterGlyph(baseGlyph, config.seed, glyphOccurrence, config.glyphVariation, letterPosition)
+          ? varyLetterGlyph(baseGlyph, config.seed, glyphOccurrence, config.glyphVariation, position)
           : baseGlyph;
         if (glyph) {
           const sourceGlyphStrokes = splitGlyphStrokes(
