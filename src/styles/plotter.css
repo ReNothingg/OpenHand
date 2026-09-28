@@ -83,13 +83,13 @@
 }
 .integrated-plotter-paper .plotter-strokes {
   fill: none;
-  stroke-width: 0.22;
+  stroke-width: 0.4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .integrated-plotter-paper .plotter-playback-stroke {
   fill: none;
-  stroke-width: 0.26;
+  stroke-width: 0.4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }

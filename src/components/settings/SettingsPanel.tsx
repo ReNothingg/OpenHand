@@ -298,6 +298,7 @@ export default function SettingsPanel({
               max={100}
               suffix="%"
               onChange={(value) => updateSetting("authorRhythm", value)}
+              hint="Слегка меняет наклон и движение строки внутри слов, сохраняя форму букв."
             />
             <RangeControl
               label="Связность"

@@ -63,6 +63,19 @@ export function normalizeSettings(
   incoming: Record<string, any> = {},
 ): AppSettings {
   const settings: AppSettings = { ...DEFAULT_SETTINGS, ...incoming };
+  // Update an untouched earlier reconstruction while preserving individual
+  // handwriting adjustments and document layout choices.
+  const formerPavelNotes = {
+    inkColor: "#233266", glyphVariation: 18, connectionStrength: 72,
+    authorRhythm: 22, authorBaseline: 12, spaceVariation: 16, endCompression: 4,
+  };
+  if (settings.handwritingProfile === "pavelNotes" &&
+      settings.plotterFontId === "pavel-notes-original" &&
+      Object.entries(formerPavelNotes).every(([key, value]) =>
+        !Object.hasOwn(incoming, key) || incoming[key] === value)) {
+    for (const key of Object.keys(formerPavelNotes))
+      settings[key] = DEFAULT_HANDWRITING_SETTINGS[key];
+  }
   settings.compactLayout = incoming.compactLayout !== false;
   settings.writingStartEnabled = incoming.writingStartEnabled === true;
   settings.writingStartPage = Math.max(0, Math.min(99, Math.floor(Number(incoming.writingStartPage) || 0)));

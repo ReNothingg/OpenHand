@@ -30,6 +30,7 @@ export function wordMotion(settings, wordKey, position = 0, length = 1) {
   const enabled = Boolean(settings.trueHandwriting);
   if (!enabled) return { coherence: 0, width: 1, height: 1, slant: 0, baseline: 0 };
   const coherence = enabled ? structureValue(settings, "wordCoherence") / 100 : 0;
+  const rhythm = Math.max(0, Math.min(100, Number(settings.authorRhythm) || 0)) / 100;
   const progress = length > 1 ? position / (length - 1) : 0;
   const compression = enabled ? structureValue(settings, "endCompression") / 100 : 0;
   const wave = noise(settings.seed, `${wordKey}:wave`) * progress;
@@ -37,8 +38,8 @@ export function wordMotion(settings, wordKey, position = 0, length = 1) {
     coherence,
     width: 1 - compression * progress * Math.min(1, Math.max(0, length - 2) / 5),
     height: 1 + coherence * noise(settings.seed, `${wordKey}:height`) * 0.08,
-    slant: coherence * (noise(settings.seed, `${wordKey}:slant`) * 3 + wave),
-    baseline: coherence ? coherence * wave * 0.035 : 0,
+    slant: coherence * (noise(settings.seed, `${wordKey}:slant`) * (3 + rhythm * 7) + wave),
+    baseline: coherence ? coherence * wave * (0.035 + rhythm * 0.06) : 0,
   };
 }
 

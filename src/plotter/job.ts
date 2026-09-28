@@ -1165,7 +1165,7 @@ export async function layoutText(
           const sourceGlyphStrokes = splitGlyphStrokes(
             glyph,
             x,
-            baseline + (config.trueHandwriting ? Math.sin((x - page.left) / Math.max(1, page.fontSize * 7) + seededRandom(config.seed, `line:${rawLineIndex}`) * Math.PI * 2) * page.fontSize * Math.max(0, Math.min(100, Number(config.authorBaseline) || 0)) * 0.0006 : 0),
+            baseline + (config.trueHandwriting ? Math.sin((x - page.left) / Math.max(1, page.fontSize * 7) + seededRandom(config.seed, `line:${rawLineIndex}`) * Math.PI * 2) * page.fontSize * Math.max(0, Math.min(100, Number(config.authorBaseline) || 0)) * 0.0011 : 0),
             scale * currentHeadingScale,
             {
               motion, bodyTop, structure: config, isLetter: LETTER_PATTERN.test(char),

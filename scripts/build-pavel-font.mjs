@@ -63,7 +63,17 @@ const alternates = {
   'н':'M 0 -3 L 43 -93 L 10 0 M 23 -33 C 43 -30 67 -67 86 -94 C 72 -51 55 -15 69 -5 C 80 3 96 -9 108 -20',
   'т':'M 0 -3 L 34 -89 L 21 -37 C 38 -58 62 -85 72 -88 C 82 -89 66 -51 58 -28 C 84 -59 105 -88 117 -87 C 135 -80 105 -23 117 -6 C 129 7 145 -9 158 -20',
   'с':'M 55 -81 C 58 -110 26 -89 15 -56 C -4 -9 13 9 39 -1 L 73 -20',
-  'я':'M 0 -4 C 15 -11 50 -44 64 -77 C 80 -109 46 -100 35 -75 C 19 -43 34 -36 57 -49 C 47 -25 34 -6 43 0 C 56 10 76 -9 88 -20'
+  'я':'M 0 -4 C 15 -11 50 -44 64 -77 C 80 -109 46 -100 35 -75 C 19 -43 34 -36 57 -49 C 47 -25 34 -6 43 0 C 56 10 76 -9 88 -20',
+  'б':'M 0 -7 C 19 -10 33 -40 47 -76 C 65 -122 88 -171 116 -183 C 132 -186 138 -171 129 -155 C 117 -139 103 -146 100 -157 M 48 -74 C 26 -95 7 -47 13 -14 C 19 13 49 2 62 -37 C 72 -66 58 -84 48 -74 C 65 -61 58 -21 71 -7 C 79 3 92 -6 105 -20',
+  'в':'M 0 -3 C 14 -51 33 -125 67 -160 C 94 -187 93 -145 64 -110 C 42 -82 20 -66 18 -59 C 43 -82 65 -69 58 -47 C 49 -17 19 15 11 -3 C 5 -18 26 -27 45 -20 C 59 -13 69 -9 77 -20',
+  'д':'M 0 -5 C 16 -12 31 -69 56 -91 C 78 -108 77 -65 49 -23 C 25 13 9 4 19 -31 C 30 -68 52 -93 69 -91 C 65 -59 41 16 19 57 C 1 88 -18 112 -29 94 C -35 76 -3 53 36 25 C 63 7 82 -9 95 -20',
+  'к':'M 0 -2 C 14 -33 29 -77 42 -94 L 15 -3 M 25 -41 C 49 -65 69 -95 80 -89 C 95 -81 68 -57 37 -47 C 54 -42 49 -17 64 -6 C 75 3 88 -8 100 -20',
+  'л':'M 0 -5 C 5 9 19 8 30 -17 C 44 -51 55 -93 67 -94 C 76 -92 64 -43 69 -14 C 75 8 95 -1 111 -20',
+  'м':'M 0 -5 C 11 11 23 -3 30 -22 C 45 -57 51 -90 61 -95 C 69 -78 58 -39 65 -18 C 78 -51 91 -88 108 -91 C 118 -74 96 -29 106 -8 C 114 6 129 -3 144 -20',
+  'п':'M 0 -4 C 14 -28 35 -82 45 -95 C 52 -92 44 -57 34 -29 C 49 -58 74 -91 84 -89 C 102 -82 82 -35 88 -12 C 97 9 115 -4 127 -20',
+  'р':'M 0 -9 C 10 -28 25 -71 44 -94 L -7 88 C -14 106 -26 111 -30 99 C -34 81 -3 59 28 35 M 28 -51 C 47 -82 72 -94 81 -83 C 98 -65 65 -22 48 -13 C 69 -12 86 -11 103 -20',
+  'у':'M 0 -6 C 15 -27 34 -77 45 -94 C 33 -61 13 -18 24 -7 C 43 7 71 -34 93 -94 C 71 -40 53 38 25 72 C 4 100 -19 108 -25 91 C -32 72 1 46 46 21 L 93 -20',
+  'ш':'M 0 -4 C 11 -25 31 -72 43 -95 C 30 -59 11 -19 21 -5 C 34 10 59 -25 85 -94 C 71 -48 51 -15 64 -5 C 81 11 108 -42 131 -93 C 117 -53 96 -17 109 -6 C 121 5 139 -8 153 -20'
 };
 const forms = {};
 for (const [char, path] of Object.entries(alternates)) {
@@ -89,7 +99,7 @@ try {
   const text = await readFile('font/pavel-notes/sample.txt','utf8');
   const layout = await layoutText(text,font,page,{...DEFAULT_PLOTTER_CONFIG,...settings,...DEFAULT_WRITING_CONFIG,seed:31847});
   if (layout.missing.length || layout.clipped) throw new Error('Personal font sample has missing glyphs or overflows.');
-  const paths = layout.strokes.map(stroke => `<polyline points="${stroke.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="#233266" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+  const paths = layout.strokes.map(stroke => `<polyline points="${stroke.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="${settings.inkColor}" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
   await writeFile('font/pavel-notes/writing-sample.svg',`<svg xmlns="http://www.w3.org/2000/svg" width="740" height="1050" viewBox="0 0 148 210"><rect width="148" height="210" fill="white"/>${paths}</svg>\n`);
   const escape = s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const entries=Object.entries(glyphs);

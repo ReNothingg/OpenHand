@@ -53,6 +53,7 @@ function pointOnStroke(stroke, progress) {
 }
 
 function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
+  const inkWidthMm = 0.4;
   const orderedStrokes = playback?.strokes?.length
     ? playback.strokes
     : layout?.strokes || [];
@@ -152,7 +153,7 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
               d={path}
               style={{
                 stroke: "#64748b",
-                strokeWidth: 0.22 * pressure,
+                strokeWidth: inkWidthMm * pressure,
                 opacity: playback?.active ? 0.22 : 0,
               }}
             />
@@ -163,7 +164,7 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
                 pathLength="1000"
                 style={{
                   stroke: settings.inkColor,
-                  strokeWidth: 0.22 * pressure,
+                  strokeWidth: inkWidthMm * pressure,
                   strokeDasharray: 1000,
                   strokeDashoffset: 1000 * (1 - completed),
                   opacity: Math.min(1, 0.72 + pressure * 0.25),
