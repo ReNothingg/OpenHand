@@ -447,7 +447,7 @@ body:has(.font-studio) {
 .font-preview-canvas {
   height: 156px;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   background: var(--surface-raised);
 }
 

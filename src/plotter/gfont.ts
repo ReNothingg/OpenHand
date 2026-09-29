@@ -17,6 +17,7 @@ export interface GFontPoint {
 
 export interface GFontGlyph {
   codePoint: number;
+  originX?: number;
   points: GFontPoint[];
   flags: number[];
   bounds: { minX: number; maxX: number; minY: number; maxY: number };
@@ -31,7 +32,8 @@ interface GFontEntry {
 
 export const BUILTIN_GFONT_FAMILIES = [
   { id: "retest", label: "ReTest", description: "личный рукописный GFont", source: "ReTest.gfont", variants: [{ id: "retest-original", label: "оригинал" }] },
-  { id: "pavel-notes", label: "По умолчанию", description: "ваши конспекты: формы по фото, 98 знаков", source: "pavel-notes.gfont", variants: [{ id: "pavel-notes-original", label: "основной" }] },
+  { id: "pavel-notes", label: "По умолчанию", description: "линии чернил из ваших конспектов, 98 знаков", source: "pavel-notes.gfont", variants: [{ id: "pavel-notes-original", label: "основной" }] },
+  { id: "pavel-notes-legacy", label: "Прежняя реконструкция", description: "сохранённый вариант до оцифровки чернил", source: "pavel-notes-legacy.gfont", variants: [{ id: "pavel-notes-legacy-original", label: "сохранённый" }] },
   {
     id: "ifdream",
     label: "Если Мечта",
@@ -172,6 +174,7 @@ export const BUILTIN_GFONT_OPTIONS = BUILTIN_GFONT_FAMILIES.flatMap((family) =>
 const bundledSourceCache = new Map<string, Promise<GFont>>();
 
 const BUNDLED_GFONT_LOADERS = {
+  "pavel-notes-legacy.gfont": () => import("../../font/plotter/pavel-notes-legacy.gfont?url").then((module) => module.default),
   "pavel-notes.gfont": () => import("../../font/plotter/pavel-notes.gfont?url").then((module) => module.default),
   "ReTest.gfont": () => import("../../font/plotter/ReTest.gfont?url").then((module) => module.default),
   "ifdream-unicode.gfont": () =>

@@ -50,6 +50,7 @@ export default function FontPreview({
   const baseline = 118;
   let cursor = 18;
   let inkRight = cursor;
+  let inkLeft = cursor, inkTop = baseline, inkBottom = baseline;
   const paths: React.ReactNode[] = [];
   const previous = new Map<string, number>();
   let previousExit: { x: number; y: number } | null = null;
@@ -85,12 +86,21 @@ export default function FontPreview({
       return points;
     });
     const metrics = glyphWidth(strokes);
-    inkRight = Math.max(inkRight, cursor + metrics.width * scale);
     const form = variants[index];
+    if (form?.originX !== undefined) {
+      metrics.width += metrics.minX - form.originX;
+      metrics.minX = form.originX;
+    }
+    inkRight = Math.max(inkRight, cursor + metrics.width * scale);
+    for (const stroke of strokes) for (const point of stroke) {
+      inkLeft = Math.min(inkLeft, cursor + (point.x - metrics.minX) * scale);
+      inkTop = Math.min(inkTop, baseline + point.y * scale);
+      inkBottom = Math.max(inkBottom, baseline + point.y * scale);
+    }
     const anchorPoint = (kind: "entry" | "exit") => {
       const anchor = form?.[kind],
         stroke = anchor && strokes[anchor.stroke];
-      const p = stroke && (anchor.end === "start" ? stroke[0] : stroke.at(-1));
+      const p = stroke && (anchor.point !== undefined ? stroke[anchor.point] : anchor.end === "start" ? stroke[0] : stroke.at(-1));
       return p
         ? {
             x: cursor + (p.x - metrics.minX) * scale,
@@ -148,13 +158,15 @@ export default function FontPreview({
   });
 
   const width = Math.max(720, cursor + 18, inkRight + 18);
+  const left = Math.min(0, inkLeft - 12), top = Math.min(0, inkTop - 12);
+  const height = Math.max(156, inkBottom + 12) - top;
 
   return (
-    <div className="font-preview-canvas">
+    <div className="font-preview-canvas" style={{ height: Math.min(260, height) }}>
       <svg
         className="font-preview-svg"
-        style={{ width }}
-        viewBox={`0 0 ${width} 156`}
+        style={{ width: width - left, height }}
+        viewBox={`${left} ${top} ${width - left} ${height}`}
         role="img"
         aria-label="Предпросмотр шрифта"
       >

@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "sourceFile": "IMG_0589.HEIC",
+  "orientedSize": [
+    1824,
+    1368
+  ],
+  "pageCrop": [
+    880,
+    175,
+    910,
+    1125
+  ],
+  "pixelsPerMm": 5.2,
+  "seed": 31847,
+  "rows": [
+    {
+      "text": "Введение",
+      "left": 204,
+      "baseline": 62,
+      "right": 407,
+      "kind": "title"
+    },
+    {
+      "text": "07.09.26",
+      "left": 759,
+      "baseline": 65,
+      "right": 878,
+      "kind": "date"
+    },
+    {
+      "text": "Глобальные проблемы человечества",
+      "left": 49,
+      "baseline": 117,
+      "right": 795,
+      "kind": "body"
+    },
+    {
+      "text": "— совокупность природно-экол.",
+      "left": 78,
+      "baseline": 168,
+      "right": 795,
+      "kind": "body"
+    },
+    {
+      "text": "и соц.-экономических проблем,",
+      "left": 58,
+      "baseline": 222,
+      "right": 745,
+      "kind": "body"
+    },
+    {
+      "text": "от решения которых зависит",
+      "left": 64,
+      "baseline": 269,
+      "right": 786,
+      "kind": "body"
+    },
+    {
+      "text": "развитие человечества и сохранение",
+      "left": 63,
+      "baseline": 322,
+      "right": 825,
+      "kind": "body"
+    },
+    {
+      "text": "цивилизации.",
+      "left": 69,
+      "baseline": 382,
+      "right": 384,
+      "kind": "body"
+    },
+    {
+      "text": "Верхняя часть мантии земной",
+      "left": 53,
+      "baseline": 463,
+      "right": 740,
+      "kind": "body"
+    },
+    {
+      "text": "коры — литосфера",
+      "left": 60,
+      "baseline": 515,
+      "right": 478,
+      "kind": "body"
+    },
+    {
+      "text": "Биота — совокупность всех",
+      "left": 63,
+      "baseline": 570,
+      "right": 697,
+      "kind": "body"
+    },
+    {
+      "text": "живых организмов обитающих",
+      "left": 72,
+      "baseline": 624,
+      "right": 755,
+      "kind": "body"
+    },
+    {
+      "text": "на определенной территории",
+      "left": 78,
+      "baseline": 675,
+      "right": 678,
+      "kind": "body"
+    },
+    {
+      "text": "Природные причины трансформации",
+      "left": 113,
+      "baseline": 798,
+      "right": 791,
+      "kind": "body"
+    },
+    {
+      "text": "литосферы.",
+      "left": 247,
+      "baseline": 850,
+      "right": 516,
+      "kind": "body"
+    },
+    {
+      "text": "Природные:",
+      "left": 40,
+      "baseline": 909,
+      "right": 270,
+      "kind": "body"
+    },
+    {
+      "text": "1. Давление литосферных плит",
+      "left": 35,
+      "baseline": 959,
+      "right": 634,
+      "kind": "body"
+    },
+    {
+      "text": "2. Обвалы и оползни",
+      "left": 31,
+      "baseline": 1005,
+      "right": 504,
+      "kind": "body"
+    },
+    {
+      "text": "3. Извержение вулканов",
+      "left": 28,
+      "baseline": 1062,
+      "right": 541,
+      "kind": "body"
+    }
+  ],
+  "heldOutWords": [
+    {
+      "text": "сохранение",
+      "left": 609,
+      "right": 828,
+      "baseline": 324,
+      "box": [
+        596,
+        282,
+        838,
+        352
+      ]
+    },
+    {
+      "text": "определенной",
+      "left": 155,
+      "right": 407,
+      "baseline": 671,
+      "box": [
+        146,
+        625,
+        416,
+        710
+      ]
+    },
+    {
+      "text": "оползни",
+      "left": 316,
+      "right": 505,
+      "baseline": 1005,
+      "box": [
+        310,
+        965,
+        515,
+        1030
+      ]
+    },
+    {
+      "text": "вулканов",
+      "left": 334,
+      "right": 539,
+      "baseline": 1070,
+      "box": [
+        326,
+        1009,
+        548,
+        1110
+      ]
+    }
+  ]
+}

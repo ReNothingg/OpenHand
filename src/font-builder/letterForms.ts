@@ -1,11 +1,13 @@
 import type { FontStroke } from "./penInput";
 import { orderedStrokeSamples } from "./strokeSamples";
 
-export type JoinAnchor = { stroke: number; end: "start" | "end" };
+export type JoinAnchor = { stroke: number; end: "start" | "end"; point?: number };
 export type LetterForm = {
   strokes: FontStroke[];
-  /** Horizontal step from the left ink bound; swashes may extend beyond it. */
+  /** Step from originX, or the left ink bound for legacy forms. */
   advance?: number;
+  /** Baseline origin in source coordinates; ink may overhang either side. */
+  originX?: number;
   /** Forms photographed in the same writing session share a consistent style. */
   style?: string;
   context?: { before: string; after: string };
@@ -70,7 +72,7 @@ export function validForms(value: unknown): LetterForm[] {
       a.stroke >= 0 &&
       a.stroke < strokes.length &&
       ["start", "end"].includes(a.end)
-        ? a
+        ? { ...a, point: Number.isInteger(a.point) && a.point! >= 0 && a.point! < strokes[a.stroke]!.length ? a.point : undefined }
         : undefined;
     return [
       {
@@ -83,6 +85,8 @@ export function validForms(value: unknown): LetterForm[] {
           ? { context: { before: form.context.before, after: form.context.after } } : {}),
         ...(typeof form.advance === "number" && Number.isFinite(form.advance) &&
           form.advance > 0 && form.advance <= 100000 ? { advance: form.advance } : {}),
+        ...(typeof form.originX === "number" && Number.isFinite(form.originX) &&
+          Math.abs(form.originX) <= 100000 ? { originX: form.originX } : {}),
         entry: anchor(form.entry),
         exit: anchor(form.exit),
         position: ["initial", "medial", "final"].includes(form.position)
@@ -123,7 +127,7 @@ export function chooseForm(
       ? Number(form.context.before === context.before) + Number(form.context.after === context.after) : 0;
     const best = Math.max(...eligible.map(item => score(item.form)));
     // Prefer an observed connection, while leaving occasional alternatives.
-    if (best && ((hash >>> 8) % 10) < 8)
+    if (best && (style?.startsWith("raster-") || ((hash >>> 8) % 10) < 8))
       eligible = eligible.filter(item => score(item.form) === best);
   }
   // Handwriting can repeat a shape. Prefer a different form, but avoid a rigid
@@ -147,6 +151,7 @@ export function formGlyph(form: LetterForm, codePoint: number) {
   });
   return {
     codePoint,
+    ...(form.originX !== undefined ? { originX: form.originX } : {}),
     points,
     flags: form.strokes.flatMap((s) => s.map((_, i) => (i ? 1 : 0))),
     bounds: points.length

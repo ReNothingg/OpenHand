@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
+import { rasterLetterForms } from './raster-letter-forms.mjs';
 
 // Editable centreline geometry, not outlines: a plotter traverses every line once.
 const source = JSON.parse(await readFile('font/pavel-notes/strokes.json', 'utf8'));
@@ -133,6 +134,28 @@ for (const [char, variants] of Object.entries(tracedForms)) {
   forms[char] = [...variants.filter(f => f.position === 'any'), ...variants.filter(f => f.position !== 'any')];
   glyphs[char] = forms[char][0].strokes;
 }
+const rasterSource = JSON.parse(await readFile('font/pavel-notes/raster-strokes.json', 'utf8'));
+const spacingAdjustments = JSON.parse(await readFile('font/pavel-notes/spacing-adjustments.json', 'utf8'));
+const inkForms = rasterLetterForms(rasterSource, spacingAdjustments);
+for (const char of 'абвгдежзийклмнопрстуфхцчшщыьэюяГВ')
+  if (!inkForms[char]?.length) throw new Error(`Missing reviewed raster character: ${char}`);
+// The old reconstruction was displayed at 82% width. Preserve that appearance
+// for fallback signs while the measured ink forms use an unscaled 100% profile.
+const legacyWidth = strokes => {
+  const left = Math.min(...strokes.flat().map(p => p.x));
+  return strokes.map(stroke => stroke.map(p => ({ ...p, x: (p.x - left) * .82 })));
+};
+for (const char of Object.keys(glyphs)) if (!inkForms[char]) {
+  glyphs[char] = legacyWidth(glyphs[char]);
+  if (forms[char]) forms[char] = forms[char].map(form => ({ ...form,
+    strokes: legacyWidth(form.strokes),
+    ...(form.advance ? { advance: form.advance * .82 } : {}),
+  }));
+}
+for (const [char, variants] of Object.entries(inkForms)) {
+  forms[char] = variants;
+  glyphs[char] = variants[0].strokes;
+}
 for (const [char, base, dots] of [['ё', 'е', true], ['ў', 'у', false]]) {
   forms[char] = forms[base].map(form => {
     const body = structuredClone(form.strokes);
@@ -152,7 +175,7 @@ try {
   const { createGFontBlob, GFont, layoutText, DEFAULT_PLOTTER_CONFIG, profilePatch, DEFAULT_WRITING_CONFIG } = await import(pathToFileURL(modulePath).href);
   const blob=createGFontBlob(glyphs,forms);
   await writeFile('font/plotter/pavel-notes.gfont',Buffer.from(await blob.arrayBuffer()));
-  await writeFile('font/pavel-notes/coverage.json',JSON.stringify({version:2,method:'manual-photo-centrelines-with-legacy-fallback',glyphs:Object.keys(glyphs).join(''),photoReferences:photos.references,photoTracedCharacters:Object.keys(tracedForms).join(''),photoTracedForms:photos.forms.length,legacyCharacters:Object.keys(glyphs).filter(c=>!tracedForms[c]&&!['ё','ў'].includes(c)).join(''),inferredCapitals:inferred.filter(c=>!tracedForms[c]).join(''),variants:Object.keys(forms).filter(c=>forms[c].length>1),formCounts:Object.fromEntries(Object.entries(forms).map(([c,f])=>[c,f.length])),pressureMeasured:false,timingMeasured:false,exactCopyVerified:false},null,2)+'\n');
+  await writeFile('font/pavel-notes/coverage.json',JSON.stringify({version:3,method:'raster-centrelines-with-manual-fallback',glyphs:Object.keys(glyphs).join(''),photoReferences:photos.references,photoTracedCharacters:Object.keys(tracedForms).join(''),photoTracedForms:photos.forms.length,rasterCharacters:Object.keys(inkForms).join(''),rasterForms:Object.values(inkForms).reduce((n,f)=>n+f.length,0),rasterSource:rasterSource.sourceFile,manualFallbackCharacters:Object.keys(glyphs).filter(c=>!inkForms[c]&&!['ё','ў'].includes(c)).join(''),inferredCapitals:inferred.filter(c=>!tracedForms[c]).join(''),variants:Object.keys(forms).filter(c=>forms[c].length>1),formCounts:Object.fromEntries(Object.entries(forms).map(([c,f])=>[c,f.length])),pressureMeasured:false,timingMeasured:false,exactCopyVerified:false},null,2)+'\n');
   const settings = profilePatch('pavelNotes');
   await writeFile('font/pavel-notes/handwriting-settings.json',JSON.stringify(settings,null,2)+'\n');
   await writeFile('font/pavel-notes/writing-config.json',JSON.stringify(DEFAULT_WRITING_CONFIG,null,2)+'\n');
@@ -175,5 +198,5 @@ try {
     `<g transform="translate(30,${row * 130 + 90})"><text y="-25" font-size="22">${escape(char)}</text>${variants.map((form, column) =>
       `<g transform="translate(${65 + column * 155},0)"><path d="M 0 0 H 135" stroke="#d7dce2"/><g transform="scale(.2)">${form.strokes.map(stroke => `<polyline points="${stroke.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="${settings.inkColor}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</g><text y="32" font-size="12" fill="#697386">${form.position === 'final' ? 'окончание' : 'в слове'}</text></g>`).join('')}</g>`).join('');
   await writeFile('font/pavel-notes/variants.svg', `<svg xmlns="http://www.w3.org/2000/svg" width="760" height="${variantEntries.length*130+20}"><rect width="100%" height="100%" fill="white"/>${variantRows}</svg>\n`);
-  console.log(`Default handwriting: ${entries.length} glyphs; ${photos.forms.length} photo-traced forms; ${Object.values(forms).filter(f=>f.length>1).length} characters with alternatives.`);
+  console.log(`Default handwriting: ${entries.length} glyphs; ${Object.values(inkForms).reduce((n,f)=>n+f.length,0)} ink-traced forms; ${Object.values(forms).filter(f=>f.length>1).length} characters with alternatives.`);
 } finally { await rm(directory,{recursive:true,force:true}); }

@@ -1,0 +1,346 @@
+{
+  "version": 1,
+  "method": "source-page overlays at a single 5.2 px/mm scale, translate-only registration",
+  "sourcePhoto": "IMG_0589.HEIC",
+  "sourceUsedForExtraction": true,
+  "heldOutWords": [
+    "сохранение",
+    "определенной",
+    "оползни",
+    "вулканов"
+  ],
+  "heldOutWordWidthErrors": [
+    {
+      "name": "before",
+      "kind": "words",
+      "text": "сохранение",
+      "ratio": 1.2925018301072848,
+      "widthErrorPercent": 29.25
+    },
+    {
+      "name": "before",
+      "kind": "words",
+      "text": "определенной",
+      "ratio": 1.2484606756346195,
+      "widthErrorPercent": 24.85
+    },
+    {
+      "name": "before",
+      "kind": "words",
+      "text": "оползни",
+      "ratio": 1.0521258632606756,
+      "widthErrorPercent": 5.21
+    },
+    {
+      "name": "before",
+      "kind": "words",
+      "text": "вулканов",
+      "ratio": 1.0749036284090783,
+      "widthErrorPercent": 7.49
+    },
+    {
+      "name": "after",
+      "kind": "words",
+      "text": "сохранение",
+      "ratio": 1.128399309579743,
+      "widthErrorPercent": 12.84
+    },
+    {
+      "name": "after",
+      "kind": "words",
+      "text": "определенной",
+      "ratio": 1.0616009962294874,
+      "widthErrorPercent": 6.16
+    },
+    {
+      "name": "after",
+      "kind": "words",
+      "text": "оползни",
+      "ratio": 0.8610560292381961,
+      "widthErrorPercent": -13.89
+    },
+    {
+      "name": "after",
+      "kind": "words",
+      "text": "вулканов",
+      "ratio": 1.1010429869138003,
+      "widthErrorPercent": 10.1
+    }
+  ],
+  "allLineWidthErrors": [
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "Введение",
+      "ratio": 1.0399237359806979,
+      "widthErrorPercent": 3.99
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "07.09.26",
+      "ratio": 0.8689192215008402,
+      "widthErrorPercent": -13.11
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "Глобальные проблемы человечества",
+      "ratio": 1.192514932470917,
+      "widthErrorPercent": 19.25
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "— совокупность природно-экол.",
+      "ratio": 0.9988516684879524,
+      "widthErrorPercent": -0.11
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "и соц.-экономических проблем,",
+      "ratio": 1.025629845432193,
+      "widthErrorPercent": 2.56
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "от решения которых зависит",
+      "ratio": 0.9966812776548394,
+      "widthErrorPercent": -0.33
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "развитие человечества и сохранение",
+      "ratio": 1.2030536863094938,
+      "widthErrorPercent": 20.31
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "цивилизации.",
+      "ratio": 0.9375460031652869,
+      "widthErrorPercent": -6.25
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "Верхняя часть мантии земной",
+      "ratio": 1.1678938163552945,
+      "widthErrorPercent": 16.79
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "коры — литосфера",
+      "ratio": 1.0599717438789944,
+      "widthErrorPercent": 6.0
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "Биота — совокупность всех",
+      "ratio": 1.0064879146920171,
+      "widthErrorPercent": 0.65
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "живых организмов обитающих",
+      "ratio": 1.100032725521403,
+      "widthErrorPercent": 10.0
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "на определенной территории",
+      "ratio": 1.228841514355528,
+      "widthErrorPercent": 22.88
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "Природные причины трансформации",
+      "ratio": 1.3744353596060186,
+      "widthErrorPercent": 37.44
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "литосферы.",
+      "ratio": 0.9561810955247199,
+      "widthErrorPercent": -4.38
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "Природные:",
+      "ratio": 1.1535042055916196,
+      "widthErrorPercent": 15.35
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "1. Давление литосферных плит",
+      "ratio": 1.275830666422756,
+      "widthErrorPercent": 27.58
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "2. Обвалы и оползни",
+      "ratio": 1.0533255507471255,
+      "widthErrorPercent": 5.33
+    },
+    {
+      "name": "before",
+      "kind": "lines",
+      "text": "3. Извержение вулканов",
+      "ratio": 1.103271606366028,
+      "widthErrorPercent": 10.33
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "Введение",
+      "ratio": 0.9241322325405541,
+      "widthErrorPercent": -7.59
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "07.09.26",
+      "ratio": 0.8881809637946977,
+      "widthErrorPercent": -11.18
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "Глобальные проблемы человечества",
+      "ratio": 1.011629881790142,
+      "widthErrorPercent": 1.16
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "— совокупность природно-экол.",
+      "ratio": 1.048533658167326,
+      "widthErrorPercent": 4.85
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "и соц.-экономических проблем,",
+      "ratio": 1.0237241656932106,
+      "widthErrorPercent": 2.37
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "от решения которых зависит",
+      "ratio": 1.0135102145375774,
+      "widthErrorPercent": 1.35
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "развитие человечества и сохранение",
+      "ratio": 1.1154423205066206,
+      "widthErrorPercent": 11.54
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "цивилизации.",
+      "ratio": 0.9372992161591774,
+      "widthErrorPercent": -6.27
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "Верхняя часть мантии земной",
+      "ratio": 1.0867442051524037,
+      "widthErrorPercent": 8.67
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "коры — литосфера",
+      "ratio": 0.9637651186709147,
+      "widthErrorPercent": -3.62
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "Биота — совокупность всех",
+      "ratio": 1.0772833738524341,
+      "widthErrorPercent": 7.73
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "живых организмов обитающих",
+      "ratio": 1.078872594877071,
+      "widthErrorPercent": 7.89
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "на определенной территории",
+      "ratio": 1.0593639079120594,
+      "widthErrorPercent": 5.94
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "Природные причины трансформации",
+      "ratio": 1.1950912773114486,
+      "widthErrorPercent": 19.51
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "литосферы.",
+      "ratio": 0.8828459994325515,
+      "widthErrorPercent": -11.72
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "Природные:",
+      "ratio": 1.0121737081707514,
+      "widthErrorPercent": 1.22
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "1. Давление литосферных плит",
+      "ratio": 1.1768416778229032,
+      "widthErrorPercent": 17.68
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "2. Обвалы и оползни",
+      "ratio": 0.9999985313277225,
+      "widthErrorPercent": -0.0
+    },
+    {
+      "name": "after",
+      "kind": "lines",
+      "text": "3. Извержение вулканов",
+      "ratio": 1.0383971270774668,
+      "widthErrorPercent": 3.84
+    }
+  ],
+  "exactCopyVerified": false,
+  "hardwareVerified": false,
+  "limitations": [
+    "Manual baselines and approximate square-grid scale.",
+    "Width is not a similarity score.",
+    "Two held-out words improve in width; two regress.",
+    "Most capitals, punctuation and ъ retain manual fallback; ё and ў are composite."
+  ]
+}

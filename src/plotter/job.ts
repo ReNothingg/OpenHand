@@ -163,7 +163,7 @@ function splitGlyphStrokes(
     const shapedY = handwriting?.isLetter ? shapeVertical(source.y, handwriting.bodyTop, handwriting.structure) : source.y;
     const localY = shapedY * scale * scaleY * motion.height;
     const localX =
-      (source.x - glyph.bounds.minX) * scale * scaleX - localY * (slant - randomSlant * motion.coherence * 0.85 + Math.tan(motion.slant * Math.PI / 180));
+      (source.x - (glyph.originX ?? glyph.bounds.minX)) * scale * scaleX - localY * (slant - randomSlant * motion.coherence * 0.85 + Math.tan(motion.slant * Math.PI / 180));
     const point = {
       x: cursorX + localX,
       y: baseline + localY + baselineDrift + rhythmDrift * (1 - motion.coherence * 0.85) + motion.baseline * scale * FONT_EM,
@@ -1291,11 +1291,14 @@ export async function layoutText(
             if (!anchor) return null;
             const stroke = primaryGlyphStrokes[anchor.stroke];
             if (!stroke?.length) return null;
-            const point = anchor.end === 'start' ? stroke[0] : stroke.at(-1);
-            const neighbor = anchor.end === 'start' ? stroke[1] : stroke.at(-2);
-            const dx = anchor.end === 'start' ? neighbor.x - point.x : point.x - neighbor.x;
-            const dy = anchor.end === 'start' ? neighbor.y - point.y : point.y - neighbor.y;
-            return { point: { ...point, tangent: { x: dx, y: dy } }, quality: 1, strokeIndex: anchor.stroke, atStart: anchor.end === 'start' };
+            const index = anchor.point ?? (anchor.end === 'start' ? 0 : stroke.length - 1);
+            const point = stroke[index];
+            const next = index < stroke.length - 1;
+            const neighbor = stroke[next ? index + 1 : index - 1];
+            const dx = next ? neighbor.x - point.x : point.x - neighbor.x;
+            const dy = next ? neighbor.y - point.y : point.y - neighbor.y;
+            return { point: { ...point, tangent: { x: dx, y: dy } }, quality: 1, strokeIndex: anchor.stroke,
+              atStart: index === 0, atEnd: index === stroke.length - 1 };
           };
           const entryAnchor = isLetter
             ? explicitAnchor(selectedForm?.entry) || findCursiveAnchor(
@@ -1336,7 +1339,9 @@ export async function layoutText(
             if (connector) {
               const previousStroke = previousJoin.stroke;
               const enteringStroke = primaryGlyphStrokes[entryAnchor.strokeIndex];
-              if (previousStroke && strokes.at(-1) === previousStroke && !previousJoin.anchor.atStart && entryAnchor.atStart && entryAnchor.strokeIndex === 0 && !activeTextStyles.size) {
+              if (previousStroke && strokes.at(-1) === previousStroke &&
+                  (previousJoin.anchor.atEnd ?? !previousJoin.anchor.atStart) &&
+                  entryAnchor.atStart && entryAnchor.strokeIndex === 0 && !activeTextStyles.size) {
                 previousStroke.push(...connector.slice(1), ...enteringStroke.slice(1));
                 glyphStrokes.shift();
                 primaryGlyphStrokes[0] = previousStroke;

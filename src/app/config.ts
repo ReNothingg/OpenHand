@@ -79,15 +79,14 @@ export function normalizeSettings(
   if (settings.handwritingProfile === "pavelNotes" &&
       settings.plotterFontId === "pavel-notes-original") {
     const previousMotion = { authorRhythm: 38, authorBaseline: 18, wordCoherence: 90, lineFitCompression: 8 };
-    const photoDraft = { ...DEFAULT_HANDWRITING_SETTINGS, ...previousMotion, fontSize: 25, lineHeight: 1.45, authorWidth: 100 };
-    const previousDefault = { ...DEFAULT_HANDWRITING_SETTINGS, ...previousMotion };
-    if ([photoDraft, previousDefault].some(previous => Object.entries(previous).every(([key, value]) =>
+    const manualDefaults = { ...DEFAULT_HANDWRITING_SETTINGS, glyphVariation: 14, connectionStrength: 90,
+      authorWidth: 82, authorRhythm: 26, authorBaseline: 12, endCompression: 6 };
+    const photoDraft = { ...manualDefaults, ...previousMotion, fontSize: 25, lineHeight: 1.45, authorWidth: 100 };
+    const previousDefault = { ...manualDefaults, ...previousMotion };
+    if ([photoDraft, previousDefault, manualDefaults].some(previous => Object.entries(previous).every(([key, value]) =>
         !Object.hasOwn(incoming, key) || incoming[key] === value))) {
       // Upgrade only a complete untouched profile; explicit custom values win.
-      settings.fontSize = DEFAULT_HANDWRITING_SETTINGS.fontSize;
-      settings.lineHeight = DEFAULT_HANDWRITING_SETTINGS.lineHeight;
-      settings.authorWidth = DEFAULT_HANDWRITING_SETTINGS.authorWidth;
-      for (const key of Object.keys(previousMotion)) settings[key] = DEFAULT_HANDWRITING_SETTINGS[key];
+      Object.assign(settings, DEFAULT_HANDWRITING_SETTINGS);
     }
     for (const previous of [{ ...previousPavelNotes, ...formerPavelNotes }, previousPavelNotes]) {
       if (Object.entries(previous).every(([key, value]) =>

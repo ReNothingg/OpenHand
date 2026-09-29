@@ -110,7 +110,7 @@ export default function FontStudio({ onClose, deviceControls }: { onClose?: () =
       ...current,
       [activeCharacter]: characterForms.map((f, i) =>
         i === variant
-          ? { ...f, strokes, entry: undefined, exit: undefined, advance: undefined }
+          ? { ...f, strokes, entry: undefined, exit: undefined, advance: undefined, originX: undefined }
           : f,
       ),
     }));

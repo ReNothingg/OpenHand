@@ -10,8 +10,17 @@ export const HANDWRITING_PROFILES = Object.freeze({
   },
   pavelNotes: {
     label: "По умолчанию",
-    description: "Ваши конспекты: оцифрованные по фото формы букв, варианты окончаний и связное письмо. Размер и ритм настроены по тетради.",
+    description: "Линии чернил из ваших конспектов, исходные смещения букв и контекстные соединения. Редкие знаки дополнены прежней реконструкцией.",
     settings: DEFAULT_HANDWRITING_SETTINGS,
+  },
+  pavelNotesLegacy: {
+    label: "Прежняя реконструкция",
+    description: "Сохранённый вариант до оцифровки линий чернил — для сравнения и возврата.",
+    settings: {
+      ...DEFAULT_HANDWRITING_SETTINGS, plotterFontId: "pavel-notes-legacy-original",
+      glyphVariation: 14, connectionStrength: 90, authorWidth: 82,
+      authorRhythm: 26, authorBaseline: 12, endCompression: 6,
+    },
   },
   notebook: {
     label: "Реалистичный",

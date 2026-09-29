@@ -15,7 +15,8 @@
     "windows:build": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/scripts/build-release.ps1",
     "windows:build:arm64": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/scripts/build-release.ps1 -Runtime win-arm64",
     "preview": "vite preview --host 0.0.0.0",
-    "font:pavel": "node scripts/build-pavel-font.mjs"
+    "font:pavel": "node scripts/build-pavel-font.mjs",
+    "font:audit": "node scripts/audit-pavel-font.mjs"
   },
   "dependencies": {
     "dompurify": "^3.2.6",
