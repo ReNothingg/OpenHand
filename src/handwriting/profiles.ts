@@ -22,6 +22,15 @@ export const HANDWRITING_PROFILES = Object.freeze({
       authorRhythm: 26, authorBaseline: 12, endCompression: 6,
     },
   },
+  pavelSamples: {
+    label: "Из заполненного бланка",
+    description: "Ваши целые буквы и реальные варианты из заполненного PDF. Соединения между буквами требуют проверки на связном тексте.",
+    settings: {
+      ...DEFAULT_HANDWRITING_SETTINGS, plotterFontId: "pavel-samples-original",
+      glyphVariation: 0, authorRhythm: 0, authorBaseline: 0,
+      maxWordTilt: 0, maxLift: 0, maxLetterSpacing: 0,
+    },
+  },
   notebook: {
     label: "Реалистичный",
     description: "Связное письмо, спокойная строка, свободные пробелы.",
