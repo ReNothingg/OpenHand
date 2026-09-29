@@ -126,68 +126,43 @@ export function analyzeNaturalness(source, settings) {
 
   if (!total) {
     return {
-      score: 100,
       level: "empty",
       repeats: [],
       recommendations: ["Добавьте текст, чтобы оценить повторяемость почерка."],
     };
   }
 
-  const concentration =
-    repeats.reduce((sum, item) => sum + Math.max(0, item.count - 2), 0) / total;
-  const variation = Math.max(
-    0,
-    Math.min(100, Number(settings.glyphVariation) || 0),
-  );
-  const pressure = Math.max(
-    0,
-    Math.min(50, Number(settings.pressureVariation) || 0),
-  );
+  const variation = Math.max(0, Math.min(100, Number(settings.glyphVariation) || 0));
+  const coherence = Math.max(0, Math.min(100, Number(settings.wordCoherence) || 0));
   const rhythm = Math.max(0, Math.min(100, Number(settings.authorRhythm) || 0));
-  const connections = Math.max(
-    0,
-    Math.min(100, Number(settings.connectionStrength) || 0),
-  );
-  const safeguards =
-    variation * 0.38 +
-    pressure * 0.34 +
-    rhythm * 0.22 +
-    connections * 0.12 +
-    (settings.fatigueEnabled ? 12 : 0);
-  const repetitionRisk =
-    concentration * 58 + Math.max(0, 58 - variation) * 0.52;
-  const score = Math.round(
-    Math.max(0, Math.min(100, 76 + safeguards * 0.32 - repetitionRisk)),
-  );
+  const baseline = Math.max(0, Math.min(100, Number(settings.authorBaseline) || 0));
+  const connections = Math.max(0, Math.min(100, Number(settings.connectionStrength) || 0));
   const recommendations = [];
-  if (variation < 45 && concentration > 0.12)
-    recommendations.push("Увеличить вариативность повторяющихся букв.");
-  if (pressure < 12)
-    recommendations.push("Добавить небольшое изменение давления.");
-  if (rhythm < 30) recommendations.push("Добавить индивидуальный ритм автора.");
-  if (!settings.fatigueEnabled && total > 280)
-    recommendations.push("Для длинного текста включить усталость почерка.");
+  if (variation > 40)
+    recommendations.push("Сильные искажения меняют форму букв. Уменьшите вариативность, сохранив реальные варианты начертаний.");
+  if (coherence < 75)
+    recommendations.push("Увеличьте согласованность букв, чтобы наклон, размер и характер форм не менялись резко внутри слова.");
+  if (rhythm > 50 || baseline > 35)
+    recommendations.push("Снизьте ритм и колебание строки: крупные независимые смещения выглядят неестественно.");
   if (connections < 40)
-    recommendations.push(
-      "Низкая связность делает письмо похожим на набор отдельных глифов.",
-    );
+    recommendations.push("Низкая связность оставляет буквы отдельно. Сверьте соединения с вашим образцом.");
+  if (settings.fontType === "plotter" && Number(settings.lineFitCompression) === 0)
+    recommendations.push("Уплотнение строки отключено: не поместившееся слово сразу переносится.");
+  const level = recommendations.length ? "review" : "good";
   if (!recommendations.length)
-    recommendations.push("Повторяемость сбалансирована для текущего текста.");
-  return {
-    score,
-    level: score >= 82 ? "good" : score >= 62 ? "medium" : "risk",
-    repeats,
-    recommendations,
-  };
+    recommendations.push("Сильных искажений в настройках нет. Сходство почерка проверяйте по образцу, а не по числу случайных эффектов.");
+  return { level, repeats, recommendations };
 }
 
 export function naturalnessAutofix(settings) {
+  const bounded = (value, min, max) => Math.max(min, Math.min(max, Number(value) || 0));
   return {
-    glyphVariation: Math.max(64, Number(settings.glyphVariation) || 0),
-    pressureVariation: Math.max(18, Number(settings.pressureVariation) || 0),
-    authorRhythm: Math.max(52, Number(settings.authorRhythm) || 0),
-    connectionStrength: Math.max(62, Number(settings.connectionStrength) || 0),
-    fatigueEnabled: true,
+    glyphVariation: bounded(settings.glyphVariation, 12, 28),
+    wordCoherence: bounded(settings.wordCoherence, 85, 100),
+    authorRhythm: bounded(settings.authorRhythm, 18, 34),
+    authorBaseline: bounded(settings.authorBaseline, 8, 22),
+    connectionStrength: bounded(settings.connectionStrength, 62, 100),
+    ...(settings.fontType === "plotter" ? { lineFitCompression: bounded(settings.lineFitCompression, 16, 24) } : {}),
     handwritingProfile: "personal",
   };
 }

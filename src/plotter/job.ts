@@ -2,6 +2,7 @@ import { DEFAULT_WRITING_CONFIG } from "../handwriting/defaults";
 import { coordinateFrameCommands } from "./coordinateFrame";
 import { HEADING_SCALES } from "../handwriting/headings";
 import { varyLetterGlyph } from "../handwriting/letterGeometry";
+import { fitHandwritingLine, type WordGap } from "../handwriting/lineFit";
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
 import { DEFAULT_AUTOMATIC_PEN_LIFT_MM, MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, automaticPenSpeed, automaticPenUpPosition, penTravelSeconds } from "./penLift";
 import { chooseForm, formGlyph, letterPosition, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
@@ -501,6 +502,10 @@ export async function layoutText(
   let baseline = page.top + page.fontSize;
   let lineStrokeStart = 0;
   let lineTextOnly = true;
+  let lineLeft = page.left;
+  let lineInkRight = page.left;
+  let lineGaps: WordGap[] = [];
+  let lineFitPending = false;
   let lineFormulaDescent = 0;
   const formulaLineGap = Math.max(0.2, page.lineHeight - page.fontSize);
   let previousLineBottom = page.top - formulaLineGap;
@@ -711,12 +716,27 @@ export async function layoutText(
 
   const closeLineDecorations = () => {
     activeDecorations.forEach((style) =>
-      decorationStroke(style, decorationStarts.get(style) ?? page.left, x),
+      decorationStroke(style, decorationStarts.get(style) ?? page.left, lineInkRight),
     );
   };
 
-  const nextLine = () => {
+  const finishLine = () => {
     closeLineDecorations();
+    if (!lineFitPending) return;
+    let right = lineInkRight;
+    for (let i = lineStrokeStart; i < strokes.length; i++)
+      for (const point of strokes[i]) right = Math.max(right, point.x);
+    const fit = fitHandwritingLine(lineLeft, right, maxX, lineGaps, structureValue(config, "lineFitCompression"));
+    if (fit) {
+      for (let i = lineStrokeStart; i < strokes.length; i++)
+        for (const point of strokes[i]) point.x = fit.mapX(point.x);
+      x = fit.mapX(x);
+    }
+    lineFitPending = false;
+  };
+
+  const nextLine = () => {
+    finishLine();
     for (let i = lineStrokeStart; i < strokes.length; i++)
       for (const point of strokes[i]) previousLineBottom = Math.max(previousLineBottom, point.y);
     x = page.left + (activeQuote ? quoteIndent : 0);
@@ -724,6 +744,9 @@ export async function layoutText(
     lineFormulaDescent = 0;
     lineStrokeStart = strokes.length;
     lineTextOnly = true;
+    lineLeft = x;
+    lineInkRight = x;
+    lineGaps = [];
     pendingHeadingGap = 0;
     activeDecorations.forEach((style) => decorationStarts.set(style, x));
     if (baseline > maxY) clipped = true;
@@ -779,6 +802,39 @@ export async function layoutText(
     PLOTTER_ALIGN_MARKS.centerEnd,
     PLOTTER_ALIGN_MARKS.rightEnd,
   ]);
+  const handwritingParameters = (motion, occurrence, char) => ({
+    motion, bodyTop, structure: config, isLetter: LETTER_PATTERN.test(char),
+    enabled: Boolean(config.trueHandwriting), variation: config.glyphVariation,
+    pressure: config.pressureVariation, seed: config.seed, key: `${occurrence}:${char}`,
+    authorSlant: config.authorSlant, authorWidth: config.authorWidth,
+    rhythm: config.authorRhythm, authorBaseline: config.authorBaseline,
+    fatigueEnabled: config.fatigueEnabled, fatigueStrength: config.fatigueStrength,
+    progress: (baseline - (config.evolutionPageTop ?? page.top)) / Math.max(page.lineHeight,
+      (config.evolutionPageBottom ?? page.pageHeight - (page.bottom || 0)) - (config.evolutionPageTop ?? page.top)),
+  });
+  const letterLayout = (char, occurrence, position, motion, textScale, previous,
+    italic = activeTextStyles.has("italic"), bold = activeTextStyles.has("bold"),
+    context?: { before: string; after: string }) => {
+    const variants = forms.get(char) || [];
+    const selected = config.trueHandwriting
+      ? chooseForm(variants, config.seed, occurrence, position, previous, structureValue(config, "wordCoherence"), context) : 0;
+    const form = variants[selected];
+    const base = form?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
+    const glyph = base && config.trueHandwriting
+      ? varyLetterGlyph(base, config.seed, occurrence, config.glyphVariation, position) : base;
+    const advance = advanceFor(char, textScale, motion.width, activeAlignment === "left" && base
+      ? form?.advance ?? base.bounds.maxX - base.bounds.minX : undefined);
+    let inkAdvance = advance;
+    if (glyph) {
+      const local = splitGlyphStrokes(glyph, 0, 0, scale * textScale, handwritingParameters(motion, occurrence, char));
+      const boldOffset = bold ? Math.max(0.09, Math.min(0.18, page.fontSize * 0.024)) : 0;
+      for (const stroke of local) for (const p of stroke)
+        inkAdvance = Math.max(inkAdvance, p.x - (italic ? p.y * 0.29 : 0) + boldOffset);
+      // Room for the baseline wave in italic text and optional terminal stroke.
+      inkAdvance += page.fontSize * (form?.style ? (italic ? 0.04 : 0) : 0.14);
+    }
+    return { selected, form, glyph, advance, inkAdvance };
+  };
   const widthForLine = (line) => {
     let measuredHeadingLevel = activeHeadingLevel;
     return line
@@ -898,6 +954,8 @@ export async function layoutText(
         );
         const formula = formulaLayouts.get(source);
         if (!formula) continue;
+        if (lineFitPending) nextLine();
+        if (clipped) { preserveOverflow(tokenIndex); break; }
         if (x > page.left && x + formula.width * headingScale() > maxX) {
           nextLine();
           if (clipped) {
@@ -936,6 +994,7 @@ export async function layoutText(
         strokes.push(...applyTextStyles(formulaStrokes));
         lineTextOnly = false;
         x += formula.width * headingScale();
+        lineInkRight = Math.max(lineInkRight, x);
         markCalloutContent();
         continue;
       }
@@ -1039,61 +1098,89 @@ export async function layoutText(
         continue;
       }
       if (/^\s+$/u.test(token)) {
+        const gapStart = Math.max(x, lineInkRight);
+        // An ending's long exit stroke is ink, not part of the following space.
+        // Start spacing after that ink so tightly packed words cannot join.
+        if (strokes.length > lineStrokeStart) x = gapStart;
         for (const char of token) {
           if (char === "\n") nextLine();
-          else x += spaceWidth * (char === "\t" ? 4 : 1) * headingScale() * spaceFactor(config, tokens[tokenIndex - 1] || "");
+          else x += spaceWidth * (char === "\t" ? 4 : 1) * headingScale() * spaceFactor(config, Array.from(tokens[tokenIndex - 1] || "").filter(char => !PLOTTER_CONTROL_MARKS.has(char)).join(""));
         }
+        if (strokes.length > lineStrokeStart && x > gapStart) lineGaps.push({ start: gapStart, end: x });
         continue;
       }
       const tokenChars = Array.from(token);
       const visibleChars = tokenChars.filter((char) => !PLOTTER_CONTROL_MARKS.has(char));
-      const plainWord = visibleChars.length === tokenChars.length;
-      let tokenWidth = plainWord
-        ? tokenChars.reduce((width, char, index) => width + advanceFor(
-            char, headingScale(), wordMotion(config, `${rawLineIndex}:${tokenIndex}:${token}`, index, tokenChars.length).width,
-          ), 0)
-        : widthForLine(token);
-      if (plainWord && activeAlignment === "left") {
-        // Measure the same seeded forms that will be drawn. Summing the widest
-        // alternatives makes short words wrap early when photo forms vary a lot.
+      // Paragraph/style markers have no ink. They must not disable fitting or
+      // change seeded choices compared with the same unformatted sentence.
+      const fittableWord = tokenChars.every(char => !PLOTTER_CONTROL_MARKS.has(char) ||
+        char === PLOTTER_PARAGRAPH_MARKS.start || char === PLOTTER_PARAGRAPH_MARKS.end ||
+        startMarks.has(char) || endMarks.has(char) || textStyleStarts.has(char) ||
+        textStyleEnds.has(char) || headingStarts.has(char) || headingEnds.has(char));
+      const wordKey = `${rawLineIndex}:${tokenIndex}:${visibleChars.join("")}`;
+      const measureToken = () => {
         const predictedForms = new Map(previousForms);
-        let occurrence = glyphOccurrence, cursor = 0, right = 0;
-        for (const [index, char] of tokenChars.entries()) {
-          const variants = forms.get(char) || [];
-          const selected = config.trueHandwriting
-            ? chooseForm(variants, config.seed, occurrence, letterPosition(visibleChars, index), predictedForms.get(char)) : 0;
-          const form = variants[selected];
-          const glyph = form?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
-          const width = glyph && glyph.bounds.maxX - glyph.bounds.minX;
-          const motionWidth = wordMotion(config, `${rawLineIndex}:${tokenIndex}:${token}`, index, tokenChars.length).width;
-          const advance = advanceFor(char, headingScale(), motionWidth, form?.advance ?? width);
-          right = Math.max(right, cursor + advanceFor(char, headingScale(), motionWidth, Math.max(width ?? 0, form?.advance ?? 0)));
-          cursor += advance;
-          if (glyph) { occurrence++; predictedForms.set(char, selected); }
+        let occurrence = glyphOccurrence, cursor = 0, right = 0, index = 0;
+        let level = activeHeadingLevel;
+        const styles = new Set(activeTextStyles);
+        for (const char of tokenChars) {
+          if (headingStarts.has(char)) { level = headingStarts.get(char); continue; }
+          if (headingEnds.has(char)) { level = 0; continue; }
+          if (textStyleStarts.has(char)) { styles.add(textStyleStarts.get(char)); continue; }
+          if (textStyleEnds.has(char)) { styles.delete(textStyleEnds.get(char)); continue; }
+          if (char === PLOTTER_PARAGRAPH_MARKS.start && activeAlignment === "left") {
+            cursor += Math.min((maxX - page.left) * 0.4, page.fontSize * structureValue(config, "paragraphIndent") / 100);
+          }
+          if (PLOTTER_CONTROL_MARKS.has(char)) continue;
+          const motion = wordMotion(config, wordKey, index, visibleChars.length);
+          const letter = letterLayout(char, occurrence, letterPosition(visibleChars, index), motion,
+            scaleForHeading(level), predictedForms.get(char), styles.has("italic"), styles.has("bold"),
+            { before: visibleChars[index - 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "",
+              after: visibleChars[index + 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" });
+          right = Math.max(right, cursor + letter.inkAdvance);
+          cursor += letter.advance;
+          if (letter.glyph) { occurrence++; predictedForms.set(char, letter.selected); }
+          index++;
         }
-        tokenWidth = Math.max(cursor, right);
-      }
-      const overflowsLine = x > page.left && x + tokenWidth > maxX;
-      const fitScale = (maxX - page.left) / (x + tokenWidth - page.left);
-      const fitWordOnLine = overflowsLine && config.trueHandwriting && plainWord && lineTextOnly &&
-        lineStrokeStart < strokes.length && activeAlignment === "left" &&
-        !activeQuote && !activeCallout && !activeDecorations.size && !activeTextStyles.size &&
-        fitScale >= 1 - structureValue(config, "lineFitCompression") / 100;
-      if (overflowsLine && !fitWordOnLine) {
+        const decorationInset = activeDecorations.has("code") || token.includes(PLOTTER_MARKS.codeStart)
+          ? page.fontSize * 0.08 : 0;
+        return Math.max(cursor, right) + Math.max(decorationInset, Number(config.correctionChance) > 0 ? page.fontSize * 0.05 : 0);
+      };
+      let tokenWidth = fittableWord ? measureToken() : widthForLine(token);
+      const mayFit = () => config.trueHandwriting && !config.noWrap && fittableWord && lineTextOnly &&
+        activeAlignment === "left" && !activeQuote && !activeCallout;
+      const fitCandidate = () => mayFit() && fitHandwritingLine(
+        strokes.length === lineStrokeStart && token.includes(PLOTTER_PARAGRAPH_MARKS.start)
+          ? x + Math.min((maxX - page.left) * 0.4, page.fontSize * structureValue(config, "paragraphIndent") / 100) : lineLeft,
+        Math.max(lineInkRight, x + tokenWidth), maxX, lineGaps, structureValue(config, "lineFitCompression"));
+      let fitWordOnLine = Boolean(fitCandidate());
+      if (visibleChars.length && strokes.length > lineStrokeStart && x + tokenWidth > maxX && !fitWordOnLine) {
         nextLine();
         if (clipped) {
           preserveOverflow(tokenIndex);
           break;
         }
+        tokenWidth = fittableWord ? measureToken() : widthForLine(token);
+        fitWordOnLine = Boolean(fitCandidate());
       }
-      if (!plainWord) lineTextOnly = false;
+      if (!fittableWord) {
+        // Finalize a fitted text prefix before switching to fixed geometry.
+        if (lineFitPending) nextLine();
+        if (clipped) { preserveOverflow(tokenIndex); break; }
+        lineTextOnly = false;
+      }
+      if (fitWordOnLine && x + tokenWidth > maxX) lineFitPending = true;
       const tokenStartX = x;
+      let tokenStrokeStart = strokes.length;
       let previousJoin = null;
       let visibleIndex = 0;
       for (let charIndex = 0; charIndex < tokenChars.length; charIndex += 1) {
         const char = tokenChars[charIndex];
         if (char === PLOTTER_PARAGRAPH_MARKS.start) {
-          if (activeAlignment === "left") x += Math.min((maxX - page.left) * 0.4, page.fontSize * structureValue(config, "paragraphIndent") / 100);
+          if (activeAlignment === "left") {
+            x += Math.min((maxX - page.left) * 0.4, page.fontSize * structureValue(config, "paragraphIndent") / 100);
+            if (strokes.length === lineStrokeStart) lineLeft = x;
+          }
           continue;
         }
         if (char === PLOTTER_PARAGRAPH_MARKS.end) {
@@ -1161,23 +1248,18 @@ export async function layoutText(
           continue;
         }
         const currentHeadingScale = headingScale();
-        const motion = wordMotion(config, `${rawLineIndex}:${tokenIndex}:${token}`, visibleIndex, visibleChars.length);
+        const motion = wordMotion(config, wordKey, visibleIndex, visibleChars.length);
+        const position = letterPosition(visibleChars, visibleIndex);
         visibleIndex += 1;
-        const variants = forms.get(char) || [];
-        const position = letterPosition(visibleChars, visibleIndex - 1);
-        const selected = config.trueHandwriting ? chooseForm(variants, config.seed, glyphOccurrence, position, previousForms.get(char)) : 0;
-        const selectedForm = variants[selected];
-        const baseGlyph = selectedForm?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
-        let advance = advanceFor(char, currentHeadingScale, motion.width);
-        let inkAdvance = advance;
-        if (baseGlyph && activeAlignment === "left") {
-          const inkWidth = baseGlyph.bounds.maxX - baseGlyph.bounds.minX;
-          advance = advanceFor(char, currentHeadingScale, motion.width, selectedForm?.advance ?? inkWidth);
-          inkAdvance = advanceFor(char, currentHeadingScale, motion.width, Math.max(inkWidth, selectedForm?.advance ?? 0));
-        }
+        const prepared = letterLayout(char, glyphOccurrence, position, motion, currentHeadingScale, previousForms.get(char),
+          activeTextStyles.has("italic"), activeTextStyles.has("bold"),
+          { before: visibleChars[visibleIndex - 2]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "",
+            after: visibleChars[visibleIndex]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" });
+        const { selected, form: selectedForm, glyph, advance, inkAdvance } = prepared;
         if (x > page.left && x + inkAdvance > maxX && !fitWordOnLine) {
           nextLine();
           previousJoin = null;
+          tokenStrokeStart = strokes.length;
           if (clipped) {
             preserveOverflow(tokenIndex, charIndex);
             break;
@@ -1185,30 +1267,13 @@ export async function layoutText(
         }
         if (clipped) break;
         previousForms.set(char, selected);
-        const glyph = baseGlyph && config.trueHandwriting
-          ? varyLetterGlyph(baseGlyph, config.seed, glyphOccurrence, config.glyphVariation, position)
-          : baseGlyph;
         if (glyph) {
           const sourceGlyphStrokes = splitGlyphStrokes(
             glyph,
             x,
             baseline + (config.trueHandwriting ? Math.sin((x - page.left) / Math.max(1, page.fontSize * 7) + seededRandom(config.seed, `line:${rawLineIndex}`) * Math.PI * 2) * page.fontSize * Math.max(0, Math.min(100, Number(config.authorBaseline) || 0)) * 0.0011 : 0),
             scale * currentHeadingScale,
-            {
-              motion, bodyTop, structure: config, isLetter: LETTER_PATTERN.test(char),
-              enabled: Boolean(config.trueHandwriting),
-              variation: config.glyphVariation,
-              pressure: config.pressureVariation,
-              seed: config.seed,
-              key: `${glyphOccurrence}:${char}`,
-              authorSlant: config.authorSlant,
-              authorWidth: config.authorWidth,
-              rhythm: config.authorRhythm,
-              authorBaseline: config.authorBaseline,
-              fatigueEnabled: config.fatigueEnabled,
-              fatigueStrength: config.fatigueStrength,
-              progress: (baseline - (config.evolutionPageTop ?? page.top)) / Math.max(page.lineHeight, (config.evolutionPageBottom ?? page.pageHeight - (page.bottom || 0)) - (config.evolutionPageTop ?? page.top)),
-            },
+            handwritingParameters(motion, glyphOccurrence, char),
           );
           const glyphStrokes = applyTextStyles(sourceGlyphStrokes);
           const primaryGlyphStrokes = glyphStrokes.slice(
@@ -1281,6 +1346,7 @@ export async function layoutText(
           if (
             config.trueHandwriting &&
             charIndex === 0 &&
+            !selectedForm?.style &&
             entryAnchor?.quality >= 0.35 &&
             seededRandom(config.seed, `lead:${glyphOccurrence}`) < 0.34
           ) {
@@ -1305,7 +1371,7 @@ export async function layoutText(
           }
           strokes.push(...glyphStrokes);
           previousJoin = exitAnchor
-            ? { anchor: exitAnchor, charIsLetter: isLetter, stroke: primaryGlyphStrokes[exitAnchor.strokeIndex] }
+            ? { anchor: exitAnchor, charIsLetter: isLetter, traced: Boolean(selectedForm?.style), stroke: primaryGlyphStrokes[exitAnchor.strokeIndex] }
             : null;
           glyphOccurrence += 1;
         } else {
@@ -1320,6 +1386,7 @@ export async function layoutText(
       if (
         config.trueHandwriting &&
         previousJoin &&
+        !previousJoin.traced &&
         previousJoin.anchor.quality >= 0.35 &&
         seededRandom(config.seed, `tail:${glyphOccurrence}`) < 0.3
       ) {
@@ -1351,24 +1418,17 @@ export async function layoutText(
         correction.pressure = 1.08;
         strokes.push(correction);
       }
-      if (fitWordOnLine && !clipped) {
-        // An optical advance can be shorter than an ascender's ink overhang.
-        let inkRight = x;
-        for (let index = lineStrokeStart; index < strokes.length; index += 1)
-          for (const point of strokes[index]) inkRight = Math.max(inkRight, point.x);
-        const scaleX = Math.min(1, (maxX - page.left) / (inkRight - page.left));
-        for (let index = lineStrokeStart; index < strokes.length; index += 1)
-          for (const point of strokes[index])
-            point.x = page.left + (point.x - page.left) * scaleX;
-        x = page.left + (x - page.left) * scaleX;
-      }
+      if (visibleChars.length) lineInkRight = Math.max(lineInkRight, x);
+      for (let i = tokenStrokeStart; i < strokes.length; i++)
+        for (const point of strokes[i]) lineInkRight = Math.max(lineInkRight, point.x);
+      if (mayFit() && lineInkRight > maxX) lineFitPending = true;
     }
     if (rawLineIndex < rawLines.length - 1) {
       nextLine();
       if (clipped && !overflowText) {
         overflowText = rawLines.slice(rawLineIndex + 1).join("\n");
       }
-    } else closeLineDecorations();
+    } else finishLine();
     if (endsAlignment) activeAlignment = "left";
     if (clipped) break;
   }

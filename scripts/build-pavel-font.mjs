@@ -90,10 +90,23 @@ for (const [char, path] of Object.entries(alternates)) {
 // Normalize by the photographed body height, preserving ascenders/descenders.
 const photos = JSON.parse(await readFile('font/pavel-notes/photo-traces.json', 'utf8'));
 const tracedForms = {};
+const photographedContexts = new Map();
+for (const form of photos.forms) {
+  const peers = photos.forms.filter(f => f.reference === form.reference && f.word === form.word && f.char === form.char);
+  const characters = Array.from(form.word);
+  const positions = characters.flatMap((char, index) => char === form.char ? [index] : []);
+  // Ambiguous occurrences stay unspecified instead of inventing a connection.
+  if (positions.length !== peers.length) continue;
+  const index = positions[peers.indexOf(form)];
+  photographedContexts.set(form, { before: characters[index - 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || '',
+    after: characters[index + 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || '' });
+}
 for (const form of photos.forms) {
   if (!photos.references[form.reference] || form.baseline - form.bodyTop < 8)
     throw new Error(`Invalid photo reference or body height: ${form.char}`);
-  const factor = 220 / (form.baseline - form.bodyTop);
+  // One body-height reference per crop preserves the author's relative letter
+  // sizes. Normalizing every individual letter used to enlarge short и/е.
+  const factor = 220 / (photos.references[form.reference].bodyHeight || (form.baseline - form.bodyTop));
   const strokes = form.paths.flatMap(path => path.match(/M[^M]+/g).map(path =>
     sample(path, p => ({ x: p.x * factor, y: (p.y - form.baseline) * factor }))));
   const minX = Math.min(...strokes.flat().map(p => p.x));
@@ -102,6 +115,9 @@ for (const form of photos.forms) {
   const exitStroke = form.exitStroke ?? strokes.length - 1;
   (tracedForms[form.char] ??= []).push({
     strokes, position: form.position ?? 'any',
+    ...(photographedContexts.has(form) ? { context: photographedContexts.get(form) } : {}),
+    style: ({ 'IMG_0595.HEIC': 'notes', 'IMG_0596.HEIC': 'astronomy',
+      'IMG_0599.HEIC': 'russian', 'IMG_0600.HEIC': 'russian' })[photos.references[form.reference].file] || 'geography',
     ...(Number.isFinite(form.advance) && form.advance > 0
       ? { advance: Math.round(form.advance * factor * 100) / 100 } : {}),
     // High starting strokes (capitals, dotted letters) use the engine's anchor

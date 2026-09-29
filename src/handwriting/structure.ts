@@ -4,9 +4,9 @@ export const STRUCTURE_CONTROLS = [
   { key: "paragraphGap", label: "Интервал после абзаца", min: 0, max: 100, initial: 0, hint: "Дополнительный интервал в процентах межстрочного расстояния." },
   { key: "wordSpacing", label: "Пробел между словами", min: 55, max: 160, initial: 100, hint: "Ширина пробела относительно шрифта." },
   { key: "spaceVariation", label: "Неравномерность пробелов", min: 0, max: 50, initial: 0, hint: "Небольшое различие интервалов между словами." },
-  { key: "wordCoherence", label: "Согласованность букв слова", min: 0, max: 100, initial: 0, hint: "Общий наклон и размер внутри слова вместо независимых скачков букв." },
+  { key: "wordCoherence", label: "Согласованность букв слова", min: 0, max: 100, initial: 0, hint: "Общий наклон и размер внутри слова. У шрифтов по фотографиям сохраняет один характер начертаний без резкого смешивания разных образцов." },
   { key: "endCompression", label: "Сжатие окончания слова", min: 0, max: 18, initial: 0, hint: "Плавно сужает буквы к концу длинного слова." },
-  { key: "lineFitCompression", label: "Сжатие строки для слова", min: 0, max: 12, initial: 8, hint: "Если до края не помещается одно слово, слегка сужает всю строку. При сильном сжатии слово переносится." },
+  { key: "lineFitCompression", label: "Вместить слово в строку", min: 0, max: 28, initial: 20, plotterOnly: true, hint: "Перед переносом уменьшает пробелы, затем умеренно сужает буквы всей строки, сохраняя их высоту. Лимит действует на строку целиком. 0 — отключить." },
   { key: "ascenderScale", label: "Верхние петли", min: 75, max: 130, initial: 100, plotterOnly: true, hint: "Меняет верхние выносные штрихи GFont, сохраняя тело буквы." },
   { key: "descenderScale", label: "Нижние хвосты", min: 75, max: 130, initial: 100, plotterOnly: true, hint: "Длина штрихов ниже строки в траектории GFont." },
 ] as const;

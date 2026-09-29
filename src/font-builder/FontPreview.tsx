@@ -69,6 +69,9 @@ export default function FontPreview({
       characterIndex,
       position,
       previous.get(character),
+      100,
+      { before: characters[characterIndex - 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "",
+        after: characters[characterIndex + 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" },
     );
     previous.set(character, index);
     const sourceStrokes = variants[index]?.strokes.length

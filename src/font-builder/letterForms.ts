@@ -6,6 +6,9 @@ export type LetterForm = {
   strokes: FontStroke[];
   /** Horizontal step from the left ink bound; swashes may extend beyond it. */
   advance?: number;
+  /** Forms photographed in the same writing session share a consistent style. */
+  style?: string;
+  context?: { before: string; after: string };
   entry?: JoinAnchor;
   exit?: JoinAnchor;
   position?: "any" | "initial" | "medial" | "final";
@@ -72,6 +75,12 @@ export function validForms(value: unknown): LetterForm[] {
     return [
       {
         strokes,
+        ...(typeof form.style === "string" && /^[a-z0-9-]{1,32}$/.test(form.style)
+          ? { style: form.style } : {}),
+        ...(form.context && typeof form.context.before === "string" &&
+          typeof form.context.after === "string" &&
+          /^[\p{L}\p{N}]?$/u.test(form.context.before) && /^[\p{L}\p{N}]?$/u.test(form.context.after)
+          ? { context: { before: form.context.before, after: form.context.after } } : {}),
         ...(typeof form.advance === "number" && Number.isFinite(form.advance) &&
           form.advance > 0 && form.advance <= 100000 ? { advance: form.advance } : {}),
         entry: anchor(form.entry),
@@ -90,8 +99,10 @@ export function chooseForm(
   occurrence: number,
   position: string,
   previous = -1,
+  coherence = 0,
+  context?: { before: string; after: string },
 ) {
-  const eligible = forms
+  let eligible = forms
     .map((form, index) => ({ form, index }))
     .filter(
       ({ form }) =>
@@ -103,6 +114,18 @@ export function chooseForm(
   if (!eligible.length) return 0;
   let hash = Math.imul((Number(seed) || 0) ^ occurrence, 0x45d9f3b);
   hash = Math.imul(hash ^ (hash >>> 16), 0x45d9f3b);
+  const style = forms[0]?.style;
+  const consistent = style ? eligible.filter(item => item.form.style === style) : [];
+  if (consistent.length && ((hash >>> 0) % 100) < Math.max(0, Math.min(100, coherence)))
+    eligible = consistent;
+  if (context) {
+    const score = (form: LetterForm) => form.context
+      ? Number(form.context.before === context.before) + Number(form.context.after === context.after) : 0;
+    const best = Math.max(...eligible.map(item => score(item.form)));
+    // Prefer an observed connection, while leaving occasional alternatives.
+    if (best && ((hash >>> 8) % 10) < 8)
+      eligible = eligible.filter(item => score(item.form) === best);
+  }
   // Handwriting can repeat a shape. Prefer a different form, but avoid a rigid
   // A-B-A-B alternation when only two forms are available.
   const alternatives = eligible.filter((item) => item.index !== previous);

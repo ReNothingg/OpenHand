@@ -1,6 +1,5 @@
 interface NaturalnessReportData {
   level: string;
-  score: number;
   repeats: Array<{ character: string; count: number }>;
   recommendations: string[];
 }
@@ -14,25 +13,7 @@ export default function NaturalnessReport({
 }) {
   return (
     <div className={`naturalness-report ${report.level}`}>
-      <div className="naturalness-score">
-        <span>
-          <small title="Эвристика по тексту и настройкам, не сравнение с образцом почерка.">
-            Условная оценка
-          </small>
-          <strong>
-            {report.score}
-            <i>/100</i>
-          </strong>
-        </span>
-        <meter
-          min={0}
-          max={100}
-          low={62}
-          high={82}
-          optimum={100}
-          value={report.score}
-        />
-      </div>
+      <strong>Проверка настроек почерка</strong>
       {!!report.repeats.length && (
         <div
           className="naturalness-repeats"
