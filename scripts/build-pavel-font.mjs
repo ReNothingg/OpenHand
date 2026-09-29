@@ -102,6 +102,8 @@ for (const form of photos.forms) {
   const exitStroke = form.exitStroke ?? strokes.length - 1;
   (tracedForms[form.char] ??= []).push({
     strokes, position: form.position ?? 'any',
+    ...(Number.isFinite(form.advance) && form.advance > 0
+      ? { advance: Math.round(form.advance * factor * 100) / 100 } : {}),
     // High starting strokes (capitals, dotted letters) use the engine's anchor
     // search. Never connect the next letter to a detached dot or crossbar.
     ...(strokes[entryStroke][0].y > -120 ? { entry: { stroke: entryStroke, end: 'start' } } : {}),
@@ -111,8 +113,9 @@ for (const form of photos.forms) {
 for (const [char, variants] of Object.entries(tracedForms)) {
   if (variants.length > 6 || !variants.some(f => f.position === 'any'))
     throw new Error(`Unsupported forms for ${char}`);
-  forms[char] = variants;
-  glyphs[char] = variants.find(f => f.position === 'any').strokes;
+  // Index zero is also used with variation disabled, so keep it context-free.
+  forms[char] = [...variants.filter(f => f.position === 'any'), ...variants.filter(f => f.position !== 'any')];
+  glyphs[char] = forms[char][0].strokes;
 }
 for (const [char, base, dots] of [['ё', 'е', true], ['ў', 'у', false]]) {
   forms[char] = forms[base].map(form => {

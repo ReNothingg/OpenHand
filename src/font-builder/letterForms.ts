@@ -4,6 +4,8 @@ import { orderedStrokeSamples } from "./strokeSamples";
 export type JoinAnchor = { stroke: number; end: "start" | "end" };
 export type LetterForm = {
   strokes: FontStroke[];
+  /** Horizontal step from the left ink bound; swashes may extend beyond it. */
+  advance?: number;
   entry?: JoinAnchor;
   exit?: JoinAnchor;
   position?: "any" | "initial" | "medial" | "final";
@@ -70,6 +72,8 @@ export function validForms(value: unknown): LetterForm[] {
     return [
       {
         strokes,
+        ...(typeof form.advance === "number" && Number.isFinite(form.advance) &&
+          form.advance > 0 && form.advance <= 100000 ? { advance: form.advance } : {}),
         entry: anchor(form.entry),
         exit: anchor(form.exit),
         position: ["initial", "medial", "final"].includes(form.position)

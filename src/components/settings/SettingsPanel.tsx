@@ -116,7 +116,7 @@ export default function SettingsPanel({
           value={settings.lineHeight}
           min={1}
           max={2.5}
-          step={0.05}
+          step={0.01}
           suffix="×"
           onChange={(value) => updateSetting("lineHeight", value)}
         />

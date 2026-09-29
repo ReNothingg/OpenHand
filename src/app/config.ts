@@ -68,14 +68,23 @@ export function normalizeSettings(
   const formerPavelNotes = {
     inkColor: "#233266", glyphVariation: 18, connectionStrength: 72,
     authorRhythm: 22, authorBaseline: 12, spaceVariation: 16, endCompression: 4,
+    authorWidth: 100,
   };
   const previousPavelNotes = {
     fontSize: 27, lineHeight: 1.4, inkColor: "#28518f", glyphVariation: 35,
     connectionStrength: 82, authorRhythm: 32, authorBaseline: 26,
     wordSpacing: 82, spaceVariation: 22, wordCoherence: 85, endCompression: 5,
+    authorWidth: 100,
   };
   if (settings.handwritingProfile === "pavelNotes" &&
       settings.plotterFontId === "pavel-notes-original") {
+    const photoDraft = { ...DEFAULT_HANDWRITING_SETTINGS, fontSize: 25, lineHeight: 1.45, authorWidth: 100 };
+    if (Object.entries(photoDraft).every(([key, value]) =>
+        !Object.hasOwn(incoming, key) || incoming[key] === value)) {
+      settings.fontSize = DEFAULT_HANDWRITING_SETTINGS.fontSize;
+      settings.lineHeight = DEFAULT_HANDWRITING_SETTINGS.lineHeight;
+      settings.authorWidth = DEFAULT_HANDWRITING_SETTINGS.authorWidth;
+    }
     for (const previous of [{ ...previousPavelNotes, ...formerPavelNotes }, previousPavelNotes]) {
       if (Object.entries(previous).every(([key, value]) =>
           !Object.hasOwn(incoming, key) || incoming[key] === value)) {

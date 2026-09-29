@@ -399,7 +399,8 @@ export async function layoutText(
         forms.set(char, variants);
         const prepared = variants.map(form => formGlyph(form, char.codePointAt(0)));
         formGlyphs.set(char, prepared);
-        maximumWidths.set(char, Math.max(glyph.bounds.maxX - glyph.bounds.minX, ...prepared.map(g => g.bounds.maxX - g.bounds.minX)));
+        maximumWidths.set(char, Math.max(glyph.bounds.maxX - glyph.bounds.minX,
+          ...prepared.map((g, index) => Math.max(g.bounds.maxX - g.bounds.minX, variants[index].advance ?? 0))));
       }
     }
     else if (recordMissing) missing.add(char);
@@ -1047,11 +1048,31 @@ export async function layoutText(
       const tokenChars = Array.from(token);
       const visibleChars = tokenChars.filter((char) => !PLOTTER_CONTROL_MARKS.has(char));
       const plainWord = visibleChars.length === tokenChars.length;
-      const tokenWidth = plainWord
+      let tokenWidth = plainWord
         ? tokenChars.reduce((width, char, index) => width + advanceFor(
             char, headingScale(), wordMotion(config, `${rawLineIndex}:${tokenIndex}:${token}`, index, tokenChars.length).width,
           ), 0)
         : widthForLine(token);
+      if (plainWord && activeAlignment === "left") {
+        // Measure the same seeded forms that will be drawn. Summing the widest
+        // alternatives makes short words wrap early when photo forms vary a lot.
+        const predictedForms = new Map(previousForms);
+        let occurrence = glyphOccurrence, cursor = 0, right = 0;
+        for (const [index, char] of tokenChars.entries()) {
+          const variants = forms.get(char) || [];
+          const selected = config.trueHandwriting
+            ? chooseForm(variants, config.seed, occurrence, letterPosition(visibleChars, index), predictedForms.get(char)) : 0;
+          const form = variants[selected];
+          const glyph = form?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
+          const width = glyph && glyph.bounds.maxX - glyph.bounds.minX;
+          const motionWidth = wordMotion(config, `${rawLineIndex}:${tokenIndex}:${token}`, index, tokenChars.length).width;
+          const advance = advanceFor(char, headingScale(), motionWidth, form?.advance ?? width);
+          right = Math.max(right, cursor + advanceFor(char, headingScale(), motionWidth, Math.max(width ?? 0, form?.advance ?? 0)));
+          cursor += advance;
+          if (glyph) { occurrence++; predictedForms.set(char, selected); }
+        }
+        tokenWidth = Math.max(cursor, right);
+      }
       const overflowsLine = x > page.left && x + tokenWidth > maxX;
       const fitScale = (maxX - page.left) / (x + tokenWidth - page.left);
       const fitWordOnLine = overflowsLine && config.trueHandwriting && plainWord && lineTextOnly &&
@@ -1142,8 +1163,19 @@ export async function layoutText(
         const currentHeadingScale = headingScale();
         const motion = wordMotion(config, `${rawLineIndex}:${tokenIndex}:${token}`, visibleIndex, visibleChars.length);
         visibleIndex += 1;
+        const variants = forms.get(char) || [];
+        const position = letterPosition(visibleChars, visibleIndex - 1);
+        const selected = config.trueHandwriting ? chooseForm(variants, config.seed, glyphOccurrence, position, previousForms.get(char)) : 0;
+        const selectedForm = variants[selected];
+        const baseGlyph = selectedForm?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
         let advance = advanceFor(char, currentHeadingScale, motion.width);
-        if (x > page.left && x + advance > maxX && !fitWordOnLine) {
+        let inkAdvance = advance;
+        if (baseGlyph && activeAlignment === "left") {
+          const inkWidth = baseGlyph.bounds.maxX - baseGlyph.bounds.minX;
+          advance = advanceFor(char, currentHeadingScale, motion.width, selectedForm?.advance ?? inkWidth);
+          inkAdvance = advanceFor(char, currentHeadingScale, motion.width, Math.max(inkWidth, selectedForm?.advance ?? 0));
+        }
+        if (x > page.left && x + inkAdvance > maxX && !fitWordOnLine) {
           nextLine();
           previousJoin = null;
           if (clipped) {
@@ -1152,18 +1184,7 @@ export async function layoutText(
           }
         }
         if (clipped) break;
-        const variants = forms.get(char) || [];
-        const position = letterPosition(visibleChars, visibleIndex - 1);
-        const selected = config.trueHandwriting ? chooseForm(variants, config.seed, glyphOccurrence, position, previousForms.get(char)) : 0;
-        const selectedForm = variants[selected];
         previousForms.set(char, selected);
-        const baseGlyph = selectedForm?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
-        // Reserve the widest form when wrapping, but place the next character
-        // after the form actually written. Otherwise narrow photo variants get
-        // the wide variant's blank gap in the middle of a connected word.
-        // Centered/right-aligned text keeps the metrics used by widthForLine.
-        if (baseGlyph && activeAlignment === "left") advance = advanceFor(char, currentHeadingScale, motion.width,
-          baseGlyph.bounds.maxX - baseGlyph.bounds.minX);
         const glyph = baseGlyph && config.trueHandwriting
           ? varyLetterGlyph(baseGlyph, config.seed, glyphOccurrence, config.glyphVariation, position)
           : baseGlyph;
@@ -1331,7 +1352,11 @@ export async function layoutText(
         strokes.push(correction);
       }
       if (fitWordOnLine && !clipped) {
-        const scaleX = Math.min(1, (maxX - page.left) / (x - page.left));
+        // An optical advance can be shorter than an ascender's ink overhang.
+        let inkRight = x;
+        for (let index = lineStrokeStart; index < strokes.length; index += 1)
+          for (const point of strokes[index]) inkRight = Math.max(inkRight, point.x);
+        const scaleX = Math.min(1, (maxX - page.left) / (inkRight - page.left));
         for (let index = lineStrokeStart; index < strokes.length; index += 1)
           for (const point of strokes[index])
             point.x = page.left + (point.x - page.left) * scaleX;

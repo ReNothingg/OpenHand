@@ -4,7 +4,7 @@ import {
   type FontStroke,
   type PenSettings,
 } from "./penInput";
-import { chooseForm, formGlyph, type LetterForms } from "./letterForms";
+import { chooseForm, formGlyph, letterPosition, type LetterForms } from "./letterForms";
 import { varyLetterGlyph } from "../handwriting/letterGeometry";
 import { createCursiveConnector } from "../plotter/job";
 
@@ -49,24 +49,20 @@ export default function FontPreview({
   const scale = size / 168;
   const baseline = 118;
   let cursor = 18;
+  let inkRight = cursor;
   const paths: React.ReactNode[] = [];
   const previous = new Map<string, number>();
   let previousExit: { x: number; y: number } | null = null;
 
-  Array.from(text).forEach((character, characterIndex) => {
+  const characters = Array.from(text);
+  characters.forEach((character, characterIndex) => {
     if (/\s/u.test(character)) {
       cursor += size * 0.86;
       previousExit = null;
       return;
     }
     const variants = forms[character] || [];
-    const position =
-      !characterIndex || /\s/.test(text[characterIndex - 1])
-        ? "initial"
-        : characterIndex === text.length - 1 ||
-            /\s/.test(text[characterIndex + 1])
-          ? "final"
-          : "medial";
+    const position = letterPosition(characters, characterIndex);
     const index = chooseForm(
       variants,
       31847,
@@ -86,6 +82,7 @@ export default function FontPreview({
       return points;
     });
     const metrics = glyphWidth(strokes);
+    inkRight = Math.max(inkRight, cursor + metrics.width * scale);
     const form = variants[index];
     const anchorPoint = (kind: "entry" | "exit") => {
       const anchor = form?.[kind],
@@ -144,10 +141,10 @@ export default function FontPreview({
         />,
       );
     });
-    cursor += metrics.width * scale;
+    cursor += (form?.advance ?? metrics.width) * scale;
   });
 
-  const width = Math.max(720, cursor + 18);
+  const width = Math.max(720, cursor + 18, inkRight + 18);
 
   return (
     <div className="font-preview-canvas">
