@@ -1,272 +1,1719 @@
 {
-  "version": 3,
-  "method": "raster-centrelines-with-manual-fallback",
-  "glyphs": "0123456789абвгдежзийклмнопрстуфхцчшщъыьэюяі.,:;-—+=()/!?АБВГДЕЗИКЛМНОПРСТУФЧЯёўЙЁІЎЖХЦШЩЪЫЬЭЮ«»[]№",
-  "photoReferences": {
-    "595-detail": {
-      "file": "IMG_0595.HEIC",
-      "orientedSize": [
-        1650,
-        2200
+  "version": 4,
+  "method": "reviewed-notebook-centrelines-with-author-sheet-fallback",
+  "glyphs": "0123456789абвгдежзийклмнопрстуфхцчшщъыьэюяі.,:;-—+=()/!?АБВГДЕЗИКЛМНОПРСТУФЧЯёўЙЁІЎЖХЦШЩЪЫЬЭЮ«»[]№%°",
+  "notebookSources": {
+    "IMG_0839": {
+      "file": "IMG_0839.HEIC",
+      "size": [
+        4284,
+        5712
       ],
-      "crop": [
-        100,
-        200,
-        1500,
-        900
-      ],
-      "text": "Развитие ИКТ, свободный доступ к информации, рост роли знаний и образования, цифровизация экономики",
-      "bodyHeight": 46
+      "sha256": "5ba24536ade78c6ab7ee90e79dc508e1581b0f7e88006968ab759084b8f6428e",
+      "ruled": false,
+      "scaleReference": "5 mm grid cells"
     },
-    "600-russian": {
-      "file": "IMG_0600.HEIC",
-      "orientedSize": [
-        1824,
-        1368
-      ],
-      "crop": [
-        125,
-        830,
-        790,
-        410
-      ],
-      "text": "Упражнение 2.40: шофёр, жёсткий, танцовщица, щётка, холщовый, пончо, прожорство, жёлудь",
-      "bodyHeight": 22
+    "IMG_0840": {
+      "file": "IMG_0840.HEIC",
+      "sha256": "58c5fc00bf07472f435ebee770e718ebaaaa761acdbed27b967d7e30aa84116e",
+      "ruled": false,
+      "scaleReference": "5 mm grid cells"
     },
-    "596-astronomy": {
-      "file": "IMG_0596.HEIC",
-      "orientedSize": [
-        1368,
-        1824
-      ],
-      "crop": [
-        200,
-        270,
-        1000,
-        500
-      ],
-      "text": "Астрономия, Солнце, строение, движение, происхождение, физические свойства небесных объектов",
-      "bodyHeight": 29
+    "IMG_0841": {
+      "file": "IMG_0841.HEIC",
+      "sha256": "5f665d3a34f3d2a7e3faf9c86df6d3ea1eadcd35118f9f11e74302b01157551e",
+      "ruled": false,
+      "scaleReference": "5 mm grid cells"
     },
-    "589-page": {
-      "file": "IMG_0589.HEIC",
-      "orientedSize": [
-        1824,
-        1368
-      ],
-      "crop": [
-        905,
-        190,
-        835,
-        1090
-      ],
-      "text": "Глобальные проблемы человечества, Биота, Природные, Давление, Обвалы, Извержение",
-      "bodyHeight": 26
+    "IMG_0842": {
+      "file": "IMG_0842.HEIC",
+      "sha256": "59280028ad5b10d11856882acfff33565691e362cd2f0ff77e4b14dbbf9a676f",
+      "ruled": false,
+      "scaleReference": "5 mm grid cells"
     },
-    "590-page": {
-      "file": "IMG_0590.HEIC",
-      "orientedSize": [
-        1824,
-        1368
-      ],
-      "crop": [
-        900,
-        280,
-        780,
-        1010
-      ],
-      "text": "Особенности атмосферы, Взаимодействие, Мировой океан, Значение",
-      "bodyHeight": 25
+    "IMG_0843": {
+      "file": "IMG_0843.HEIC",
+      "sha256": "e2006a2cd63adbe2be6ea6e6e32d231eede8010d82a45c1accbc135d9627818d",
+      "ruled": false,
+      "scaleReference": "5 mm grid cells"
     },
-    "591-page": {
-      "file": "IMG_0591.HEIC",
-      "orientedSize": [
-        1824,
-        1368
-      ],
-      "crop": [
-        905,
-        195,
-        785,
-        1075
-      ],
-      "text": "Общество, Социальное действие, Картотеки",
-      "bodyHeight": 26
+    "IMG_0844": {
+      "file": "IMG_0844.HEIC",
+      "sha256": "277142466a54261382f062fe52c1d056e9720bd6f630d95df057d9ac8bef6796",
+      "ruled": false,
+      "scaleReference": "5 mm grid cells"
     },
-    "599-left": {
-      "file": "IMG_0599.HEIC",
-      "orientedSize": [
-        1824,
-        1368
-      ],
-      "crop": [
-        110,
-        160,
-        790,
-        1110
-      ],
-      "text": "Домашняя работа, Надеяться, Сеять, Реять, Таять, Клеить, Бороться, Зависеть",
-      "bodyHeight": 25
+    "IMG_0845": {
+      "file": "IMG_0845.HEIC",
+      "sha256": "7ad538caaa4c812571a70e51047b5e5c05d376dc04dca54d45665adfb5c731b2",
+      "ruled": false,
+      "scaleReference": "5 mm grid cells"
     },
-    "600-right": {
-      "file": "IMG_0600.HEIC",
-      "orientedSize": [
-        1824,
-        1368
-      ],
-      "crop": [
-        940,
-        220,
-        760,
-        1030
-      ],
-      "text": "Очень не лёгкая задача, Не лёгкая, Не дорогой костюм, Не выполненное мною задание",
-      "bodyHeight": 25
+    "IMG_0846": {
+      "file": "IMG_0846.HEIC",
+      "sha256": "535cd16e81a70f36a26643ccf04d58e86c454164b0fcef7db982e5719ae7c2d0",
+      "ruled": false,
+      "scaleReference": "5 mm grid cells"
     },
-    "589-date": {
-      "file": "IMG_0589.HEIC",
-      "orientedSize": [
-        1824,
-        1368
-      ],
-      "crop": [
-        1630,
-        200,
-        135,
-        55
-      ],
-      "text": "07.09.26",
-      "bodyHeight": 23
+    "IMG_0847": {
+      "file": "IMG_0847.HEIC",
+      "sha256": "303122443bde248cafa8c4a2e5e4380b556aaee66ae2311f19107589d03b10ab",
+      "ruled": false,
+      "scaleReference": "5 mm grid cells"
     },
-    "598-numbers": {
-      "file": "IMG_0598.HEIC",
-      "orientedSize": [
-        1824,
-        1368
-      ],
-      "crop": [
-        960,
-        180,
-        800,
-        410
-      ],
-      "text": "Сириус -1,46; Арктур -0.05; Вега +0.03; Капелла +0.08; Ригель +0,12",
-      "bodyHeight": 25
+    "IMG_0848": {
+      "file": "IMG_0848.HEIC",
+      "sha256": "1d8d208c6c0cf66e19eabc6cac219197178042041baabd7b6a030323c51e1644",
+      "ruled": false,
+      "scaleReference": "5 mm grid cells"
     },
-    "596-page": {
-      "file": "IMG_0596.HEIC",
-      "orientedSize": [
-        1368,
-        1824
-      ],
-      "crop": [
-        195,
-        225,
-        1050,
-        1375
-      ],
-      "text": "Астрономия, Солнце, Луна, Небесная механика",
-      "bodyHeight": 32
+    "IMG_0849": {
+      "file": "IMG_0849.HEIC",
+      "sha256": "885967fccd79dfa589b3ae0d9a8b37f71009360d52439eff1f33415c4fd3d4c2",
+      "ruled": true,
+      "scaleReference": "8 mm ruled line pitch"
+    },
+    "IMG_0850": {
+      "file": "IMG_0850.HEIC",
+      "sha256": "dac500a7d1879c9171a3251fde730aa670477660b25d0a0be5afddd07a22e3db",
+      "ruled": true,
+      "scaleReference": "8 mm ruled line pitch"
     }
   },
-  "photoTracedCharacters": "0123456789азвитесобдныупкфрлцмяРВИКТэшжчщьхъйГБДОПгюЗМСНУЛА+=-",
-  "photoTracedForms": 113,
-  "rasterCharacters": "ГлобаьныепрмчвсткуидэшяхзцВйфжгющ",
-  "rasterForms": 57,
-  "rasterSource": "IMG_0589.HEIC",
-  "manualFallbackCharacters": "0123456789ъі.,:;-—+=()/!?АБДЕЗИКЛМНОПРСТУФЧЯЙЁІЎЖХЦШЩЪЫЬЭЮ«»[]№",
-  "inferredCapitals": "ЖХЦШЩЪЫЬЭЮ",
+  "notebookCharacters": "еханичсклбявыОоумтжрпзКдцСгПИйющ:)эь",
+  "notebookForms": 275,
+  "notebookWords": 162,
+  "bodyHeight": 200,
+  "medianSlant": 0.333,
+  "sheetFallbackCharacters": "0123456789ёфшъўАБВГДЕЁЖЗЙЛМНРТУФХЦЧШЩЪЫЬЭЮЯЎ.,;!?-—(«»/+=%№°[]",
+  "manualFallbackCharacters": "іІ",
+  "inferredCapitals": "",
   "variants": [
     "0",
+    "1",
     "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
     "а",
     "е",
     "о",
+    "и",
+    "н",
+    "т",
     "с",
+    "я",
     "б",
+    "в",
+    "д",
     "к",
     "л",
+    "м",
     "п",
     "р",
+    "у",
+    "ш",
+    "з",
     "ы",
+    "ф",
+    "ц",
     "Р",
-    "И",
+    "В",
     "К",
     "Т",
+    "э",
+    "ж",
+    "ч",
+    "щ",
     "ь",
+    "х",
+    "ъ",
+    "й",
+    "Г",
     "Б",
     "Д",
-    "О",
+    "П",
+    "г",
+    "ю",
     "З",
+    "М",
     "С",
     "Н",
-    "ё"
+    "У",
+    "Л",
+    "А",
+    "ё",
+    "ў",
+    "Е",
+    "Ё",
+    "Ж",
+    "Й",
+    "Ф",
+    "Х",
+    "Ц",
+    "Ч",
+    "Ш",
+    "Щ",
+    "Ъ",
+    "Ы",
+    "Ь",
+    "Э",
+    "Ю",
+    "Я",
+    "Ў"
   ],
   "formCounts": {
     "0": 2,
-    "1": 1,
+    "1": 2,
     "2": 2,
-    "3": 1,
-    "4": 1,
-    "5": 1,
-    "6": 1,
-    "7": 1,
-    "8": 1,
-    "9": 1,
-    "а": 2,
-    "е": 5,
-    "о": 6,
-    "и": 1,
-    "н": 1,
-    "т": 1,
-    "с": 2,
-    "я": 1,
-    "б": 2,
-    "в": 1,
-    "д": 1,
-    "к": 2,
-    "л": 5,
-    "м": 1,
-    "п": 3,
-    "р": 3,
-    "у": 1,
-    "ш": 1,
-    "з": 1,
-    "ы": 3,
-    "ф": 1,
-    "ц": 1,
+    "3": 2,
+    "4": 2,
+    "5": 2,
+    "6": 2,
+    "7": 2,
+    "8": 2,
+    "9": 2,
+    "а": 12,
+    "е": 12,
+    "о": 12,
+    "и": 12,
+    "н": 12,
+    "т": 12,
+    "с": 12,
+    "я": 12,
+    "б": 12,
+    "в": 12,
+    "д": 12,
+    "к": 12,
+    "л": 12,
+    "м": 12,
+    "п": 11,
+    "р": 12,
+    "у": 12,
+    "ш": 3,
+    "з": 7,
+    "ы": 7,
+    "ф": 3,
+    "ц": 4,
     "Р": 2,
-    "В": 1,
-    "И": 2,
-    "К": 2,
+    "В": 2,
+    "И": 1,
+    "К": 4,
     "Т": 2,
-    "э": 1,
-    "ж": 1,
-    "ч": 1,
-    "щ": 1,
+    "э": 3,
+    "ж": 5,
+    "ч": 6,
+    "щ": 6,
     "ь": 2,
-    "х": 1,
-    "ъ": 1,
-    "й": 1,
-    "Г": 1,
+    "х": 4,
+    "ъ": 3,
+    "й": 4,
+    "Г": 2,
     "Б": 2,
     "Д": 2,
-    "О": 3,
-    "П": 1,
-    "г": 1,
-    "ю": 1,
+    "О": 1,
+    "П": 3,
+    "г": 7,
+    "ю": 3,
     "З": 2,
-    "М": 1,
-    "С": 2,
-    "Н": 3,
-    "У": 1,
-    "Л": 1,
-    "А": 1,
+    "М": 2,
+    "С": 3,
+    "Н": 2,
+    "У": 2,
+    "Л": 2,
+    "А": 2,
     "+": 1,
     "=": 1,
     "-": 1,
-    "ё": 5,
-    "ў": 1
+    "ё": 3,
+    "ў": 3,
+    "Е": 2,
+    "Ё": 2,
+    "Ж": 2,
+    "Й": 2,
+    "Ф": 2,
+    "Х": 2,
+    "Ц": 2,
+    "Ч": 2,
+    "Ш": 2,
+    "Щ": 2,
+    "Ъ": 2,
+    "Ы": 2,
+    "Ь": 2,
+    "Э": 2,
+    "Ю": 2,
+    "Я": 2,
+    "Ў": 2,
+    ".": 1,
+    ",": 1,
+    ";": 1,
+    "!": 1,
+    "?": 1,
+    "—": 1,
+    "(": 1,
+    "«": 1,
+    "»": 1,
+    "/": 1,
+    "%": 1,
+    "№": 1,
+    "°": 1,
+    "[": 1,
+    "]": 1,
+    ":": 1,
+    ")": 1
+  },
+  "notebookFormSources": {
+    "е": [
+      {
+        "word": 0,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 0,
+        "char": 11,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 3,
+        "char": 7,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 7,
+        "char": 6,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 86,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 25,
+        "char": 3,
+        "photo": "IMG_0846"
+      },
+      {
+        "word": 162,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 0,
+        "char": 7,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 1,
+        "char": 3,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 2,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 6,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 9,
+        "char": 4,
+        "photo": "IMG_0839"
+      }
+    ],
+    "х": [
+      {
+        "word": 0,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 49,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 153,
+        "char": 6,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 33,
+        "char": 0,
+        "photo": "IMG_0839"
+      }
+    ],
+    "а": [
+      {
+        "word": 0,
+        "char": 3,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 14,
+        "char": 9,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 19,
+        "char": 4,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 21,
+        "char": 6,
+        "photo": "IMG_0843"
+      },
+      {
+        "word": 142,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 220,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 29,
+        "char": 1,
+        "photo": "IMG_0849"
+      },
+      {
+        "word": 1,
+        "char": 5,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 5,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 12,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 14,
+        "char": 7,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 33,
+        "char": 1,
+        "photo": "IMG_0839"
+      }
+    ],
+    "н": [
+      {
+        "word": 0,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 30,
+        "char": 2,
+        "photo": "IMG_0850"
+      },
+      {
+        "word": 167,
+        "char": 4,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 174,
+        "char": 4,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 80,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 93,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 105,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 23,
+        "char": 1,
+        "photo": "IMG_0845"
+      },
+      {
+        "word": 24,
+        "char": 5,
+        "photo": "IMG_0846"
+      },
+      {
+        "word": 26,
+        "char": 5,
+        "photo": "IMG_0847"
+      },
+      {
+        "word": 29,
+        "char": 5,
+        "photo": "IMG_0849"
+      },
+      {
+        "word": 1,
+        "char": 6,
+        "photo": "IMG_0839"
+      }
+    ],
+    "и": [
+      {
+        "word": 0,
+        "char": 5,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 5,
+        "char": 7,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 11,
+        "char": 6,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 44,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 160,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 209,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 23,
+        "char": 8,
+        "photo": "IMG_0845"
+      },
+      {
+        "word": 28,
+        "char": 7,
+        "photo": "IMG_0848"
+      },
+      {
+        "word": 1,
+        "char": 7,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 2,
+        "char": 5,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 4,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 5,
+        "char": 5,
+        "photo": "IMG_0839"
+      }
+    ],
+    "ч": [
+      {
+        "word": 0,
+        "char": 6,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 10,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 119,
+        "char": 4,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 199,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 8,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 12,
+        "char": 3,
+        "photo": "IMG_0839"
+      }
+    ],
+    "с": [
+      {
+        "word": 0,
+        "char": 8,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 12,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 16,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 53,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 18,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 95,
+        "char": 9,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 3,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 18,
+        "char": 3,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 182,
+        "char": 1,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 185,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 194,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 208,
+        "char": 9,
+        "photo": "IMG_0841"
+      }
+    ],
+    "к": [
+      {
+        "word": 0,
+        "char": 9,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 1,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 7,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 36,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 22,
+        "char": 2,
+        "photo": "IMG_0844"
+      },
+      {
+        "word": 25,
+        "char": 4,
+        "photo": "IMG_0846"
+      },
+      {
+        "word": 95,
+        "char": 10,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 165,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 5,
+        "char": 6,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 16,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 49,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 61,
+        "char": 2,
+        "photo": "IMG_0839"
+      }
+    ],
+    "л": [
+      {
+        "word": 1,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 65,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 140,
+        "char": 3,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 117,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 196,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 21,
+        "char": 5,
+        "photo": "IMG_0843"
+      },
+      {
+        "word": 2,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 12,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 36,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 44,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 50,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 53,
+        "char": 1,
+        "photo": "IMG_0839"
+      }
+    ],
+    "б": [
+      {
+        "word": 1,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 17,
+        "char": 3,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 175,
+        "char": 4,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 36,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 50,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 72,
+        "char": 4,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 117,
+        "char": 2,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 127,
+        "char": 4,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 189,
+        "char": 4,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 193,
+        "char": 4,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 197,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 206,
+        "char": 4,
+        "photo": "IMG_0841"
+      }
+    ],
+    "я": [
+      {
+        "word": 5,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 1,
+        "char": 8,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 15,
+        "char": 7,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 26,
+        "char": 7,
+        "photo": "IMG_0847"
+      },
+      {
+        "word": 146,
+        "char": 7,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 191,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 196,
+        "char": 1,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 207,
+        "char": 1,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 213,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 60,
+        "char": 7,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 61,
+        "char": 8,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 72,
+        "char": 8,
+        "photo": "IMG_0840"
+      }
+    ],
+    "в": [
+      {
+        "word": 3,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 25,
+        "char": 7,
+        "photo": "IMG_0846"
+      },
+      {
+        "word": 2,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 11,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 55,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 17,
+        "char": 1,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 182,
+        "char": 4,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 87,
+        "char": 2,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 89,
+        "char": 2,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 96,
+        "char": 5,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 200,
+        "char": 3,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 218,
+        "char": 2,
+        "photo": "IMG_0841"
+      }
+    ],
+    "ы": [
+      {
+        "word": 7,
+        "char": 5,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 2,
+        "char": 7,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 29,
+        "char": 7,
+        "photo": "IMG_0849"
+      },
+      {
+        "word": 119,
+        "char": 7,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 185,
+        "char": 6,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 220,
+        "char": 8,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 225,
+        "char": 4,
+        "photo": "IMG_0841"
+      }
+    ],
+    "О": [
+      {
+        "word": 3,
+        "char": 0,
+        "photo": "IMG_0839"
+      }
+    ],
+    "о": [
+      {
+        "word": 3,
+        "char": 3,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 9,
+        "char": 7,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 103,
+        "char": 2,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 107,
+        "char": 3,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 25,
+        "char": 0,
+        "photo": "IMG_0846"
+      },
+      {
+        "word": 108,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 146,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 18,
+        "char": 5,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 22,
+        "char": 1,
+        "photo": "IMG_0844"
+      },
+      {
+        "word": 23,
+        "char": 3,
+        "photo": "IMG_0845"
+      },
+      {
+        "word": 27,
+        "char": 6,
+        "photo": "IMG_0847"
+      },
+      {
+        "word": 3,
+        "char": 6,
+        "photo": "IMG_0839"
+      }
+    ],
+    "у": [
+      {
+        "word": 4,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 158,
+        "char": 5,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 165,
+        "char": 5,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 140,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 177,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 20,
+        "char": 2,
+        "photo": "IMG_0842"
+      },
+      {
+        "word": 21,
+        "char": 4,
+        "photo": "IMG_0843"
+      },
+      {
+        "word": 12,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 13,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 13,
+        "char": 3,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 19,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 53,
+        "char": 4,
+        "photo": "IMG_0839"
+      }
+    ],
+    "м": [
+      {
+        "word": 9,
+        "char": 3,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 18,
+        "char": 9,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 142,
+        "char": 9,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 5,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 54,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 191,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 21,
+        "char": 3,
+        "photo": "IMG_0843"
+      },
+      {
+        "word": 27,
+        "char": 3,
+        "photo": "IMG_0847"
+      },
+      {
+        "word": 81,
+        "char": 5,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 85,
+        "char": 2,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 123,
+        "char": 3,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 143,
+        "char": 7,
+        "photo": "IMG_0840"
+      }
+    ],
+    "т": [
+      {
+        "word": 5,
+        "char": 3,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 13,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 85,
+        "char": 5,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 108,
+        "char": 1,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 49,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 143,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 184,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 25,
+        "char": 5,
+        "photo": "IMG_0846"
+      },
+      {
+        "word": 29,
+        "char": 6,
+        "photo": "IMG_0849"
+      },
+      {
+        "word": 7,
+        "char": 2,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 14,
+        "char": 8,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 81,
+        "char": 3,
+        "photo": "IMG_0840"
+      }
+    ],
+    "ж": [
+      {
+        "word": 6,
+        "char": 3,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 20,
+        "char": 3,
+        "photo": "IMG_0842"
+      },
+      {
+        "word": 109,
+        "char": 4,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 207,
+        "char": 2,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 147,
+        "char": 4,
+        "photo": "IMG_0840"
+      }
+    ],
+    "р": [
+      {
+        "word": 7,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 83,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 89,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 187,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 20,
+        "char": 1,
+        "photo": "IMG_0842"
+      },
+      {
+        "word": 9,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 9,
+        "char": 5,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 11,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 14,
+        "char": 3,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 15,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 47,
+        "char": 1,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 60,
+        "char": 1,
+        "photo": "IMG_0839"
+      }
+    ],
+    "п": [
+      {
+        "word": 146,
+        "char": 1,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 9,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 47,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 132,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 134,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 156,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 157,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 164,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 169,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 176,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 195,
+        "char": 0,
+        "photo": "IMG_0841"
+      }
+    ],
+    "з": [
+      {
+        "word": 19,
+        "char": 3,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 10,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 83,
+        "char": 2,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 88,
+        "char": 1,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 124,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 158,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 138,
+        "char": 2,
+        "photo": "IMG_0840"
+      }
+    ],
+    "К": [
+      {
+        "word": 14,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 27,
+        "char": 0,
+        "photo": "IMG_0847"
+      },
+      {
+        "word": 67,
+        "char": 0,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 92,
+        "char": 0,
+        "photo": "IMG_0840"
+      }
+    ],
+    "д": [
+      {
+        "word": 14,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 121,
+        "char": 5,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 211,
+        "char": 5,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 96,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 46,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 53,
+        "char": 3,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 87,
+        "char": 4,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 92,
+        "char": 3,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 146,
+        "char": 4,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 181,
+        "char": 1,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 186,
+        "char": 1,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 200,
+        "char": 2,
+        "photo": "IMG_0841"
+      }
+    ],
+    "ц": [
+      {
+        "word": 15,
+        "char": 5,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 23,
+        "char": 7,
+        "photo": "IMG_0845"
+      },
+      {
+        "word": 169,
+        "char": 5,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 60,
+        "char": 5,
+        "photo": "IMG_0839"
+      }
+    ],
+    "С": [
+      {
+        "word": 17,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 28,
+        "char": 0,
+        "photo": "IMG_0848"
+      },
+      {
+        "word": 30,
+        "char": 0,
+        "photo": "IMG_0850"
+      }
+    ],
+    "г": [
+      {
+        "word": 92,
+        "char": 2,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 19,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 181,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 186,
+        "char": 0,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 140,
+        "char": 1,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 142,
+        "char": 2,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 212,
+        "char": 4,
+        "photo": "IMG_0841"
+      }
+    ],
+    "П": [
+      {
+        "word": 20,
+        "char": 0,
+        "photo": "IMG_0842"
+      },
+      {
+        "word": 121,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 211,
+        "char": 0,
+        "photo": "IMG_0841"
+      }
+    ],
+    "И": [
+      {
+        "word": 23,
+        "char": 0,
+        "photo": "IMG_0845"
+      }
+    ],
+    "й": [
+      {
+        "word": 36,
+        "char": 8,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 46,
+        "char": 11,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 117,
+        "char": 4,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 197,
+        "char": 4,
+        "photo": "IMG_0841"
+      }
+    ],
+    "ю": [
+      {
+        "word": 53,
+        "char": 5,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 148,
+        "char": 9,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 96,
+        "char": 7,
+        "photo": "IMG_0840"
+      }
+    ],
+    "щ": [
+      {
+        "word": 53,
+        "char": 6,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 100,
+        "char": 3,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 162,
+        "char": 3,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 57,
+        "char": 4,
+        "photo": "IMG_0839"
+      },
+      {
+        "word": 154,
+        "char": 3,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 196,
+        "char": 3,
+        "photo": "IMG_0841"
+      }
+    ],
+    ":": [
+      {
+        "word": 55,
+        "char": 8,
+        "photo": "IMG_0839"
+      }
+    ],
+    ")": [
+      {
+        "word": 57,
+        "char": 9,
+        "photo": "IMG_0839"
+      }
+    ],
+    "э": [
+      {
+        "word": 114,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 122,
+        "char": 0,
+        "photo": "IMG_0840"
+      },
+      {
+        "word": 129,
+        "char": 0,
+        "photo": "IMG_0840"
+      }
+    ],
+    "ь": [
+      {
+        "word": 184,
+        "char": 3,
+        "photo": "IMG_0841"
+      },
+      {
+        "word": 203,
+        "char": 3,
+        "photo": "IMG_0841"
+      }
+    ]
   },
   "pressureMeasured": false,
   "timingMeasured": false,

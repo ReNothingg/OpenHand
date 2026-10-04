@@ -1301,20 +1301,20 @@ export async function layoutText(
               atStart: index === 0, atEnd: index === stroke.length - 1 };
           };
           const entryAnchor = isLetter
-            ? explicitAnchor(selectedForm?.entry) || findCursiveAnchor(
+            ? explicitAnchor(selectedForm?.entry) || (selectedForm?.joins === "recorded" ? null : findCursiveAnchor(
                 primaryGlyphStrokes,
                 "entry",
                 baseline,
                 page.fontSize * currentHeadingScale,
-              )
+              ))
             : null;
           const exitAnchor = isLetter
-            ? explicitAnchor(selectedForm?.exit) || findCursiveAnchor(
+            ? explicitAnchor(selectedForm?.exit) || (selectedForm?.joins === "recorded" ? null : findCursiveAnchor(
                 primaryGlyphStrokes,
                 "exit",
                 baseline,
                 page.fontSize * currentHeadingScale,
-              )
+              ))
             : null;
           const connectionChance = Math.max(
             0,

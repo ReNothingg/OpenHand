@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { rasterLetterForms } from './raster-letter-forms.mjs';
+import { notebookLetterForms, selectNotebookForms, NOTEBOOK_BODY_HEIGHT } from './notebook-letter-forms.mjs';
+import { sheetLetterForms } from './sheet-letter-forms.mjs';
 
 // Editable centreline geometry, not outlines: a plotter traverses every line once.
 const source = JSON.parse(await readFile('font/pavel-notes/strokes.json', 'utf8'));
@@ -168,14 +170,61 @@ for (const [char, base, dots] of [['ё', 'е', true], ['ў', 'у', false]]) {
   });
   glyphs[char] = forms[char][0].strokes;
 }
+// New notebook photographs provide the everyday connected forms. Whole
+// PencilKit letters from the author's sheet fill gaps in the photographed
+// alphabet, including capitals and punctuation that otherwise were inferred.
+const notebookSource = JSON.parse(await readFile('font/pavel-notes/notebook-strokes.json', 'utf8'));
+const notebookSpec = JSON.parse(await readFile('font/pavel-notes/notebook-words.json', 'utf8'));
+const capturedNotebook = notebookLetterForms(notebookSource);
+const notebookForms = selectNotebookForms(capturedNotebook.forms);
+const sheetSource = JSON.parse(await readFile('font/pavel-notes/sheet-strokes.json', 'utf8'));
+const sheetCalibration = JSON.parse(await readFile('font/pavel-notes/sheet-size-calibration.json', 'utf8'));
+const sheetFallback = sheetLetterForms(sheetSource, sheetCalibration).forms;
+const sheetScale = NOTEBOOK_BODY_HEIGHT / sheetSource.normalisedBodyHeight;
+// The sheet's period sits in the middle of its box; in a line it rests on the
+// baseline like the photographed periods. Only a vertical shift is applied.
+const restOnBaseline = new Set(['.']);
+for (const [char, variants] of Object.entries(sheetFallback)) {
+  if (notebookForms[char]) continue;
+  forms[char] = variants.map(form => {
+    const lift = restOnBaseline.has(char) ? -6 - Math.max(...form.strokes.flat().map(p => p.y * sheetScale)) : 0;
+    // Digits were written in separate cells; keep their own width plus a pen gap.
+    const inkRight = Math.max(...form.strokes.flat().map(p => p.x * sheetScale)) - (form.originX ?? 0) * sheetScale;
+    return { ...form,
+      advance: /^\p{N}$/u.test(char) ? Math.max(form.advance * sheetScale, inkRight + 30, 120) : form.advance * sheetScale,
+      originX: (form.originX ?? 0) * sheetScale,
+      strokes: form.strokes.map(stroke => stroke.map(p => ({ ...p,
+        x: +(p.x * sheetScale).toFixed(4), y: +(p.y * sheetScale + lift).toFixed(4),
+      }))),
+    };
+  });
+  glyphs[char] = forms[char][0].strokes;
+}
+for (const [char, variants] of Object.entries(notebookForms)) {
+  forms[char] = variants;
+  glyphs[char] = variants[0].strokes;
+}
 const directory = await mkdtemp(join(tmpdir(), 'openhand-font-'));
 try {
   const modulePath=join(directory,'export.mjs');
-  await build({stdin:{contents: `export {createGFontBlob} from './src/font-builder/gfontExport.ts'; export {GFont} from './src/plotter/gfont.ts'; export {layoutText,DEFAULT_PLOTTER_CONFIG} from './src/plotter/job.ts'; export {profilePatch,DEFAULT_WRITING_CONFIG} from './src/handwriting/profiles.ts';`,resolveDir:process.cwd()},outfile:modulePath,bundle:true,format:'esm',platform:'node',loader:{'.gfont':'file'},logLevel:'silent'});
-  const { createGFontBlob, GFont, layoutText, DEFAULT_PLOTTER_CONFIG, profilePatch, DEFAULT_WRITING_CONFIG } = await import(pathToFileURL(modulePath).href);
+  await build({stdin:{contents: `export {createGFontBlob} from './src/font-builder/gfontExport.ts'; export {GFont} from './src/plotter/gfont.ts'; export {layoutText,DEFAULT_PLOTTER_CONFIG} from './src/plotter/job.ts'; export {profilePatch,DEFAULT_WRITING_CONFIG} from './src/handwriting/profiles.ts'; export {inkRibbonPath,penWidthMm} from './src/handwriting/inkAppearance.ts';`,resolveDir:process.cwd()},outfile:modulePath,bundle:true,format:'esm',platform:'node',loader:{'.gfont':'file'},logLevel:'silent'});
+  const { createGFontBlob, GFont, layoutText, DEFAULT_PLOTTER_CONFIG, profilePatch, DEFAULT_WRITING_CONFIG, inkRibbonPath, penWidthMm } = await import(pathToFileURL(modulePath).href);
   const blob=createGFontBlob(glyphs,forms);
   await writeFile('font/plotter/pavel-notes.gfont',Buffer.from(await blob.arrayBuffer()));
-  await writeFile('font/pavel-notes/coverage.json',JSON.stringify({version:3,method:'raster-centrelines-with-manual-fallback',glyphs:Object.keys(glyphs).join(''),photoReferences:photos.references,photoTracedCharacters:Object.keys(tracedForms).join(''),photoTracedForms:photos.forms.length,rasterCharacters:Object.keys(inkForms).join(''),rasterForms:Object.values(inkForms).reduce((n,f)=>n+f.length,0),rasterSource:rasterSource.sourceFile,manualFallbackCharacters:Object.keys(glyphs).filter(c=>!inkForms[c]&&!['ё','ў'].includes(c)).join(''),inferredCapitals:inferred.filter(c=>!tracedForms[c]).join(''),variants:Object.keys(forms).filter(c=>forms[c].length>1),formCounts:Object.fromEntries(Object.entries(forms).map(([c,f])=>[c,f.length])),pressureMeasured:false,timingMeasured:false,exactCopyVerified:false},null,2)+'\n');
+  await writeFile('font/pavel-notes/coverage.json', JSON.stringify({
+    version: 4, method: 'reviewed-notebook-centrelines-with-author-sheet-fallback',
+    glyphs: Object.keys(glyphs).join(''), notebookSources: notebookSpec.sources,
+    notebookCharacters: Object.keys(notebookForms).join(''),
+    notebookForms: Object.values(notebookForms).reduce((n, f) => n + f.length, 0),
+    notebookWords: notebookSource.words.length, bodyHeight: NOTEBOOK_BODY_HEIGHT,
+    medianSlant: capturedNotebook.slant,
+    sheetFallbackCharacters: Object.keys(sheetFallback).filter(c => !notebookForms[c]).join(''),
+    manualFallbackCharacters: Object.keys(glyphs).filter(c => !notebookForms[c] && !sheetFallback[c]).join(''),
+    inferredCapitals: '', variants: Object.keys(forms).filter(c => forms[c].length > 1),
+    formCounts: Object.fromEntries(Object.entries(forms).map(([c, f]) => [c, f.length])),
+    notebookFormSources: Object.fromEntries(Object.entries(notebookForms).map(([c, f]) => [c, f.map(form => form.source)])),
+    pressureMeasured: false, timingMeasured: false, exactCopyVerified: false,
+  }, null, 2) + '\n');
   const settings = profilePatch('pavelNotes');
   await writeFile('font/pavel-notes/handwriting-settings.json',JSON.stringify(settings,null,2)+'\n');
   await writeFile('font/pavel-notes/writing-config.json',JSON.stringify(DEFAULT_WRITING_CONFIG,null,2)+'\n');
@@ -184,8 +233,10 @@ try {
   const text = await readFile('font/pavel-notes/sample.txt','utf8');
   const layout = await layoutText(text,font,page,{...DEFAULT_PLOTTER_CONFIG,...settings,...DEFAULT_WRITING_CONFIG,seed:31847});
   if (layout.missing.length || layout.clipped) throw new Error('Personal font sample has missing glyphs or overflows.');
-  const paths = layout.strokes.map(stroke => `<polyline points="${stroke.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="${settings.inkColor}" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
-  await writeFile('font/pavel-notes/writing-sample.svg',`<svg xmlns="http://www.w3.org/2000/svg" width="740" height="1050" viewBox="0 0 148 210"><rect width="148" height="210" fill="white"/>${paths}</svg>\n`);
+  const paths = layout.strokes.map((stroke, index) => `<path d="${inkRibbonPath(stroke,penWidthMm(settings),settings.inkVariation,settings.seed+index)}" fill="${settings.inkColor}" opacity=".98"/>`).join('');
+  const grain = (await readFile('public/textures/paper-grain.svg')).toString('base64');
+  const paper = `<defs><pattern id="grid" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M5 0V5H0" fill="none" stroke="#9baabf" stroke-width=".12"/></pattern><pattern id="grain" width="24" height="24" patternUnits="userSpaceOnUse"><image href="data:image/svg+xml;base64,${grain}" width="24" height="24"/></pattern></defs><rect width="148" height="210" fill="#fffdf8"/><rect width="148" height="210" fill="url(#grain)"/><rect width="148" height="210" fill="url(#grid)"/>`;
+  await writeFile('font/pavel-notes/writing-sample.svg',`<svg xmlns="http://www.w3.org/2000/svg" width="740" height="1050" viewBox="0 0 148 210">${paper}${paths}</svg>\n`);
   const escape = s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
   const entries=Object.entries(glyphs);
   const tiles=entries.map(([char,strokes],i)=>{
@@ -198,5 +249,5 @@ try {
     `<g transform="translate(30,${row * 130 + 90})"><text y="-25" font-size="22">${escape(char)}</text>${variants.map((form, column) =>
       `<g transform="translate(${65 + column * 155},0)"><path d="M 0 0 H 135" stroke="#d7dce2"/><g transform="scale(.2)">${form.strokes.map(stroke => `<polyline points="${stroke.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="${settings.inkColor}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</g><text y="32" font-size="12" fill="#697386">${form.position === 'final' ? 'окончание' : 'в слове'}</text></g>`).join('')}</g>`).join('');
   await writeFile('font/pavel-notes/variants.svg', `<svg xmlns="http://www.w3.org/2000/svg" width="760" height="${variantEntries.length*130+20}"><rect width="100%" height="100%" fill="white"/>${variantRows}</svg>\n`);
-  console.log(`Default handwriting: ${entries.length} glyphs; ${Object.values(inkForms).reduce((n,f)=>n+f.length,0)} ink-traced forms; ${Object.values(forms).filter(f=>f.length>1).length} characters with alternatives.`);
+  console.log(`Default handwriting: ${entries.length} glyphs; ${Object.values(notebookForms).reduce((n,f)=>n+f.length,0)} reviewed notebook forms from ${Object.keys(notebookSpec.sources).length} photos; ${Object.values(forms).filter(f=>f.length>1).length} characters with alternatives.`);
 } finally { await rm(directory,{recursive:true,force:true}); }

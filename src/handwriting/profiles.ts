@@ -10,7 +10,7 @@ export const HANDWRITING_PROFILES = Object.freeze({
   },
   pavelNotes: {
     label: "По умолчанию",
-    description: "Линии чернил из ваших конспектов, исходные смещения букв и контекстные соединения. Редкие знаки дополнены прежней реконструкцией.",
+    description: "Ваш повседневный почерк по 12 фотографиям: целые буквы, реальные варианты и соединения. Редкие знаки — из вашего заполненного бланка.",
     settings: DEFAULT_HANDWRITING_SETTINGS,
   },
   pavelNotesLegacy: {
@@ -27,6 +27,7 @@ export const HANDWRITING_PROFILES = Object.freeze({
     description: "Ваши целые буквы и реальные варианты из заполненного PDF. Соединения между буквами требуют проверки на связном тексте.",
     settings: {
       ...DEFAULT_HANDWRITING_SETTINGS, plotterFontId: "pavel-samples-original",
+      pressureVariation: 0,
       glyphVariation: 0, authorRhythm: 0, authorBaseline: 0,
       maxWordTilt: 0, maxLift: 0, maxLetterSpacing: 0,
     },

@@ -5,8 +5,9 @@ export const DEFAULT_WRITING_CONFIG = Object.freeze({
 // Stable font/profile IDs preserve previously saved documents.
 export const DEFAULT_HANDWRITING_SETTINGS = {
   fontType: "plotter", plotterFontId: "pavel-notes-original", trueHandwriting: true,
-  // About 4.7 mm x-height and 10 mm baseline pitch on the photographed 5 mm grid.
-  fontSize: 32, lineHeight: 1.18, inkColor: "#304d87",
+  // A common 4.23 mm body and 10 mm line pitch preserve notebook proportions.
+  fontSize: 32, lineHeight: 1.18, inkColor: "#303f7b",
+  penWidthMm: 0.32, inkVariation: 12, paperTexture: true,
   glyphVariation: 4, connectionStrength: 100, pressureVariation: 0,
   maxWordTilt: 0.7, maxLift: 0.4, maxLetterSpacing: 0.15,
   authorSlant: 0, authorWidth: 100, authorRhythm: 12, authorBaseline: 8,

@@ -10,6 +10,8 @@ export type LetterForm = {
   originX?: number;
   /** Forms photographed in the same writing session share a consistent style. */
   style?: string;
+  /** Recorded absences are pen lifts; do not invent anchors for these forms. */
+  joins?: "recorded";
   context?: { before: string; after: string };
   entry?: JoinAnchor;
   exit?: JoinAnchor;
@@ -25,9 +27,12 @@ export function letterPosition(characters: string[], index: number) {
   return isLetter(characters[index + 1]) ? "medial" : "final";
 }
 
+/** Photographed fonts keep more real alternatives than hand-drawn studio sets. */
+export const MAX_LETTER_FORMS = 12;
+
 export function validForms(value: unknown): LetterForm[] {
   if (!Array.isArray(value)) return [];
-  return value.slice(0, 6).flatMap((form): LetterForm[] => {
+  return value.slice(0, MAX_LETTER_FORMS).flatMap((form): LetterForm[] => {
     if (!form || !Array.isArray(form.strokes) || form.strokes.length > 512)
       return [];
     let count = 0;
@@ -77,6 +82,7 @@ export function validForms(value: unknown): LetterForm[] {
     return [
       {
         strokes,
+        ...(form.joins === "recorded" ? { joins: "recorded" as const } : {}),
         ...(typeof form.style === "string" && /^[a-z0-9-]{1,32}$/.test(form.style)
           ? { style: form.style } : {}),
         ...(form.context && typeof form.context.before === "string" &&

@@ -23,8 +23,9 @@ export function fitHandwritingLine(
   }
   const gapWidth = spaces.reduce((sum, gap) => sum + gap.end - gap.start, 0);
   const deficit = Math.max(0, width - available);
-  // Tighten spaces first. Even at maximum fitting, a visible space remains.
-  const gapReduction = gapWidth ? Math.min(limit * 2, 0.45, deficit / gapWidth) : 0;
+  // Tighten spaces first, but only moderately: in the notebook photographs a
+  // crowded line end keeps clearly separated words and narrows letters instead.
+  const gapReduction = gapWidth ? Math.min(limit * 1.25, 0.3, deficit / gapWidth) : 0;
   const tightened = width - gapWidth * gapReduction;
   const scale = tightened > available ? available / tightened : 1;
   if (scale < 1 - limit - 1e-9) return null;

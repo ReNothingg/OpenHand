@@ -32,7 +32,7 @@ interface GFontEntry {
 
 export const BUILTIN_GFONT_FAMILIES = [
   { id: "retest", label: "ReTest", description: "личный рукописный GFont", source: "ReTest.gfont", variants: [{ id: "retest-original", label: "оригинал" }] },
-  { id: "pavel-notes", label: "По умолчанию", description: "линии чернил из ваших конспектов, 98 знаков", source: "pavel-notes.gfont", variants: [{ id: "pavel-notes-original", label: "основной" }] },
+  { id: "pavel-notes", label: "По умолчанию", description: "связный конспектный почерк автора", source: "pavel-notes.gfont", variants: [{ id: "pavel-notes-original", label: "основной" }] },
   { id: "pavel-notes-legacy", label: "Прежняя реконструкция", description: "сохранённый вариант до оцифровки чернил", source: "pavel-notes-legacy.gfont", variants: [{ id: "pavel-notes-legacy-original", label: "сохранённый" }] },
   { id: "pavel-samples", label: "Из заполненного бланка", description: "целые буквы из вашего PDF, 210 реальных начертаний", source: "pavel-samples.gfont", variants: [{ id: "pavel-samples-original", label: "основной" }] },
   {

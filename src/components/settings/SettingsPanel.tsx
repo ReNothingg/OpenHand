@@ -137,6 +137,7 @@ export default function SettingsPanel({
         />
       </SettingSection>
       <SettingSection title="Страница и поля" open={false}>
+          <Toggle checked={settings.paperTexture} onChange={value => updateSetting("paperTexture", value)} label="Фактура бумаги" />
           <Toggle checked={settings.compactLayout} onChange={value => updateSetting("compactLayout", value)} label="Компактная разбивка">
             <small>Убирает лишние пустые строки. Несколько заданий размещаются на одной странице, если хватает места; заголовок остаётся с началом решения.</small>
           </Toggle>
@@ -327,6 +328,27 @@ export default function SettingsPanel({
               suffix="%"
               onChange={(value) => updateSetting("pressureVariation", value)}
               hint="Слегка меняет толщину предпросмотра и усилие пера между штрихами."
+            />
+            <RangeControl
+              label="Толщина линии"
+              value={settings.penWidthMm}
+              min={0.1}
+              max={1.2}
+              step={0.01}
+              suffix=" мм"
+              disabled={settings.fontType !== "plotter"}
+              onChange={(value) => updateSetting("penWidthMm", value)}
+              hint="Толщина чернил на экране и в PDF. На бумаге она зависит от установленной ручки."
+            />
+            <RangeControl
+              label="Колебание толщины"
+              value={settings.inkVariation}
+              min={0}
+              max={50}
+              suffix="%"
+              disabled={settings.fontType !== "plotter"}
+              onChange={(value) => updateSetting("inkVariation", value)}
+              hint="Плавные изменения чернил внутри штриха на экране и в PDF. На команды плоттера не влияет."
             />
             </SettingSection>
             <SettingSection title="Абзацы, интервалы и строки" open={false}>

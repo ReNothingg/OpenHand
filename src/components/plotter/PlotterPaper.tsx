@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+import { inkRibbonPath, penWidthMm } from "../../handwriting/inkAppearance";
 
 function svgPath(strokes) {
   return strokes
@@ -53,10 +54,13 @@ function pointOnStroke(stroke, progress) {
 }
 
 function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
-  const inkWidthMm = 0.4;
+  const inkWidthMm = penWidthMm(settings);
   const orderedStrokes = playback?.strokes?.length
     ? playback.strokes
     : layout?.strokes || [];
+  const inkPaths = useMemo(() => orderedStrokes.map((stroke, index) => settings.trueHandwriting
+    ? inkRibbonPath(stroke, inkWidthMm, settings.inkVariation, settings.seed + index)
+    : ""), [orderedStrokes, inkWidthMm, settings.trueHandwriting, settings.inkVariation, settings.seed]);
   const playbackHead = useMemo(() => {
     if (!playback?.active) return null;
     for (let index = orderedStrokes.length - 1; index >= 0; index -= 1) {
@@ -67,6 +71,7 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
   }, [orderedStrokes, playback?.active, playback?.strokeProgress]);
   const pageWidth = layout?.page?.pageWidth || (metrics.width * 25.4) / 96;
   const pageHeight = layout?.page?.pageHeight || (metrics.height * 25.4) / 96;
+  const ruleSpacing = Math.max(1, (Number(settings.fontSize) || 32) * (Number(settings.lineHeight) || 1.18) * 25.4 / 96);
 
   return (
     <svg
@@ -78,6 +83,14 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
       aria-label={`Траектория листа ${pageIndex + 1}`}
     >
       <defs>
+        <pattern id={`paper-grain-${pageIndex}`} width="24" height="24" patternUnits="userSpaceOnUse">
+          <image href={`${import.meta.env.BASE_URL}textures/paper-grain.svg`} width="24" height="24" />
+        </pattern>
+        <pattern id={`paper-lines-${pageIndex}`} width={pageWidth} height={ruleSpacing}
+          patternTransform={`translate(0 ${((Number(settings.marginTop) || 0) + (Number(settings.fontSize) || 32)) * 25.4 / 96})`}
+          patternUnits="userSpaceOnUse">
+          <path d={`M0 0H${pageWidth}`} className="plotter-rule-line" />
+        </pattern>
         <pattern
           id={`plotter-rules-${pageIndex}`}
           width="5"
@@ -95,6 +108,11 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
         height={pageHeight}
         style={{ fill: settings.pageColor }}
       />
+      {settings.paperTexture && <rect width={pageWidth} height={pageHeight}
+        fill={`url(#paper-grain-${pageIndex})`} pointerEvents="none" />}
+      {!settings.pageSize.startsWith("Notebook") && settings.ruledPaper && <rect
+        className="plotter-grid-fill" width={pageWidth} height={pageHeight}
+        fill={`url(#paper-lines-${pageIndex})`} pointerEvents="none" />}
       {settings.pageSize.startsWith("Notebook") && (
         <>
           <rect
@@ -157,7 +175,9 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
                 opacity: playback?.active ? 0.22 : 0,
               }}
             />
-            {completed > 0 && (
+            {completed >= 1 && inkPaths[index] ? (
+              <path d={inkPaths[index]} fill={settings.inkColor} opacity={Math.min(1, .88 + pressure * .1)} />
+            ) : completed > 0 && (
               <path
                 className="plotter-playback-stroke"
                 d={path}
@@ -196,7 +216,17 @@ export default memo(
     previous.metrics.height === next.metrics.height &&
     previous.settings.pageColor === next.settings.pageColor &&
     previous.settings.inkColor === next.settings.inkColor &&
+    previous.settings.penWidthMm === next.settings.penWidthMm &&
+    previous.settings.paperTexture === next.settings.paperTexture &&
+    previous.settings.trueHandwriting === next.settings.trueHandwriting &&
+    previous.settings.pressureVariation === next.settings.pressureVariation &&
+    previous.settings.inkVariation === next.settings.inkVariation &&
+    previous.settings.seed === next.settings.seed &&
     previous.settings.pageSize === next.settings.pageSize &&
+    previous.settings.ruledPaper === next.settings.ruledPaper &&
+    previous.settings.fontSize === next.settings.fontSize &&
+    previous.settings.lineHeight === next.settings.lineHeight &&
+    previous.settings.marginTop === next.settings.marginTop &&
     previous.playback?.progress === next.playback?.progress &&
     previous.playback?.active === next.playback?.active &&
     previous.playback?.strokeProgress === next.playback?.strokeProgress &&

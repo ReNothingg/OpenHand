@@ -312,7 +312,7 @@ export default function PreviewPanel({
                 }}
               >
                 <article
-                  className={`paper ${manualEditing ? "manual-editing" : ""} ${settings.ruledPaper || settings.pageSize.startsWith("Notebook") ? "ruled" : ""} ${settings.pageSize.startsWith("Notebook") ? "notebook-paper" : ""} ${settings.pageSize === "NotebookSpread" ? "notebook-spread" : ""} ${settings.pageSize === "Notebook" ? (index % 2 === 0 ? "notebook-right-page" : "notebook-left-page") : ""}`}
+                  className={`paper ${plotterMode && !manualEditing ? "trajectory-paper" : ""} ${manualEditing ? "manual-editing" : ""} ${settings.ruledPaper || settings.pageSize.startsWith("Notebook") ? "ruled" : ""} ${settings.pageSize.startsWith("Notebook") ? "notebook-paper" : ""} ${settings.pageSize === "NotebookSpread" ? "notebook-spread" : ""} ${settings.pageSize === "Notebook" ? (index % 2 === 0 ? "notebook-right-page" : "notebook-left-page") : ""}`}
                   style={{
                     width: metrics.width,
                     height: metrics.height,
@@ -326,6 +326,7 @@ export default function PreviewPanel({
                     "--rule-size": `${settings.fontSize * settings.lineHeight}px`,
                   }}
                 >
+                  {settings.paperTexture && (!plotterMode || manualEditing) && <div className="paper-grain" aria-hidden="true" />}
                   {plotterMode && !manualEditing ? (
                     <>
                       <PlotterPaper

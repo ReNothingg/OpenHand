@@ -228,6 +228,16 @@
   box-shadow: none;
   outline: 1px solid #dfe3e8;
 }
+.paper.trajectory-paper::before,
+.paper.trajectory-paper::after {
+  content: none;
+}
+.paper-grain {
+  position: absolute;
+  inset: 0;
+  background: url("/textures/paper-grain.svg") 0 0 / 24mm 24mm;
+  pointer-events: none;
+}
 .paper.ruled {
   background-image: url("/textures/paper-ruling.svg");
   background-size: 100% var(--rule-size);

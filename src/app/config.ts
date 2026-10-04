@@ -31,7 +31,7 @@ export const DEFAULT_SETTINGS = {
   marginLeftEven: 94,
   marginBottom: 0,
   textRotation: 0,
-  pageColor: "#ffffff",
+  pageColor: "#fffdf8",
   pageSize: "NotebookSpread",
   pageOrientation: "landscape",
   ruledPaper: true,
@@ -83,7 +83,8 @@ export function normalizeSettings(
       authorWidth: 82, authorRhythm: 26, authorBaseline: 12, endCompression: 6 };
     const photoDraft = { ...manualDefaults, ...previousMotion, fontSize: 25, lineHeight: 1.45, authorWidth: 100 };
     const previousDefault = { ...manualDefaults, ...previousMotion };
-    if ([photoDraft, previousDefault, manualDefaults].some(previous => Object.entries(previous).every(([key, value]) =>
+    const rasterDefault = { ...DEFAULT_HANDWRITING_SETTINGS, inkColor: "#304d87", pressureVariation: 0 };
+    if ([rasterDefault, photoDraft, previousDefault, manualDefaults].some(previous => Object.entries(previous).every(([key, value]) =>
         !Object.hasOwn(incoming, key) || incoming[key] === value))) {
       // Upgrade only a complete untouched profile; explicit custom values win.
       Object.assign(settings, DEFAULT_HANDWRITING_SETTINGS);
@@ -97,6 +98,11 @@ export function normalizeSettings(
       }
     }
   }
+  const penWidth = Number(settings.penWidthMm);
+  settings.penWidthMm = Number.isFinite(penWidth) ? Math.max(.1, Math.min(1.2, penWidth)) : DEFAULT_HANDWRITING_SETTINGS.penWidthMm;
+  const inkVariation = Number(settings.inkVariation);
+  settings.inkVariation = Number.isFinite(inkVariation) ? Math.max(0, Math.min(50, inkVariation)) : DEFAULT_HANDWRITING_SETTINGS.inkVariation;
+  settings.paperTexture = incoming.paperTexture !== false;
   settings.compactLayout = incoming.compactLayout !== false;
   settings.writingStartEnabled = incoming.writingStartEnabled === true;
   settings.writingStartPage = Math.max(0, Math.min(99, Math.floor(Number(incoming.writingStartPage) || 0)));
