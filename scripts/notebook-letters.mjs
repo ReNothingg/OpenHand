@@ -89,7 +89,8 @@ function form(letter) {
     // Unjoined beginnings and endings keep their place in a word; joined
     // bodies (and letters written alone) can stand anywhere.
     position: !letter.entry && letter.exit ? 'initial' : letter.entry && !letter.exit ? 'final' : 'any',
-    style: 'notebook',
+    // The notebook page: letters written in one sitting share their style.
+    style: `notebook-${letter.photo.replace(/\D/g, '')}`,
     joins: 'recorded',
     context: { before: letter.before, after: letter.after },
     source: letter.source,
@@ -124,12 +125,92 @@ function typicalFirst(forms) {
   return [first, ...forms.filter(f => f !== first)];
 }
 
+function percentile(values, p) {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))];
+}
+
+// Each word was scaled by its own measured x-height. That measurement is
+// noisy, so letters taken from different words differ in size by up to a
+// fifth, while a written word keeps one size. Every form is scaled about its
+// baseline origin to the median height of its character: fully for letters
+// whose top is the x-height, by half for tall letters (б, в, й, ё, ф) whose
+// top is an ascender. Word-level size changes are added again in layout.
+const TALL = new Set(Array.from('бвйёф'));
+function normaliseSizes(forms) {
+  for (const [char, list] of Object.entries(forms)) {
+    if (!/^\p{Ll}$/u.test(char) || list.length < 5) continue;
+    const tops = list.map(f => percentile(f.strokes.flat().map(p => p.y), 0.01));
+    const median = percentile(tops, 0.5);
+    forms[char] = list.flatMap((f, i) => {
+      const ratio = median / tops[i];
+      // A body far from its character's size is a broken trace, not a variant.
+      if (!(ratio > 0.72 && ratio < 1.38)) return [];
+      const s = Math.max(0.8, Math.min(1.25, TALL.has(char) ? Math.sqrt(ratio) : ratio));
+      return [{ ...f, advance: f.advance * s,
+        strokes: f.strokes.map(stroke => stroke.map(p => ({ ...p, x: +(p.x * s).toFixed(1), y: +(p.y * s).toFixed(1) }))) }];
+    });
+  }
+  return forms;
+}
+
+// Points every 8 units along the strokes, centred on the median x.
+function outline(form) {
+  const points = [];
+  for (const stroke of form.strokes)
+    for (let i = 1; i < stroke.length; i++) {
+      const a = stroke[i - 1], b = stroke[i];
+      const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 8));
+      for (let k = 0; k < n; k++) points.push([a.x + (b.x - a.x) * k / n, a.y + (b.y - a.y) * k / n]);
+    }
+  const middle = percentile(points.map(p => p[0]), 0.5);
+  return points.map(([x, y]) => [x - middle, y]);
+}
+
+function chamfer(a, b) {
+  const mean = (p, q) => {
+    let total = 0;
+    for (const [x, y] of p) {
+      let best = Infinity;
+      for (const [u, v] of q) { const d = (x - u) ** 2 + (y - v) ** 2; if (d < best) best = d; }
+      total += Math.sqrt(best);
+    }
+    return total / p.length;
+  };
+  return (mean(a, b) + mean(b, a)) / 2;
+}
+
+// Tracing can merge strokes that touch on the photograph or join a letter
+// with an unusual neighbour; such forms look unlike every other copy of
+// the letter. Each form is compared with its nearest copies, and the least
+// typical third of a well-covered letter (or a clear outlier of a rare one)
+// is left out.
+function dropAtypical(forms) {
+  for (const [char, list] of Object.entries(forms)) {
+    if (!/^\p{L}$/u.test(char) || list.length < 6) continue;
+    const shapes = list.map(outline);
+    const n = list.length, k = Math.max(2, Math.min(6, Math.floor(n / 5)));
+    const distances = shapes.map(() => []);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const d = chamfer(shapes[i], shapes[j]);
+      distances[i].push(d); distances[j].push(d);
+    }
+    const typical = distances.map(d => d.sort((a, b) => a - b).slice(0, k).reduce((a, b) => a + b, 0) / k);
+    const median = percentile(typical, 0.5);
+    const limit = n >= 12 ? Math.min(percentile(typical, 0.7), 1.35 * median) : 1.6 * median;
+    forms[char] = list.filter((_, i) => typical[i] <= limit);
+  }
+  return forms;
+}
+
 /** @returns {Record<string, object[]>} */
 export function notebookLetterForms(data, maximum = 128) {
   if (data.version !== 1 || data.unit !== 'gfont' || data.bodyHeight !== NOTEBOOK_BODY_HEIGHT)
     throw new Error('Unsupported notebook letter data.');
   const forms = {};
   for (const letter of data.letters) (forms[letter.char] ??= []).push(form(letter));
+  normaliseSizes(forms);
+  dropAtypical(forms);
   for (const char of Object.keys(forms)) forms[char] = typicalFirst(forms[char]).slice(0, maximum);
   return forms;
 }

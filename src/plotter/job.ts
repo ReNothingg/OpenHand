@@ -180,6 +180,8 @@ function splitGlyphStrokes(
 }
 
 const LETTER_PATTERN = /^\p{L}$/u;
+// Marks written after a word without joining it.
+const TRAILING_MARKS = new Set(Array.from(".,:;!?…»)"));
 
 function glyphStrokeBounds(strokes) {
   const points = strokes.flat();
@@ -883,7 +885,7 @@ export async function layoutText(
     let form = variants[selected];
     let base = form?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
     // A word starts with the letter itself, not with a join from nowhere.
-    if (config.trueHandwriting && position === "initial" && form?.entry && form.leadIn) {
+    if (config.trueHandwriting && position === "initial" && form?.entry && form.source) {
       const key = `${char}:${selected}`;
       if (!leadless.has(key)) {
         const trimmed = withoutLeadIn(form);
@@ -1192,7 +1194,7 @@ export async function layoutText(
       const measureToken = () => {
         const predictedForms = new Map(previousForms);
         const plan = planToken(visibleChars, glyphOccurrence, previousForms);
-        let occurrence = glyphOccurrence, cursor = 0, right = 0, index = 0;
+        let occurrence = glyphOccurrence, cursor = 0, right = 0, index = 0, previousRight = -Infinity;
         let level = activeHeadingLevel;
         const styles = new Set(activeTextStyles);
         for (const char of tokenChars) {
@@ -1209,7 +1211,10 @@ export async function layoutText(
             scaleForHeading(level), predictedForms.get(char), styles.has("italic"), styles.has("bold"),
             { before: visibleChars[index - 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "",
               after: visibleChars[index + 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" }, plan[index]);
+          if (config.trueHandwriting && TRAILING_MARKS.has(char))
+            cursor = Math.max(cursor, previousRight + page.fontSize * scaleForHeading(level) * 0.07);
           right = Math.max(right, cursor + letter.inkAdvance);
+          previousRight = cursor + letter.inkAdvance;
           cursor += letter.advance;
           if (letter.glyph) { occurrence++; predictedForms.set(char, letter.selected); }
           index++;
@@ -1246,6 +1251,7 @@ export async function layoutText(
       let tokenStrokeStart = strokes.length;
       let previousJoin = null;
       const tokenPlan = planToken(visibleChars, glyphOccurrence, previousForms);
+      let previousInkRight = -Infinity;
       let visibleIndex = 0;
       for (let charIndex = 0; charIndex < tokenChars.length; charIndex += 1) {
         const char = tokenChars[charIndex];
@@ -1329,6 +1335,11 @@ export async function layoutText(
           { before: visibleChars[visibleIndex - 2]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "",
             after: visibleChars[visibleIndex]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" }, tokenPlan[visibleIndex - 1]);
         const { selected, form: selectedForm, glyph, advance, inkAdvance } = prepared;
+        // Punctuation is written after the letter's ink, not inside its
+        // exit stroke: keep a small gap after a letter whose ink reaches
+        // past its advance.
+        if (config.trueHandwriting && TRAILING_MARKS.has(char))
+          x = Math.max(x, previousInkRight + page.fontSize * currentHeadingScale * 0.07);
         if (x > page.left && x + inkAdvance > maxX && !fitWordOnLine) {
           nextLine();
           previousJoin = null;
@@ -1458,6 +1469,8 @@ export async function layoutText(
             strokes.push(lead);
           }
           strokes.push(...glyphStrokes);
+          previousInkRight = -Infinity;
+          for (const stroke of glyphStrokes) for (const point of stroke) previousInkRight = Math.max(previousInkRight, point.x);
           previousJoin = exitAnchor
             ? { anchor: exitAnchor, charIsLetter: isLetter, traced: Boolean(selectedForm?.style), stroke: primaryGlyphStrokes[exitAnchor.strokeIndex] }
             : null;

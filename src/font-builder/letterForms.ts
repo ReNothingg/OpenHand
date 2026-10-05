@@ -190,6 +190,8 @@ export type PlannedLetter = {
   position: string;
   /** Form used the last time this character was written. */
   previous?: number;
+  /** A form that must not be chosen here (the same letter earlier in the word). */
+  avoid?: number;
 };
 
 /**
@@ -199,10 +201,30 @@ export type PlannedLetter = {
  * joins at the same height and direction. A seeded preference per letter
  * keeps every occurrence of a word different. Units: body height 200.
  */
-export function planConnectedForms(letters: PlannedLetter[], seed: number, occurrence: number, maxCandidates = 40) {
+export function planConnectedForms(letters: PlannedLetter[], seed: number, occurrence: number, maxCandidates = 40): number[] {
+  const plan = viterbiForms(letters, seed, occurrence, maxCandidates);
+  // A letter repeated inside one word is written again, not copied: replan
+  // with the earlier choice as the "previous" form of the later occurrence.
+  for (let pass = 0; pass < 2; pass++) {
+    const seen = new Map<string, number>();
+    let repeat = -1;
+    plan.forEach((index, i) => {
+      if (index < 0 || repeat >= 0) return;
+      if (seen.get(letters[i]!.char) === index) repeat = i;
+      else seen.set(letters[i]!.char, index);
+    });
+    if (repeat < 0) break;
+    letters = letters.map((letter, i) => i === repeat ? { ...letter, previous: plan[repeat], avoid: plan[repeat] } : letter);
+    plan.splice(0, plan.length, ...viterbiForms(letters, seed, occurrence, maxCandidates));
+  }
+  return plan;
+}
+
+function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number, maxCandidates: number) {
   const candidates = letters.map((letter, i) => {
     const usable = letter.forms.map((form, index) => ({ form, index })).filter(({ form }) => form.strokes.length);
-    const placed = usable.filter(({ form }) => !form.position || form.position === "any" || form.position === letter.position);
+    const placed = usable.filter(({ form, index }) => index !== letter.avoid &&
+      (!form.position || form.position === "any" || form.position === letter.position));
     const pool = placed.length ? placed : usable;
     if (pool.length <= maxCandidates) return pool;
     return [...pool].sort((a, b) => unit(seed, occurrence, i, a.index) - unit(seed, occurrence, i, b.index)).slice(0, maxCandidates);
@@ -213,7 +235,7 @@ export function planConnectedForms(letters: PlannedLetter[], seed: number, occur
     const bySource = new Map(letters[i]!.forms.map((form, index) => [form.source, index]));
     for (const { form } of candidates[i - 1]!) {
       const next = bySource.get(sourceKey(form, 1));
-      if (next !== undefined && !offered.has(next) && letters[i]!.forms[next]!.strokes.length) {
+      if (next !== undefined && !offered.has(next) && next !== letters[i]!.avoid && letters[i]!.forms[next]!.strokes.length) {
         offered.add(next);
         candidates[i]!.push({ form: letters[i]!.forms[next]!, index: next });
       }
@@ -224,14 +246,18 @@ export function planConnectedForms(letters: PlannedLetter[], seed: number, occur
     let cost = unit(seed, occurrence, i, index, 7) * 1.1;
     if (index === letter.previous) cost += 0.8;
     // A word starts without a join and ends without one, as it was written.
-    if (letter.position === "initial" && form.entry) cost += form.leadIn ? 0.35 : 0.9;
+    // A joined body at the start of a word keeps its shallow join as a leg,
+    // so real word beginnings win even over a recorded syllable.
+    if (letter.position === "initial" && form.entry) cost += 2.6;
     if (letter.position === "final" && form.exit) cost += 0.3;
     if (letter.position === "medial" && !(form.entry && form.exit)) cost += 0.45;
     return cost;
   };
   const pair = (a: LetterForm, aChar: string, b: LetterForm, bChar: string) => {
     if (a.source && sourceKey(a, 1) === b.source) return -2.2;
-    let cost = 0;
+    // One word is written in one sitting: letters from the same notebook page
+    // share their width, roundness and pressure.
+    let cost = a.style && b.style && a.style !== b.style ? 0.6 : 0;
     if (a.exit && b.entry) {
       const pa = anchorPoint(a, a.exit), pb = anchorPoint(b, b.entry);
       const dy = pa && pb ? Math.abs(pa.y - pb.y) / 200 : 1;
@@ -278,14 +304,19 @@ export function planConnectedForms(letters: PlannedLetter[], seed: number, occur
   return plan;
 }
 
-/** The same letter without its lead-in ligature, for the start of a word. */
+/** The same letter without its incoming join, for the start of a word. */
 export function withoutLeadIn(form: LetterForm): LetterForm {
   const first = form.strokes[0];
-  if (!form.entry || !form.leadIn || !first || form.leadIn >= first.length - 1) return form;
-  const strokes = [first.slice(form.leadIn), ...form.strokes.slice(1)];
+  if (!form.entry || !first) return form;
+  const length = first.slice(1).reduce((sum, p, i) => sum + Math.hypot(p.x - first[i]!.x, p.y - first[i]!.y), 0);
+  // A short separate join piece would be left hanging before the word.
+  const detached = form.strokes.length > 1 && length < 70 && form.exit?.stroke !== 0;
+  if (!detached && (!form.leadIn || form.leadIn >= first.length - 1)) return form;
+  const strokes = detached ? form.strokes.slice(1) : [first.slice(form.leadIn), ...form.strokes.slice(1)];
   const left = Math.min(...strokes.flat().map(p => p.x));
-  const shift = form.exit && form.exit.stroke === 0 && form.exit.point !== undefined
-    ? { ...form.exit, point: form.exit.point - form.leadIn } : form.exit;
+  const shift = !form.exit ? undefined : detached ? { ...form.exit, stroke: form.exit.stroke - 1 }
+    : form.exit.stroke === 0 && form.exit.point !== undefined
+      ? { ...form.exit, point: form.exit.point - form.leadIn! } : form.exit;
   const { entry: _entry, leadIn: _leadIn, ...rest } = form;
   return { ...rest, strokes, exit: shift, originX: left,
     ...(form.advance !== undefined ? { advance: Math.max(20, form.advance - left) } : {}) };

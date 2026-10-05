@@ -1,4 +1,4 @@
-import { DEFAULT_HANDWRITING_SETTINGS, PREVIOUS_NOTEBOOK_DEFAULTS } from "../handwriting/defaults";
+import { DEFAULT_HANDWRITING_SETTINGS, PREVIOUS_NOTEBOOK_DEFAULTS, TRACED_NOTEBOOK_DEFAULTS } from "../handwriting/defaults";
 import { STRUCTURE_CONTROLS, structureValue } from "../handwriting/structure";
 import { defaultFontPool } from "../fonts";
 
@@ -84,7 +84,7 @@ export function normalizeSettings(
     const photoDraft = { ...manualDefaults, ...previousMotion, fontSize: 25, lineHeight: 1.45, authorWidth: 100 };
     const previousDefault = { ...manualDefaults, ...previousMotion };
     const rasterDefault = { ...PREVIOUS_NOTEBOOK_DEFAULTS, inkColor: "#304d87", pressureVariation: 0 };
-    if ([PREVIOUS_NOTEBOOK_DEFAULTS, rasterDefault, photoDraft, previousDefault, manualDefaults].some(previous => Object.entries(previous).every(([key, value]) =>
+    if ([TRACED_NOTEBOOK_DEFAULTS, PREVIOUS_NOTEBOOK_DEFAULTS, rasterDefault, photoDraft, previousDefault, manualDefaults].some(previous => Object.entries(previous).every(([key, value]) =>
         !Object.hasOwn(incoming, key) || incoming[key] === value))) {
       // Upgrade only a complete untouched profile; explicit custom values win.
       Object.assign(settings, DEFAULT_HANDWRITING_SETTINGS);

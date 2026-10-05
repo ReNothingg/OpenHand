@@ -503,7 +503,7 @@ def centre_lines(mask, frame, max_turn=70, spur=1.6, cusp_len=3.2):
             if len(s) > 1:
                 strokes.append(s)
                 node_sets.append(nodes)
-    centres = {k: centre(k) for k in range(len(g.nodes))}
+    centres = {k: centre(k) for k in range(len(g.nodes)) if g.nodes[k]['kind'] == 'junction'}
     return [smooth_path(s, 0.06, 0.04) for s in strokes], node_sets, centres
 
 
@@ -522,7 +522,60 @@ def nearest(stroke, p):
     return i, float(d[i])
 
 
-def segment(strokes, node_sets, centres, cut_points, slant, cells, max_dist=0.5):
+def closing_junction(st, i, junctions, slant, boundary, baseline, xh):
+    """Move a cut forward to the last junction before the cell boundary.
+
+    A letter that closes a bowl along its bottom (о, а, б, ю…) is crossed by
+    the join twice: the lowest point of the join lies inside the bowl. The
+    junction where the bowl meets the outgoing join still belongs to the
+    letter, so the cut moves there."""
+    rel = st[:, 1] - baseline
+    q = st[:, 0] + slant * rel
+    lo, hi = max(0, i - 4), min(len(st) - 1, i + 4)
+    step = 1 if q[hi] >= q[lo] else -1
+    arc, j, best = 0.0, i, i
+    while 0 <= j + step < len(st):
+        arc += float(np.hypot(*(st[j + step] - st[j])))
+        j += step
+        if q[j] > boundary + 0.15 or arc > 1.2 * xh or rel[j] < -0.7 * xh:
+            break
+        if j in junctions:
+            best = j
+    return best
+
+
+def rising_point(st, i, slant, boundary, baseline, xh, angle=30.0):
+    """Move a cut from the lowest point of a join to where the join rises.
+
+    Round bottoms (с, е, о, а…) reach their lowest point before the letter
+    has finished its curve; the letter keeps the rest of its bottom and the
+    next letter starts where the pen turns upwards."""
+    rel = st[:, 1] - baseline
+    q = st[:, 0] + slant * rel
+    lo, hi = max(0, i - 4), min(len(st) - 1, i + 4)
+    step = 1 if q[hi] >= q[lo] else -1
+    slope = math.tan(math.radians(angle))
+    arc, j = 0.0, i
+    while 0 <= j + step < len(st):
+        k = j + step
+        far = k
+        reach = 0.0
+        while 0 <= far + step < len(st) and reach < 0.15:
+            reach += float(np.hypot(*(st[far + step] - st[far])))
+            far += step
+        dx, dv = st[far, 0] - st[k, 0], st[far, 1] - st[k, 1]
+        # The join has started rising, or the letter has finished its turn
+        # and runs to the right for a third of the body.
+        if (dx > 0 and -dv >= slope * dx) or abs(st[k, 0] - st[i, 0]) >= 0.3 * xh:
+            return k
+        arc += float(np.hypot(*(st[k] - st[j])))
+        if q[k] > boundary + 0.1 or arc > 0.5 * xh:
+            return i
+        j = k
+    return i
+
+
+def segment(strokes, node_sets, centres, cut_points, slant, cells, baseline, xh, max_dist=0.5):
     """Split strokes at the cut points and assign every piece to a letter.
 
     Cut k separates letters k-1 and k. A piece between two cuts belongs to
@@ -541,7 +594,11 @@ def segment(strokes, node_sets, centres, cut_points, slant, cells, max_dist=0.5)
                 best = (s, i, d)
         if best is None or best[2] > max_dist:
             continue
-        attach.setdefault(best[0], []).append((best[1], k))
+        s = best[0]
+        junctions = {nearest(strokes[s], centres[n])[0] for n in node_sets[s] if n in centres}
+        i = closing_junction(strokes[s], best[1], junctions, slant, cells[k], baseline, xh)
+        i = rising_point(strokes[s], i, slant, cells[k], baseline, xh)
+        attach.setdefault(s, []).append((i, k))
     pieces = []
     for s, st in enumerate(strokes):
         node_pos = [(nearest(st, centres[n])[0], n) for n in node_sets[s] if n in centres]
@@ -746,8 +803,9 @@ def trace_word(word, photos, target_slant):
     strokes = [strokes[i] for i in keep]
     node_sets = [node_sets[i] for i in keep]
     cuts = word['cutPoints']
-    letters = segment(strokes, node_sets, centres, cuts, word['slant'], np.array(word['cuts']))
     b0, tilt = fit_baseline(strokes, word['baselineOffset'], word['xHeight'])
+    letters = segment(strokes, node_sets, centres, cuts, word['slant'], np.array(word['cuts']),
+                      word['baselineOffset'], word['xHeight'])
     units = BODY / word['xHeightUsed']
     shear = target_slant - word['slant']
     text = word['text']
