@@ -5,7 +5,7 @@ import { varyLetterGlyph } from "../handwriting/letterGeometry";
 import { fitHandwritingLine, type WordGap } from "../handwriting/lineFit";
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
 import { DEFAULT_AUTOMATIC_PEN_LIFT_MM, MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, automaticPenSpeed, automaticPenUpPosition, penTravelSeconds } from "./penLift";
-import { chooseForm, formGlyph, letterPosition, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
+import { chooseForm, planConnectedForms, withoutLeadIn, formGlyph, letterPosition, trajectoryFingerprint, mergeTrajectoryReports, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
 import { layoutFormula } from "./mathLayout";
 import {
   PLOTTER_ALIGN_MARKS,
@@ -351,6 +351,38 @@ export function createCursiveConnector(start, end, fontSize, strength = 100) {
   }
   connector.pressure = 0.82 + normalizedStrength * 0.08;
   return connector;
+}
+
+/**
+ * Joins two halves of one written ligature. Both ends move towards their
+ * midpoint with a cosine falloff along the stroke, so slopes stay smooth and
+ * the letters keep their measured shapes away from the join. Returns false
+ * when the ends are too far apart to belong to one connection.
+ */
+export function blendCursiveJoin(previous: PlotStroke, entering: PlotStroke, fontSize: number) {
+  const end = previous.at(-1), start = entering[0];
+  if (!end || !start || previous.length < 2 || entering.length < 2) return false;
+  const dx = start.x - end.x, dy = start.y - end.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance > fontSize * 0.42) return false;
+  const reach = Math.min(fontSize * 0.42, Math.max(fontSize * 0.1, distance * 3.2));
+  const shift = (stroke: PlotStroke, fromEnd: boolean, sx: number, sy: number) => {
+    let travelled = 0;
+    for (let k = 0; k < stroke.length; k += 1) {
+      const i = fromEnd ? stroke.length - 1 - k : k;
+      if (k) {
+        const j = fromEnd ? i + 1 : i - 1;
+        travelled += Math.hypot(stroke[i].x - stroke[j].x, stroke[i].y - stroke[j].y);
+      }
+      if (travelled >= reach) break;
+      const weight = 0.5 * (1 + Math.cos(Math.PI * travelled / reach));
+      stroke[i] = { ...stroke[i], x: stroke[i].x + sx * weight, y: stroke[i].y + sy * weight };
+    }
+  };
+  shift(previous, true, dx / 2, dy / 2);
+  shift(entering, false, -dx / 2, -dy / 2);
+  previous.push(...entering.slice(1));
+  return true;
 }
 
 export async function layoutText(
@@ -812,14 +844,53 @@ export async function layoutText(
     progress: (baseline - (config.evolutionPageTop ?? page.top)) / Math.max(page.lineHeight,
       (config.evolutionPageBottom ?? page.pageHeight - (page.bottom || 0)) - (config.evolutionPageTop ?? page.top)),
   });
+  // Forms cut from written words are chosen for the whole word at once, so
+  // real neighbours and matching joins win; other fonts choose per letter.
+  const plans = new Map<string, number[]>();
+  const planToken = (visible: string[], occurrenceStart: number, previousMap: Map<string, number>) => {
+    const key = `${visible.join("")}|${occurrenceStart}`;
+    const cached = plans.get(key);
+    if (cached) return cached;
+    const plan: number[] = visible.map(() => -1);
+    if (config.trueHandwriting) {
+      let segment: number[] = [];
+      const flush = () => {
+        if (segment.length) {
+          const chosen = planConnectedForms(segment.map(i => ({
+            char: visible[i], forms: forms.get(visible[i]) || [], position: letterPosition(visible, i),
+            previous: previousMap.get(visible[i]),
+          })), config.seed, occurrenceStart + segment[0]);
+          segment.forEach((i, k) => { plan[i] = chosen[k]; });
+        }
+        segment = [];
+      };
+      visible.forEach((char, i) => {
+        if (LETTER_PATTERN.test(char) && (forms.get(char) || []).some(form => form.source)) segment.push(i);
+        else flush();
+      });
+      flush();
+    }
+    plans.set(key, plan);
+    return plan;
+  };
+  const leadless = new Map<string, { form: LetterForm; glyph: ReturnType<typeof formGlyph> }>();
   const letterLayout = (char, occurrence, position, motion, textScale, previous,
     italic = activeTextStyles.has("italic"), bold = activeTextStyles.has("bold"),
-    context?: { before: string; after: string }) => {
+    context?: { before: string; after: string }, planned = -1) => {
     const variants = forms.get(char) || [];
-    const selected = config.trueHandwriting
-      ? chooseForm(variants, config.seed, occurrence, position, previous, structureValue(config, "wordCoherence"), context) : 0;
-    const form = variants[selected];
-    const base = form?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
+    const selected = !config.trueHandwriting ? 0 : planned >= 0 ? planned
+      : chooseForm(variants, config.seed, occurrence, position, previous, structureValue(config, "wordCoherence"), context);
+    let form = variants[selected];
+    let base = form?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
+    // A word starts with the letter itself, not with a join from nowhere.
+    if (config.trueHandwriting && position === "initial" && form?.entry && form.leadIn) {
+      const key = `${char}:${selected}`;
+      if (!leadless.has(key)) {
+        const trimmed = withoutLeadIn(form);
+        leadless.set(key, { form: trimmed, glyph: formGlyph(trimmed, char.codePointAt(0)) });
+      }
+      ({ form, glyph: base } = leadless.get(key)!);
+    }
     const glyph = base && config.trueHandwriting
       ? varyLetterGlyph(base, config.seed, occurrence, config.glyphVariation, position) : base;
     const advance = advanceFor(char, textScale, motion.width, activeAlignment === "left" && base
@@ -1120,6 +1191,7 @@ export async function layoutText(
       const wordKey = `${rawLineIndex}:${tokenIndex}:${visibleChars.join("")}`;
       const measureToken = () => {
         const predictedForms = new Map(previousForms);
+        const plan = planToken(visibleChars, glyphOccurrence, previousForms);
         let occurrence = glyphOccurrence, cursor = 0, right = 0, index = 0;
         let level = activeHeadingLevel;
         const styles = new Set(activeTextStyles);
@@ -1136,7 +1208,7 @@ export async function layoutText(
           const letter = letterLayout(char, occurrence, letterPosition(visibleChars, index), motion,
             scaleForHeading(level), predictedForms.get(char), styles.has("italic"), styles.has("bold"),
             { before: visibleChars[index - 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "",
-              after: visibleChars[index + 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" });
+              after: visibleChars[index + 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" }, plan[index]);
           right = Math.max(right, cursor + letter.inkAdvance);
           cursor += letter.advance;
           if (letter.glyph) { occurrence++; predictedForms.set(char, letter.selected); }
@@ -1173,6 +1245,7 @@ export async function layoutText(
       const tokenStartX = x;
       let tokenStrokeStart = strokes.length;
       let previousJoin = null;
+      const tokenPlan = planToken(visibleChars, glyphOccurrence, previousForms);
       let visibleIndex = 0;
       for (let charIndex = 0; charIndex < tokenChars.length; charIndex += 1) {
         const char = tokenChars[charIndex];
@@ -1254,7 +1327,7 @@ export async function layoutText(
         const prepared = letterLayout(char, glyphOccurrence, position, motion, currentHeadingScale, previousForms.get(char),
           activeTextStyles.has("italic"), activeTextStyles.has("bold"),
           { before: visibleChars[visibleIndex - 2]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "",
-            after: visibleChars[visibleIndex]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" });
+            after: visibleChars[visibleIndex]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" }, tokenPlan[visibleIndex - 1]);
         const { selected, form: selectedForm, glyph, advance, inkAdvance } = prepared;
         if (x > page.left && x + inkAdvance > maxX && !fitWordOnLine) {
           nextLine();
@@ -1297,7 +1370,7 @@ export async function layoutText(
             const neighbor = stroke[next ? index + 1 : index - 1];
             const dx = next ? neighbor.x - point.x : point.x - neighbor.x;
             const dy = next ? neighbor.y - point.y : point.y - neighbor.y;
-            return { point: { ...point, tangent: { x: dx, y: dy } }, quality: 1, strokeIndex: anchor.stroke,
+            return { point: { ...point, tangent: { x: dx, y: dy } }, quality: 1, explicit: true, strokeIndex: anchor.stroke,
               atStart: index === 0, atEnd: index === stroke.length - 1 };
           };
           const entryAnchor = isLetter
@@ -1330,15 +1403,25 @@ export async function layoutText(
             isLetter &&
             Math.min(previousJoin.anchor.quality, entryAnchor.quality) >= 0.22
           ) {
-            const connector = createCursiveConnector(
+            // Letters cut from written words end and start on the same
+            // ligature: bend both halves to meet instead of adding a stroke.
+            const previousStroke = previousJoin.stroke;
+            const enteringStroke = primaryGlyphStrokes[entryAnchor.strokeIndex];
+            const merged = previousJoin.anchor.explicit && entryAnchor.explicit &&
+              previousStroke && strokes.at(-1) === previousStroke && previousJoin.anchor.atEnd &&
+              entryAnchor.atStart && entryAnchor.strokeIndex === 0 && !activeTextStyles.size &&
+              blendCursiveJoin(previousStroke, enteringStroke, page.fontSize * currentHeadingScale);
+            if (merged) {
+              glyphStrokes.shift();
+              primaryGlyphStrokes[0] = previousStroke;
+            }
+            const connector = merged ? null : createCursiveConnector(
               previousJoin.anchor.point,
               entryAnchor.point,
               page.fontSize * currentHeadingScale,
               connectionChance,
             );
             if (connector) {
-              const previousStroke = previousJoin.stroke;
-              const enteringStroke = primaryGlyphStrokes[entryAnchor.strokeIndex];
               if (previousStroke && strokes.at(-1) === previousStroke &&
                   (previousJoin.anchor.atEnd ?? !previousJoin.anchor.atStart) &&
                   entryAnchor.atStart && entryAnchor.strokeIndex === 0 && !activeTextStyles.size) {

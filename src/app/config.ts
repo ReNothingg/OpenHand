@@ -1,4 +1,4 @@
-import { DEFAULT_HANDWRITING_SETTINGS } from "../handwriting/defaults";
+import { DEFAULT_HANDWRITING_SETTINGS, PREVIOUS_NOTEBOOK_DEFAULTS } from "../handwriting/defaults";
 import { STRUCTURE_CONTROLS, structureValue } from "../handwriting/structure";
 import { defaultFontPool } from "../fonts";
 
@@ -79,12 +79,12 @@ export function normalizeSettings(
   if (settings.handwritingProfile === "pavelNotes" &&
       settings.plotterFontId === "pavel-notes-original") {
     const previousMotion = { authorRhythm: 38, authorBaseline: 18, wordCoherence: 90, lineFitCompression: 8 };
-    const manualDefaults = { ...DEFAULT_HANDWRITING_SETTINGS, glyphVariation: 14, connectionStrength: 90,
+    const manualDefaults = { ...PREVIOUS_NOTEBOOK_DEFAULTS, glyphVariation: 14, connectionStrength: 90,
       authorWidth: 82, authorRhythm: 26, authorBaseline: 12, endCompression: 6 };
     const photoDraft = { ...manualDefaults, ...previousMotion, fontSize: 25, lineHeight: 1.45, authorWidth: 100 };
     const previousDefault = { ...manualDefaults, ...previousMotion };
-    const rasterDefault = { ...DEFAULT_HANDWRITING_SETTINGS, inkColor: "#304d87", pressureVariation: 0 };
-    if ([rasterDefault, photoDraft, previousDefault, manualDefaults].some(previous => Object.entries(previous).every(([key, value]) =>
+    const rasterDefault = { ...PREVIOUS_NOTEBOOK_DEFAULTS, inkColor: "#304d87", pressureVariation: 0 };
+    if ([PREVIOUS_NOTEBOOK_DEFAULTS, rasterDefault, photoDraft, previousDefault, manualDefaults].some(previous => Object.entries(previous).every(([key, value]) =>
         !Object.hasOwn(incoming, key) || incoming[key] === value))) {
       // Upgrade only a complete untouched profile; explicit custom values win.
       Object.assign(settings, DEFAULT_HANDWRITING_SETTINGS);

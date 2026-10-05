@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { rasterLetterForms } from './raster-letter-forms.mjs';
-import { notebookLetterForms, selectNotebookForms, NOTEBOOK_BODY_HEIGHT } from './notebook-letter-forms.mjs';
+import { notebookLetterForms, NOTEBOOK_BODY_HEIGHT } from './notebook-letters.mjs';
 import { sheetLetterForms } from './sheet-letter-forms.mjs';
 
 // Editable centreline geometry, not outlines: a plotter traverses every line once.
@@ -170,13 +170,12 @@ for (const [char, base, dots] of [['ё', 'е', true], ['ў', 'у', false]]) {
   });
   glyphs[char] = forms[char][0].strokes;
 }
-// New notebook photographs provide the everyday connected forms. Whole
-// PencilKit letters from the author's sheet fill gaps in the photographed
-// alphabet, including capitals and punctuation that otherwise were inferred.
-const notebookSource = JSON.parse(await readFile('font/pavel-notes/notebook-strokes.json', 'utf8'));
-const notebookSpec = JSON.parse(await readFile('font/pavel-notes/notebook-words.json', 'utf8'));
-const capturedNotebook = notebookLetterForms(notebookSource);
-const notebookForms = selectNotebookForms(capturedNotebook.forms);
+// Letters traced from the twelve notebook photographs provide the everyday
+// connected forms. Whole PencilKit letters from the author's sheet fill gaps
+// in the photographed alphabet; rare letters keep both sources.
+const notebookSource = JSON.parse(await readFile('font/pavel-notes/notebook-letters.json', 'utf8'));
+const notebookForms = notebookLetterForms(notebookSource);
+const notebookOnly = char => (notebookForms[char]?.length ?? 0) >= 2;
 const sheetSource = JSON.parse(await readFile('font/pavel-notes/sheet-strokes.json', 'utf8'));
 const sheetCalibration = JSON.parse(await readFile('font/pavel-notes/sheet-size-calibration.json', 'utf8'));
 const sheetFallback = sheetLetterForms(sheetSource, sheetCalibration).forms;
@@ -185,7 +184,7 @@ const sheetScale = NOTEBOOK_BODY_HEIGHT / sheetSource.normalisedBodyHeight;
 // baseline like the photographed periods. Only a vertical shift is applied.
 const restOnBaseline = new Set(['.']);
 for (const [char, variants] of Object.entries(sheetFallback)) {
-  if (notebookForms[char]) continue;
+  if (notebookOnly(char)) continue;
   forms[char] = variants.map(form => {
     const lift = restOnBaseline.has(char) ? -6 - Math.max(...form.strokes.flat().map(p => p.y * sheetScale)) : 0;
     // Digits were written in separate cells; keep their own width plus a pen gap.
@@ -201,8 +200,26 @@ for (const [char, variants] of Object.entries(sheetFallback)) {
   glyphs[char] = forms[char][0].strokes;
 }
 for (const [char, variants] of Object.entries(notebookForms)) {
-  forms[char] = variants;
+  // A letter seen only once in the notes keeps the sheet's whole forms as
+  // further real alternatives instead of repeating one shape.
+  forms[char] = notebookOnly(char) || !sheetFallback[char] ? variants : [...variants, ...forms[char]];
   glyphs[char] = variants[0].strokes;
+}
+// ё and ў are rare in the notes: add the dots and breve to written е and у.
+for (const [char, base, dots] of [['ё', 'е', true], ['ў', 'у', false]]) {
+  if (notebookOnly(char) || !notebookForms[base]) continue;
+  const derived = notebookForms[base].filter(form => form.position === 'any').slice(0, 24).map(form => {
+    const body = structuredClone(form.strokes);
+    const xs = body.flat().filter(p => p.y < -100).map(p => p.x);
+    const center = xs.length ? (Math.min(...xs) + Math.max(...xs)) / 2 : form.advance / 2;
+    const accents = dots
+      ? [[{x:center-28,y:-282},{x:center-23,y:-291}], [{x:center+28,y:-280},{x:center+33,y:-289}]]
+      : [[{x:center-30,y:-286},{x:center-16,y:-271},{x:center+7,y:-268},{x:center+32,y:-282}]];
+    const { source, ...rest } = form;
+    return { ...rest, strokes: [...body, ...accents], context: { before: '', after: '' } };
+  });
+  forms[char] = [...(notebookForms[char] ?? []), ...derived];
+  glyphs[char] = forms[char][0].strokes;
 }
 const directory = await mkdtemp(join(tmpdir(), 'openhand-font-'));
 try {
@@ -211,14 +228,16 @@ try {
   const { createGFontBlob, GFont, layoutText, DEFAULT_PLOTTER_CONFIG, profilePatch, DEFAULT_WRITING_CONFIG, inkRibbonPath, penWidthMm } = await import(pathToFileURL(modulePath).href);
   const blob=createGFontBlob(glyphs,forms);
   await writeFile('font/plotter/pavel-notes.gfont',Buffer.from(await blob.arrayBuffer()));
+  const notebookWords = new Set(notebookSource.letters.map(letter => letter.source.split(':')[0]));
   await writeFile('font/pavel-notes/coverage.json', JSON.stringify({
-    version: 4, method: 'reviewed-notebook-centrelines-with-author-sheet-fallback',
-    glyphs: Object.keys(glyphs).join(''), notebookSources: notebookSpec.sources,
+    version: 5, method: notebookSource.method + '-with-author-sheet-fallback',
+    glyphs: Object.keys(glyphs).join(''), notebookSources: notebookSource.sources,
     notebookCharacters: Object.keys(notebookForms).join(''),
     notebookForms: Object.values(notebookForms).reduce((n, f) => n + f.length, 0),
-    notebookWords: notebookSource.words.length, bodyHeight: NOTEBOOK_BODY_HEIGHT,
-    medianSlant: capturedNotebook.slant,
+    notebookWords: notebookWords.size, bodyHeight: NOTEBOOK_BODY_HEIGHT,
+    medianSlant: notebookSource.targetSlant,
     sheetFallbackCharacters: Object.keys(sheetFallback).filter(c => !notebookForms[c]).join(''),
+    sheetAlternativeCharacters: Object.keys(sheetFallback).filter(c => notebookForms[c] && !notebookOnly(c)).join(''),
     manualFallbackCharacters: Object.keys(glyphs).filter(c => !notebookForms[c] && !sheetFallback[c]).join(''),
     inferredCapitals: '', variants: Object.keys(forms).filter(c => forms[c].length > 1),
     formCounts: Object.fromEntries(Object.entries(forms).map(([c, f]) => [c, f.length])),
@@ -244,10 +263,12 @@ try {
     return `<g transform="translate(${x},${y})"><text y="-30" font-size="15" fill="#697386">${escape(char)}</text><path d="M -10 76 H 91" stroke="#d7dce2"/><g transform="translate(0,76) scale(.22)">${strokes.map(s=>`<polyline points="${s.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="#233266" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</g></g>`;
   }).join('');
   await writeFile('font/pavel-notes/specimen.svg',`<svg xmlns="http://www.w3.org/2000/svg" width="1130" height="${Math.ceil(entries.length/10)*145+35}" style="background:white">${tiles}</svg>\n`);
-  const variantEntries = Object.entries(forms).filter(([, variants]) => variants.length > 1);
+  // The full set is in the font; the review image shows the first twelve.
+  const variantEntries = Object.entries(forms).filter(([, variants]) => variants.length > 1)
+    .map(([char, variants]) => [char, variants.slice(0, 12)]);
   const variantRows = variantEntries.map(([char, variants], row) =>
     `<g transform="translate(30,${row * 130 + 90})"><text y="-25" font-size="22">${escape(char)}</text>${variants.map((form, column) =>
       `<g transform="translate(${65 + column * 155},0)"><path d="M 0 0 H 135" stroke="#d7dce2"/><g transform="scale(.2)">${form.strokes.map(stroke => `<polyline points="${stroke.map(p=>`${p.x},${p.y}`).join(' ')}" fill="none" stroke="${settings.inkColor}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</g><text y="32" font-size="12" fill="#697386">${form.position === 'final' ? 'окончание' : 'в слове'}</text></g>`).join('')}</g>`).join('');
-  await writeFile('font/pavel-notes/variants.svg', `<svg xmlns="http://www.w3.org/2000/svg" width="760" height="${variantEntries.length*130+20}"><rect width="100%" height="100%" fill="white"/>${variantRows}</svg>\n`);
-  console.log(`Default handwriting: ${entries.length} glyphs; ${Object.values(notebookForms).reduce((n,f)=>n+f.length,0)} reviewed notebook forms from ${Object.keys(notebookSpec.sources).length} photos; ${Object.values(forms).filter(f=>f.length>1).length} characters with alternatives.`);
+  await writeFile('font/pavel-notes/variants.svg', `<svg xmlns="http://www.w3.org/2000/svg" width="1925" height="${variantEntries.length*130+20}"><rect width="100%" height="100%" fill="white"/>${variantRows}</svg>\n`);
+  console.log(`Default handwriting: ${entries.length} glyphs; ${Object.values(notebookForms).reduce((n,f)=>n+f.length,0)} reviewed notebook letters from ${notebookWords.size} words on ${Object.keys(notebookSource.sources).length} photos; ${Object.values(forms).filter(f=>f.length>1).length} characters with alternatives.`);
 } finally { await rm(directory,{recursive:true,force:true}); }
