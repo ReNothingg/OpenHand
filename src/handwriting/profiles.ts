@@ -27,7 +27,7 @@ export const HANDWRITING_PROFILES = Object.freeze({
     description: "Ваши целые буквы и реальные варианты из заполненного PDF. Соединения между буквами требуют проверки на связном тексте.",
     settings: {
       ...DEFAULT_HANDWRITING_SETTINGS, plotterFontId: "pavel-samples-original",
-      pressureVariation: 0,
+      pressureVariation: 0, authorWidth: 100,
       glyphVariation: 0, authorRhythm: 0, authorBaseline: 0,
       maxWordTilt: 0, maxLift: 0, maxLetterSpacing: 0,
     },
@@ -181,7 +181,7 @@ export function naturalnessAutofix(settings) {
     authorRhythm: bounded(settings.authorRhythm, 18, 34),
     authorBaseline: bounded(settings.authorBaseline, 8, 22),
     connectionStrength: bounded(settings.connectionStrength, 62, 100),
-    ...(settings.fontType === "plotter" ? { lineFitCompression: bounded(settings.lineFitCompression, 16, 24) } : {}),
+    ...(settings.fontType === "plotter" ? { lineFitCompression: bounded(settings.lineFitCompression, 4, 10) } : {}),
     handwritingProfile: "personal",
   };
 }

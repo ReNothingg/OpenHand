@@ -1,25 +1,46 @@
 // Letter forms traced from the notebook photographs by
 // scripts/trace-notebook-letters.py (GFont units, x-height 200). Every form
 // is one written letter with its origin on the cut where the previous letter
-// joined it, the step to the next cut and the side it was joined on.
+// joined it (or at its body when it was written without a join), the step to
+// the next cut and the side it was joined on.
 
 export const NOTEBOOK_BODY_HEIGHT = 200;
 
+// Where letters written after a pen lift meet. A letter starts with its
+// x-height body: loops of р, у, д, з reach back under the previous letter.
+// It ends with its lower body: the tops of б, в, д curl over the next one.
+const inBody = p => p.y > -1.05 * NOTEBOOK_BODY_HEIGHT && p.y < 0.25 * NOTEBOOK_BODY_HEIGHT;
+const inLowerBody = p => p.y > -0.6 * NOTEBOOK_BODY_HEIGHT && p.y < 0.25 * NOTEBOOK_BODY_HEIGHT;
+
 // The join that leads into a letter from the previous one: the shallow
 // start of the first stroke, up to where the letter's own stroke turns steep
-// (more than about 50 degrees), turns back or reaches half the body.
-function leadIn(strokes) {
+// (more than about 50 degrees), turns back or reaches half the body. Letters
+// whose own stroke starts at the top of the body (з, э, ч, у, ж, х, я) are
+// joined by a diagonal up to that top; their join is followed up to it.
+const TOP_START = new Set(Array.from('зэчужхя'));
+function leadIn(strokes, char) {
   const first = strokes[0];
   if (!first || first.length < 4) return undefined;
   const start = first[0];
+  const reach = (TOP_START.has(char) ? 0.85 : 0.5) * NOTEBOOK_BODY_HEIGHT;
   for (let i = 1; i < first.length - 1; i++) {
     const a = first[i - 1], b = first[Math.min(first.length - 1, i + 2)];
     const dx = b.x - a.x, dy = a.y - b.y;
-    if (dx <= 0 || dy > 1.2 * dx || start.y - first[i].y > NOTEBOOK_BODY_HEIGHT / 2) {
+    if (dx <= 0 || dy > 1.2 * dx || start.y - first[i].y > reach) {
+      // A join that runs on under the letter (into the bottom of о, а) ends
+      // where it reaches the letter's own ink, not where it turns up.
+      const body = [...first.slice(i + 1), ...strokes.slice(1).flat()].filter(inBody);
+      const left = body.length ? Math.min(...body.map(p => p.x)) : first[i].x;
+      if (first[i].x > left + 0.15 * NOTEBOOK_BODY_HEIGHT) {
+        const enter = first.findIndex(p => p.x >= left);
+        if (enter > 0 && enter < i) i = enter;
+      }
       if (first[i].x - start.x < 0.12 * NOTEBOOK_BODY_HEIGHT) return undefined;
-      // Keep a short hook of the join, as a pen starting a word leaves one.
+      // Keep a short hook of the join, as a pen starting a word leaves one,
+      // when it starts low; higher up a hook would read as a stroke (о as э).
       let j = i;
-      while (j > 1 && first[i].x - first[j - 1].x <= 0.1 * NOTEBOOK_BODY_HEIGHT) j--;
+      if (first[i].y > -0.3 * NOTEBOOK_BODY_HEIGHT)
+        while (j > 1 && first[i].x - first[j - 1].x <= 0.1 * NOTEBOOK_BODY_HEIGHT) j--;
       return j > 0 ? j : undefined;
     }
   }
@@ -72,23 +93,44 @@ function healBreaks(strokes, entry, exit) {
   });
 }
 
+// The words were sheared to one reference slant, but measured on whole lines
+// of the photographs the notes lean further (projection slant 0.60 against
+// 0.48 for the rebuilt letters). One extra shear about the baseline restores
+// it; letters keep their joins because entry and exit lie near the baseline.
+export const NOTEBOOK_EXTRA_SLANT = 0.12;
+
 function form(letter) {
   const written = writtenStrokes(letter);
   const healed = healBreaks(written.strokes, letter.entry, written.exit);
-  const strokes = healed.map(stroke => stroke.map(([x, y]) => ({ x, y })));
-  const lead = letter.entry ? leadIn(strokes) : undefined;
+  let strokes = healed.map(stroke => stroke.map(([x, y]) => ({ x: +(x - NOTEBOOK_EXTRA_SLANT * y).toFixed(1), y })));
+  const isLetter = /^\p{L}$/u.test(letter.char);
+  // A letter written without a join starts at its body.
+  let shift = 0;
+  if (isLetter && !letter.entry) {
+    const body = strokes.flat().filter(inBody);
+    shift = body.length ? Math.min(...body.map(p => p.x)) : 0;
+    strokes = strokes.map(stroke => stroke.map(p => ({ ...p, x: +(p.x - shift).toFixed(1) })));
+  }
+  const lead = letter.entry ? leadIn(strokes, letter.char) : undefined;
   // Digits and signs were followed by a dot or a space in the notes; in a
   // row of digits they keep their ink apart like separately written figures.
-  const right = Math.max(...strokes.flat().map(p => p.x));
-  const gap = /^\p{N}$/u.test(letter.char) ? 0.15 : /^\p{L}$/u.test(letter.char) ? 0 : 0.05;
+  // After a pen lift the author starts the next letter right at the body of
+  // the previous one (the photographed bodies touch in most lifts).
+  const lower = strokes.flat().filter(inLowerBody);
+  const right = Math.max(...(lower.length ? lower : strokes.flat()).map(p => p.x));
+  const gap = /^\p{N}$/u.test(letter.char) ? 0.15 : 0.05;
+  const advance = isLetter
+    ? (letter.exit ? letter.advance - shift : right + gap * NOTEBOOK_BODY_HEIGHT)
+    : Math.max(letter.advance, right + gap * NOTEBOOK_BODY_HEIGHT);
   return {
     ...(lead ? { leadIn: lead } : {}),
     strokes,
     originX: 0,
-    advance: Math.max(20, letter.advance, gap ? right + gap * NOTEBOOK_BODY_HEIGHT : 0),
-    // Unjoined beginnings and endings keep their place in a word; joined
-    // bodies (and letters written alone) can stand anywhere.
-    position: !letter.entry && letter.exit ? 'initial' : letter.entry && !letter.exit ? 'final' : 'any',
+    advance: Math.max(20, advance),
+    // Where the letter stood in its word. A letter inside a word can still
+    // be followed by a pen lift (the author lifts after р, д, з, т and in a
+    // quarter of all pairs); its missing exit is part of the handwriting.
+    position: !letter.before && !letter.after ? 'any' : !letter.before ? 'initial' : !letter.after ? 'final' : 'medial',
     // The notebook page: letters written in one sitting share their style.
     style: `notebook-${letter.photo.replace(/\D/g, '')}`,
     joins: 'recorded',
@@ -111,7 +153,7 @@ function typicalFirst(forms) {
     const ys = f.strokes.flat().map(p => p.y);
     return { advance: f.advance, height: Math.max(...ys) - Math.min(...ys) };
   };
-  const pool = forms.filter(f => f.position === 'any');
+  const pool = forms.filter(f => f.entry && f.exit);
   const candidates = pool.length ? pool : forms;
   const sizes = candidates.map(size);
   const a = median(sizes.map(s => s.advance)) || 1, h = median(sizes.map(s => s.height)) || 1;
@@ -203,14 +245,41 @@ function dropAtypical(forms) {
   return forms;
 }
 
+// The typicality filter mostly removes broken traces, and those come more
+// often from widely written words, so the kept lowercase forms are about 4%
+// narrower than the letters as written. They are widened back to the
+// written average width, each letter weighted by how often it was written.
+function restoreWidth(forms, written) {
+  const mean = values => values.reduce((a, b) => a + b, 0) / values.length;
+  let before = 0, after = 0;
+  for (const [char, list] of Object.entries(forms)) {
+    if (!/^\p{Ll}$/u.test(char) || !written[char]?.length || !list.length) continue;
+    before += written[char].length * mean(written[char]);
+    after += written[char].length * mean(list.map(f => f.advance));
+  }
+  const factor = after ? Math.max(1, Math.min(1.08, before / after)) : 1;
+  for (const [char, list] of Object.entries(forms)) {
+    if (!/^\p{Ll}$/u.test(char)) continue;
+    forms[char] = list.map(f => ({ ...f, advance: +(f.advance * factor).toFixed(1),
+      strokes: f.strokes.map(stroke => stroke.map(p => ({ ...p, x: +(p.x * factor).toFixed(1) }))) }));
+  }
+  return forms;
+}
+
 /** @returns {Record<string, object[]>} */
-export function notebookLetterForms(data, maximum = 128) {
+export function notebookLetterForms(data, maximum = 128, liftRates = {}) {
   if (data.version !== 1 || data.unit !== 'gfont' || data.bodyHeight !== NOTEBOOK_BODY_HEIGHT)
     throw new Error('Unsupported notebook letter data.');
   const forms = {};
-  for (const letter of data.letters) (forms[letter.char] ??= []).push(form(letter));
+  for (const letter of data.letters) {
+    const result = form(letter);
+    if (liftRates[letter.char] !== undefined) result.lift = liftRates[letter.char];
+    (forms[letter.char] ??= []).push(result);
+  }
   normaliseSizes(forms);
+  const written = Object.fromEntries(Object.entries(forms).map(([char, list]) => [char, list.map(f => f.advance)]));
   dropAtypical(forms);
+  restoreWidth(forms, written);
   for (const char of Object.keys(forms)) forms[char] = typicalFirst(forms[char]).slice(0, maximum);
   return forms;
 }

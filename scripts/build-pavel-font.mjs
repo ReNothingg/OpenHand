@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { rasterLetterForms } from './raster-letter-forms.mjs';
-import { notebookLetterForms, NOTEBOOK_BODY_HEIGHT } from './notebook-letters.mjs';
+import { notebookLetterForms, NOTEBOOK_BODY_HEIGHT, NOTEBOOK_EXTRA_SLANT } from './notebook-letters.mjs';
 import { sheetLetterForms } from './sheet-letter-forms.mjs';
 
 // Editable centreline geometry, not outlines: a plotter traverses every line once.
@@ -174,7 +174,25 @@ for (const [char, base, dots] of [['ё', 'е', true], ['ў', 'у', false]]) {
 // connected forms. Whole PencilKit letters from the author's sheet fill gaps
 // in the photographed alphabet; rare letters keep both sources.
 const notebookSource = JSON.parse(await readFile('font/pavel-notes/notebook-letters.json', 'utf8'));
-const notebookForms = notebookLetterForms(notebookSource);
+// How often the author lifts the pen after each letter inside a word, from
+// all 970 framed words (a missing cut point is a lift). Rare letters lean on
+// the overall rate.
+const letterWords = JSON.parse(await readFile('font/pavel-notes/notebook-letter-words.json', 'utf8'));
+const liftCounts = {};
+let liftTotal = 0, pairTotal = 0;
+for (const word of letterWords.words) {
+  const chars = Array.from(word.text);
+  word.cutPoints.forEach((cut, i) => {
+    if (!/^\p{Ll}$/u.test(chars[i]) || !/^\p{Ll}$/u.test(chars[i + 1] ?? '')) return;
+    const count = liftCounts[chars[i]] ??= [0, 0];
+    count[0]++; pairTotal++;
+    if (cut === null) { count[1]++; liftTotal++; }
+  });
+}
+const overallLift = liftTotal / Math.max(1, pairTotal);
+const liftRates = Object.fromEntries(Object.entries(liftCounts).map(([char, [n, lifts]]) =>
+  [char, +((lifts + 10 * overallLift) / (n + 10)).toFixed(3)]));
+const notebookForms = notebookLetterForms(notebookSource, 128, liftRates);
 const notebookOnly = char => (notebookForms[char]?.length ?? 0) >= 2;
 const sheetSource = JSON.parse(await readFile('font/pavel-notes/sheet-strokes.json', 'utf8'));
 const sheetCalibration = JSON.parse(await readFile('font/pavel-notes/sheet-size-calibration.json', 'utf8'));
@@ -208,7 +226,9 @@ for (const [char, variants] of Object.entries(notebookForms)) {
 // ё and ў are rare in the notes: add the dots and breve to written е and у.
 for (const [char, base, dots] of [['ё', 'е', true], ['ў', 'у', false]]) {
   if (notebookOnly(char) || !notebookForms[base]) continue;
-  const derived = notebookForms[base].filter(form => form.position === 'any').slice(0, 24).map(form => {
+  // Every position keeps a few variants: word-initial, joined and final.
+  const sample = position => notebookForms[base].filter(form => form.position === position).slice(0, 10);
+  const derived = ['initial', 'medial', 'final', 'any'].flatMap(sample).map(form => {
     const body = structuredClone(form.strokes);
     const xs = body.flat().filter(p => p.y < -100).map(p => p.x);
     const center = xs.length ? (Math.min(...xs) + Math.max(...xs)) / 2 : form.advance / 2;
@@ -235,7 +255,7 @@ try {
     notebookCharacters: Object.keys(notebookForms).join(''),
     notebookForms: Object.values(notebookForms).reduce((n, f) => n + f.length, 0),
     notebookWords: notebookWords.size, bodyHeight: NOTEBOOK_BODY_HEIGHT,
-    medianSlant: notebookSource.targetSlant,
+    medianSlant: +(notebookSource.targetSlant + NOTEBOOK_EXTRA_SLANT).toFixed(3),
     sheetFallbackCharacters: Object.keys(sheetFallback).filter(c => !notebookForms[c]).join(''),
     sheetAlternativeCharacters: Object.keys(sheetFallback).filter(c => notebookForms[c] && !notebookOnly(c)).join(''),
     manualFallbackCharacters: Object.keys(glyphs).filter(c => !notebookForms[c] && !sheetFallback[c]).join(''),

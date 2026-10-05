@@ -21,6 +21,8 @@ export type LetterForm = {
   source?: string;
   /** Points of the first stroke that only lead in from the previous letter. */
   leadIn?: number;
+  /** How often the author lifts the pen after this letter inside a word. */
+  lift?: number;
 };
 export type LetterForms = Record<string, LetterForm[]>;
 
@@ -102,6 +104,7 @@ export function validForms(value: unknown): LetterForm[] {
           ? { source: form.source } : {}),
         ...(Number.isInteger(form.leadIn) && form.leadIn > 0 && form.leadIn < strokes[0]!.length - 1
           ? { leadIn: form.leadIn } : {}),
+        ...(typeof form.lift === "number" && form.lift >= 0 && form.lift <= 1 ? { lift: form.lift } : {}),
         entry: anchor(form.entry),
         exit: anchor(form.exit),
         position: ["initial", "medial", "final"].includes(form.position)
@@ -223,8 +226,11 @@ export function planConnectedForms(letters: PlannedLetter[], seed: number, occur
 function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number, maxCandidates: number) {
   const candidates = letters.map((letter, i) => {
     const usable = letter.forms.map((form, index) => ({ form, index })).filter(({ form }) => form.strokes.length);
+    // Inside a word a pen lift is written as a word ending followed by a
+    // fresh beginning, so every form can stand there; the ends of the word
+    // keep forms recorded at a word's start or end.
     const placed = usable.filter(({ form, index }) => index !== letter.avoid &&
-      (!form.position || form.position === "any" || form.position === letter.position));
+      (letter.position === "medial" || !form.position || form.position === "any" || form.position === letter.position));
     const pool = placed.length ? placed : usable;
     if (pool.length <= maxCandidates) return pool;
     return [...pool].sort((a, b) => unit(seed, occurrence, i, a.index) - unit(seed, occurrence, i, b.index)).slice(0, maxCandidates);
@@ -247,14 +253,29 @@ function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number
     if (index === letter.previous) cost += 0.8;
     // A word starts without a join and ends without one, as it was written.
     // A joined body at the start of a word keeps its shallow join as a leg,
-    // so real word beginnings win even over a recorded syllable.
-    if (letter.position === "initial" && form.entry) cost += 2.6;
-    if (letter.position === "final" && form.exit) cost += 0.3;
-    if (letter.position === "medial" && !(form.entry && form.exit)) cost += 0.45;
+    // so real word beginnings win even over a recorded syllable; a join too
+    // short to cut back would stand before the word like a stroke (о as э).
+    if (letter.position === "initial" && form.entry) cost += startsCleanly(form) ? 2.6 : 3.8;
+    // A join left at the end of a word points into the space and seems to
+    // link the next word.
+    if (letter.position === "final" && form.exit) cost += 1.2;
+    if (letter.position === "medial" && form.position && form.position !== "medial" && form.position !== "any") cost += 0.3;
     return cost;
   };
-  const pair = (a: LetterForm, aChar: string, b: LetterForm, bChar: string) => {
-    if (a.source && sourceKey(a, 1) === b.source) return -2.2;
+  // How often the author lifts the pen after each letter, from the letters
+  // written inside words: a medial form without an exit was followed by a
+  // lift. Each pair draws its own decision so lifts appear as often as in
+  // the notes and in the same places (after р, д, з, т…).
+  const liftRate = letters.map(letter => {
+    const recorded = letter.forms.find(form => typeof form.lift === "number")?.lift;
+    if (recorded !== undefined) return recorded;
+    const inside = letter.forms.filter(form => form.position === "medial");
+    return inside.length >= 3 ? inside.filter(form => !form.exit).length / inside.length : 0.2;
+  });
+  const wantsLift = letters.map((_, i) => i > 0 && unit(seed, occurrence, i, 13) < liftRate[i - 1]!);
+  const pair = (a: LetterForm, aChar: string, b: LetterForm, bChar: string, i: number) => {
+    // A recorded syllable is kept, but not a word cut out of a longer one.
+    if (a.source && sourceKey(a, 1) === b.source) return letters[i]!.position === "final" && b.exit ? -0.6 : -2.2;
     // One word is written in one sitting: letters from the same notebook page
     // share their width, roundness and pressure.
     let cost = a.style && b.style && a.style !== b.style ? 0.6 : 0;
@@ -264,8 +285,16 @@ function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number
       cost += 3 * dy * dy + 1.2 * dy;
       const da = direction(a, a.exit, true), db = direction(b, b.entry, false);
       if (da && db) cost += 0.6 * (1 - (da.x * db.x + da.y * db.y)) / 2;
-    } else if (a.exit || b.entry) cost += 0.9;
-    else cost += 0.5;
+      if (wantsLift[i]) cost += 1.2;
+    } else {
+      // A pen lift recorded on both sides (a letter that ended, a letter
+      // that started afresh) is part of the handwriting; a lift with a
+      // dangling exit or lead-in is less natural. A lead-in that can be cut
+      // back to its hook (as at the start of a word) hangs less.
+      if (a.exit || (b.entry && !startsCleanly(b))) cost += 0.5;
+      else if (b.entry) cost += 0.25;
+      if (!wantsLift[i]) cost += 1.2;
+    }
     if (b.context?.before === aChar) cost -= 0.35;
     if (a.context?.after === bChar) cost -= 0.35;
     return cost;
@@ -283,7 +312,7 @@ function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number
       }
       let value = Infinity, from = 0;
       candidates[i - 1]!.forEach((previous, p) => {
-        const total = best[i - 1]![p]! + pair(previous.form, letters[i - 1]!.char, form, letters[i]!.char);
+        const total = best[i - 1]![p]! + pair(previous.form, letters[i - 1]!.char, form, letters[i]!.char, i);
         if (total < value) { value = total; from = p; }
       });
       best[i]![c] = own + value;
@@ -304,16 +333,32 @@ function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number
   return plan;
 }
 
+/** Whether the incoming join can be cut back to a short hook (withoutLeadIn). */
+const cleanStarts = new WeakMap<LetterForm, boolean>();
+function startsCleanly(form: LetterForm) {
+  let clean = cleanStarts.get(form);
+  if (clean === undefined) cleanStarts.set(form, clean = withoutLeadIn(form) !== form);
+  return clean;
+}
+
 /** The same letter without its incoming join, for the start of a word. */
 export function withoutLeadIn(form: LetterForm): LetterForm {
   const first = form.strokes[0];
   if (!form.entry || !first) return form;
   const length = first.slice(1).reduce((sum, p, i) => sum + Math.hypot(p.x - first[i]!.x, p.y - first[i]!.y), 0);
-  // A short separate join piece would be left hanging before the word.
-  const detached = form.strokes.length > 1 && length < 70 && form.exit?.stroke !== 0;
+  // A short separate join piece would be left hanging before the word. It
+  // lies low and before the letter; a short piece over the letter is a part
+  // of it that the trace split off (the first arm of у, the first stem of т).
+  const others = form.strokes.slice(1).flat();
+  const detached = form.strokes.length > 1 && length < 70 && form.exit?.stroke !== 0 &&
+    Math.max(...first.map(p => p.x)) <= Math.min(...others.map(p => p.x)) + 15 &&
+    Math.min(...first.map(p => p.y)) > -110;
   if (!detached && (!form.leadIn || form.leadIn >= first.length - 1)) return form;
   const strokes = detached ? form.strokes.slice(1) : [first.slice(form.leadIn), ...form.strokes.slice(1)];
-  const left = Math.min(...strokes.flat().map(p => p.x));
+  // The letter starts at its x-height body; a loop below the line may reach
+  // further left.
+  const points = strokes.flat(), body = points.filter(p => p.y > -210 && p.y < 50);
+  const left = Math.min(...(body.length ? body : points).map(p => p.x));
   const shift = !form.exit ? undefined : detached ? { ...form.exit, stroke: form.exit.stroke - 1 }
     : form.exit.stroke === 0 && form.exit.point !== undefined
       ? { ...form.exit, point: form.exit.point - form.leadIn! } : form.exit;

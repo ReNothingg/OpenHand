@@ -395,6 +395,10 @@ export async function layoutText(
 ) {
   const scale = page.fontSize / FONT_EM;
   const spaceWidth = page.fontSize * 0.46;
+  // Each space varies with both of its words, so a repeated word is not
+  // always followed by the same gap.
+  const spaceKey = (previous = "", next = "") => [previous, next]
+    .map((word) => Array.from(word).filter((char) => !PLOTTER_CONTROL_MARKS.has(char)).join("")).join("|");
   const letterSpacing = Number(config.letterSpacing || 0);
   const glyphs = new Map<string, any>();
   const forms = new Map<string, LetterForm[]>();
@@ -876,16 +880,25 @@ export async function layoutText(
     return plan;
   };
   const leadless = new Map<string, { form: LetterForm; glyph: ReturnType<typeof formGlyph> }>();
+  // Whether the planned letter before `index` ends without a recorded join
+  // (a lift in the notes, or a whole letter from the sample sheet): the pen
+  // was lifted there.
+  const liftedBefore = (chars: string[], plan: number[], index: number) => {
+    const previous = chars[index - 1];
+    const form = previous && (plan[index - 1] ?? -1) >= 0 ? forms.get(previous)?.[plan[index - 1]] : undefined;
+    return Boolean(form && !form.exit);
+  };
   const letterLayout = (char, occurrence, position, motion, textScale, previous,
     italic = activeTextStyles.has("italic"), bold = activeTextStyles.has("bold"),
-    context?: { before: string; after: string }, planned = -1) => {
+    context?: { before: string; after: string }, planned = -1, afterLift = false) => {
     const variants = forms.get(char) || [];
     const selected = !config.trueHandwriting ? 0 : planned >= 0 ? planned
       : chooseForm(variants, config.seed, occurrence, position, previous, structureValue(config, "wordCoherence"), context);
     let form = variants[selected];
     let base = form?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
-    // A word starts with the letter itself, not with a join from nowhere.
-    if (config.trueHandwriting && position === "initial" && form?.entry && form.source) {
+    // A word starts with the letter itself, not with a join from nowhere;
+    // so does a letter written after a pen lift.
+    if (config.trueHandwriting && (position === "initial" || afterLift) && form?.entry && form.source) {
       const key = `${char}:${selected}`;
       if (!leadless.has(key)) {
         const trimmed = withoutLeadIn(form);
@@ -941,7 +954,7 @@ export async function layoutText(
         return (
           width +
           String(token).split(/(\s+)/u).reduce((subtotal, part, index, parts) => {
-            if (/^\s+$/u.test(part)) return subtotal + Array.from(part).reduce((sum, char) => sum + spaceWidth * (char === "\t" ? 4 : 1) * scaleForHeading(measuredHeadingLevel) * spaceFactor(config, parts[index - 1] || ""), 0);
+            if (/^\s+$/u.test(part)) return subtotal + Array.from(part).reduce((sum, char) => sum + spaceWidth * (char === "\t" ? 4 : 1) * scaleForHeading(measuredHeadingLevel) * spaceFactor(config, spaceKey(parts[index - 1], parts[index + 1])), 0);
             const visible = Array.from(part).filter((char) => !PLOTTER_CONTROL_MARKS.has(char));
             let position = 0;
             return subtotal + Array.from(part).reduce((total, char) => {
@@ -1177,7 +1190,7 @@ export async function layoutText(
         if (strokes.length > lineStrokeStart) x = gapStart;
         for (const char of token) {
           if (char === "\n") nextLine();
-          else x += spaceWidth * (char === "\t" ? 4 : 1) * headingScale() * spaceFactor(config, Array.from(tokens[tokenIndex - 1] || "").filter(char => !PLOTTER_CONTROL_MARKS.has(char)).join(""));
+          else x += spaceWidth * (char === "\t" ? 4 : 1) * headingScale() * spaceFactor(config, spaceKey(tokens[tokenIndex - 1], tokens[tokenIndex + 1]));
         }
         if (strokes.length > lineStrokeStart && x > gapStart) lineGaps.push({ start: gapStart, end: x });
         continue;
@@ -1210,7 +1223,8 @@ export async function layoutText(
           const letter = letterLayout(char, occurrence, letterPosition(visibleChars, index), motion,
             scaleForHeading(level), predictedForms.get(char), styles.has("italic"), styles.has("bold"),
             { before: visibleChars[index - 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "",
-              after: visibleChars[index + 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" }, plan[index]);
+              after: visibleChars[index + 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" }, plan[index],
+            liftedBefore(visibleChars, plan, index));
           if (config.trueHandwriting && TRAILING_MARKS.has(char))
             cursor = Math.max(cursor, previousRight + page.fontSize * scaleForHeading(level) * 0.07);
           right = Math.max(right, cursor + letter.inkAdvance);
@@ -1333,7 +1347,8 @@ export async function layoutText(
         const prepared = letterLayout(char, glyphOccurrence, position, motion, currentHeadingScale, previousForms.get(char),
           activeTextStyles.has("italic"), activeTextStyles.has("bold"),
           { before: visibleChars[visibleIndex - 2]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "",
-            after: visibleChars[visibleIndex]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" }, tokenPlan[visibleIndex - 1]);
+            after: visibleChars[visibleIndex]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" }, tokenPlan[visibleIndex - 1],
+          liftedBefore(visibleChars, tokenPlan, visibleIndex - 1));
         const { selected, form: selectedForm, glyph, advance, inkAdvance } = prepared;
         // Punctuation is written after the letter's ink, not inside its
         // exit stroke: keep a small gap after a letter whose ink reaches
