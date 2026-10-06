@@ -851,8 +851,15 @@ export function usePlotter() {
           await waitWhilePaused();
           assertActive();
         };
+        let progressShownAt = -Infinity;
         const acknowledged = (index: number) => {
           assertActive();
+          // Redrawing the page for every acknowledged line competes with the
+          // stream and can starve the controller; ten updates a second are
+          // enough to follow the pen.
+          const now = performance.now();
+          if (now - progressShownAt < 100 && index + 1 < commands.length && !paperChanges.has(index + 1)) return;
+          progressShownAt = now;
           const ranges = job.sheetRanges || [];
           while (ranges[sheetRangeIndex] && index >= ranges[sheetRangeIndex].end) sheetRangeIndex++;
           const range = ranges[sheetRangeIndex];

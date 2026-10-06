@@ -1853,7 +1853,7 @@ function fingerprintCommands(commands) {
 
 // Iterative RDP in machine millimetres: bounded deviation, exact endpoints,
 // no joining strokes or changing their pressure, speed or drawing order.
-export function compactStroke(stroke: PlotStroke, tolerance = 0.02): PlotStroke {
+export function compactStroke(stroke: PlotStroke, tolerance = 0.04): PlotStroke {
   if (stroke.length < 3) return stroke;
   const keep = new Uint8Array(stroke.length);
   keep[0] = keep[stroke.length - 1] = 1;
@@ -1875,6 +1875,99 @@ export function compactStroke(stroke: PlotStroke, tolerance = 0.02): PlotStroke 
   if (stroke.pressure !== undefined) result.pressure = stroke.pressure;
   if (stroke.feedRate !== undefined) result.feedRate = stroke.feedRate;
   return result;
+}
+
+// Pieces of one written letter often touch: the pen drew a stem and its
+// crossbar, or the humps of т, in one motion and the trace split them at the
+// junction. Lifting the pen between them adds only Z travel and full stops,
+// so a piece that touches the ink just drawn is reached by running back along
+// that ink (or out and back along its own shorter side), never more than
+// PEN_RETRACE_MM, plus a jump narrower than the line.
+const PEN_JOIN_GAP_MM = 0.3;
+const PEN_RETRACE_MM = 5;
+
+type PenPath = {
+  points: PlotPoint[];
+  pressure?: number;
+  feedRate?: number;
+  /** Source stroke index and the path points it covers. */
+  pieces: { index: number; from: number; to: number }[];
+};
+
+function nearestOnSegment(p: PlotPoint, a: PlotPoint, b: PlotPoint) {
+  const dx = b.x - a.x, dy = b.y - a.y, length2 = dx * dx + dy * dy;
+  const t = length2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2)) : 0;
+  const point = { x: a.x + t * dx, y: a.y + t * dy };
+  return { point, t, length: Math.sqrt(length2), distance: Math.hypot(p.x - point.x, p.y - point.y) };
+}
+
+/** Back along `path` from its end to a point touching `target`: the points to add. */
+function retraceTo(path: PlotPoint[], target: PlotPoint) {
+  let travelled = 0;
+  for (let k = path.length - 1; k > 0 && travelled <= PEN_RETRACE_MM; k--) {
+    const near = nearestOnSegment(target, path[k]!, path[k - 1]!);
+    if (near.distance <= PEN_JOIN_GAP_MM && travelled + near.length * near.t <= PEN_RETRACE_MM)
+      return { cost: travelled + near.length * near.t, points: [...path.slice(k, path.length - 1).reverse(), near.point] };
+    travelled += near.length;
+  }
+  return null;
+}
+
+/** The end of the path lies inside `stroke`: draw its shorter side out and back, then the rest. */
+function enterInside(end: PlotPoint, stroke: PlotPoint[]) {
+  const lengths = stroke.slice(1).map((p, i) => Math.hypot(p.x - stroke[i]!.x, p.y - stroke[i]!.y));
+  const total = lengths.reduce((a, b) => a + b, 0);
+  let before = 0;
+  for (let k = 1; k < stroke.length; k++) {
+    const near = nearestOnSegment(end, stroke[k - 1]!, stroke[k]!);
+    if (near.distance <= PEN_JOIN_GAP_MM) {
+      const head = before + near.length * near.t, tail = total - head;
+      if (Math.min(head, tail) > PEN_RETRACE_MM) return null;
+      const q = near.point, headPoints = stroke.slice(0, k), tailPoints = stroke.slice(k);
+      const points = head <= tail
+        ? [q, ...[...headPoints].reverse(), ...headPoints.slice(1), q, ...tailPoints]
+        : [q, ...tailPoints, ...[...tailPoints].reverse().slice(1), q, ...[...headPoints].reverse()];
+      return { cost: Math.min(head, tail), points };
+    }
+    before += lengths[k - 1]!;
+  }
+  return null;
+}
+
+export function joinPenPaths(strokes: PlotStroke[]): PenPath[] {
+  const paths: PenPath[] = [];
+  strokes.forEach((stroke, index) => {
+    if (stroke.length < 2) return;
+    const last = paths.at(-1);
+    if (last && (last.pressure ?? 1) === (stroke.pressure ?? 1) && last.feedRate === stroke.feedRate) {
+      const end = last.points.at(-1)!;
+      const forward = retraceTo(last.points, stroke[0]!);
+      const backward = retraceTo(last.points, stroke.at(-1)!);
+      const options = [
+        forward && { cost: forward.cost, lead: forward.points, piece: stroke },
+        backward && { cost: backward.cost + 0.05, lead: backward.points, piece: [...stroke].reverse() },
+      ].filter(Boolean) as { cost: number; lead: PlotPoint[]; piece: PlotPoint[] }[];
+      if (!options.length || options.every(option => option.cost > 0.5)) {
+        const inside = enterInside(end, stroke);
+        if (inside) options.push({ cost: inside.cost, lead: [], piece: inside.points });
+      }
+      const best = options.sort((a, b) => a.cost - b.cost)[0];
+      if (best) {
+        for (const point of best.lead) {
+          const tail = last.points.at(-1)!;
+          if (Math.hypot(point.x - tail.x, point.y - tail.y) > 1e-3) last.points.push(point);
+        }
+        const tail = last.points.at(-1)!;
+        const joined = Math.hypot(best.piece[0]!.x - tail.x, best.piece[0]!.y - tail.y) <= 1e-3;
+        const from = joined ? last.points.length - 1 : last.points.length;
+        last.points.push(...(joined ? best.piece.slice(1) : best.piece));
+        last.pieces.push({ index, from, to: last.points.length - 1 });
+        return;
+      }
+    }
+    paths.push({ points: [...stroke], pressure: stroke.pressure, feedRate: stroke.feedRate, pieces: [{ index, from: 0, to: stroke.length - 1 }] });
+  });
+  return paths;
 }
 
 export function compilePlotJob(strokes, config) {
@@ -1924,7 +2017,9 @@ export function compilePlotJob(strokes, config) {
     penChanges += 1;
     penLifts += 1;
   }
-  for (const stroke of machineStrokes) {
+  const penPaths = joinPenPaths(machineStrokes);
+  for (const path of penPaths) {
+    const stroke = path.points;
     if (stroke.length < 2) continue;
     if (recoverable) resumePoints.push(commands.length);
     const start = stroke[0];
@@ -1940,14 +2035,14 @@ export function compilePlotJob(strokes, config) {
         `G1X${number(start.x)}Y${number(start.y)}F${config.jogSpeed}`,
       );
     current = start;
-    addPen(false, stroke.pressure || 1);
+    addPen(false, path.pressure || 1);
     const drawStart = commands.length;
     penChanges += 1;
     for (const point of stroke.slice(1)) {
       const drawn = Math.hypot(point.x - current.x, point.y - current.y);
       distance += drawn;
       drawDistance += drawn;
-      const feedRate = Number.isFinite(stroke.feedRate) && stroke.feedRate > 0 ? stroke.feedRate : config.feedRate;
+      const feedRate = Number.isFinite(path.feedRate) && path.feedRate > 0 ? path.feedRate : config.feedRate;
       drawSeconds += drawn / Math.max(1, feedRate) * 60;
       if (config.profile === "ebb")
         commands.push(
@@ -1959,9 +2054,10 @@ export function compilePlotJob(strokes, config) {
         );
       current = point;
     }
-    const drawEnd = commands.length;
+    // Draw command i moves to path point i + 1.
+    for (const piece of path.pieces)
+      strokeCommandRanges[piece.index] = { start: drawStart + piece.from, end: drawStart + piece.to };
     addPen(true);
-    strokeCommandRanges.push({ start: drawStart, end: drawEnd });
     penChanges += 1;
     penLifts += 1;
   }
