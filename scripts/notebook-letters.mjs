@@ -35,6 +35,12 @@ function leadIn(strokes, char) {
         const enter = first.findIndex(p => p.x >= left);
         if (enter > 0 && enter < i) i = enter;
       }
+      // Where the join already touches the rest of the letter it closes a
+      // loop (the bowl of д, о, а) or forms its back (с): keep it from there.
+      const rest = [...first.slice(i + 1), ...strokes.slice(1).flat()];
+      const touch = first.findIndex((p, j) => j > 0 && j < i &&
+        rest.some(q => Math.hypot(q.x - p.x, q.y - p.y) < 0.08 * NOTEBOOK_BODY_HEIGHT));
+      if (touch > 0) i = touch;
       if (first[i].x - start.x < 0.12 * NOTEBOOK_BODY_HEIGHT) return undefined;
       // Keep a short hook of the join, as a pen starting a word leaves one,
       // when it starts low; higher up a hook would read as a stroke (о as э).
