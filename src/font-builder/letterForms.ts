@@ -186,6 +186,31 @@ function direction(form: LetterForm, anchor: JoinAnchor, outward: boolean) {
   return length ? { x: dx / length, y: dy / length } : null;
 }
 
+/**
+ * Where the upper body of a letter lies along its slant, relative to its
+ * origin (font units, body height 200): the band above the joins, measured
+ * across the stems so that slanted letters are compared side by side.
+ * Neighbouring letters must keep this band apart, as the author's letters do.
+ */
+export const UPPER_BAND = { low: -180, high: -70, slant: 0.62 };
+const upperCache = new WeakMap<object, { left: number; right: number } | null>();
+export function upperExtent(points: { x: number; y: number }[], originX = 0, key?: object) {
+  if (key && upperCache.has(key)) return upperCache.get(key)!;
+  let left = Infinity, right = -Infinity;
+  for (const p of points) {
+    if (p.y <= UPPER_BAND.low || p.y >= UPPER_BAND.high) continue;
+    const q = p.x - originX + UPPER_BAND.slant * p.y;
+    if (q < left) left = q;
+    if (q > right) right = q;
+  }
+  const result = Number.isFinite(left) ? { left, right } : null;
+  if (key) upperCache.set(key, result);
+  return result;
+}
+const formUpper = (form: LetterForm) => upperExtent(form.strokes.flat(), form.originX ?? 0, form);
+/** Clearance kept between the upper bodies of neighbouring letters. */
+export const UPPER_CLEARANCE = 45;
+
 export type PlannedLetter = {
   char: string;
   forms: LetterForm[];
@@ -297,6 +322,13 @@ function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number
     }
     if (b.context?.before === aChar) cost -= 0.35;
     if (a.context?.after === bChar) cost -= 0.35;
+    // Letters from different words must not run into each other: the
+    // author keeps a clear space between the upper bodies of neighbours.
+    const ua = formUpper(a), ub = formUpper(b);
+    if (ua && ub && a.advance !== undefined) {
+      const clearance = a.advance + ub.left - ua.right;
+      if (clearance < 60) cost += 1.5 * ((60 - clearance) / 60) ** 2;
+    }
     return cost;
   };
   const best: number[][] = [], back: number[][] = [];
