@@ -194,6 +194,11 @@ const liftRates = Object.fromEntries(Object.entries(liftCounts).map(([char, [n, 
   [char, +((lifts + 10 * overallLift) / (n + 10)).toFixed(3)]));
 // Up to MAX_LETTER_FORMS (src/font-builder/letterForms.ts) written forms per character.
 const notebookForms = notebookLetterForms(notebookSource, 256, liftRates);
+// The stem of ф runs through both bowls, and tracing cannot follow the pen
+// through those crossings: the photographed ф come out tangled. The sheet
+// holds the author's ф as clean pen trajectories of the same shape.
+const SHEET_PREFERRED = new Set(['ф', 'Ф']);
+for (const char of SHEET_PREFERRED) delete notebookForms[char];
 const notebookOnly = char => (notebookForms[char]?.length ?? 0) >= 2;
 const sheetSource = JSON.parse(await readFile('font/pavel-notes/sheet-strokes.json', 'utf8'));
 const sheetCalibration = JSON.parse(await readFile('font/pavel-notes/sheet-size-calibration.json', 'utf8'));
@@ -218,6 +223,11 @@ for (const [char, variants] of Object.entries(sheetFallback)) {
   });
   glyphs[char] = forms[char][0].strokes;
 }
+// A sheet letter standing for a written one is written on its own: the
+// sheet has no recorded joins, and invented connectors into the bowls of ф
+// look nothing like the author's joins.
+for (const char of SHEET_PREFERRED)
+  if (forms[char]) forms[char] = forms[char].map(form => ({ ...form, joins: 'recorded' }));
 for (const [char, variants] of Object.entries(notebookForms)) {
   // A letter seen only once in the notes keeps the sheet's whole forms as
   // further real alternatives instead of repeating one shape.

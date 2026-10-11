@@ -187,29 +187,118 @@ function direction(form: LetterForm, anchor: JoinAnchor, outward: boolean) {
 }
 
 /**
- * Where the upper body of a letter lies along its slant, relative to its
- * origin (font units, body height 200): the band above the joins, measured
- * across the stems so that slanted letters are compared side by side.
- * Neighbouring letters must keep this band apart, as the author's letters do.
+ * The ink of a letter without its join pieces: points every `step` font units
+ * along the strokes, relative to the origin. Where the letter is joined, ink
+ * within JOIN_PIECE of the join point is left out, since joined letters meet
+ * there; loops elsewhere on the same stroke still count.
  */
-export const UPPER_BAND = { low: -180, high: -70, slant: 0.62 };
-const upperCache = new WeakMap<object, { left: number; right: number } | null>();
-export function upperExtent(points: { x: number; y: number }[], originX = 0, key?: object) {
-  if (key && upperCache.has(key)) return upperCache.get(key)!;
-  let left = Infinity, right = -Infinity;
-  for (const p of points) {
-    if (p.y <= UPPER_BAND.low || p.y >= UPPER_BAND.high) continue;
-    const q = p.x - originX + UPPER_BAND.slant * p.y;
-    if (q < left) left = q;
-    if (q > right) right = q;
+export const JOIN_PIECE = 60;
+/** Closest approach of neighbouring letters (font units, body height 200):
+ * in the author's own words fewer than 4% of pairs come closer. */
+export const CORE_CLEARANCE = 22;
+const coreCache = new WeakMap<LetterForm, Map<string, Float64Array>>();
+export function letterCore(form: LetterForm, cutEntry: boolean, cutExit: boolean, step = 6): Float64Array {
+  const key = `${+cutEntry}${+cutExit}${step}`;
+  let byKey = coreCache.get(form);
+  if (!byKey) coreCache.set(form, byKey = new Map());
+  const cached = byKey.get(key);
+  if (cached) return cached;
+  const origin = form.originX ?? 0;
+  const exitStroke = form.exit?.stroke ?? form.strokes.length - 1;
+  const out: number[] = [];
+  for (const stroke of form.strokes)
+    stroke.forEach((point, k) => {
+      if (!k) { out.push(point.x, point.y); return; }
+      const a = stroke[k - 1]!;
+      const n = Math.max(1, Math.ceil(Math.hypot(point.x - a.x, point.y - a.y) / step));
+      for (let i = 1; i <= n; i++) out.push(a.x + (point.x - a.x) * i / n, a.y + (point.y - a.y) * i / n);
+    });
+  // Joined letters meet at the join point: ink near the start of the entry
+  // and the end of the exit stroke is the join, everything else the letter.
+  const near: { x: number; y: number }[] = [];
+  const entryStroke = form.strokes[0], exitPoints = form.strokes[exitStroke];
+  if (cutEntry && form.entry && entryStroke?.length) near.push(entryStroke[0]!);
+  if (cutExit && form.exit && exitPoints?.length) near.push(exitPoints.at(-1)!);
+  const kept: number[] = [];
+  for (let i = 0; i < out.length; i += 2) {
+    if (near.some(p => Math.hypot(out[i]! - p.x, out[i + 1]! - p.y) < JOIN_PIECE)) continue;
+    kept.push(out[i]! - origin, out[i + 1]!);
   }
-  const result = Number.isFinite(left) ? { left, right } : null;
-  if (key) upperCache.set(key, result);
+  out.length = 0;
+  out.push(...kept);
+  const result = Float64Array.from(out);
+  byKey.set(key, result);
   return result;
 }
-const formUpper = (form: LetterForm) => upperExtent(form.strokes.flat(), form.originX ?? 0, form);
-/** Clearance kept between the upper bodies of neighbouring letters. */
-export const UPPER_CLEARANCE = 45;
+
+function closest(a: Float64Array, b: Float64Array, offset: number, limit: number) {
+  let best = Infinity;
+  const limit2 = limit * limit;
+  for (let i = 0; i < b.length; i += 2) {
+    const x = b[i]! + offset, y = b[i + 1]!;
+    for (let j = 0; j < a.length; j += 2) {
+      const dx = x - a[j]!, dy = y - a[j + 1]!;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < best) { best = d2; if (best < limit2 * 0.01) return Math.sqrt(best); }
+    }
+  }
+  return Math.sqrt(best);
+}
+
+/** Closest approach of two neighbouring letters placed `offset` font units apart. */
+export function letterGap(previous: LetterForm, next: LetterForm, offset: number, joined: boolean, step = 6) {
+  return closest(letterCore(previous, false, joined, step), letterCore(next, joined, false, step), offset, CORE_CLEARANCE);
+}
+
+/**
+ * A quick estimate of letterGap for choosing forms: the letter's core reduced
+ * to its leftmost and rightmost ink in rows of PROFILE_ROW units, compared
+ * row by row and with the neighbouring rows.
+ */
+const PROFILE_ROW = 16, PROFILE_TOP = -560, PROFILE_ROWS = 60;
+const profileCache = new WeakMap<Float64Array, { left: Float64Array; right: Float64Array }>();
+function profile(core: Float64Array) {
+  let cached = profileCache.get(core);
+  if (cached) return cached;
+  const left = new Float64Array(PROFILE_ROWS).fill(Infinity), right = new Float64Array(PROFILE_ROWS).fill(-Infinity);
+  for (let i = 0; i < core.length; i += 2) {
+    const row = Math.floor((core[i + 1]! - PROFILE_TOP) / PROFILE_ROW);
+    if (row < 0 || row >= PROFILE_ROWS) continue;
+    left[row] = Math.min(left[row]!, core[i]!);
+    right[row] = Math.max(right[row]!, core[i]!);
+  }
+  profileCache.set(core, cached = { left, right });
+  return cached;
+}
+const pairGaps = new WeakMap<LetterForm, Map<LetterForm, number>>();
+/** Estimated closest approach of `next` placed `offset` units after `previous`; cached per pair,
+ * since the planner always passes the previous letter's advance and the pair's own join. */
+export function estimatedGap(previous: LetterForm, next: LetterForm, offset: number, joined: boolean) {
+  let byNext = pairGaps.get(previous);
+  if (!byNext) pairGaps.set(previous, byNext = new Map());
+  const cached = byNext.get(next);
+  if (cached !== undefined) return cached;
+  const a = profile(letterCore(previous, false, joined, 8)), b = profile(letterCore(next, joined, false, 8));
+  let best = Infinity;
+  for (let row = 0; row < PROFILE_ROWS; row++) {
+    if (a.right[row] === -Infinity) continue;
+    for (let near = Math.max(0, row - 1); near <= Math.min(PROFILE_ROWS - 1, row + 1); near++) {
+      if (b.left[near] === Infinity) continue;
+      const dx = Math.max(0, offset + b.left[near]! - a.right[row]!);
+      const dy = Math.max(0, Math.abs(near - row) * PROFILE_ROW - PROFILE_ROW);
+      best = Math.min(best, Math.hypot(dx, dy));
+    }
+  }
+  byNext.set(next, best);
+  return best;
+}
+
+/** How far (font units) `next` must move right so that it keeps CORE_CLEARANCE from `previous`. */
+export function clearanceShift(previous: LetterForm, next: LetterForm, offset: number, joined: boolean, maximum = 100) {
+  for (let shift = 0; shift <= maximum; shift += 4)
+    if (letterGap(previous, next, offset + shift, joined) >= CORE_CLEARANCE) return shift;
+  return maximum;
+}
 
 export type PlannedLetter = {
   char: string;
@@ -323,11 +412,10 @@ function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number
     if (b.context?.before === aChar) cost -= 0.35;
     if (a.context?.after === bChar) cost -= 0.35;
     // Letters from different words must not run into each other: the
-    // author keeps a clear space between the upper bodies of neighbours.
-    const ua = formUpper(a), ub = formUpper(b);
-    if (ua && ub && a.advance !== undefined) {
-      const clearance = a.advance + ub.left - ua.right;
-      if (clearance < 60) cost += 1.5 * ((60 - clearance) / 60) ** 2;
+    // author keeps clear paper between neighbours outside their joins.
+    if (a.advance !== undefined) {
+      const gap = estimatedGap(a, b, a.advance, Boolean(a.exit && b.entry));
+      if (gap < 2 * CORE_CLEARANCE) cost += 1.5 * ((2 * CORE_CLEARANCE - gap) / (2 * CORE_CLEARANCE)) ** 2;
     }
     return cost;
   };

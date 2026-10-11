@@ -26,9 +26,16 @@ const STEM_START = new Set(Array.from('ийлмнптцшщыьъю'));
 function stemLeadIn(first) {
   const rise = first.findIndex(p => p.y < -0.2 * NOTEBOOK_BODY_HEIGHT);
   if (rise <= 0) return undefined;
-  // The lowest point before the rise is where the stem begins.
+  // The lowest point before the rise is where the stem begins; a join that
+  // comes up from below the line (from the tail of р, у, д) ends where it
+  // crosses the line.
   let low = 0;
   for (let k = 1; k < rise; k++) if (first[k].y >= first[low].y) low = k;
+  if (first[low].y > 0.1 * NOTEBOOK_BODY_HEIGHT) {
+    let cross = low;
+    while (cross < rise && first[cross].y > 0) cross++;
+    low = cross;
+  }
   if (first[low].x - first[0].x < 0.12 * NOTEBOOK_BODY_HEIGHT) return undefined;
   // Keep a short foot of the join, as a pen starting a word leaves one.
   let j = low;

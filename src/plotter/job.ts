@@ -5,7 +5,7 @@ import { varyLetterGlyph } from "../handwriting/letterGeometry";
 import { fitHandwritingLine, type WordGap } from "../handwriting/lineFit";
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
 import { DEFAULT_AUTOMATIC_PEN_LIFT_MM, MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, automaticPenSpeed, automaticPenUpPosition, penTravelSeconds } from "./penLift";
-import { chooseForm, planConnectedForms, withoutLeadIn, formGlyph, letterPosition, trajectoryFingerprint, mergeTrajectoryReports, upperExtent, UPPER_CLEARANCE, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
+import { chooseForm, planConnectedForms, withoutLeadIn, formGlyph, letterPosition, trajectoryFingerprint, mergeTrajectoryReports, clearanceShift, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
 import { layoutFormula } from "./mathLayout";
 import {
   PLOTTER_ALIGN_MARKS,
@@ -919,22 +919,20 @@ export async function layoutText(
       // Room for the baseline wave in italic text and optional terminal stroke.
       inkAdvance += page.fontSize * (form?.style ? (italic ? 0.04 : 0) : 0.14);
     }
-    // The upper body along the slant (mm from the letter's origin), kept
-    // clear of the neighbouring letters' upper bodies.
-    let upper: { left: number; right: number } | null = null;
-    if (config.trueHandwriting && base && form?.source && LETTER_PATTERN.test(char)) {
-      const extent = upperExtent(base.points, base.originX ?? base.bounds.minX, base);
-      const k = scale * textScale * Math.max(0.78, Math.min(1.22, Number(config.authorWidth || 100) / 100)) * motion.width;
-      if (extent) upper = { left: extent.left * k, right: extent.right * k };
-    }
-    return { selected, form, glyph, advance, inkAdvance, upper };
+    // Millimetres per font unit along the line, for keeping neighbours apart.
+    const unit = scale * textScale * Math.max(0.78, Math.min(1.22, Number(config.authorWidth || 100) / 100)) * motion.width;
+    const clear = config.trueHandwriting && form?.strokes.length && LETTER_PATTERN.test(char) ? { form, unit } : null;
+    return { selected, form, glyph, advance, inkAdvance, clear };
   };
-  // Shift a letter written from another photographed word so that its upper
-  // body does not run into the previous letter's (as the author's never do).
-  const upperKern = (previousRight: number, position: number, upper, textScale = 1) => {
-    if (!upper || !Number.isFinite(previousRight)) return position;
-    const need = previousRight + UPPER_CLEARANCE * scale * textScale - (position + upper.left);
-    return need > 0 ? position + Math.min(need, 120 * scale * textScale) : position;
+  // Letters cut from different photographed words can run into each other
+  // (a crossbar into the next stem, a loop into the next bowl). The author's
+  // letters keep CORE_CLEARANCE of paper outside their joins, so the next
+  // letter moves right until it does too.
+  const clearKern = (previous: { form: LetterForm; unit: number; x: number } | null, position: number, clear) => {
+    if (!previous || !clear) return position;
+    const joined = Boolean(previous.form.exit && clear.form.entry);
+    const shift = clearanceShift(previous.form, clear.form, (position - previous.x) / previous.unit, joined);
+    return position + shift * previous.unit;
   };
   const widthForLine = (line) => {
     let measuredHeadingLevel = activeHeadingLevel;
@@ -1222,7 +1220,8 @@ export async function layoutText(
       const measureToken = () => {
         const predictedForms = new Map(previousForms);
         const plan = planToken(visibleChars, glyphOccurrence, previousForms);
-        let occurrence = glyphOccurrence, cursor = 0, right = 0, index = 0, previousRight = -Infinity, previousUpper = -Infinity;
+        let occurrence = glyphOccurrence, cursor = 0, right = 0, index = 0, previousRight = -Infinity;
+        let previousClear: { form: LetterForm; unit: number; x: number } | null = null;
         let level = activeHeadingLevel;
         const styles = new Set(activeTextStyles);
         for (const char of tokenChars) {
@@ -1242,8 +1241,8 @@ export async function layoutText(
             liftedBefore(visibleChars, plan, index));
           if (config.trueHandwriting && TRAILING_MARKS.has(char))
             cursor = Math.max(cursor, previousRight + page.fontSize * scaleForHeading(level) * 0.07);
-          cursor = upperKern(previousUpper, cursor, letter.upper, scaleForHeading(level));
-          previousUpper = letter.upper ? cursor + letter.upper.right : -Infinity;
+          cursor = clearKern(previousClear, cursor, letter.clear);
+          previousClear = letter.clear ? { ...letter.clear, x: cursor } : null;
           right = Math.max(right, cursor + letter.inkAdvance);
           previousRight = cursor + letter.inkAdvance;
           cursor += letter.advance;
@@ -1283,7 +1282,7 @@ export async function layoutText(
       let previousJoin = null;
       const tokenPlan = planToken(visibleChars, glyphOccurrence, previousForms);
       let previousInkRight = -Infinity;
-      let previousUpperRight = -Infinity;
+      let previousClear: { form: LetterForm; unit: number; x: number } | null = null;
       let visibleIndex = 0;
       for (let charIndex = 0; charIndex < tokenChars.length; charIndex += 1) {
         const char = tokenChars[charIndex];
@@ -1367,13 +1366,13 @@ export async function layoutText(
           { before: visibleChars[visibleIndex - 2]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "",
             after: visibleChars[visibleIndex]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" }, tokenPlan[visibleIndex - 1],
           liftedBefore(visibleChars, tokenPlan, visibleIndex - 1));
-        const { selected, form: selectedForm, glyph, advance, inkAdvance, upper } = prepared;
+        const { selected, form: selectedForm, glyph, advance, inkAdvance, clear } = prepared;
         // Punctuation is written after the letter's ink, not inside its
         // exit stroke: keep a small gap after a letter whose ink reaches
         // past its advance.
         if (config.trueHandwriting && TRAILING_MARKS.has(char))
           x = Math.max(x, previousInkRight + page.fontSize * currentHeadingScale * 0.07);
-        x = upperKern(previousUpperRight, x, upper, currentHeadingScale);
+        x = clearKern(previousClear, x, clear);
         if (x > page.left && x + inkAdvance > maxX && !fitWordOnLine) {
           nextLine();
           previousJoin = null;
@@ -1385,7 +1384,7 @@ export async function layoutText(
         }
         if (clipped) break;
         // After a wrap the letter starts a new line: measured from where it stands now.
-        previousUpperRight = upper ? x + upper.right : -Infinity;
+        previousClear = clear ? { ...clear, x } : null;
         previousForms.set(char, selected);
         if (glyph) {
           const sourceGlyphStrokes = splitGlyphStrokes(
