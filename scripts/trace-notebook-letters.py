@@ -794,6 +794,49 @@ def rdp(points, tolerance):
     return points[keep]
 
 
+def close_inked_gaps(order, k, ink, frame, reach_mm, step=0.04):
+    """Thinning leaves a gap where a stroke meets another at a junction (the
+    bottom of the bowl of д, the stem of н under its crossbar). A loose end
+    that points at the letter's other ink within reach is extended to it when
+    the photograph is inked all the way between them."""
+    def inked(a, b):
+        n = max(2, int(np.hypot(*(b - a)) / step))
+        t = np.linspace(0, 1, n)[:, None]
+        u, v = (a + t * (b - a)).T
+        x = np.clip(((u - frame.u0) * frame.res).astype(int), 0, ink.shape[1] - 1)
+        y = np.clip(((v - frame.v0) * frame.res).astype(int), 0, ink.shape[0] - 1)
+        return ink[y, x].mean() >= 0.9
+    for idx, p in enumerate(order):
+        for at_start in (True, False):
+            if (at_start and p['start'] == k) or (not at_start and p['end'] == k + 1):
+                continue
+            pts = p['pts']
+            if len(pts) < 4:
+                continue
+            end = pts[0] if at_start else pts[-1]
+            inner = pts[min(len(pts) - 1, 4)] if at_start else pts[max(0, len(pts) - 5)]
+            tangent = end - inner
+            tangent = tangent / max(1e-9, float(np.hypot(*tangent)))
+            best = None
+            for jdx, q in enumerate(order):
+                cand = q['pts']
+                if jdx == idx:
+                    # its own far part: a loop closing on itself
+                    run = np.r_[0, np.cumsum(np.hypot(*np.diff(cand, axis=0).T))]
+                    far = run > 2.5 * reach_mm if not at_start else run < run[-1] - 2.5 * reach_mm
+                    cand = cand[far]
+                for c in cand:
+                    d = c - end
+                    dist = float(np.hypot(*d))
+                    if dist < 0.02 or dist > reach_mm or float(d @ tangent) < 0.5 * dist:
+                        continue
+                    if best is None or dist < best[0]:
+                        best = (dist, c)
+            if best is not None and inked(end, best[1]):
+                p['pts'] = np.vstack([best[1][None], pts]) if at_start else np.vstack([pts, best[1][None]])
+    return order
+
+
 def trace_word(word, photos, target_slant):
     frame = Frame(word)
     mask = ink_mask(frame.sample(photos.get(word['photo'])))
@@ -810,6 +853,8 @@ def trace_word(word, photos, target_slant):
     shear = target_slant - word['slant']
     text = word['text']
     geometry = [letter_strokes(letters[k], k) for k in range(len(text))]
+    geometry = [None if g is None else (close_inked_gaps(g[0], k, mask, frame, 0.45 * word['xHeight']), g[1], g[2])
+                for k, g in enumerate(geometry)]
     origins, rights = [], []
     for k in range(len(text)):
         if geometry[k] is None:

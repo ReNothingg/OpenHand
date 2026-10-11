@@ -6,14 +6,15 @@ export const DEFAULT_WRITING_CONFIG = Object.freeze({
 export const DEFAULT_HANDWRITING_SETTINGS = {
   fontType: "plotter", plotterFontId: "pavel-notes-original", trueHandwriting: true,
   // Measured on the notebook photos: a 3.7 mm x-height, one line per two
-  // 5 mm cells, a bold line of dark blue ballpoint ink and word gaps of
-  // 0.86 x-height between the inks (most between 0.6 and 1.1). Written with
+  // 5 mm cells, a 0.44 mm line of dark blue ballpoint ink at that height
+  // (median over 40 photographed words) and word gaps of 0.86 x-height
+  // between the inks (most between 0.6 and 1.1). Written with
   // letters cut from different words, a word comes out 5% narrower than
   // the same word on the photos; the width restores it. The author carries
   // a word that does not fit to the next line instead of squeezing the
   // line, so line fitting only takes up a few percent.
   fontSize: 28, lineHeight: 1.35, inkColor: "#2c2e72",
-  penWidthMm: 0.58, inkVariation: 12, paperTexture: true,
+  penWidthMm: 0.48, inkVariation: 12, paperTexture: true,
   glyphVariation: 4, connectionStrength: 100, pressureVariation: 0,
   maxWordTilt: 0.7, maxLift: 0.4, maxLetterSpacing: 0.15,
   authorSlant: 0, authorWidth: 105, authorRhythm: 12, authorBaseline: 8,
@@ -23,9 +24,10 @@ export const DEFAULT_HANDWRITING_SETTINGS = {
   fontRandomization: 0, maxLineDrift: 0,
 };
 
-// Earlier defaults (2026-10-04, the first letter-tracing build and the
-// twelve-photo build of 2026-10-05). Untouched settings saved with these
-// values, or with older drafts derived from them, are upgraded.
+// Earlier defaults (2026-10-04, the first letter-tracing build, the
+// twelve-photo build of 2026-10-05 and the spacing build of 2026-10-06).
+// Untouched settings saved with these values, or with older drafts derived
+// from them, are upgraded.
 export const PREVIOUS_NOTEBOOK_DEFAULTS = Object.freeze({
   ...DEFAULT_HANDWRITING_SETTINGS, inkColor: "#303f7b",
   fontSize: 32, lineHeight: 1.18, penWidthMm: 0.32, wordSpacing: 86, spaceVariation: 24,
@@ -36,5 +38,8 @@ export const TRACED_NOTEBOOK_DEFAULTS = Object.freeze({
   wordSpacing: 105, spaceVariation: 40, authorWidth: 100, lineFitCompression: 20,
 });
 export const PHOTO_NOTEBOOK_DEFAULTS = Object.freeze({
-  ...DEFAULT_HANDWRITING_SETTINGS, wordSpacing: 100, authorWidth: 100, lineFitCompression: 20,
+  ...DEFAULT_HANDWRITING_SETTINGS, penWidthMm: 0.58, wordSpacing: 100, authorWidth: 100, lineFitCompression: 20,
+});
+export const SPACED_NOTEBOOK_DEFAULTS = Object.freeze({
+  ...DEFAULT_HANDWRITING_SETTINGS, penWidthMm: 0.58,
 });

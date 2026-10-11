@@ -192,7 +192,8 @@ for (const word of letterWords.words) {
 const overallLift = liftTotal / Math.max(1, pairTotal);
 const liftRates = Object.fromEntries(Object.entries(liftCounts).map(([char, [n, lifts]]) =>
   [char, +((lifts + 10 * overallLift) / (n + 10)).toFixed(3)]));
-const notebookForms = notebookLetterForms(notebookSource, 128, liftRates);
+// Up to MAX_LETTER_FORMS (src/font-builder/letterForms.ts) written forms per character.
+const notebookForms = notebookLetterForms(notebookSource, 256, liftRates);
 const notebookOnly = char => (notebookForms[char]?.length ?? 0) >= 2;
 const sheetSource = JSON.parse(await readFile('font/pavel-notes/sheet-strokes.json', 'utf8'));
 const sheetCalibration = JSON.parse(await readFile('font/pavel-notes/sheet-size-calibration.json', 'utf8'));

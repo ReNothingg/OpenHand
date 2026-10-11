@@ -35,7 +35,7 @@ export function letterPosition(characters: string[], index: number) {
 }
 
 /** Photographed fonts keep more real alternatives than hand-drawn studio sets. */
-export const MAX_LETTER_FORMS = 128;
+export const MAX_LETTER_FORMS = 256;
 
 export function validForms(value: unknown): LetterForm[] {
   if (!Array.isArray(value)) return [];

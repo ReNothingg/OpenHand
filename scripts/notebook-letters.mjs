@@ -18,9 +18,27 @@ const inLowerBody = p => p.y > -0.6 * NOTEBOOK_BODY_HEIGHT && p.y < 0.25 * NOTEB
 // whose own stroke starts at the top of the body (з, э, ч, у, ж, х, я) are
 // joined by a diagonal up to that top; their join is followed up to it.
 const TOP_START = new Set(Array.from('зэчужхя'));
+// These letters start with a stem written upwards from the join (the first
+// stem of м, т, н, и, л…). The slanted stem is not steeper than 50 degrees,
+// so the join ends where the stroke leaves the baseline: everything above
+// it is the stem, and cutting at half the body made т read as п, м as ч.
+const STEM_START = new Set(Array.from('ийлмнптцшщыьъю'));
+function stemLeadIn(first) {
+  const rise = first.findIndex(p => p.y < -0.2 * NOTEBOOK_BODY_HEIGHT);
+  if (rise <= 0) return undefined;
+  // The lowest point before the rise is where the stem begins.
+  let low = 0;
+  for (let k = 1; k < rise; k++) if (first[k].y >= first[low].y) low = k;
+  if (first[low].x - first[0].x < 0.12 * NOTEBOOK_BODY_HEIGHT) return undefined;
+  // Keep a short foot of the join, as a pen starting a word leaves one.
+  let j = low;
+  while (j > 1 && first[low].x - first[j - 1].x <= 0.1 * NOTEBOOK_BODY_HEIGHT) j--;
+  return j > 0 ? j : undefined;
+}
 function leadIn(strokes, char) {
   const first = strokes[0];
   if (!first || first.length < 4) return undefined;
+  if (STEM_START.has(char)) return stemLeadIn(first);
   const start = first[0];
   const reach = (TOP_START.has(char) ? 0.85 : 0.5) * NOTEBOOK_BODY_HEIGHT;
   for (let i = 1; i < first.length - 1; i++) {
@@ -59,14 +77,21 @@ const inkLength = stroke => stroke.slice(1).reduce((sum, [x, y], i) =>
 
 // A short separate trace in a lowercase letter without accents is a thinning
 // spur or a piece of a neighbour or of the line above, not part of the
-// letter: the cursive lowercase letters have no strokes this short. The
+// letter: the cursive lowercase letters have no strokes this short. A short
+// piece that ends at the rest of the letter is part of it, though: thinning
+// splits a stem where the join or a crossbar meets it (the lower half of the
+// first stem of н, м, т), and without it the letter reads as к or ч. The
 // strokes that carry the joins are always kept.
 function writtenStrokes(letter) {
   const exit = letter.exit ? letter.exitStroke ?? letter.strokes.length - 1 : -1;
   if (!/^\p{Ll}$/u.test(letter.char) || ACCENTED.has(letter.char) || letter.strokes.length < 2)
     return { strokes: letter.strokes, exit };
+  const attached = i => [letter.strokes[i][0], letter.strokes[i].at(-1)].some(([x, y]) =>
+    letter.strokes.some((other, j) => j !== i && other.some(([u, v]) =>
+      Math.hypot(u - x, v - y) <= 0.25 * NOTEBOOK_BODY_HEIGHT)));
   const keep = letter.strokes.map((stroke, i) => (letter.entry && i === 0) || i === exit ||
-    inkLength(stroke) >= 0.35 * NOTEBOOK_BODY_HEIGHT);
+    inkLength(stroke) >= 0.35 * NOTEBOOK_BODY_HEIGHT ||
+    (inkLength(stroke) >= 0.1 * NOTEBOOK_BODY_HEIGHT && attached(i)));
   return {
     strokes: letter.strokes.filter((_, i) => keep[i]),
     exit: exit < 0 ? -1 : keep.slice(0, exit).filter(Boolean).length,
@@ -78,7 +103,7 @@ function writtenStrokes(letter) {
 // loose end within a fifth of the body of another piece is joined to it.
 // The ends that carry the joins to neighbouring letters stay free.
 function healBreaks(strokes, entry, exit) {
-  const reach = 0.2 * NOTEBOOK_BODY_HEIGHT;
+  const reach = 0.25 * NOTEBOOK_BODY_HEIGHT;
   return strokes.map((stroke, i) => {
     let result = stroke;
     for (const atStart of [true, false]) {
@@ -117,7 +142,15 @@ function form(letter) {
     shift = body.length ? Math.min(...body.map(p => p.x)) : 0;
     strokes = strokes.map(stroke => stroke.map(p => ({ ...p, x: +(p.x - shift).toFixed(1) })));
   }
-  const lead = letter.entry ? leadIn(strokes, letter.char) : undefined;
+  let lead = letter.entry ? leadIn(strokes, letter.char) : undefined;
+  // The cut must only remove the join. A cut that takes away ink of the
+  // letter's upper body (the left of the bowl of о, the first stem of и) is
+  // dropped: such a form keeps its join and is not used to start a word.
+  if (lead !== undefined && !TOP_START.has(letter.char)) {
+    const upper = list => list.reduce((sum, stroke) => sum + stroke.slice(1).reduce((s, p, i) =>
+      s + ((p.y + stroke[i].y) / 2 < -0.3 * NOTEBOOK_BODY_HEIGHT ? Math.hypot(p.x - stroke[i].x, p.y - stroke[i].y) : 0), 0), 0);
+    if (upper([strokes[0].slice(lead), ...strokes.slice(1)]) < 0.85 * upper(strokes)) lead = undefined;
+  }
   // Digits and signs were followed by a dot or a space in the notes; in a
   // row of digits they keep their ink apart like separately written figures.
   // After a pen lift the author starts the next letter right at the body of
@@ -216,19 +249,22 @@ function bodyBase(strokes) {
 // those were measured per word with some error. Side by side in a new word,
 // letters from different words then lean and sit unevenly, while the
 // author's stems run parallel and the bodies stand on one line. Each form is
-// sheared about the baseline to its letter's median stem slant and moved to
-// its letter's median sitting height; its joins move with it.
+// moved to its letter's median sitting height, and a letter with straight
+// stems is sheared about the baseline to its letter's median stem slant; its
+// joins move with it. Round letters (о, с, е, а, з, в, б, д…) have no stem to
+// measure, so their own slant is kept.
+const STEM_LETTERS = new Set(Array.from('иклмнпртуцчшщъыьйгя'));
 function alignForms(forms) {
   for (const [char, list] of Object.entries(forms)) {
     if (!/^\p{Ll}$/u.test(char) || list.length < 5) continue;
-    const slants = list.map(f => stemSlant(f.strokes));
+    const slants = list.map(f => STEM_LETTERS.has(char) ? stemSlant(f.strokes) : null);
     const bases = list.map(f => bodyBase(f.strokes));
     const known = values => values.filter(v => v !== null);
     const slant = known(slants).length >= 3 ? median(known(slants)) : null;
     const base = known(bases).length >= 3 ? median(known(bases)) : null;
     forms[char] = list.map((f, i) => {
-      const shear = slant === null || slants[i] === null ? 0 : Math.max(-0.35, Math.min(0.35, slant - slants[i]));
-      const lift = base === null || bases[i] === null ? 0 : Math.max(-0.2, Math.min(0.2, (base - bases[i]) / NOTEBOOK_BODY_HEIGHT)) * NOTEBOOK_BODY_HEIGHT;
+      const shear = slant === null || slants[i] === null ? 0 : Math.max(-0.25, Math.min(0.25, slant - slants[i]));
+      const lift = base === null || bases[i] === null ? 0 : Math.max(-0.1, Math.min(0.1, (base - bases[i]) / NOTEBOOK_BODY_HEIGHT)) * NOTEBOOK_BODY_HEIGHT;
       if (!shear && !lift) return f;
       const move = p => ({ ...p, x: +(p.x - shear * p.y).toFixed(1), y: +(p.y + lift).toFixed(1) });
       const strokes = f.strokes.map(stroke => stroke.map(move));
@@ -278,9 +314,12 @@ function evenHeights(forms) {
 // whose top is the x-height, by half for tall letters (б, в, й, ё, ф) whose
 // top is an ascender. Word-level size changes are added again in layout.
 const TALL = new Set(Array.from('бвйёф'));
+// The top of д is its upper loop, written round at the x-height or tall and
+// narrow above it, so its height says nothing about the size of the word.
+const FREE_TOP = new Set(Array.from('д'));
 function normaliseSizes(forms) {
   for (const [char, list] of Object.entries(forms)) {
-    if (!/^\p{Ll}$/u.test(char) || list.length < 5) continue;
+    if (!/^\p{Ll}$/u.test(char) || list.length < 5 || FREE_TOP.has(char)) continue;
     const tops = list.map(f => percentile(f.strokes.flat().map(p => p.y), 0.01));
     const median = percentile(tops, 0.5);
     forms[char] = list.flatMap((f, i) => {
@@ -295,78 +334,8 @@ function normaliseSizes(forms) {
   return forms;
 }
 
-// Points every 8 units along the strokes, centred on the median x.
-function outline(form) {
-  const points = [];
-  for (const stroke of form.strokes)
-    for (let i = 1; i < stroke.length; i++) {
-      const a = stroke[i - 1], b = stroke[i];
-      const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 8));
-      for (let k = 0; k < n; k++) points.push([a.x + (b.x - a.x) * k / n, a.y + (b.y - a.y) * k / n]);
-    }
-  const middle = percentile(points.map(p => p[0]), 0.5);
-  return points.map(([x, y]) => [x - middle, y]);
-}
-
-function chamfer(a, b) {
-  const mean = (p, q) => {
-    let total = 0;
-    for (const [x, y] of p) {
-      let best = Infinity;
-      for (const [u, v] of q) { const d = (x - u) ** 2 + (y - v) ** 2; if (d < best) best = d; }
-      total += Math.sqrt(best);
-    }
-    return total / p.length;
-  };
-  return (mean(a, b) + mean(b, a)) / 2;
-}
-
-// Tracing can merge strokes that touch on the photograph or join a letter
-// with an unusual neighbour; such forms look unlike every other copy of
-// the letter. Each form is compared with its nearest copies, and the least
-// typical third of a well-covered letter (or a clear outlier of a rare one)
-// is left out.
-function dropAtypical(forms) {
-  for (const [char, list] of Object.entries(forms)) {
-    if (!/^\p{L}$/u.test(char) || list.length < 6) continue;
-    const shapes = list.map(outline);
-    const n = list.length, k = Math.max(2, Math.min(6, Math.floor(n / 5)));
-    const distances = shapes.map(() => []);
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
-      const d = chamfer(shapes[i], shapes[j]);
-      distances[i].push(d); distances[j].push(d);
-    }
-    const typical = distances.map(d => d.sort((a, b) => a - b).slice(0, k).reduce((a, b) => a + b, 0) / k);
-    const median = percentile(typical, 0.5);
-    const limit = n >= 12 ? Math.min(percentile(typical, 0.7), 1.35 * median) : 1.6 * median;
-    forms[char] = list.filter((_, i) => typical[i] <= limit);
-  }
-  return forms;
-}
-
-// The typicality filter mostly removes broken traces, and those come more
-// often from widely written words, so the kept lowercase forms are about 4%
-// narrower than the letters as written. They are widened back to the
-// written average width, each letter weighted by how often it was written.
-function restoreWidth(forms, written) {
-  const mean = values => values.reduce((a, b) => a + b, 0) / values.length;
-  let before = 0, after = 0;
-  for (const [char, list] of Object.entries(forms)) {
-    if (!/^\p{Ll}$/u.test(char) || !written[char]?.length || !list.length) continue;
-    before += written[char].length * mean(written[char]);
-    after += written[char].length * mean(list.map(f => f.advance));
-  }
-  const factor = after ? Math.max(1, Math.min(1.08, before / after)) : 1;
-  for (const [char, list] of Object.entries(forms)) {
-    if (!/^\p{Ll}$/u.test(char)) continue;
-    forms[char] = list.map(f => ({ ...f, advance: +(f.advance * factor).toFixed(1),
-      strokes: f.strokes.map(stroke => stroke.map(p => ({ ...p, x: +(p.x * factor).toFixed(1) }))) }));
-  }
-  return forms;
-}
-
 /** @returns {Record<string, object[]>} */
-export function notebookLetterForms(data, maximum = 128, liftRates = {}) {
+export function notebookLetterForms(data, maximum = 256, liftRates = {}) {
   if (data.version !== 1 || data.unit !== 'gfont' || data.bodyHeight !== NOTEBOOK_BODY_HEIGHT)
     throw new Error('Unsupported notebook letter data.');
   const forms = {};
@@ -375,14 +344,13 @@ export function notebookLetterForms(data, maximum = 128, liftRates = {}) {
     if (liftRates[letter.char] !== undefined) result.lift = liftRates[letter.char];
     (forms[letter.char] ??= []).push(result);
   }
+  // Every form was reviewed against its photograph (broken traces are not
+  // accepted in notebook-letter-words.json). The forms are brought to their
+  // letter's size, aligned, then brought back to their letter's height.
   normaliseSizes(forms);
-  const written = Object.fromEntries(Object.entries(forms).map(([char, list]) => [char, list.map(f => f.advance)]));
-  dropAtypical(forms);
-  // The kept forms are aligned, then brought back to their letter's height.
   alignForms(forms);
   normaliseSizes(forms);
   evenHeights(forms);
-  restoreWidth(forms, written);
   for (const char of Object.keys(forms)) forms[char] = typicalFirst(forms[char]).slice(0, maximum);
   return forms;
 }
