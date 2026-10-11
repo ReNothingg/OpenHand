@@ -178,6 +178,99 @@ function percentile(values, p) {
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(p * (sorted.length - 1))))];
 }
 
+// The stems of a letter lean at the angle of the strokes down through the
+// body: the length-weighted median of dx/dy over steep pieces between the
+// baseline and the x-height (positive leans right).
+function stemSlant(strokes) {
+  const pieces = [];
+  for (const stroke of strokes)
+    for (let i = 1; i < stroke.length; i++) {
+      const a = stroke[i - 1], b = stroke[i];
+      const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy);
+      const middle = (a.y + b.y) / 2;
+      if (length < 1 || middle < -0.92 * NOTEBOOK_BODY_HEIGHT || middle > -0.08 * NOTEBOOK_BODY_HEIGHT) continue;
+      const slant = -dx / dy;
+      if (Math.abs(dy) > 1.2 * Math.abs(dx + 0.6 * dy) && slant > -0.2 && slant < 1.3) pieces.push([slant, length]);
+    }
+  if (pieces.length < 2) return null;
+  pieces.sort((p, q) => p[0] - q[0]);
+  const half = pieces.reduce((sum, [, length]) => sum + length, 0) / 2;
+  let sum = 0;
+  for (const [slant, length] of pieces) if ((sum += length) >= half) return slant;
+  return null;
+}
+
+// Where the body sits: the median of the low turning points of the strokes
+// near the baseline (descender loops and their tails are below this band).
+function bodyBase(strokes) {
+  const lows = [];
+  for (const stroke of strokes)
+    for (let i = 1; i < stroke.length - 1; i++) {
+      const y = stroke[i].y;
+      if (y >= stroke[i - 1].y && y >= stroke[i + 1].y && y > -0.35 * NOTEBOOK_BODY_HEIGHT && y < 0.22 * NOTEBOOK_BODY_HEIGHT) lows.push(y);
+    }
+  return lows.length ? median(lows) : null;
+}
+
+// A letter keeps the slant and the baseline of the word it was cut from, and
+// those were measured per word with some error. Side by side in a new word,
+// letters from different words then lean and sit unevenly, while the
+// author's stems run parallel and the bodies stand on one line. Each form is
+// sheared about the baseline to its letter's median stem slant and moved to
+// its letter's median sitting height; its joins move with it.
+function alignForms(forms) {
+  for (const [char, list] of Object.entries(forms)) {
+    if (!/^\p{Ll}$/u.test(char) || list.length < 5) continue;
+    const slants = list.map(f => stemSlant(f.strokes));
+    const bases = list.map(f => bodyBase(f.strokes));
+    const known = values => values.filter(v => v !== null);
+    const slant = known(slants).length >= 3 ? median(known(slants)) : null;
+    const base = known(bases).length >= 3 ? median(known(bases)) : null;
+    forms[char] = list.map((f, i) => {
+      const shear = slant === null || slants[i] === null ? 0 : Math.max(-0.35, Math.min(0.35, slant - slants[i]));
+      const lift = base === null || bases[i] === null ? 0 : Math.max(-0.2, Math.min(0.2, (base - bases[i]) / NOTEBOOK_BODY_HEIGHT)) * NOTEBOOK_BODY_HEIGHT;
+      if (!shear && !lift) return f;
+      const move = p => ({ ...p, x: +(p.x - shear * p.y).toFixed(1), y: +(p.y + lift).toFixed(1) });
+      const strokes = f.strokes.map(stroke => stroke.map(move));
+      // The step to the next letter follows the exit (or, after a lift, the
+      // right edge of the lower body).
+      let shift;
+      if (f.exit) {
+        const end = f.strokes[f.exit.stroke].at(-1);
+        shift = -shear * end.y;
+      } else {
+        const right = list => Math.max(...list.filter(inLowerBody).map(p => p.x));
+        shift = f.strokes.flat().some(inLowerBody) ? right(strokes.flat()) - right(f.strokes.flat()) : 0;
+      }
+      return { ...f, strokes, advance: Math.max(20, +(f.advance + shift).toFixed(1)) };
+    });
+  }
+  return forms;
+}
+
+// Every letter of the notes reaches the same x-height (photographs of
+// "через", "пружинный", "случае"), but the traced у, ч, з, ж come out a fifth
+// lower and е, я a little higher: tracing shortens the free stroke ends at the
+// top. Each such letter is stretched vertically to the common height of the
+// body letters, with its stems kept at their slant; its width stays as written.
+const BODY_LETTERS = new Set(Array.from('аегжзиклмнопрстухцчшщъыьэюя'));
+function evenHeights(forms) {
+  const topOf = f => percentile(f.strokes.flat().map(p => p.y), 0.01);
+  const letters = Object.keys(forms).filter(char => BODY_LETTERS.has(char) && forms[char].length);
+  const tops = Object.fromEntries(letters.map(char => [char, median(forms[char].map(topOf))]));
+  const common = median(letters.filter(char => forms[char].length >= 5).flatMap(char => forms[char].map(topOf)));
+  for (const char of letters) {
+    const k = Math.max(0.85, Math.min(1.25, common / tops[char]));
+    if (Math.abs(k - 1) < 0.02) continue;
+    const slants = forms[char].map(f => stemSlant(f.strokes)).filter(v => v !== null);
+    const slant = slants.length ? median(slants) : 0;
+    forms[char] = forms[char].map(f => ({ ...f,
+      strokes: f.strokes.map(stroke => stroke.map(p => ({ ...p,
+        x: +(p.x - slant * (k - 1) * p.y).toFixed(1), y: +(p.y * k).toFixed(1) }))) }));
+  }
+  return forms;
+}
+
 // Each word was scaled by its own measured x-height. That measurement is
 // noisy, so letters taken from different words differ in size by up to a
 // fifth, while a written word keeps one size. Every form is scaled about its
@@ -285,6 +378,10 @@ export function notebookLetterForms(data, maximum = 128, liftRates = {}) {
   normaliseSizes(forms);
   const written = Object.fromEntries(Object.entries(forms).map(([char, list]) => [char, list.map(f => f.advance)]));
   dropAtypical(forms);
+  // The kept forms are aligned, then brought back to their letter's height.
+  alignForms(forms);
+  normaliseSizes(forms);
+  evenHeights(forms);
   restoreWidth(forms, written);
   for (const char of Object.keys(forms)) forms[char] = typicalFirst(forms[char]).slice(0, maximum);
   return forms;
