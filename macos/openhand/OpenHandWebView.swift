@@ -603,6 +603,7 @@ struct OpenHandWebView: NSViewRepresentable {
             completionHandler: @escaping () -> Void
         ) {
             let alert = NSAlert()
+            
             alert.messageText = "OpenHand"
             alert.informativeText = message
             alert.addButton(withTitle: "OK")
