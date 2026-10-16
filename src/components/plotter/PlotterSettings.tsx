@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import LiquidRange from "../controls/LiquidRange";
-import SettingSection from "../settings/controls/SettingSection";
 import Toggle from "../settings/controls/Toggle";
 import { downloadFile } from "../../lib/files";
 import {
@@ -94,7 +93,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
     >
       <div className="device-grid">
         {penControls}
-        <section className="device-connection-card" aria-labelledby="device-connection-title">
+        <section className="device-connection-card device-card" id="device-connection" aria-labelledby="device-connection-title">
           <h2 id="device-connection-title">Подключение</h2>
           <MachineMonitor workspace={workspace} compact />
           {config.profile !== "grbl" && <p className="device-connection-state">{connected ? "Подключён" : "Не подключён"}</p>}
@@ -187,8 +186,8 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               </label>
             )}
             {config.connectionType === "serial" && (
-            <details className="plotter-advanced">
-              <summary>Расширенные параметры порта</summary>
+            <div className="device-subsection">
+              <h3>Расширенные параметры порта</h3>
               <div className="plotter-row two">
                 <label className="field">
                   <span>Биты данных</span>
@@ -269,7 +268,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
                   onChange={number("connectionTimeoutMs", 1000, 60000)}
                 />
               </label>
-            </details>
+            </div>
             )}
             {!connected ? (
               <button
@@ -317,10 +316,10 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
           </fieldset>
         </section>
       </div>
-      <h2 className="device-secondary-title">Настройки устройства</h2>
-      <fieldset disabled={locked}>
+            <fieldset disabled={locked}>
         <div className="device-settings-sections">
-          <SettingSection title="Профиль устройства" open={false}>
+          <section className="device-card" id="device-profile" aria-labelledby="device-profile-title">
+            <h2 id="device-profile-title">Профиль устройства</h2>
             <label className="field">
               <Caption help="Готовые локальные параметры, восстановленные из KDraw. Применение заменит механику и координаты активного профиля.">
                 Совместимость
@@ -435,11 +434,12 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
             >
               Калибровать
             </button>
-          </SettingSection>
+          </section>
 
 
 
-          <SettingSection title="Оси, рабочая область и скорость" open={false}>
+          <section className="device-card" id="device-axes" aria-labelledby="device-axes-title">
+            <h2 id="device-axes-title">Оси, рабочая область и скорость</h2>
             <div className="plotter-row two">
               <label className="field">
                 <Caption help="Начните с 500–1500 мм/мин. Высокая скорость вызывает пропуски шагов и рваные линии.">
@@ -615,8 +615,8 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
                   onChange={number("letterSpacing", 0, 20)}
                 />
             </label>
-            <details className="plotter-advanced">
-              <summary>Команды до и после задания</summary>
+            <div className="device-subsection">
+              <h3>Команды до и после задания</h3>
               <p className="plotter-warning">
                 Эти строки отправляются контроллеру без изменения. Используйте
                 только известный вам G-code и по одной команде на строку.
@@ -649,10 +649,11 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
                   }
                 />
               </label>
-            </details>
-          </SettingSection>
+            </div>
+          </section>
 
-          <SettingSection title="Положение на листе" open={false}>
+          <section className="device-card" id="device-placement" aria-labelledby="device-placement-title">
+            <h2 id="device-placement-title">Положение на листе</h2>
             {config.profile === "grbl" && <p className="plotter-note">
               {workspace.originConfirmed ? "Стрелки ограничены выбранной рабочей областью относительно начала листа." : "Пока начало листа не задано, стрелки двигают механизм на выбранный шаг без проверки границ."}
             </p>}
@@ -765,7 +766,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
                 Отправить
               </button>
             </form>
-          </SettingSection>
+          </section>
           <PenCalibrationSheet workspace={workspace} />
         </div>
       </fieldset>

@@ -75,9 +75,9 @@ export default function PenSetupPanel({ workspace, execute, disabled }: Props) {
       {lift > 3 && <p className="pen-lift-caution">Перед длинной записью проверьте новые положения кнопками «Поднять перо» и «Опустить перо» выше. Если перо упирается, нажмите СТОП.</p>}
     </section>}
     <PenTravelInfo config={config} />
-    {saved && referenced && <details className="pen-fine-adjustment"><summary>Подстроить положения</summary>
+    {saved && referenced && <div className="pen-fine-adjustment device-subsection"><h3>Подстроить положения</h3>
       {position === null ? <p className="device-hint">Сначала нажмите «Поднять перо» или «Опустить перо», затем подстройте высоту.</p> : adjust}
-    </details>}
+    </div>}
     {referenced && position !== null && <p className="pen-position-caption">Текущая отметка настройки: {position} мм</p>}
     {(referenced || config.penVerifiedUp || config.penVerifiedDown) && <div className="device-reset-pen">
       <button disabled={disabled} onClick={() => void execute(workspace.resetPenSetup)}>Настроить заново</button>

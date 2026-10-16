@@ -31,6 +31,16 @@ function NumberSetting({ label, value, onChange, min, max, disabled = false, onT
   </div> : <>{field}{!valid && <small role="alert">Введите число от {min} до {max}.</small>}</>;
 }
 
+const DEVICE_SECTIONS = [
+  ["device-connection", "Подключение"],
+  ["device-pen", "Перо"],
+  ["device-profile", "Профиль устройства"],
+  ["device-axes", "Оси и скорость"],
+  ["device-placement", "Положение на листе"],
+  ["device-tuning", "Подбор пера"],
+  ["device-diagnostics", "Диагностика"],
+] as const;
+
 export default function PlotterDevicePage({ workspace }: { workspace: any }) {
   const { config, connected, running, calibrationActive, plotter } = workspace;
   const [busy, setBusy] = useState(false);
@@ -47,12 +57,20 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
   };
   const set = (key: string, value: number | string) => workspace.updateConfig(key, value);
   return <main className="device-page" aria-label="Общие настройки плоттера">
+    <div className="device-layout">
+    <nav className="device-nav" aria-label="Разделы настроек плоттера">
+      {DEVICE_SECTIONS.map(([id, label]) => <a key={id} href={`#${id}`} onClick={event => {
+        event.preventDefault();
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }}>{label}</a>)}
+    </nav>
+    <div className="device-content">
     <header className="device-page-heading">
-      <div><h1>Плоттер</h1><p>Общие настройки для документа и мастерской · сохраняются автоматически</p></div>
+      <div><h1>Плоттер</h1><p>Общие настройки для документа и мастерской. Изменения сохраняются автоматически.</p></div>
     </header>
     {workspace.error && <p className="plotter-error" role="alert">{workspace.error}</p>}
     <div className="device-configuration settings-panel">
-      <PlotterSettings workspace={workspace} penControls={<section className="device-pen-card" aria-labelledby="device-pen-title">
+      <PlotterSettings workspace={workspace} penControls={<section className="device-pen-card device-card" id="device-pen" aria-labelledby="device-pen-title">
         <h2 id="device-pen-title">Перо</h2>
         {stepper ? <PenSetupPanel workspace={workspace} execute={execute} disabled={locked} />
           : config.penMode === "laser" ? <p className="device-hint">В режиме лазера проверка пера недоступна.</p> : <>
@@ -68,7 +86,7 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
             testLabel="Проверить ↓" testDisabled={!canMove || (stepper && (!workspace.penReferenceConfirmed || workspace.penSetupPosition === null))}
             onTest={(v: number) => execute(() => workspace.pen(false, v))} />
         </>}
-        <details className="device-advanced"><summary>Механизм и точная настройка</summary>
+        <div className="device-subsection device-advanced"><h3>Механизм и точная настройка</h3>
           <label className="device-number"><span>Механизм подъёма</span>
             <select value={config.penMode} disabled={locked || config.profile === "ebb"} onChange={e => set("penMode", e.target.value)}>
               <option value="stepper">Шаговый двигатель · Z</option><option value="servo">Сервопривод</option>
@@ -84,9 +102,11 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
           </>}
           {config.profile === "ebb" && <NumberSetting label="Шагов на миллиметр" value={config.mmToSteps} min={1} max={1000} disabled={locked} onChange={(v: number) => set("mmToSteps", v)} />}
           {config.penMode === "laser" && <NumberSetting label="Мощность S" value={config.laserPower} min={0} max={1000} disabled={locked} onChange={(v: number) => set("laserPower", v)} />}
-        </details>
+        </div>
       </section>} />
       <PlotterDiagnostics workspace={workspace} />
+    </div>
+    </div>
     </div>
   </main>;
 }

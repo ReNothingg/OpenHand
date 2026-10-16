@@ -29,8 +29,8 @@ export default function PlotterDiagnostics({ workspace }: { workspace: any }) {
       await downloadFile(`openhand-diagnostics-${new Date().toISOString().replace(/[:.]/g, '-')}.json`, JSON.stringify(report, null, 2), "application/json");
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
-  return <details className="device-advanced device-diagnostics">
-    <summary>Диагностика и версия приложения</summary>
+  return <section className="device-card device-diagnostics" id="device-diagnostics" aria-labelledby="device-diagnostics-title">
+    <h2 id="device-diagnostics-title">Диагностика и версия</h2>
     <div className="device-diagnostics-info">
       <span>Сборка <strong>{build.revision}{build.modified ? " · с изменениями" : ""}</strong></span>
       {build.builtAt && <time dateTime={build.builtAt}>{new Date(build.builtAt).toLocaleString("ru-RU")}</time>}
@@ -40,8 +40,8 @@ export default function PlotterDiagnostics({ workspace }: { workspace: any }) {
     <button className="button" type="button" onClick={() => void exportReport()}>Сохранить диагностику</button>
     <p className="device-hint">Локальный файл с параметрами устройства и последними ответами контроллера. Текст документа не включается.</p>
     {error && <p role="alert" className="plotter-error">{error}</p>}
-    <details><summary>Журнал команд</summary><pre className="device-command-log">{workspace.plotter.logs.length
+    <div className="device-subsection"><h3>Журнал команд</h3><pre className="device-command-log">{workspace.plotter.logs.length
       ? workspace.plotter.logs.map((entry: any) => `${entry.time} ${entry.direction === "out" ? "→" : entry.direction === "in" ? "←" : "·"} ${entry.message}`).join("\n")
-      : "В этой сессии команды ещё не отправлялись."}</pre></details>
-  </details>;
+      : "В этой сессии команды ещё не отправлялись."}</pre></div>
+  </section>;
 }

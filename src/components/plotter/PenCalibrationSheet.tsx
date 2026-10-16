@@ -2,7 +2,6 @@ import { serializePlotterGcode } from "../../gcode/penModel";
 import { useMemo, useState } from "react";
 import { createPenCalibration } from "../../plotter/penCalibration";
 import { downloadFile } from "../../lib/files";
-import SettingSection from "../settings/controls/SettingSection";
 
 export default function PenCalibrationSheet({ workspace }) {
   const [selected, setSelected] = useState("");
@@ -14,7 +13,8 @@ export default function PenCalibrationSheet({ workspace }) {
   const variablePressure =
     config.penMode === "servo" && config.profile !== "ebb";
   return (
-    <SettingSection title="Подобрать перо и скорость" open={false}>
+    <section className="device-card" id="device-tuning" aria-labelledby="device-tuning-title">
+            <h2 id="device-tuning-title">Подобрать перо и скорость</h2>
       <div className="pen-calibration-body">
         <p className="pen-calibration-intro">
           Выполните тестовый лист и выберите образец с самой чистой линией.
@@ -132,6 +132,6 @@ export default function PenCalibrationSheet({ workspace }) {
           </p>
         )}
       </div>
-    </SettingSection>
+    </section>
   );
 }

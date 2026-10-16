@@ -54,8 +54,8 @@ export default function MachineMonitor({ workspace, compact = false }: { workspa
           <p className="calibration-note">Кнопка отправляет $X без движения. Задание не возобновляется; ноль после аварии нужно проверить.</p>
         </div>
       )}
-      <details open={!compact}>
-      <summary>Координаты и скорости</summary>
+      {connected && <div className="device-subsection machine-telemetry">
+      <h3>Координаты и скорости</h3>
       <small>
         {fresh && status.unitsKnown === false
           ? "Единицы координат ещё не прочитаны"
@@ -113,7 +113,7 @@ export default function MachineMonitor({ workspace, compact = false }: { workspa
         ))}
       </div>
       {fresh && status.pins && <small>Активные входы: {status.pins}</small>}
-      </details>
+      </div>}
       {error && (
         <p className="plotter-error" role="alert">
           {error}

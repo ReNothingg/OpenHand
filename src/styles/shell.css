@@ -1140,3 +1140,126 @@
 :root:root .oh-shell.editor-collapsed > .workspace {
   --editor-panel-width: 0px;
 }
+
+/* Plotter page: section list on the left, every section open in one column. */
+:root:root .device-layout {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+:root:root .device-nav {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 72px;
+}
+:root:root .device-nav > a {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+:root:root .device-nav > a:hover {
+  background: var(--control-hover);
+  color: var(--text-primary);
+}
+:root:root .device-content {
+  min-width: 0;
+}
+:root:root .device-page .device-page-heading {
+  max-width: none;
+  margin: 0 0 20px;
+}
+:root:root .app .device-page .device-configuration {
+  max-width: none;
+}
+:root:root .device-page .device-grid,
+:root:root .device-page .device-settings-sections {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 20px;
+}
+:root:root .device-page .device-settings-sections {
+  margin-top: 20px;
+}
+:root:root .device-page .device-connection-card {
+  order: -1;
+}
+:root:root .device-page .device-card {
+  min-width: 0;
+  margin: 0;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  scroll-margin-top: 16px;
+}
+:root:root .device-page .device-card > h2 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+:root:root .device-page .device-card > :not(h2) + :not(h2) {
+  margin-top: 14px;
+}
+:root:root .device-page .device-subsection {
+  margin-top: 18px;
+  padding: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+:root:root .device-page .device-subsection > h3 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+:root:root .device-page .device-command-log {
+  max-height: 240px;
+  overflow: auto;
+}
+@media (max-width: 860px) {
+  :root:root .device-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  :root:root .device-nav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding-top: 0;
+  }
+}
+:root:root .device-page .device-card :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--control-radius);
+  background-color: var(--surface-raised);
+}
+:root:root .device-page .device-card :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select) {
+  min-height: 36px;
+}
+:root:root .device-page .device-card button.button:not(.primary):not(.danger) {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+}
+:root:root .device-page .device-card button.button:not(.primary):not(.danger):hover:not(:disabled) {
+  background: var(--control-surface);
+}
+:root:root .device-page .device-card .plotter-row {
+  row-gap: 12px;
+}
