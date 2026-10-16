@@ -189,6 +189,9 @@
 .placement-mode input[type="radio"] { flex: 0 0 auto; width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--green); }
 .placement-mode label span { display: grid; gap: 3px; min-width: 0; }
 .placement-mode strong { font-size: 12px; font-weight: 600; }
+.paper-alignment { flex-basis: 100%; display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.paper-alignment strong { font-size: 12px; font-weight: 600; }
+.paper-alignment-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .placement-mode small { color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
 .placement-mode:disabled label { cursor: default; opacity: .6; }
 

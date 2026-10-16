@@ -33,7 +33,18 @@ export default function PlotterManualStart({ workspace, workshop = false }: { wo
         <span><strong>Левый верхний угол бумаги</strong><small>Разместить текст с полями документа</small></span>
       </label>
     </fieldset>}
-    <p>Поставьте поднятое перо {selected === "text" ? "в точку первого штриха" : "над левым верхним углом бумаги"} и запомните положение.
+    {workspace.notebookSpread && <fieldset className="placement-mode" disabled={locked}>
+      <legend>Что пишем на развороте?</legend>
+      {([["both", "Обе страницы", "Разворот целиком, если он помещается в рабочую область"],
+        ["left", "Левую страницу", "Перо над левым верхним углом левой страницы"],
+        ["right", "Правую страницу", "Перо над верхним углом правой страницы у корешка"]] as const).map(([value, title, hint]) =>
+        <label key={value} className={workspace.spreadSide === value ? "is-selected" : ""}>
+          <input type="radio" name={`${groupId}-spread`} value={value} checked={workspace.spreadSide === value}
+            onChange={() => workspace.updateConfig("spreadPages", value)} />
+          <span><strong>{title}</strong><small>{hint}</small></span>
+        </label>)}
+    </fieldset>}
+    <p>Поставьте поднятое перо {selected === "text" ? "в точку первого штриха" : workspace.spreadSide === "right" ? "над верхним углом правой страницы у корешка" : "над левым верхним углом бумаги"} и запомните положение.
       {" Кнопка не двигает механизм и не меняет высоту пера. Затем нажмите «Начать запись»."}</p>
     <button className="oh-button" type="button"
       disabled={!canSet || locked || (selected === "text" && textUnavailable)}
@@ -45,6 +56,7 @@ export default function PlotterManualStart({ workspace, workshop = false }: { wo
       <span>{workspace.originConfirmed ? "Запомнить новую точку" : "Запомнить эту точку"}</span>
     </button>
     {selected === "text" && workspace.textStartChanged && <p role="status">Начало макета изменилось. Запомните точку текста заново.</p>}
+    {selected === "sheet" && workspace.originConfirmed && <PaperAlignmentSteps workspace={workspace} locked={locked} />}
     {!workspace.penPositionsVerified && <button className="oh-link-button" type="button"
       onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>
       Один раз настроить подъём пера →
@@ -54,5 +66,29 @@ export default function PlotterManualStart({ workspace, workshop = false }: { wo
       Указать фактическое положение пера →
     </button>}
     <PenTravelInfo config={workspace.config} />
+  </div>;
+}
+
+/** Two points on one rule of the squares turn and shift the page onto the paper. */
+function PaperAlignmentSteps({ workspace, locked }: { workspace: any; locked: boolean }) {
+  const alignment = workspace.paperAlignment;
+  const degrees = alignment ? alignment.angle * 180 / Math.PI : 0;
+  const format = (value: number, digits = 1) => value.toLocaleString("ru-RU", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return <div className="paper-alignment">
+    <strong>Выровнять по клетке</strong>
+    <p>{workspace.alignmentStarted
+      ? "По той же горизонтальной линии отведите перо вправо, хотя бы на 40 мм, и отметьте вторую точку."
+      : "Ручными шагами подведите поднятое перо к пересечению линий клетки у левого края текста и отметьте первую точку."}</p>
+    {alignment && <p role="status">Поворот {format(degrees, 2)}°, сдвиг клетки {format(alignment.shiftX)} / {format(alignment.shiftY)} мм.</p>}
+    <div className="paper-alignment-actions">
+      <button className="oh-button" type="button" disabled={locked || !workspace.alignmentAvailable}
+        title={workspace.alignmentAvailable ? undefined : "После угла листа двигайте перо только ручными шагами."}
+        onClick={workspace.markAlignmentPoint}>
+        <Icon name="crosshair" />
+        <span>{workspace.alignmentStarted ? "Отметить вторую точку" : "Отметить первую точку"}</span>
+      </button>
+      {(alignment || workspace.alignmentStarted) && <button className="oh-link-button" type="button" disabled={locked}
+        onClick={workspace.resetAlignment}>Сбросить</button>}
+    </div>
   </div>;
 }

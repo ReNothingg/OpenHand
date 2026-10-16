@@ -12,7 +12,7 @@ const CALIBRATION_KEYS = [
 ];
 export const ORIGIN_CONFIG_KEYS = [
   "profile", "startPosition", "swapAxes", "invertX", "invertY", "mmToSteps",
-  "workAreaWidth", "workAreaHeight",
+  "workAreaWidth", "workAreaHeight", "spreadPages",
 ];
 
 export function updateProfileConfig(profile, incoming) {
@@ -275,6 +275,9 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
       DEFAULT_PLOTTER_CONFIG.letterSpacing,
     ),
     compactPaths: boolean(incoming.compactPaths, true),
+    penLeadIn: boolean(incoming.penLeadIn, DEFAULT_PLOTTER_CONFIG.penLeadIn),
+    cornerSlowdown: boolean(incoming.cornerSlowdown, DEFAULT_PLOTTER_CONFIG.cornerSlowdown),
+    spreadPages: option(incoming.spreadPages, ["both", "left", "right"], DEFAULT_PLOTTER_CONFIG.spreadPages),
     optimizePath: boolean(
       incoming.optimizePath,
       DEFAULT_PLOTTER_CONFIG.optimizePath,

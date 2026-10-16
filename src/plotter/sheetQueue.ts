@@ -8,7 +8,12 @@ export interface PaperChange {
   totalSheets: number;
 }
 
-export function sheetLabel(index: number, spread: boolean) {
+/** `spread` is true for whole spreads, or the one page of each spread being written. */
+export type SpreadLabel = boolean | "left" | "right";
+
+export function sheetLabel(index: number, spread: SpreadLabel) {
+  if (spread === "left") return `Страница ${index * 2 + 1}`;
+  if (spread === "right") return `Страница ${index * 2 + 2}`;
   return spread
     ? `Страницы ${index * 2 + 1}–${index * 2 + 2}`
     : `Лист ${index + 1}`;
@@ -18,7 +23,7 @@ export function createSheetQueue(
   jobs,
   indices: number[],
   config,
-  spread: boolean,
+  spread: SpreadLabel,
 ) {
   if (!["grbl", "marlin"].includes(config.profile))
     throw new Error(

@@ -7,6 +7,7 @@ import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution }
 import { DEFAULT_AUTOMATIC_PEN_LIFT_MM, MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, automaticPenSpeed, automaticPenUpPosition, penTravelSeconds } from "./penLift";
 import { chooseForm, planConnectedForms, withoutLeadIn, formGlyph, letterPosition, trajectoryFingerprint, mergeTrajectoryReports, clearanceShift, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
 import { layoutFormula } from "./mathLayout";
+import { NOTEBOOK_CELL_MM, isNotebookSpread, notebookColumn, notebookLinePitchPx, snapDownToRule, snapLineAdvance } from "../lib/notebookGrid";
 import {
   PLOTTER_ALIGN_MARKS,
   PLOTTER_PARAGRAPH_MARKS,
@@ -75,6 +76,9 @@ export const DEFAULT_PLOTTER_CONFIG = {
   returnToOrigin: false,
   customStartGcode: "",
   customEndGcode: "",
+  penLeadIn: true,
+  cornerSlowdown: true,
+  spreadPages: "both",
   ...DEFAULT_WRITING_CONFIG,
 };
 
@@ -84,6 +88,20 @@ export function pageSettingsToMillimeters(
   evenPage = false,
   spreadSide = null,
 ) {
+  if (spreadSide && isNotebookSpread(settings)) {
+    const column = notebookColumn(settings, metrics.width, spreadSide);
+    return {
+      pageWidth: metrics.width * PX_TO_MM,
+      pageHeight: metrics.height * PX_TO_MM,
+      left: column.left * PX_TO_MM,
+      top: settings.marginTop * PX_TO_MM,
+      right: (metrics.width - column.left - column.width) * PX_TO_MM,
+      bottom: settings.marginBottom * PX_TO_MM,
+      fontSize: settings.fontSize * PX_TO_MM,
+      lineHeight: notebookLinePitchPx(settings.fontSize, settings.lineHeight) * PX_TO_MM,
+      ruleStep: NOTEBOOK_CELL_MM,
+    };
+  }
   const pageMargin = evenPage ? settings.marginLeftEven : settings.marginLeft;
   const leftPixels =
     spreadSide === "right" ? metrics.width / 2 + pageMargin : pageMargin;
@@ -537,7 +555,12 @@ export async function layoutText(
   const decorationStarts = new Map<string, number>();
   const activeTextStyles = new Set<string>();
   let x = page.left;
-  let baseline = page.top + page.fontSize;
+  // On squared paper every baseline lies on a horizontal rule.
+  const ruleStep = Number(page.ruleStep) > 0 ? Number(page.ruleStep) : 0;
+  let baseline = ruleStep
+    ? snapDownToRule(page.top + page.fontSize, ruleStep)
+    : page.top + page.fontSize;
+  const onRule = (y: number) => ruleStep ? Math.ceil(y / ruleStep - 1e-6) * ruleStep : y;
   let lineStrokeStart = 0;
   let lineTextOnly = true;
   let lineLeft = page.left;
@@ -778,7 +801,8 @@ export async function layoutText(
     for (let i = lineStrokeStart; i < strokes.length; i++)
       for (const point of strokes[i]) previousLineBottom = Math.max(previousLineBottom, point.y);
     x = page.left + (activeQuote ? quoteIndent : 0);
-    baseline += page.lineHeight + pendingHeadingGap + lineFormulaDescent;
+    const advance = page.lineHeight + pendingHeadingGap + lineFormulaDescent;
+    baseline += ruleStep ? snapLineAdvance(advance, ruleStep) : advance;
     lineFormulaDescent = 0;
     lineStrokeStart = strokes.length;
     lineTextOnly = true;
@@ -1064,8 +1088,8 @@ export async function layoutText(
         }
         const formulaAscent = formula.ascent * headingScale();
         const formulaDescent = formula.descent * headingScale();
-        const formulaBaseline = Math.max(baseline, page.top + formulaAscent,
-          previousLineBottom + formulaLineGap + formulaAscent);
+        const formulaBaseline = onRule(Math.max(baseline, page.top + formulaAscent,
+          previousLineBottom + formulaLineGap + formulaAscent));
         if (formulaBaseline + formulaDescent > maxY) {
           clipped = true;
           preserveOverflow(tokenIndex);
@@ -1192,7 +1216,7 @@ export async function layoutText(
         }
         x = drawingX + drawingWidth;
         lineTextOnly = false;
-        baseline = top + drawingHeight;
+        baseline = onRule(top + drawingHeight);
         markCalloutContent();
         continue;
       }
@@ -1325,7 +1349,8 @@ export async function layoutText(
         }
         if (headingStarts.has(char)) {
           activeHeadingLevel = headingStarts.get(char);
-          baseline = Math.max(baseline, previousLineBottom + formulaLineGap + page.fontSize * headingScale() * headingInkAscent / FONT_EM);
+          const headingBaseline = previousLineBottom + formulaLineGap + page.fontSize * headingScale() * headingInkAscent / FONT_EM;
+          if (headingBaseline > baseline) baseline = onRule(headingBaseline);
           if (baseline > maxY) { clipped = true; preserveOverflow(tokenIndex, charIndex); break; }
           continue;
         }
@@ -1612,6 +1637,8 @@ export async function layoutBlocks(
         : `${PLOTTER_ALIGN_MARKS[`${alignment}Start`]}${block.text}${PLOTTER_ALIGN_MARKS[`${alignment}End`]}`;
     const blockPage = {
       ...page,
+      // A block stays exactly where it was placed by hand.
+      ruleStep: 0,
       left,
       top,
       right: layout.noWrap
@@ -1719,9 +1746,71 @@ export function transformVectorForMachine(dx, dy, config) {
   return { x, y };
 }
 
+export type PaperAlignment = {
+  /** Turn of the paper's rules against the machine X axis, radians. */
+  angle: number;
+  /** Moves the page's squares onto the paper's squares, mm. */
+  shiftX: number;
+  shiftY: number;
+  /** The sheet origin under the pen, about which the page is turned, mm. */
+  pivotX: number;
+  pivotY: number;
+};
+
+/**
+ * Places a page point on the paper actually lying on the plotter: the page of
+ * a spread written on its own starts at its own left edge, and a measured
+ * paper alignment turns and shifts the page onto the real squares.
+ */
+export function registerOnPaper(point: PlotPoint, config): PlotPoint {
+  const alignment: PaperAlignment | null = config.paperAlignment || null;
+  let x = Number(point.x) + (alignment?.shiftX || 0) - (Number(config.pageOffsetX) || 0);
+  let y = Number(point.y) + (alignment?.shiftY || 0);
+  if (alignment?.angle) {
+    const cos = Math.cos(alignment.angle), sin = Math.sin(alignment.angle);
+    const dx = x - alignment.pivotX, dy = y - alignment.pivotY;
+    x = alignment.pivotX + dx * cos - dy * sin;
+    y = alignment.pivotY + dx * sin + dy * cos;
+  }
+  return { x, y };
+}
+
+/** The page point under the pen when the sheet origin was set. */
+export function sheetOriginPoint(config): PlotPoint {
+  const position = config.startPosition || "left-bottom";
+  return {
+    x: position.startsWith("right") ? Number(config.workAreaWidth) : 0,
+    y: position.endsWith("bottom") ? Number(config.workAreaHeight) : 0,
+  };
+}
+
+/**
+ * Alignment from two points on one horizontal rule of the paper, given as pen
+ * offsets from the sheet origin in page directions. The first point is a
+ * crossing of the squares.
+ */
+export function measurePaperAlignment(first: PlotPoint, second: PlotPoint, config, cell: number): PaperAlignment {
+  const dx = second.x - first.x, dy = second.y - first.y;
+  if (Math.abs(dx) < 40) throw new Error("Отведите вторую точку по линии хотя бы на 40 мм от первой.");
+  const angle = Math.atan2(dy, dx);
+  if (Math.abs(angle) > 5 * Math.PI / 180)
+    throw new Error("Линия наклонена больше чем на 5°. Положите тетрадь ровнее и повторите.");
+  const pivot = sheetOriginPoint(config);
+  const cos = Math.cos(-angle), sin = Math.sin(-angle);
+  const paperX = pivot.x + (Number(config.pageOffsetX) || 0) + first.x * cos - first.y * sin;
+  const paperY = pivot.y + first.x * sin + first.y * cos;
+  return {
+    angle,
+    shiftX: paperX - Math.round(paperX / cell) * cell,
+    shiftY: paperY - Math.round(paperY / cell) * cell,
+    pivotX: pivot.x,
+    pivotY: pivot.y,
+  };
+}
+
 function transformStrokeForMachine(stroke: PlotStroke, config): PlotStroke {
   const transformed = stroke.map((point) =>
-    transformPointForMachine(point, config),
+    transformPointForMachine(registerOnPaper(point, config), config),
   ) as PlotStroke;
   if (stroke.pressure) transformed.pressure = stroke.pressure;
   if (stroke.feedRate) transformed.feedRate = stroke.feedRate;
@@ -1746,18 +1835,11 @@ export function parseCustomGcode(value) {
     });
 }
 
-function penCommand(up, config, pressure = 1) {
+// A hobby pen lift has two useful positions. A servo stopped part of the way
+// down leaves a ballpoint barely touching the paper, so connectors and light
+// strokes skip; drawn ink pressure is shown in the preview only.
+function penCommand(up, config) {
   const stepperPosition = up ? automaticPenUpPosition(config) : config.zDown;
-  const servoMax = config.profile === "marlin" ? 180 : 32767;
-  const pressuredPenDown = Math.max(
-    Math.min(Number(config.penUp), Number(config.penDown)),
-    Math.min(
-      Math.min(servoMax, Math.max(Number(config.penUp), Number(config.penDown))),
-      Number(config.penUp) +
-        (Number(config.penDown) - Number(config.penUp)) *
-          Math.max(0.72, Math.min(1.28, pressure)),
-    ),
-  );
   if (config.profile === "ebb")
     return `SP,${up ? 1 : 0},${Math.round(penDelay(up, config) * 1000)}`;
   if (config.profile === "marlin") {
@@ -1765,12 +1847,81 @@ function penCommand(up, config, pressure = 1) {
       return `G1G90Z${number(stepperPosition)}F${config.zSpeed}`;
     if (config.penMode === "estepper")
       return `G1G90E${number(stepperPosition)}F${config.zSpeed}`;
-    return `M280P0S${Math.round(up ? config.penUp : pressuredPenDown)}`;
+    return `M280P0S${Math.round(up ? config.penUp : config.penDown)}`;
   }
   if (config.penMode === "stepper")
     return `G1G90G94Z${number(stepperPosition)}F${automaticPenSpeed(config)}`;
   if (config.penMode === "laser") return up ? "M5" : `M3S${config.laserPower}`;
-  return `M3S${Math.round(up ? config.penUp : pressuredPenDown)}`;
+  return `M3S${Math.round(up ? config.penUp : config.penDown)}`;
+}
+
+// The ball needs a moment of slow travel to start rolling: at full speed the
+// first millimetre of a stroke skips or leaves a blot.
+const LEAD_IN_MM = 0.8;
+const LEAD_IN_FEED = 0.35;
+// Sharp turns in small letters are taken slower, so the pen holder does not
+// swing past the corner. The turn is measured over this much of the line on
+// either side, which also catches tight curves drawn as many short segments.
+const CORNER_REACH_MM = 0.6;
+const CORNER_MIN_FEED = 0.45;
+const MIN_DRAW_FEED = 120;
+
+function pointAlong(points: PlotPoint[], index: number, step: 1 | -1) {
+  let travelled = 0;
+  let k = index;
+  while (k + step >= 0 && k + step < points.length && travelled < CORNER_REACH_MM) {
+    travelled += Math.hypot(points[k + step]!.x - points[k]!.x, points[k + step]!.y - points[k]!.y);
+    k += step;
+  }
+  return points[k]!;
+}
+
+function cornerFactor(points: PlotPoint[], index: number) {
+  if (index <= 0 || index >= points.length - 1) return 1;
+  const point = points[index]!;
+  const back = pointAlong(points, index, -1), forward = pointAlong(points, index, 1);
+  const ax = point.x - back.x, ay = point.y - back.y;
+  const bx = forward.x - point.x, by = forward.y - point.y;
+  const lengths = Math.hypot(ax, ay) * Math.hypot(bx, by);
+  if (lengths < 1e-9) return 1;
+  const turn = Math.acos(Math.max(-1, Math.min(1, (ax * bx + ay * by) / lengths))) * 180 / Math.PI;
+  const sharpness = Math.max(0, Math.min(1, (turn - 30) / 120));
+  return 1 - (1 - CORNER_MIN_FEED) * sharpness;
+}
+
+/** Split the path at the end of the lead-in, keeping piece ranges valid. */
+function insertLeadInPoint(path: PenPath) {
+  let travelled = 0;
+  for (let k = 1; k < path.points.length; k++) {
+    const a = path.points[k - 1]!, b = path.points[k]!;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (travelled + length > LEAD_IN_MM + 0.05) {
+      const t = (LEAD_IN_MM - travelled) / length;
+      if (t <= 0.05) return;
+      path.points.splice(k, 0, { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+      for (const piece of path.pieces) {
+        if (piece.from >= k) piece.from += 1;
+        if (piece.to >= k) piece.to += 1;
+      }
+      return;
+    }
+    travelled += length;
+  }
+}
+
+/** Feed for each drawing move; move i goes to point i + 1. */
+export function drawingFeeds(points: PlotPoint[], feed: number, config) {
+  const feeds: number[] = [];
+  let travelled = 0;
+  for (let k = 1; k < points.length; k++) {
+    const length = Math.hypot(points[k]!.x - points[k - 1]!.x, points[k]!.y - points[k - 1]!.y);
+    travelled += length;
+    let factor = 1;
+    if (config.penLeadIn !== false && travelled <= LEAD_IN_MM + 1e-6) factor = LEAD_IN_FEED;
+    if (config.cornerSlowdown !== false) factor = Math.min(factor, cornerFactor(points, k));
+    feeds.push(Math.round(Math.max(Math.min(feed, MIN_DRAW_FEED), feed * factor)));
+  }
+  return feeds;
 }
 
 function buildEbbMove(from, to, speedMmMin, config, residue) {
@@ -1959,7 +2110,7 @@ export function joinPenPaths(strokes: PlotStroke[]): PenPath[] {
   strokes.forEach((stroke, index) => {
     if (stroke.length < 2) return;
     const last = paths.at(-1);
-    if (last && (last.pressure ?? 1) === (stroke.pressure ?? 1) && last.feedRate === stroke.feedRate) {
+    if (last && last.feedRate === stroke.feedRate) {
       const end = last.points.at(-1)!;
       const forward = retraceTo(last.points, stroke[0]!);
       const backward = retraceTo(last.points, stroke.at(-1)!);
@@ -2008,8 +2159,8 @@ export function compilePlotJob(strokes, config) {
   const commands = [];
   const resumePoints = [];
   const strokeCommandRanges = [];
-  const addPen = (up, pressure = 1) => {
-    commands.push(penCommand(up, config, pressure));
+  const addPen = (up) => {
+    commands.push(penCommand(up, config));
     const delay = penDelay(up, config);
     if (config.profile !== "ebb" && delay > 0)
       commands.push(`G4P${number(config.profile === "marlin" ? delay * 1000 : delay)}`);
@@ -2039,8 +2190,11 @@ export function compilePlotJob(strokes, config) {
   }
   const penPaths = joinPenPaths(machineStrokes);
   for (const path of penPaths) {
+    if (path.points.length < 2) continue;
+    if (config.penLeadIn !== false) insertLeadInPoint(path);
     const stroke = path.points;
-    if (stroke.length < 2) continue;
+    const baseFeed = Number.isFinite(path.feedRate) && path.feedRate! > 0 ? path.feedRate! : Number(config.feedRate);
+    const feeds = drawingFeeds(stroke, baseFeed, config);
     if (recoverable) resumePoints.push(commands.length);
     const start = stroke[0];
     const travel = Math.hypot(start.x - current.x, start.y - current.y);
@@ -2055,14 +2209,15 @@ export function compilePlotJob(strokes, config) {
         `G1X${number(start.x)}Y${number(start.y)}F${config.jogSpeed}`,
       );
     current = start;
-    addPen(false, path.pressure || 1);
+    addPen(false);
     const drawStart = commands.length;
     penChanges += 1;
-    for (const point of stroke.slice(1)) {
+    for (let k = 1; k < stroke.length; k++) {
+      const point = stroke[k]!;
       const drawn = Math.hypot(point.x - current.x, point.y - current.y);
       distance += drawn;
       drawDistance += drawn;
-      const feedRate = Number.isFinite(path.feedRate) && path.feedRate > 0 ? path.feedRate : config.feedRate;
+      const feedRate = feeds[k - 1]!;
       drawSeconds += drawn / Math.max(1, feedRate) * 60;
       if (config.profile === "ebb")
         commands.push(
@@ -2175,7 +2330,7 @@ export function createDryRunCommands(strokes, config) {
     { x: sourceBounds.minX, y: sourceBounds.minY },
   ];
   const machineCorners = sourceCorners.map((point) =>
-    transformPointForMachine(point, config),
+    transformPointForMachine(registerOnPaper(point, config), config),
   );
   if (!isWithinWorkArea([machineCorners], config)) {
     throw new Error(

@@ -305,8 +305,8 @@ export default function SettingsPanel({
               <div className="oh-field-grid">
                 <MarginField label="Сверху" value={settings.marginTop} onChange={(value) => updateSetting("marginTop", value)} />
                 <MarginField label="Снизу" value={settings.marginBottom} onChange={(value) => updateSetting("marginBottom", value)} />
-                <MarginField label="Слева" value={settings.marginLeft} onChange={(value) => updateSetting("marginLeft", value)} />
-                <MarginField label="Слева на чётных" value={settings.marginLeftEven} onChange={(value) => updateSetting("marginLeftEven", value)} />
+                <MarginField label={settings.pageSize === "NotebookSpread" ? "От внешнего края" : "Слева"} value={settings.marginLeft} onChange={(value) => updateSetting("marginLeft", value)} />
+                {settings.pageSize !== "NotebookSpread" && <MarginField label="Слева на чётных" value={settings.marginLeftEven} onChange={(value) => updateSetting("marginLeftEven", value)} />}
               </div>
             </section>
             <section className="oh-group">

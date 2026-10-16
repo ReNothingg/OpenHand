@@ -3,6 +3,7 @@ import PlotterPaper from "../plotter/PlotterPaper";
 import { useEffect, useMemo, useRef, useState } from "react";
 import WritingStartLine from "../plotter/WritingStartLine";
 import { writingStartY } from "../../plotter/writingStart";
+import { notebookColumn, notebookLineHeight } from "../../lib/notebookGrid";
 import Icon from "../Icon";
 import BlockInspector from "./BlockInspector";
 import ManualPageContent from "./ManualPageContent";
@@ -239,7 +240,7 @@ export default function PreviewPanel({
         <div className={`pages-canvas ${viewMode}`}>
           {displayedPages.map((spreadPages, index) => {
             const left = isNotebookSpread
-              ? settings.marginLeft
+              ? notebookColumn(settings, metrics.width, "left").left
               : index % 2 === 1
                 ? settings.marginLeftEven
                 : settings.marginLeft;
@@ -266,7 +267,9 @@ export default function PreviewPanel({
                     fontFamily: `'${settings.fontFamily}'`,
                     "--document-font": JSON.stringify(settings.fontFamily),
                     fontSize: settings.fontSize,
-                    lineHeight: settings.lineHeight,
+                    lineHeight: isNotebookSpread
+                      ? notebookLineHeight(settings.fontSize, settings.lineHeight)
+                      : settings.lineHeight,
                     "--rule-size": `${settings.fontSize * settings.lineHeight}px`,
                   }}
                 >
@@ -328,7 +331,7 @@ export default function PreviewPanel({
                           onMeasure={onMeasureManualBlocks}
                           contentStyle={{
                             top: writingStartY(settings, metrics.height, firstPageIndex + 1),
-                            left: metrics.width / 2 + settings.marginLeftEven,
+                            left: notebookColumn(settings, metrics.width, "right").left,
                             width: metrics.contentWidth,
                             height: Math.max(
                               20,
@@ -364,7 +367,7 @@ export default function PreviewPanel({
         <footer className="oh-statusbar" aria-label="Статистика задания плоттера">
           <strong>Задание для пера</strong>
           <span title="Непрерывные проходы пера, а не число отдельных отрезков">
-            {plural(plotterWorkspace.activeLayout.strokes.length, "проход", "прохода", "проходов")}
+            {plural(plotterWorkspace.job.strokes.length, "проход", "прохода", "проходов")}
           </span>
           <span title="Количество команд">
             {plural(plotterWorkspace.job.commands.length, "команда", "команды", "команд")}

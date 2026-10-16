@@ -10,6 +10,8 @@ import { usePlotterPlayback } from "./usePlotterPlayback";
 import { loadBundledGFont, loadGFont } from "../plotter/gfont";
 import {
   compilePlotJob,
+  measurePaperAlignment,
+  type PaperAlignment,
   createDryRunCommands,
   createHomingCommands,
   createPageJogCommands,
@@ -40,6 +42,7 @@ import { assessDeviceReadiness, assessPlotterPreflight } from "../plotter/prefli
 import { preparedProgramBlockers } from "../plotter/importSafety";
 import { prepareImportedGcode, prepareImportedExecution } from "../plotter/gcodeImport";
 import { createSheetQueue, sheetLabel } from "../plotter/sheetQueue";
+import { NOTEBOOK_CELL_MM } from "../lib/notebookGrid";
 import { assertRecoveryCompatible, assessRecovery } from "../plotter/recovery";
 import {
   minStrokeY,
@@ -113,6 +116,7 @@ function combineLogicalLayouts(logicalLayouts, settings, metrics) {
       return {
         page: pageForLogicalIndex(settings, metrics, index * 2),
         strokes: parts.flatMap((part) => part.strokes),
+        leftStrokeCount: parts[0]?.strokes.length ?? 0,
         trajectoryReport: mergeTrajectoryReports(
           parts.flatMap((part) => part.trajectoryReport || []),
         ),
@@ -125,6 +129,13 @@ function combineLogicalLayouts(logicalLayouts, settings, metrics) {
       };
     },
   );
+}
+
+/** Strokes of the pages written in this pass: one page of a spread or the whole sheet. */
+function sideStrokes(layout, side: string) {
+  const strokes = layout?.strokes || [];
+  if (side === "both" || !Number.isInteger(layout?.leftStrokeCount)) return strokes;
+  return side === "left" ? strokes.slice(0, layout.leftStrokeCount) : strokes.slice(layout.leftStrokeCount);
 }
 
 export function useIntegratedPlotter({
@@ -147,6 +158,17 @@ export function useIntegratedPlotter({
   const [error, setError] = useState("");
   const [originEstablished, setOriginConfirmed] = useState(false);
   const [textStartBinding, setTextStartBinding] = useState<{ sheet: number; point: XYPoint } | null>(null);
+  const [paperAlignment, setPaperAlignment] = useState<PaperAlignment | null>(null);
+  const [alignmentStart, setAlignmentStart] = useState<XYPoint | null>(null);
+  // Pen offset from the sheet origin in page directions, known only while the
+  // pen has moved by manual steps since the origin was set.
+  const jogTrail = useRef<XYPoint | null>(null);
+  const [jogTrailKnown, setJogTrailKnown] = useState(false);
+  const forgetJogTrail = useCallback(() => {
+    jogTrail.current = null;
+    setJogTrailKnown(false);
+    setAlignmentStart(null);
+  }, []);
   const calibrationProof = useRef<string | null>(null);
   const [calibrationActive, setCalibrationActive] = useState(false);
   const [importedGcode, setImportedGcode] = useState(null);
@@ -238,6 +260,9 @@ export function useIntegratedPlotter({
     const calculate = async () => {
       const layoutConfig = {
         ...previewConfig,
+        // A page written on its own is moved to the machine origin, so its
+        // place on the spread says nothing about the machine width.
+        ...(settings.pageSize === "NotebookSpread" && previewConfig.spreadPages !== "both" ? { workAreaWidth: 0 } : {}),
         compactLayout: settings.compactLayout,
         seed: settings.seed,
         trueHandwriting: settings.trueHandwriting,
@@ -357,6 +382,7 @@ export function useIntegratedPlotter({
     settings.lineHeight,
     settings.compactLayout,
     previewConfig.letterSpacing,
+    previewConfig.spreadPages,
     settings.seed,
     settings.trueHandwriting,
     settings.glyphVariation,
@@ -392,21 +418,30 @@ export function useIntegratedPlotter({
     clippedItems: [],
     page: pageForLogicalIndex(settings, metrics, activeIndex),
   };
+  const spreadSide = settings.pageSize === "NotebookSpread" ? config.spreadPages || "both" : "both";
+  const spreadLabel = settings.pageSize === "NotebookSpread" ? spreadSide === "both" ? true : spreadSide : false;
+  const placement = useMemo(() => ({
+    pageOffsetX: spreadSide === "right" ? (metrics.width * 25.4) / 96 / 2 : 0,
+    paperAlignment,
+  }), [spreadSide, metrics.width, paperAlignment]);
+  const jobConfig = useMemo(() => ({ ...config, ...placement }), [config, placement]);
+  const previewJobConfig = useMemo(() => ({ ...previewConfig, ...placement }), [previewConfig, placement]);
+  const activeStrokes = useMemo(() => sideStrokes(activeLayout, spreadSide), [activeLayout, spreadSide]);
   const job = useMemo(
-    () => compilePlotJob(activeLayout.strokes, previewConfig),
-    [activeLayout.strokes, previewConfig],
+    () => compilePlotJob(activeStrokes, previewJobConfig),
+    [activeStrokes, previewJobConfig],
   );
   const createJob = useCallback(
     (index = activeIndex) => {
       const layout = layouts[index];
-      return compilePlotJob(layout?.strokes || [], config);
+      return compilePlotJob(sideStrokes(layout, spreadSide), jobConfig);
     },
-    [activeIndex, config, layouts],
+    [activeIndex, jobConfig, layouts, spreadSide],
   );
   const createJobs = useCallback(
     () =>
-      layouts.map((layout) => compilePlotJob(layout?.strokes || [], config)),
-    [config, layouts],
+      layouts.map((layout) => compilePlotJob(sideStrokes(layout, spreadSide), jobConfig)),
+    [jobConfig, layouts, spreadSide],
   );
   const liveCreateJob = useRef(createJob);
   liveCreateJob.current = createJob;
@@ -429,6 +464,9 @@ export function useIntegratedPlotter({
   const penReferenceConfirmed = penControl.referenced;
   const penSetupPosition = penControl.position;
   useEffect(() => {
+    if (!originConfirmed || running) forgetJogTrail();
+  }, [originConfirmed, running, forgetJogTrail]);
+  useEffect(() => {
     if (!connected || plotter.machineStatus?.state === "Alarm") {
       setOriginConfirmed(false);
     }
@@ -444,7 +482,7 @@ export function useIntegratedPlotter({
     if (!plotter.recovery || plotter.recovery.source === "workshop") return { job: null, problem: "" };
     try {
       return { job: recoveryIndices
-        ? createSheetQueue(createJobs(), recoveryIndices, config, settings.pageSize === "NotebookSpread")
+        ? createSheetQueue(createJobs(), recoveryIndices, config, spreadLabel)
         : { ...createJob(), source: "document" }, problem: "" };
     } catch (reason) {
       return { job: null, problem: reason instanceof Error ? reason.message : "Не удалось восстановить очередь." };
@@ -454,7 +492,7 @@ export function useIntegratedPlotter({
   const recoveryProblem = recoveryCandidate.problem || documentRecovery.problem;
   const recoveryAvailable = documentRecovery.available && !recoveryProblem;
   const recoverySheet = recoveryCandidate.job?.sheetRanges?.find(range => plotter.recovery && plotter.recovery.current < range.end)?.sheet;
-  const recoveryLabel = recoverySheet === undefined ? "" : sheetLabel(recoverySheet, settings.pageSize === "NotebookSpread");
+  const recoveryLabel = recoverySheet === undefined ? "" : sheetLabel(recoverySheet, spreadLabel);
   const assessDevice = useCallback((placingSheet = false) => assessDeviceReadiness({
     connected, running, busy: busy || pending || penControl.busy || plotter.operationBusy, calibrationActive,
     emergencyStopped: plotter.emergencyStopped, profile: config.profile,
@@ -766,7 +804,12 @@ export function useIntegratedPlotter({
         // independent of the configured machine travel dimensions.
         if (upperLeft) setConfig(current => ({ ...current, startPosition: "left-top" }));
         setTextStartBinding(textStart || null);
+        // New paper: an earlier alignment belonged to the old placement.
+        setPaperAlignment(null);
         setOriginConfirmed(true);
+        jogTrail.current = { x: 0, y: 0 };
+        setJogTrailKnown(true);
+        setAlignmentStart(null);
       });
     } finally { placementInFlight.current = false; setBusy(false); }
   }, [assessDevice, plotter.sendCommands, config, placementContext, safeAction, setConfig]);
@@ -793,12 +836,39 @@ export function useIntegratedPlotter({
         const readiness = assessJob(activeLayout, job.withinWorkArea, job.commands);
         if (!readiness.canStart) throw new Error(readiness.blockers[0]);
         penControl.forgetPosition();
+        forgetJogTrail();
         return plotter.sendCommands(
-          createDryRunCommands(activeLayout.strokes, config), { waitForMotion: true },
+          createDryRunCommands(activeStrokes, jobConfig), { waitForMotion: true },
         );
       }),
-    [activeLayout, job.withinWorkArea, job.commands, assessJob, config, plotter.sendCommands, safeAction, penControl.forgetPosition],
+    [activeLayout, activeStrokes, job.withinWorkArea, job.commands, assessJob, jobConfig, plotter.sendCommands, safeAction, penControl.forgetPosition, forgetJogTrail],
   );
+
+  const alignmentAvailable = originConfirmed && !textStartBinding && jogTrailKnown;
+  const markAlignmentPoint = useCallback(() => {
+    setError("");
+    const point = jogTrail.current;
+    if (!alignmentAvailable || !point) {
+      setError("Запомните угол листа и подводите перо только ручными шагами.");
+      return false;
+    }
+    if (!alignmentStart) {
+      setAlignmentStart({ ...point });
+      return true;
+    }
+    try {
+      setPaperAlignment(measurePaperAlignment(alignmentStart, point, { ...config, ...placement }, NOTEBOOK_CELL_MM));
+      setAlignmentStart(null);
+      return true;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Не удалось выровнять тетрадь.");
+      return false;
+    }
+  }, [alignmentAvailable, alignmentStart, config, placement]);
+  const resetAlignment = useCallback(() => {
+    setPaperAlignment(null);
+    setAlignmentStart(null);
+  }, []);
 
   const recover = useCallback(() => safeAction(() => {
     assertDeviceReady();
@@ -808,7 +878,7 @@ export function useIntegratedPlotter({
     if (!prepared) throw new Error(recoveryProblem || "Нет задания для продолжения.");
     for (const index of plotter.recovery?.sheetIndices || [activeIndex]) {
       const readiness = assessJob(layouts[index], prepared.withinWorkArea !== false);
-      if (!readiness.canStart) throw new Error(`${sheetLabel(index, settings.pageSize === "NotebookSpread")}: ${readiness.blockers[0]}`);
+      if (!readiness.canStart) throw new Error(`${sheetLabel(index, spreadLabel)}: ${readiness.blockers[0]}`);
     }
     const blockers = preparedProgramBlockers(prepared.commands, config);
     if (blockers.length) throw new Error(blockers[0]);
@@ -872,6 +942,13 @@ export function useIntegratedPlotter({
     preflight,
     originConfirmed,
     originMode: originConfirmed ? (textStartBinding ? "text" : "sheet") : null,
+    notebookSpread: settings.pageSize === "NotebookSpread",
+    spreadSide,
+    paperAlignment,
+    alignmentAvailable,
+    alignmentStarted: Boolean(alignmentStart),
+    markAlignmentPoint,
+    resetAlignment,
     textStartChanged,
     penReferenceConfirmed,
     penSetupPosition,
@@ -912,10 +989,18 @@ export function useIntegratedPlotter({
       if (calibrationActive || running) throw new Error("Дождитесь завершения текущей операции.");
       if (config.profile === "grbl" && !plotter.controllerSettingsComplete)
         throw new Error("Прочитайте параметры платы в блоке подключения перед ручным движением.");
+      const trail = jogTrail.current;
+      jogTrail.current = null;
       return plotter.sendCommands(createPageJogCommands(dx, dy, config), {
         waitForMotion: true,
         requireWorkPosition: config.profile === "grbl" && originConfirmed,
         beforeSend: report => assertManualJogAllowed(dx, dy, config, originConfirmed, report),
+      }).then(() => {
+        if (trail) jogTrail.current = { x: trail.x + dx, y: trail.y + dy };
+      }, reason => {
+        // A step that may have run partly leaves the pen somewhere unknown.
+        forgetJogTrail();
+        throw reason;
       });
     }),
     clearSheetOrigin: () => {
@@ -1011,7 +1096,7 @@ export function useIntegratedPlotter({
         const readiness = assessJob(layouts[index], jobs[index].withinWorkArea, jobs[index].commands);
         if (!readiness.canStart) throw new Error(`Лист ${index + 1}: ${readiness.blockers[0]}`);
       }
-      const queue = createSheetQueue(jobs, selected, config, settings.pageSize === "NotebookSpread");
+      const queue = createSheetQueue(jobs, selected, config, spreadLabel);
       const blockers = preparedProgramBlockers(queue.commands, config);
       if (blockers.length) throw new Error(blockers[0]);
       return plotter.run(queue);

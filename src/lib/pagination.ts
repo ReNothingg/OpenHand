@@ -1,6 +1,7 @@
 import { PAGE_SIZES } from "../app/config";
 import { isExerciseLabel } from "../handwriting/headings";
 import { physicalSheetIndex, writingStartY } from "../plotter/writingStart";
+import { isNotebookSpread, notebookColumnWidth, notebookLineHeight } from "./notebookGrid";
 
 export function getPageMetrics(settings) {
   const page = PAGE_SIZES[settings.pageSize];
@@ -24,10 +25,12 @@ export function getPageMetrics(settings) {
       180,
       height - settings.marginTop - settings.marginBottom,
     ),
-    contentWidth: Math.min(
-      settings.textWidth,
-      Math.max(220, writableWidth - horizontalMargin - spreadInnerMargin),
-    ),
+    contentWidth: isNotebookSpread(settings)
+      ? notebookColumnWidth(settings, width)
+      : Math.min(
+          settings.textWidth,
+          Math.max(220, writableWidth - horizontalMargin - spreadInnerMargin),
+        ),
   };
 }
 
@@ -43,7 +46,9 @@ function makeMeasurePage(host, settings, pageIndex: number) {
     JSON.stringify(settings.fontFamily),
   );
   page.style.fontSize = `${settings.fontSize}px`;
-  page.style.lineHeight = String(settings.lineHeight);
+  page.style.lineHeight = String(isNotebookSpread(settings)
+    ? notebookLineHeight(settings.fontSize, settings.lineHeight)
+    : settings.lineHeight);
   const content = document.createElement("div");
   content.className = "page-content markdown-body";
   content.style.width = `${metrics.contentWidth}px`;

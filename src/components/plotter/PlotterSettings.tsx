@@ -561,6 +561,16 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               label="Ускорить обработку траектории">
               <small>Убирает лишние точки с отклонением до 0,02 мм. Меньше команд и остановок на микросегментах; скорость моторов и задержки пера сохраняются.</small>
             </Toggle>
+            <Toggle checked={config.penLeadIn !== false}
+              onChange={value => workspace.updateConfig("penLeadIn", value)}
+              label="Плавно начинать штрих">
+              <small>Первые 0,8 мм каждого штриха перо идёт медленнее, чтобы шарик успел провернуться: без клякс и пропусков в начале линии.</small>
+            </Toggle>
+            <Toggle checked={config.cornerSlowdown !== false}
+              onChange={value => workspace.updateConfig("cornerSlowdown", value)}
+              label="Замедляться на изгибах">
+              <small>На острых углах и тугих петлях скорость снижается до 45%, держатель пера не раскачивается и буквы не дрожат.</small>
+            </Toggle>
             <Toggle
               checked={Boolean(config.optimizePath)}
               onChange={(value) =>
