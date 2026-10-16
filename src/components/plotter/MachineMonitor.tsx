@@ -27,13 +27,8 @@ export default function MachineMonitor({ workspace, compact = false }: { workspa
     <section className="machine-monitor" aria-label="Состояние GRBL">
       <div className="machine-heading">
         <strong>GRBL</strong>
-        <span>
-          {plotter.status === "connecting" ? "Устанавливаю связь…" : fresh
-            ? status.state
-            : connected
-              ? "Ожидание телеметрии"
-              : "Связь не установлена"}
-        </span>
+        {/* Connection itself is shown in the app header; this line is controller telemetry. */}
+        {connected && <span>{fresh ? status.state : "Ожидание телеметрии"}</span>}
       </div>
       {connected && !plotter.controllerSettingsComplete && <div>
         <p className="calibration-note">Параметры платы ещё не прочитаны. Это нужно для сверки сохранённой настройки.</p>

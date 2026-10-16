@@ -132,6 +132,10 @@ internal sealed class MainForm : Form, IMessageFilter
             using var doc = JsonDocument.Parse(args.WebMessageAsJson);
             var root = doc.RootElement;
             if (!root.TryGetProperty("bridge", out var bridge) || bridge.GetString() != "menu") return;
+            if (root.TryGetProperty("print", out var print) && print.ValueKind == JsonValueKind.True) {
+                _webView.CoreWebView2?.ShowPrintUI(CoreWebView2PrintDialogKind.Browser);
+                return;
+            }
             if (root.TryGetProperty("workspace", out var workspace)) { _menuWorkspace = workspace.GetString() ?? "document"; _menuReady = true; }
             if (root.TryGetProperty("locked", out var locked)) _menuLocked = locked.GetBoolean();
             if (root.TryGetProperty("editor", out var editor)) _menuEditor = editor.GetBoolean();

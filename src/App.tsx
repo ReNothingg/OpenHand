@@ -12,10 +12,14 @@ import EditorPanel from "./components/editor/EditorPanel";
 import PreviewPanel from "./components/preview/PreviewPanel";
 import SettingsPanel from "./components/settings/SettingsPanel";
 import PlotterWorkshop from "./components/plotter/PlotterWorkshop";
-import EmergencyStopButton from "./components/plotter/EmergencyStopButton";
 import EmergencyStopNotice from "./components/plotter/EmergencyStopNotice";
 import PlotterDevicePage from "./components/plotter/PlotterDevicePage";
-import AppearanceControl from "./components/AppearanceControl";
+import PlotterFooter from "./components/plotter/PlotterFooter";
+import AppHeader from "./components/shell/AppHeader";
+import MenuButton from "./components/shell/MenuButton";
+import Icon from "./components/Icon";
+import { serializePlotterGcode } from "./gcode/penModel";
+import { requestPrint } from "./lib/print";
 import { useDocumentPersistence } from "./hooks/useDocumentPersistence";
 import { useDebouncedValue } from "./hooks/useDebouncedValue";
 import { useIntegratedPlotter } from "./hooks/useIntegratedPlotter";
@@ -75,6 +79,7 @@ export default function App({ active = true }: { active?: boolean }) {
   const [settingsCollapsed, setSettingsCollapsed] = useState(
     () => window.matchMedia("(max-width: 1180px)").matches,
   );
+  const [recordingOpen, setRecordingOpen] = useState(false);
   const [viewMode, setViewMode] = useState("single");
   const [panelWidth, setPanelWidth] = usePanelWidth("openhand.settings-width");
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
@@ -792,9 +797,65 @@ export default function App({ active = true }: { active?: boolean }) {
     return () => { window.removeEventListener("focus", publish); window.removeEventListener("openhand:menu-command", command); };
   }, [active, workspaceMode, editorCollapsed, settingsCollapsed, plotterWorkspace.running, plotterWorkspace.calibrationActive]);
 
+  const headerLocked =
+    plotterWorkspace.running || plotterWorkspace.calibrationActive;
+  const recordingVisible =
+    plotterEnabled && (recordingOpen || plotterWorkspace.running);
+  const rightPanelOpen = recordingVisible || !settingsCollapsed;
+  const downloadGcode = () => {
+    const job = plotterWorkspace.createJob();
+    const profile = plotterWorkspace.config.profile;
+    downloadFile(
+      `openhand-page-${plotterWorkspace.activeIndex + 1}.${profile === "ebb" ? "ebb.txt" : "gcode"}`,
+      serializePlotterGcode(job.commands, plotterWorkspace.config),
+      "text/plain;charset=utf-8",
+    );
+  };
+  const documentActions = workspaceMode === "document" && (
+    <>
+      <MenuButton
+        label="Экспорт"
+        icon="export"
+        align="end"
+        disabled={plotterWorkspace.running}
+        items={[
+          { label: "Печать или PDF…", onSelect: requestPrint },
+          {
+            label: "G-code текущего листа",
+            onSelect: downloadGcode,
+            disabled:
+              !plotterEnabled ||
+              !plotterWorkspace.job.commands.length ||
+              plotterWorkspace.busy,
+            hint: "Доступно для однолинейного GFont",
+          },
+          {
+            label: `Исходник .${sourceMode === "tex" ? "tex" : "md"}`,
+            onSelect: downloadSource,
+          },
+        ]}
+      />
+      <button
+        type="button"
+        className="oh-button is-primary"
+        aria-pressed={recordingVisible}
+        disabled={!plotterEnabled || plotterWorkspace.running}
+        title={
+          plotterEnabled
+            ? "Подготовить и запустить запись на плоттере"
+            : "Для записи пером выберите однолинейный GFont"
+        }
+        onClick={() => setRecordingOpen((value) => !value)}
+      >
+        <Icon name="pen" />
+        <span>Записать на бумаге</span>
+      </button>
+    </>
+  );
+
   return (
     <div
-      className={`app with-workspace-nav ${editorCollapsed ? "editor-collapsed" : ""} ${settingsCollapsed ? "settings-collapsed" : ""}`}
+      className={`app with-workspace-nav oh-shell ${editorCollapsed ? "editor-collapsed" : ""} ${rightPanelOpen ? "" : "settings-collapsed"}`}
     >
       {saveNotice && (
         <div className={`save-notice ${saveNotice.kind}`} role="status">
@@ -802,34 +863,14 @@ export default function App({ active = true }: { active?: boolean }) {
         </div>
       )}
       <style>{`@page { size: ${metrics.width}px ${metrics.height}px; margin: 0; }`}</style>
-      <nav className="workspace-navigation" aria-label="Рабочее пространство">
-        <div className="workspace-switcher">
-          {[
-            ["document", "Документ"],
-            ["workshop", "Мастерская"],
-            ["device", "Плоттер"],
-          ].map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              aria-pressed={workspaceMode === mode}
-              disabled={
-                plotterWorkspace.running || plotterWorkspace.calibrationActive
-              }
-              onClick={() =>
-                window.dispatchEvent(
-                  new CustomEvent("openhand:workspace", { detail: mode }),
-                )
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div ref={setToolbarHost} className="document-toolbar-host" />
-        <AppearanceControl />
-        <EmergencyStopButton onStop={plotterWorkspace.stop} />
-      </nav>
+      <AppHeader
+        workspaceMode={workspaceMode}
+        locked={headerLocked}
+        plotterStatus={plotterWorkspace.plotter.status}
+        onStop={plotterWorkspace.stop}
+        setToolbarHost={setToolbarHost}
+        actions={documentActions}
+      />
       {active && <EmergencyStopNotice workspace={plotterWorkspace} />}
       {workspaceMode === "device" ? (
         <PlotterDevicePage workspace={plotterWorkspace} />
@@ -840,7 +881,7 @@ export default function App({ active = true }: { active?: boolean }) {
         />
       ) : (
         <div className="workspace" style={{ "--settings-panel-size": `min(${panelWidth}px, 65vw)` } as React.CSSProperties}>
-          {!settingsCollapsed && <PanelResizeHandle className="document-resize-handle" width={panelWidth} onChange={setPanelWidth} />}
+          {rightPanelOpen && <PanelResizeHandle className="document-resize-handle" width={panelWidth} onChange={setPanelWidth} />}
           <EditorPanel
             locked={plotterWorkspace.running}
             sourceMode={sourceMode}
@@ -853,6 +894,8 @@ export default function App({ active = true }: { active?: boolean }) {
             expanded={editorExpanded}
             setExpanded={setEditorExpanded}
             showPreview={() => setEditorCollapsed(true)}
+            openSource={() => sourceImportRef.current?.click()}
+            downloadSource={downloadSource}
           />
           <PreviewPanel
             onWritingStartChange={(sheet, top) => {
@@ -864,8 +907,8 @@ export default function App({ active = true }: { active?: boolean }) {
                   writingStartPositions: top === null ? {} : { [sheet]: top } };
               });
             }}
-            toolbarHost={toolbarHost}
             pages={displayPages}
+            setZoom={setZoom}
             manualPages={arrangedManualPages}
             manualEditing={manualEditing}
             setManualEditing={setManualEditing}
@@ -879,9 +922,14 @@ export default function App({ active = true }: { active?: boolean }) {
             setViewMode={setViewMode}
             editorCollapsed={editorCollapsed}
             setEditorCollapsed={setEditorCollapsed}
-            openExpandedEditor={() => setEditorExpanded(true)}
-            settingsCollapsed={settingsCollapsed}
-            setSettingsCollapsed={setSettingsCollapsed}
+            rightPanelOpen={rightPanelOpen}
+            toggleRightPanel={() => {
+              if (recordingVisible) {
+                if (!plotterWorkspace.running) setRecordingOpen(false);
+                return;
+              }
+              setSettingsCollapsed((value) => !value);
+            }}
             reshuffle={() =>
               updateSetting("seed", Math.floor(Math.random() * 999999))
             }
@@ -897,6 +945,12 @@ export default function App({ active = true }: { active?: boolean }) {
             activeSheetIndex={activeSheetIndex}
             onActiveSheetChange={setActiveSheetIndex}
           />
+          {recordingVisible ? (
+            <PlotterFooter
+              workspace={plotterWorkspace}
+              onClose={() => setRecordingOpen(false)}
+            />
+          ) : (
           <SettingsPanel
             settings={settings}
             metrics={metrics}
@@ -912,9 +966,6 @@ export default function App({ active = true }: { active?: boolean }) {
             selectPreset={selectPreset}
             savePreset={savePreset}
             deletePreset={deletePreset}
-            sourceMode={sourceMode}
-            openSource={() => sourceImportRef.current?.click()}
-            downloadSource={downloadSource}
             exportSettings={() =>
               downloadFile(
                 "handwriting-settings.json",
@@ -940,6 +991,7 @@ export default function App({ active = true }: { active?: boolean }) {
             closeSettings={() => setSettingsCollapsed(true)}
             settingsCollapsed={settingsCollapsed}
           />
+          )}
         </div>
       )}
 

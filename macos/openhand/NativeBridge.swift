@@ -84,7 +84,9 @@ final class NativeBridge: NSObject, WKScriptMessageHandler {
         case "fileBridge":
             handleFileMessage(message.body)
         case "menuBridge":
-            if let payload = message.body as? [String: Any] {
+            if let payload = message.body as? [String: Any], payload["print"] as? Bool == true {
+                NotificationCenter.default.post(name: Notification.Name("OpenHandMenuCommand"), object: "print")
+            } else if let payload = message.body as? [String: Any] {
                 NotificationCenter.default.post(name: Notification.Name("OpenHandMenuState"), object: nil, userInfo: payload)
             }
         case "themeBridge":

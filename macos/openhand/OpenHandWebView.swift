@@ -12,6 +12,7 @@ private let serialShim = #"""
 (() => {
   window.addEventListener("openhand:menu-state", event => window.webkit.messageHandlers.menuBridge.postMessage(event.detail));
   window.addEventListener("openhand:menu-appearance", event => window.webkit.messageHandlers.menuBridge.postMessage({ appearance: event.detail }));
+  window.addEventListener("openhand:print", () => window.webkit.messageHandlers.menuBridge.postMessage({ print: true }));
   window.addEventListener("openhand:theme", (event) => {
     window.webkit.messageHandlers.themeBridge.postMessage({ dark: Boolean(event.detail?.dark), system: Boolean(event.detail?.system) });
   });

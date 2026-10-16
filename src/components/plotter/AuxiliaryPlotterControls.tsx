@@ -21,7 +21,7 @@ export default function AuxiliaryPlotterControls() {
     {label && <span role="status">{label}{activeJob && plotter.status !== "waiting-paper" ? ` · передано ${plotter.progress.current}/${plotter.progress.total}` : ""}</span>}
     {plotter.status === "running" && <button className="button compact" onClick={() => void act(plotter.pause)}>Пауза</button>}
     {plotter.status === "paused" && <button className="button compact" onClick={() => void act(plotter.resume)}>Продолжить запись</button>}
-    <EmergencyStopButton onStop={() => plotter.stop().catch(() => {})} />
+    {plotter.status !== "disconnected" && <EmergencyStopButton onStop={() => plotter.stop().catch(() => {})} />}
     {error && <span role="alert">{error}</span>}
   </div>;
 }

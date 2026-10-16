@@ -4,6 +4,7 @@ import PlotterManualStart from "./PlotterManualStart";
 import { mapSceneObjects, type SceneTool } from "../../plotter/scene";
 import ImageImportDialog from "./ImageImportDialog";
 import Icon from "../Icon";
+import MenuButton from "../shell/MenuButton";
 import PanelResizeHandle from "../PanelResizeHandle";
 import usePanelWidth from "../../hooks/usePanelWidth";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -25,6 +26,8 @@ import {
 } from "../../plotter/workshop";
 import { compilePlotJob } from "../../plotter/job";
 import { downloadFile } from "../../lib/files";
+import { plural } from "../../lib/plural";
+import { withoutConnectBlocker } from "../../plotter/preflight";
 import { formatNominalDuration, timingExplanation } from "./PlotterFooter";
 
 const STORAGE_KEY = "openhand.workshop.v1";
@@ -81,7 +84,6 @@ export default function PlotterWorkshop({
   const dropPoint = useRef<{x:number;y:number}|null>(null);
   const [fitRequest, setFitRequest] = useState(0);
   const imageInput = useRef<HTMLInputElement>(null);
-  const [footerCollapsed, setFooterCollapsed] = useState(false);
   const [inspectorCollapsed,setInspectorCollapsed] = useState(false);
   const [panelWidth, setPanelWidth] = usePanelWidth("openhand.workshop-width");
   const [document, setDocument] = useState(load);
@@ -233,45 +235,51 @@ export default function PlotterWorkshop({
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.max(1, box.width)}mm" height="${Math.max(1, box.height)}mm" viewBox="${box.minX} ${box.minY} ${Math.max(1, box.width)} ${Math.max(1, box.height)}"><path d="${path}" fill="none" stroke="black" stroke-width="0.3"/></svg>`;
     void downloadFile("drawing.svg", svg, "image/svg+xml");
   };
+  const saveProject = () =>
+    void attempt(() =>
+      downloadFile(
+        `${document.name || "drawing"}.json`,
+        serializeWorkshop(document.strokes, document.name, document.objects, document.paperRotated),
+        "application/json",
+      ),
+    );
+  const exportGcode = () =>
+    void downloadFile("openhand-workshop.gcode", serializePlotterGcode(job.commands, config), "text/plain");
+  const progressPercent = plotter.progress.total
+    ? Math.round((plotter.progress.current / plotter.progress.total) * 100)
+    : 0;
   return (
     <section className="plotter-workshop" aria-label="Мастерская плоттера">
       {imageFile && <ImageImportDialog file={imageFile} maxWidth={Math.max(1, config.workAreaWidth-20)} maxHeight={Math.max(1, config.workAreaHeight-20)} onClose={()=>{setImageFile(null);dropPoint.current=null;}} onApply={strokes => { addObject(strokes, imageFile.name); setImageFile(null); }} />}
       <input type="file" hidden ref={imageInput} accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" onChange={e=>{ if (e.target.files?.[0] && !locked) setImageFile(e.target.files[0]); e.target.value=""; }} />
       {toolbarHost &&
         createPortal(
-          <div className="workshop-toolbar" aria-label="Файл мастерской">
-            <div>
-              <input
-                aria-label="Название рисунка"
-                value={document.name}
-                maxLength={120}
-                disabled={locked}
-                onChange={(e) =>
-                  setDocument((d) => ({ ...d, name: e.target.value }))
-                }
-              />
-            </div>
-            <div className="workshop-buttons">
-              <button disabled={locked} onClick={() => input.current?.click()}>
-                Открыть
-              </button>
-              <button
-                onClick={() =>
-                  void attempt(() =>
-                    downloadFile(
-                      `${document.name || "drawing"}.json`,
-                      serializeWorkshop(document.strokes, document.name, document.objects, document.paperRotated),
-                      "application/json",
-                    ),
-                  )
-                }
-              >
-                Сохранить проект
-              </button>
-              <button disabled={!document.strokes.length} onClick={exportSVG}>
-                SVG
-              </button>
-            </div>
+          <div className="workshop-file-tools" aria-label="Файл мастерской">
+            <input
+              className="oh-title-input"
+              aria-label="Название рисунка"
+              value={document.name}
+              maxLength={120}
+              disabled={locked}
+              onChange={(e) =>
+                setDocument((d) => ({ ...d, name: e.target.value }))
+              }
+            />
+            <span className="oh-spacer" />
+            <button className="oh-button is-quiet" type="button" disabled={locked} onClick={() => input.current?.click()}>
+              <Icon name="folder-open" />
+              <span>Открыть</span>
+            </button>
+            <MenuButton
+              label="Экспорт"
+              icon="export"
+              align="end"
+              items={[
+                { label: "Проект .json", onSelect: saveProject },
+                { label: "Рисунок SVG", onSelect: exportSVG, disabled: !document.strokes.length },
+                { label: "G-code", onSelect: exportGcode, disabled: !document.strokes.length },
+              ]}
+            />
             <input
               ref={input}
               type="file"
@@ -286,30 +294,30 @@ export default function PlotterWorkshop({
           toolbarHost,
         )}
       <div className={`workshop-body ${inspectorCollapsed?"inspector-collapsed":""}`} style={{ "--inspector-width": `min(${panelWidth}px, 65vw)` } as React.CSSProperties}>
-        <aside className="workshop-inspector" inert={inspectorCollapsed} aria-hidden={inspectorCollapsed}>
-          <button className="button" type="button" disabled={locked}
-            onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>
-            Настроить плоттер →
-          </button>
-            <fieldset disabled={locked}>
-              <section className="workshop-section">
-                <h2>Объекты</h2>
-                <div className="scene-object-list" role="listbox" aria-label="Объекты рисунка" aria-multiselectable="true">
-                  {document.objects.map(o=><button key={o.id} role="option" aria-selected={selected.includes(o.id)} onClick={e=>setSelected(ids=>e.shiftKey?(ids.includes(o.id)?ids.filter(id=>id!==o.id):[...ids,o.id]):[o.id])}>{o.name}</button>)}
-                </div>
-                {selected.length===1 && <label className="workshop-field">Название объекта<input value={document.objects.find(o=>o.id===selected[0])?.name || ""} onChange={e=>{const name=e.target.value;setDocument(d=>({...d,objects:d.objects.map(o=>o.id===selected[0]?{...o,name}:o)}));}} /></label>}
-                <div className="scene-order-actions">
-                  <button disabled={!selected.length} onClick={()=>reorderSelected(true)}>На передний план</button>
-                  <button disabled={!selected.length} onClick={()=>reorderSelected(false)}>На задний план</button>
-                </div>
-                <h2>Добавить</h2>
-                <button disabled={locked} onClick={()=>imageInput.current?.click()}>Изображение PNG / JPG</button>
+        <aside className="workshop-inspector oh-inspector" inert={inspectorCollapsed} aria-hidden={inspectorCollapsed} aria-label="Объекты рисунка">
+          <fieldset className="oh-inspector-body" disabled={locked}>
+            <section className="oh-group">
+              <h3 className="oh-group-title">Добавить</h3>
+              <div className="oh-button-row">
+                <button className="oh-button" type="button" disabled={locked} onClick={()=>imageInput.current?.click()}>
+                  <Icon name="image" />
+                  <span>Изображение</span>
+                </button>
+                <button
+                  className="oh-button"
+                  type="button"
+                  disabled={!workspace.activeLayout?.strokes?.length || workspace.busy}
+                  onClick={() => addObject(workspace.activeLayout.strokes, "Из документа")}
+                  title="Взять штрихи из документа"
+                >
+                  <Icon name="pen" />
+                  <span>Из документа</span>
+                </button>
+              </div>
+              <div className="workshop-shape-form">
                 <label className="workshop-field">
                   <span>Фигура</span>
-                  <select
-                    value={kind}
-                    onChange={(e) => setKind(e.target.value)}
-                  >
+                  <select value={kind} onChange={(e) => setKind(e.target.value)}>
                     <option value="rectangle">Прямоугольник</option>
                     <option value="ellipse">Эллипс</option>
                     <option value="triangle">Треугольник</option>
@@ -317,162 +325,124 @@ export default function PlotterWorkshop({
                   </select>
                 </label>
                 <div className="workshop-pair">
-                  <Numeric
-                    label="Ширина, мм"
-                    value={width}
-                    set={setWidth}
-                    min={0.1}
-                    max={2000}
-                  />
-                  <Numeric
-                    label="Высота, мм"
-                    value={height}
-                    set={setHeight}
-                    min={0.1}
-                    max={2000}
-                  />
+                  <Numeric label="Ширина, мм" value={width} set={setWidth} min={0.1} max={2000} />
+                  <Numeric label="Высота, мм" value={height} set={setHeight} min={0.1} max={2000} />
                 </div>
                 <button
+                  className="oh-button"
+                  type="button"
                   onClick={() =>
                     addObject(shape(kind, width, height), kind === "rectangle" ? "Прямоугольник" : kind === "ellipse" ? "Эллипс" : kind === "triangle" ? "Треугольник" : "Линия")
                   }
                 >
-                  Добавить фигуру
+                  <Icon name="plus" />
+                  <span>Добавить фигуру</span>
                 </button>
-                <button
-                  disabled={
-                    !workspace.activeLayout?.strokes?.length || workspace.busy
-                  }
-                  onClick={() =>
-                    addObject(workspace.activeLayout.strokes, "Из документа")
-                  }
-                >
-                  Взять штрихи из документа
+              </div>
+            </section>
+
+            <section className="oh-group">
+              <div className="oh-group-heading">
+                <h3 className="oh-group-title">Объекты</h3>
+                <span className="oh-spacer" />
+                <button className="oh-icon-button" type="button" aria-label="На передний план" title="На передний план" disabled={!selected.length} onClick={()=>reorderSelected(true)}>
+                  <Icon name="chevron-left" className="is-up" />
                 </button>
-
-
-              </section>
-
-              <details className="workshop-section">
-                <summary>Штриховка</summary>
-                <div className="workshop-pair">
-                  <Numeric
-                    label="Шаг, мм"
-                    value={spacing}
-                    set={setSpacing}
-                    min={0.2}
-                    max={100}
-                    step={0.2}
-                  />
-                  <Numeric
-                    label="Угол, °"
-                    value={hatchAngle}
-                    set={setHatchAngle}
-                  />
+                <button className="oh-icon-button" type="button" aria-label="На задний план" title="На задний план" disabled={!selected.length} onClick={()=>reorderSelected(false)}>
+                  <Icon name="chevron-right" className="is-down" />
+                </button>
+              </div>
+              {document.objects.length ? (
+                <div className="scene-object-list" role="listbox" aria-label="Объекты рисунка" aria-multiselectable="true">
+                  {document.objects.map(o=><button key={o.id} type="button" role="option" aria-selected={selected.includes(o.id)} onClick={e=>setSelected(ids=>e.shiftKey?(ids.includes(o.id)?ids.filter(id=>id!==o.id):[...ids,o.id]):[o.id])}>{o.name}</button>)}
                 </div>
+              ) : (
+                <p className="oh-note">Пока пусто. Добавьте фигуру, изображение или штрихи документа.</p>
+              )}
+              {selected.length===1 && <label className="workshop-field">Название объекта<input value={document.objects.find(o=>o.id===selected[0])?.name || ""} onChange={e=>{const name=e.target.value;setDocument(d=>({...d,objects:d.objects.map(o=>o.id===selected[0]?{...o,name}:o)}));}} /></label>}
+            </section>
 
-                <button
-                  onClick={() =>
-                    edit((strokes) => [
-                      ...strokes,
-                      ...hatch(strokes, spacing, hatchAngle),
-                    ])
-                  }
-                >
-                  Добавить штриховку
-                </button>
-              </details>
+            <details className="oh-disclosure">
+              <summary>Штриховка</summary>
+              <div className="workshop-pair">
+                <Numeric label="Шаг, мм" value={spacing} set={setSpacing} min={0.2} max={100} step={0.2} />
+                <Numeric label="Угол, °" value={hatchAngle} set={setHatchAngle} />
+              </div>
+              <button
+                className="oh-button"
+                type="button"
+                onClick={() => edit((strokes) => [...strokes, ...hatch(strokes, spacing, hatchAngle)])}
+              >
+                Добавить штриховку
+              </button>
+            </details>
 
-              <section className="workshop-section">
-                <label className="workshop-check">
-                  <input
-                    type="checkbox"
-                    checked={config.optimizePath}
-                    onChange={(e) =>
-                      workspace.updateConfig("optimizePath", e.target.checked)
-                    }
-                  />
-                  Сокращать холостой путь
-                </label>
-                <p>
-                  Подходит для отдельных фигур. Для связного почерка порядок
-                  штрихов лучше сохранять.
-                </p>
-                <button
-                  disabled={!document.strokes.length}
-                  onClick={() => void attempt(()=>commitObjects([]))}
-                >
-                  Очистить рисунок
-                </button>
-              </section>
-            </fieldset>
+            <section className="oh-group">
+              <h3 className="oh-group-title">Траектория</h3>
+              <label className="workshop-check">
+                <input
+                  type="checkbox"
+                  checked={config.optimizePath}
+                  onChange={(e) => workspace.updateConfig("optimizePath", e.target.checked)}
+                />
+                Сокращать холостой путь
+              </label>
+              <p className="oh-note">
+                Подходит для отдельных фигур. Для связного почерка порядок
+                штрихов лучше сохранять.
+              </p>
+            </section>
+          </fieldset>
+          <div className="oh-inspector-footer">
+            <button
+              className="oh-button is-quiet is-danger"
+              type="button"
+              disabled={!document.strokes.length || locked}
+              onClick={() => void attempt(()=>commitObjects([]))}
+            >
+              Очистить рисунок
+            </button>
+          </div>
         </aside>
         {!inspectorCollapsed && <PanelResizeHandle side="left" width={panelWidth} onChange={setPanelWidth} />}
         <main className="workshop-main">
-          <div className="workshop-canvas-toolbar">
-            <div
-              className="workshop-tabs"
-              role="tablist"
-              aria-label="Предпросмотр"
-            >
-              <button
-                role="tab"
-                aria-selected={view === "drawing"}
-                onClick={() => setView("drawing")}
-              >
-                Траектория
-              </button>
-              <button
-                role="tab"
-                aria-selected={view === "code"}
-                onClick={() => setView("code")}
-              >
-                G-code
-              </button>
+          <div className="oh-toolbar workshop-canvas-bar" role="toolbar" aria-label="Инструменты сцены">
+            <button className="oh-icon-button" type="button" aria-label={inspectorCollapsed?"Показать объекты":"Скрыть объекты"} title={inspectorCollapsed?"Показать объекты":"Скрыть объекты"} onClick={()=>setInspectorCollapsed(v=>!v)}>
+              <Icon name={inspectorCollapsed?"panel-left-expand":"panel-left-collapse"}/>
+            </button>
+            {view === "drawing" && <>
+              <span className="oh-divider" aria-hidden="true" />
+              {([ ["move","Перемещение","V"], ["rotate","Вращение","E"], ["scale","Масштаб","R"], ["warp","Деформация","T"], ["pan","Обзор","H"] ] as const).map(([id,label,key])=>
+                <button key={id} type="button" className="oh-icon-button is-tool" aria-label={label} aria-pressed={tool===id} disabled={locked&&id!=="pan"} title={`${label} · ${key}`} onClick={()=>setTool(id)}><Icon name={`scene-${id}`} /></button>)}
+              <span className="oh-divider" aria-hidden="true" />
+              <button type="button" className="oh-icon-button" disabled={locked} aria-label="Повернуть лист" title="Повернуть лист на 90°" onClick={()=>void attempt(()=>commitObjects(document.objects,document.name,!document.paperRotated))}><Icon name="paper-rotate" /></button>
+              <button type="button" className="oh-icon-button" onClick={()=>setFitRequest(value=>value+1)} aria-label="Вписать" title="Вписать · F"><Icon name="window-expand" /></button>
+              <button type="button" className="oh-icon-button" disabled={locked||!selected.length} onClick={duplicateSelected} aria-label="Дублировать" title="Дублировать · ⌘/Ctrl D"><Icon name="scene-duplicate" /></button>
+              <button type="button" className="oh-icon-button" disabled={locked||!selected.length} onClick={deleteSelected} aria-label="Удалить" title="Удалить · Delete"><Icon name="scene-delete" /></button>
+            </>}
+            <span className="oh-spacer" />
+            <div className="oh-segmented" role="tablist" aria-label="Предпросмотр">
+              <button type="button" role="tab" aria-selected={view === "drawing"} onClick={() => setView("drawing")}>Траектория</button>
+              <button type="button" role="tab" aria-selected={view === "code"} onClick={() => setView("code")}>G-code</button>
             </div>
-            <div className="workshop-buttons">
-              <button
-                aria-label="Отменить изменение рисунка"
-                disabled={!history.length || locked}
-                onClick={undo}
-              >
-                <Icon name="undo" />
+            <span className="oh-divider" aria-hidden="true" />
+            <button type="button" className="oh-icon-button" aria-label="Отменить изменение рисунка" title="Отменить" disabled={!history.length || locked} onClick={undo}>
+              <Icon name="undo" />
+            </button>
+            <button type="button" className="oh-icon-button" aria-label="Повторить изменение рисунка" title="Повторить" disabled={!future.length || locked} onClick={redo}>
+              <Icon name="redo" />
+            </button>
+            <div className="oh-zoom">
+              <button type="button" className="oh-icon-button" aria-label="Уменьшить масштаб" onClick={() => setZoom((z) => Math.max(0.5, z / 1.25))}>
+                <Icon name="minus" />
               </button>
-              <button
-                aria-label="Повторить изменение рисунка"
-                disabled={!future.length || locked}
-                onClick={redo}
-              >
-                <Icon name="redo" />
-              </button>
-              <button
-                aria-label="Уменьшить масштаб"
-                onClick={() => setZoom((z) => Math.max(0.5, z / 1.25))}
-              >
-                −
-              </button>
-              <button onClick={() => setZoom(1)}>
+              <button type="button" className="oh-zoom-value" title="Масштаб 100%" onClick={() => setZoom(1)}>
                 {Math.round(zoom * 100)}%
               </button>
-              <button
-                aria-label="Увеличить масштаб"
-                onClick={() => setZoom((z) => Math.min(8, z * 1.25))}
-              >
-                +
+              <button type="button" className="oh-icon-button" aria-label="Увеличить масштаб" onClick={() => setZoom((z) => Math.min(8, z * 1.25))}>
+                <Icon name="plus" />
               </button>
             </div>
-          </div>
-          <div className="scene-toolstrip" role="toolbar" aria-label="Инструменты сцены">
-            <button aria-label={inspectorCollapsed?"Показать инспектор":"Свернуть инспектор"} title={inspectorCollapsed?"Показать инспектор":"Свернуть инспектор"} onClick={()=>setInspectorCollapsed(v=>!v)}><Icon name={inspectorCollapsed?"panel-left-expand":"panel-left-collapse"}/></button>
-            {view === "drawing" && <>
-            {([ ["move","Перемещение","V"], ["rotate","Вращение","E"], ["scale","Масштаб","R"], ["warp","Warp","T"], ["pan","Обзор","H"] ] as const).map(([id,label,key])=>
-              <button key={id} aria-label={label} aria-pressed={tool===id} disabled={locked&&id!=="pan"} title={`${label} · ${key}`} onClick={()=>setTool(id)}><Icon name={`scene-${id}`} /></button>)}
-            <span className="scene-tool-divider" />
-            <button disabled={locked} aria-label="Повернуть лист" title="Повернуть лист на 90°" onClick={()=>void attempt(()=>commitObjects(document.objects,document.name,!document.paperRotated))}><Icon name="paper-rotate" /></button>
-            <button onClick={()=>setFitRequest(value=>value+1)} aria-label="Вписать" title="Вписать · F"><Icon name="window-expand" /></button>
-            <button disabled={locked||!selected.length} onClick={duplicateSelected} aria-label="Дублировать" title="Дублировать · ⌘/Ctrl D"><Icon name="scene-duplicate" /></button>
-            <button disabled={locked||!selected.length} onClick={deleteSelected} aria-label="Удалить" title="Удалить · Delete"><Icon name="scene-delete" /></button>
-            </>}
           </div>
           {view === "code" ? (
             <pre className="workshop-code" tabIndex={0}>
@@ -503,138 +473,79 @@ export default function PlotterWorkshop({
                 travelPath={travel?travelPath:undefined} />
             </div>
           )}
-          <div className="workshop-statistics">
-            <span>Лист: {paperWidth} × {paperHeight} мм</span>
+          <footer className="oh-statusbar" aria-label="Сводка рисунка">
+            <span>Лист {paperWidth} × {paperHeight} мм</span>
+            <span>Рисунок {box.width.toFixed(1)} × {box.height.toFixed(1)} мм</span>
             <span title="Непрерывные проходы с опущенным пером; каждый может состоять из множества отрезков.">
-              Проходов пера: {document.strokes.length.toLocaleString("ru-RU")}
-            </span>
-            <span>
-              Рисунок: {box.width.toFixed(1)} × {box.height.toFixed(1)} мм
+              {plural(document.strokes.length, "проход", "прохода", "проходов")}
             </span>
             <span title="Суммарная длина линий с опущенным пером">
-              {(job.drawDistance / 1000).toFixed(2)} м пером
+              {(job.drawDistance / 1000).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} м пером
             </span>
-            <span title={timingExplanation}>
-              {document.strokes.length
-                ? `Без разгона: ${formatNominalDuration(job.estimatedSeconds)}`
-                : "—"}
-            </span>
+            {document.strokes.length > 0 && <span title={timingExplanation}>{formatNominalDuration(job.estimatedSeconds)}</span>}
+            <span className="oh-spacer" />
             <label className="workshop-check">
-              <input
-                type="checkbox"
-                checked={travel}
-                onChange={(e) => setTravel(e.target.checked)}
-              />
+              <input type="checkbox" checked={travel} onChange={(e) => setTravel(e.target.checked)} />
               Холостой ход
             </label>
+          </footer>
+        </main>
+        <aside className="workshop-run oh-inspector" aria-label="Запись рисунка">
+          <div className="oh-toolbar inspector-header">
+            <h2 className="oh-panel-title">Запись рисунка</h2>
           </div>
-          <footer className="workshop-run">
-            {!withinPaper && <p className="plotter-warning">Рисунок выходит за границы листа.</p>}
-            <div className="plotter-footer-heading">
-              <button type="button" aria-expanded={!footerCollapsed} onClick={() => setFooterCollapsed(value => !value)}>{footerCollapsed ? "▸" : "▾"} Управление рисунком</button>
-              {footerCollapsed && workspace.running && <button className="button danger" onClick={workspace.stop}>Стоп</button>}
-            </div>
-            <div className="workshop-run-body" hidden={footerCollapsed}>
-            {(error || workspace.error) && (
-              <p role="alert" className="plotter-error">
-                {error || workspace.error}
-              </p>
-            )}
-            {!job.withinWorkArea && (
-              <p className="plotter-error">
-                Рисунок выходит за рабочую область. Уменьшите или переместите
-                его.
-              </p>
-            )}
-            {!running && <p className={canRun ? "plotter-note" : "plotter-warning"}>
-              {canRun ? "Готово к записи" : readiness.blockers[0]}
-            </p>}
-            <PlotterManualStart workspace={workspace} workshop />
-            {recovery.problem && !running && <p className="plotter-warning">Продолжение рисунка недоступно: {recovery.problem}</p>}
-            {recovery.otherSource === "document" && !running && <button className="text-button"
-              onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "document" }))}>К прерванной записи документа →</button>}
-            {!workspace.placementReadiness.canStart && workspace.penPositionsVerified && !running && <button className="text-button"
-              onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>Открыть настройки плоттера →</button>}
-            <div className="workshop-run-actions">
-              <button
-                disabled={!document.strokes.length}
-                onClick={() =>
-                  void downloadFile(
-                    "openhand-workshop.gcode",
-                    serializePlotterGcode(job.commands, config),
-                    "text/plain",
-                  )
-                }
-              >
-                Экспорт G-code
-              </button>
-              <button
-                data-plotter-motion="" disabled={!canRun || config.profile === "ebb"}
-                onClick={() =>
-                  void attempt(() =>
-                    workspace.runPreparedFrame(document.strokes, withinPaper),
-                  )
-                }
-              >
-                Обвести рамку
-              </button>
-              <button
-                className="primary"
-                data-plotter-motion="" disabled={!canRun}
-                onClick={() =>
-                  void attempt(() => {
-                    return recovery.available
-                      ? workspace.recoverPreparedJob(job, { strokes: document.strokes, clipped: !withinPaper })
-                      : workspace.runPreparedJob(job, { strokes: document.strokes, clipped: !withinPaper });
-                  })
-                }
-              >
-                {recovery.available ? "Продолжить рисунок" : "Начать рисунок"}
-              </button>
-              <button disabled={running || workspace.calibrationActive} onClick={workspace.resetProgress}
-                title="Сбросить прогресс без движения и изменения нуля">
-                Сбросить прогресс
-              </button>
-              {running && (
-                <button
-                  onClick={
-                    plotter.status === "paused"
-                      ? workspace.resume
-                      : workspace.pause
-                  }
-                >
-                  {plotter.status === "paused" ? "Продолжить передачу" : "Приостановить"}
-                </button>
-              )}
-              <button
-                className="danger"
-                disabled={!connected}
-                onClick={() => {
-                  void workspace.stop();
-                }}
-              >
-                Стоп
-              </button>
-            </div>
+          <div className="oh-inspector-body">
             {running && (
-              <progress
-                aria-label="Отправлено команд"
-                value={plotter.progress.current}
-                max={Math.max(1, plotter.progress.total)}
-              />
+              <section className="oh-group recording-progress" aria-label="Ход записи">
+                <div className="recording-progress-head">
+                  <strong>{progressPercent}%</strong>
+                  <span>{plotter.progress.current.toLocaleString("ru-RU")} из {plotter.progress.total.toLocaleString("ru-RU")} команд</span>
+                </div>
+                <div className="oh-progress" role="progressbar" aria-label="Отправлено команд" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
+                  <i style={{ width: `${progressPercent}%` }} />
+                </div>
+              </section>
             )}
-            {!connected && (
-              <small>Подключение и управление пером — в общей вкладке «Плоттер».</small>
+            {(error || workspace.error) && <p role="alert" className="plotter-error">{error || workspace.error}</p>}
+            {!withinPaper && <p className="plotter-warning">Рисунок выходит за границы листа.</p>}
+            {!job.withinWorkArea && <p className="plotter-error">Рисунок выходит за рабочую область. Уменьшите или переместите его.</p>}
+            {!running && !canRun && withoutConnectBlocker(readiness.blockers)[0] && <p className="plotter-warning">{withoutConnectBlocker(readiness.blockers)[0]}</p>}
+            {!running && (
+              <section className="oh-group oh-step">
+                <h3 className="oh-group-title"><span className="oh-step-number" aria-hidden="true">1</span>Начальная точка</h3>
+                <PlotterManualStart workspace={workspace} workshop />
+              </section>
             )}
-            <details className="workshop-log">
+            {!running && (
+              <section className="oh-group oh-step">
+                <h3 className="oh-group-title"><span className="oh-step-number" aria-hidden="true">2</span>Проверка<small>· по желанию</small></h3>
+                <div className="oh-button-row">
+                  <button
+                    className="oh-button"
+                    type="button"
+                    data-plotter-motion="" disabled={!canRun || config.profile === "ebb"}
+                    onClick={() => void attempt(() => workspace.runPreparedFrame(document.strokes, withinPaper))}
+                  >
+                    <Icon name="frame" />
+                    <span>Обвести рамку</span>
+                  </button>
+                </div>
+              </section>
+            )}
+            {recovery.problem && !running && <p className="plotter-warning">Продолжение рисунка недоступно: {recovery.problem}</p>}
+            {recovery.otherSource === "document" && !running && <button type="button" className="oh-link-button"
+              onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "document" }))}>К прерванной записи документа →</button>}
+            {!workspace.placementReadiness.canStart && workspace.penPositionsVerified && !running && <button type="button" className="oh-link-button"
+              onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>Открыть настройки плоттера →</button>}
+            <details className="oh-disclosure workshop-log">
               <summary>Журнал порта</summary>
               <button
+                className="oh-link-button"
+                type="button"
                 onClick={() =>
                   void downloadFile(
                     "plotter-log.txt",
-                    plotter.logs
-                      .map((e) => `${e.time} ${e.direction} ${e.message}`)
-                      .join("\n"),
+                    plotter.logs.map((e) => `${e.time} ${e.direction} ${e.message}`).join("\n"),
                     "text/plain",
                   )
                 }
@@ -643,16 +554,47 @@ export default function PlotterWorkshop({
               </button>
               <pre>
                 {plotter.logs
-                  .map(
-                    (e) =>
-                      `${e.time} ${e.direction === "in" ? "←" : "→"} ${e.message}`,
-                  )
+                  .map((e) => `${e.time} ${e.direction === "in" ? "←" : "→"} ${e.message}`)
                   .join("\n") || "Команды ещё не отправлялись."}
               </pre>
             </details>
           </div>
-          </footer>
-        </main>
+          <div className="oh-inspector-footer recording-footer">
+            {!running && (
+              <button
+                className="oh-button is-primary"
+                type="button"
+                data-plotter-motion="" disabled={!canRun}
+                title={!connected ? "Сначала подключите плоттер" : undefined}
+                onClick={() =>
+                  void attempt(() =>
+                    recovery.available
+                      ? workspace.recoverPreparedJob(job, { strokes: document.strokes, clipped: !withinPaper })
+                      : workspace.runPreparedJob(job, { strokes: document.strokes, clipped: !withinPaper }),
+                  )
+                }
+              >
+                <Icon name="pen" />
+                <span>{recovery.available ? "Продолжить рисунок" : "Начать рисунок"}</span>
+              </button>
+            )}
+            {running && (
+              <button
+                className="oh-button"
+                type="button"
+                onClick={plotter.status === "paused" ? workspace.resume : workspace.pause}
+              >
+                {plotter.status === "paused" ? "Продолжить передачу" : "Приостановить"}
+              </button>
+            )}
+            {!running && (
+              <button className="oh-button is-quiet" type="button" disabled={workspace.calibrationActive} onClick={workspace.resetProgress}
+                title="Сбросить прогресс без движения и изменения нуля">
+                Сбросить прогресс
+              </button>
+            )}
+          </div>
+        </aside>
       </div>
     </section>
   );

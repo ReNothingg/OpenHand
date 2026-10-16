@@ -43,6 +43,7 @@ internal static class NativeScripts
 
           window.addEventListener("openhand:menu-state", event => post("menu", event.detail));
           window.addEventListener("openhand:menu-appearance", event => post("menu", { appearance: event.detail }));
+          window.addEventListener("openhand:print", () => post("menu", { print: true }));
           const colorScheme = matchMedia("(prefers-color-scheme: dark)");
           const syncWindowTheme = () =>
             post("theme", { dark: colorScheme.matches });

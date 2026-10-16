@@ -1,0 +1,1000 @@
+/* OpenHand shell: one header, three working columns, quiet controls.
+   Loaded last, so it settles the earlier layered rules. */
+
+:root {
+  --surface-workspace: #eeede9;
+  --surface-panel: #fbfaf8;
+  --surface-raised: #ffffff;
+  --control-surface: #f1efea;
+  --control-hover: #e8e6e0;
+  --text-primary: #1a1a18;
+  --text-secondary: #5c5a55;
+  --muted: #6b6862;
+  --line: #e2e0da;
+  --line-strong: #d6d3ca;
+  --green: #1f7a3a;
+  --green-dark: #196630;
+  --accent-soft: #e6f2e9;
+  --accent-border: #bcd9c3;
+  --on-accent: #ffffff;
+  --danger: #b42318;
+  --danger-soft: #fbeae7;
+  --warning: #7a4f12;
+  --warning-soft: #f6eedc;
+  --stop: #b42318;
+  --stop-hover: #971d14;
+  --status-idle: #a8a49b;
+  --control-radius: 8px;
+  --oh-header-height: 52px;
+  --oh-toolbar-height: 52px;
+}
+:root.theme-dark {
+  --surface-workspace: #161614;
+  --surface-panel: #1e1e1b;
+  --surface-raised: #262623;
+  --control-surface: #2c2c28;
+  --control-hover: #34342f;
+  --text-primary: #f2f1ec;
+  --text-secondary: #bdbab2;
+  --muted: #a8a59d;
+  --line: #34332f;
+  --line-strong: #45443f;
+  --green: #5cb86a;
+  --green-dark: #73c67f;
+  --accent-soft: #1d2d20;
+  --accent-border: #3f6b47;
+  --on-accent: #0d0d0d;
+  --danger: #f0a49c;
+  --danger-soft: #3e2522;
+  --warning: #e4c18b;
+  --warning-soft: #3d3426;
+  --status-idle: #77746c;
+}
+
+/* Header */
+:root:root .oh-header {
+  flex: 0 0 auto;
+  min-height: var(--oh-header-height);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px 8px 16px;
+  background: var(--surface-panel);
+  border-bottom: 1px solid var(--line);
+  color: var(--text-primary);
+}
+:root:root .oh-brand {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+:root:root .oh-header-host {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+:root:root .oh-header-host:empty {
+  min-width: 8px;
+}
+:root:root .oh-header .appearance-control {
+  height: 32px;
+  max-width: 150px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+:root:root .oh-header .appearance-control:hover {
+  background: var(--control-hover);
+  color: var(--text-primary);
+}
+:root:root .oh-header .emergency-stop,
+:root:root .auxiliary-plotter-controls .emergency-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  min-width: 0;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--stop);
+  border-radius: var(--control-radius);
+  background: var(--stop);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+:root:root .oh-header .emergency-stop:hover,
+:root:root .auxiliary-plotter-controls .emergency-stop:hover {
+  background: var(--stop-hover);
+  border-color: var(--stop-hover);
+}
+:root:root .oh-header .emergency-stop kbd,
+:root:root .auxiliary-plotter-controls .emergency-stop kbd {
+  padding: 1px 5px;
+  border: 1px solid rgb(255 255 255 / 0.45);
+  border-radius: 4px;
+  background: transparent;
+  color: #ffffff;
+  font: 500 11px/1.2 inherit;
+}
+
+/* Plotter state: shown once, in the header. */
+:root:root .oh-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+:root button.oh-status {
+  cursor: pointer;
+}
+:root button.oh-status:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+:root:root .oh-status > i {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--status-idle);
+}
+:root:root .oh-status:is(.is-connected, .is-running) > i {
+  background: var(--green);
+}
+:root:root .oh-status.is-running {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--green-dark);
+}
+:root:root .oh-status:is(.is-connecting, .is-paused, .is-waiting-paper) > i {
+  background: var(--warning);
+}
+:root:root .oh-status:is(.is-paused, .is-waiting-paper) {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+/* Shared controls */
+:root:root .oh-segmented {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--control-hover);
+}
+:root:root .oh-segmented > button {
+  height: 30px;
+  min-height: 0;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+:root:root .oh-segmented > button:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+:root:root .oh-segmented > button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+:root:root .oh-segmented > button:is([aria-pressed="true"], [aria-selected="true"]) {
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-weight: 600;
+  opacity: 1;
+}
+:root:root .oh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  min-height: 0;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+:root:root .oh-button:hover:not(:disabled) {
+  background: var(--control-surface);
+}
+:root:root .oh-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+:root:root .oh-button.is-primary {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--on-accent);
+}
+:root:root .oh-button.is-primary:hover:not(:disabled) {
+  border-color: var(--green-dark);
+  background: var(--green-dark);
+}
+:root:root .oh-button.is-primary[aria-pressed="true"] {
+  border-color: var(--green-dark);
+  background: var(--green-dark);
+}
+:root:root .oh-button.is-quiet,
+:root:root .oh-menu.is-quiet > .oh-button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-primary);
+}
+:root:root .oh-button.is-quiet:hover:not(:disabled),
+:root:root .oh-menu.is-quiet > .oh-button:hover:not(:disabled) {
+  background: var(--control-hover);
+}
+:root:root .oh-button.is-quiet[aria-pressed="true"] {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--green-dark);
+}
+:root:root .oh-button .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+:root:root .oh-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+:root:root .oh-icon-button:hover:not(:disabled) {
+  background: var(--control-hover);
+  color: var(--text-primary);
+}
+:root:root .oh-icon-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+:root:root .oh-icon-button .svg-icon {
+  width: 18px;
+  height: 18px;
+}
+:root:root .oh-link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+:root:root .oh-link-button:hover:not(:disabled) {
+  color: var(--green-dark);
+  text-decoration: underline;
+}
+:root:root .oh-link-button .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+:root:root .oh-select {
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+:root:root .oh-select.is-compact {
+  width: auto;
+  flex: 0 0 auto;
+}
+:root:root .oh-select:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+:root:root .oh-spacer {
+  flex: 1 1 auto;
+}
+:root:root .oh-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  flex: 0 0 auto;
+  background: var(--line-strong);
+}
+:root:root .oh-menu {
+  position: relative;
+  display: inline-flex;
+}
+:root:root .oh-menu-caret.svg-icon {
+  width: 14px;
+  height: 14px;
+  margin-left: -2px;
+}
+:root:root .oh-menu-popup {
+  position: absolute;
+  z-index: 300;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+:root:root .oh-menu-popup.align-end {
+  right: 0;
+  left: auto;
+}
+:root:root .oh-menu-popup > button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+:root:root .oh-menu-popup > button:hover:not(:disabled) {
+  background: var(--control-surface);
+}
+:root:root .oh-menu-popup > button:disabled {
+  color: var(--muted);
+  opacity: 0.6;
+  cursor: default;
+}
+:root:root .oh-menu-popup > button.is-danger:not(:disabled) {
+  color: var(--danger);
+}
+
+/* Toolbars and status rows inside panels */
+:root:root .oh-toolbar {
+  flex: 0 0 auto;
+  min-height: var(--oh-toolbar-height);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 8px 8px 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: inherit;
+}
+:root:root .oh-statusbar {
+  flex: 0 0 auto;
+  min-height: 36px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 6px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+:root:root .oh-statusbar > strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Document workspace: editor | sheets | inspector */
+:root:root .oh-shell > .workspace {
+  --editor-panel-width: clamp(320px, 26vw, 380px);
+  background: var(--surface-workspace);
+}
+:root:root .oh-shell .editor-panel {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  background: var(--surface-raised);
+}
+:root:root .oh-shell.editor-collapsed .editor-panel {
+  border-right: 0;
+}
+:root:root .oh-shell .preview-panel {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 0;
+  background: var(--surface-workspace);
+}
+@media (min-width: 1181px) {
+  :root:root .oh-shell > .workspace {
+    --settings-panel-width: var(--settings-panel-size);
+    grid-template-columns:
+      var(--editor-panel-width)
+      minmax(0, 1fr)
+      var(--settings-panel-width);
+  }
+  :root:root .oh-shell.settings-collapsed > .workspace {
+    --settings-panel-width: 0px;
+  }
+  :root:root .oh-shell > .workspace > .settings-panel {
+    position: relative;
+    inset: auto;
+    grid-column: 3;
+    grid-row: 1;
+    width: auto;
+    min-width: 0;
+    border: 0;
+    border-left: 1px solid var(--line);
+  }
+  :root:root .oh-shell .settings-close {
+    display: none;
+  }
+}
+:root:root .oh-shell .document-resize-handle {
+  z-index: 25;
+}
+
+/* Editor */
+:root:root .oh-shell .editor-toolbar {
+  background: var(--surface-raised);
+}
+:root:root .oh-shell .markdown-editor {
+  padding: 18px 20px 28px;
+  border: 0;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: 12.5px/1.7 ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root:root .oh-shell .editor-footer {
+  padding: 0 12px 0 20px;
+  border-top-color: var(--control-surface);
+  background: var(--surface-raised);
+}
+:root:root .oh-shell .editor-preview-button {
+  display: none;
+}
+@media (max-width: 900px) {
+  :root:root .oh-shell .editor-preview-button {
+    display: inline-flex;
+  }
+}
+
+/* Preview */
+:root:root .oh-shell .preview-toolbar {
+  padding: 8px 12px;
+  background: var(--surface-panel);
+}
+:root:root .oh-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+:root:root .oh-pager-label {
+  min-width: 92px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+:root:root .oh-zoom {
+  display: inline-flex;
+  align-items: center;
+}
+:root:root .oh-zoom-value {
+  min-width: 48px;
+  height: 32px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+:root:root .oh-zoom-value:hover {
+  background: var(--control-hover);
+  color: var(--text-primary);
+}
+:root:root .oh-shell .paper {
+  outline: 1px solid var(--line-strong);
+}
+
+/* Inspector: settings and recording share one column */
+:root:root .oh-shell .oh-inspector {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  background: var(--surface-panel);
+}
+:root:root .oh-inspector .inspector-header {
+  gap: 8px;
+  padding: 8px 8px 8px 16px;
+}
+:root:root .oh-inspector .inspector-header > .oh-select {
+  flex: 1 1 auto;
+  height: 34px;
+}
+:root:root .oh-inline-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+:root:root .oh-panel-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+:root:root .oh-tabs {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+:root:root .oh-tabs > button {
+  height: 42px;
+  min-height: 0;
+  margin-bottom: -1px;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+:root:root .oh-tabs > button:hover {
+  color: var(--text-primary);
+}
+:root:root .oh-tabs > button[aria-selected="true"] {
+  border-bottom-color: var(--green);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+:root:root .oh-inspector-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 18px 16px 28px;
+}
+:root:root .oh-inspector-footer {
+  flex: 0 0 auto;
+  min-height: 52px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-panel);
+}
+:root:root .oh-inspector-footer > .oh-button.is-quiet {
+  color: var(--text-secondary);
+}
+:root:root .oh-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+:root:root .oh-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+:root:root .oh-group-title > small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+:root:root .oh-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+:root:root .oh-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Settings content inside the inspector */
+:root:root .oh-inspector .settings-section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+:root:root .oh-inspector .settings-section > summary {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+:root:root .oh-inspector .settings-section > .settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px 0 18px;
+  border: 0;
+  background: transparent;
+}
+:root:root .oh-inspector .oh-group > .settings-section:last-child {
+  border-bottom: 1px solid var(--line);
+}
+:root:root .oh-inspector .document-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+:root:root .oh-inspector button.document-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  text-align: left;
+  cursor: pointer;
+}
+:root:root .oh-inspector button.document-preset:hover {
+  border-color: var(--text-secondary);
+}
+:root:root .oh-inspector button.document-preset strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+:root:root .oh-inspector button.document-preset small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Recording panel */
+:root:root .oh-step-number {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--green);
+  color: var(--on-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+:root:root .oh-step > .oh-group-title {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+:root:root .recording-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+:root:root .recording-progress-head > strong {
+  color: var(--text-primary);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+:root:root .oh-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--line);
+}
+:root:root .oh-progress > i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+:root:root .oh-disclosure {
+  border-top: 1px solid var(--line);
+}
+:root:root .oh-disclosure > summary {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+:root:root .oh-disclosure[open] > summary {
+  margin-bottom: 8px;
+}
+:root:root .oh-disclosure > :not(summary) + :not(summary) {
+  margin-top: 8px;
+}
+:root:root .recording-footer > .oh-button.is-primary {
+  flex: 1 1 auto;
+}
+:root:root .recording-panel .plotter-manual-start > p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  :root:root .oh-header {
+    padding-left: 12px;
+  }
+  :root:root .oh-header .appearance-control {
+    max-width: 120px;
+  }
+}
+@media print {
+  :root:root .oh-header,
+  :root:root .oh-toolbar,
+  :root:root .oh-statusbar,
+  :root:root .oh-inspector {
+    display: none !important;
+  }
+}
+
+/* Narrow sheet area: keep the icons, drop the labels. */
+@container (max-width: 820px) {
+  :root:root .preview-toolbar .oh-collapsible-label {
+    display: none;
+  }
+  :root:root .preview-toolbar .oh-button.is-quiet {
+    width: 36px;
+    padding: 0;
+  }
+}
+@container (max-width: 560px) {
+  :root:root .preview-toolbar .oh-segmented {
+    display: none;
+  }
+}
+:root:root .recording-footer {
+  flex-wrap: nowrap;
+}
+:root:root .recording-footer > .oh-button.is-primary {
+  min-width: 0;
+}
+:root:root .plotter-manual-start > .oh-button {
+  align-self: flex-start;
+}
+
+/* Workshop: objects | canvas | recording */
+:root:root .plotter-workshop {
+  background: var(--surface-workspace);
+}
+:root:root .plotter-workshop .workshop-body {
+  grid-template-columns: var(--inspector-width, 300px) 6px minmax(0, 1fr) 300px;
+  grid-template-rows: minmax(0, 1fr);
+}
+:root:root .app .plotter-workshop .workshop-body.inspector-collapsed {
+  grid-template-columns: minmax(0, 1fr) 300px;
+}
+:root:root .plotter-workshop .workshop-inspector {
+  border-right: 1px solid var(--line);
+}
+:root:root .plotter-workshop fieldset.oh-inspector-body {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+}
+:root:root .plotter-workshop .workshop-main {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-workspace);
+}
+:root:root .workshop-canvas-bar {
+  background: var(--surface-panel);
+}
+:root:root .plotter-workshop .workshop-canvas,
+:root:root .plotter-workshop .workshop-code {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+:root:root .plotter-workshop .workshop-run.oh-inspector {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+}
+:root:root .oh-icon-button.is-tool[aria-pressed="true"] {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+  color: var(--green-dark);
+}
+:root:root .oh-button.is-danger:not(:disabled) {
+  color: var(--danger);
+}
+:root:root .oh-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: -8px 0 -6px;
+}
+:root:root .svg-icon.is-up {
+  transform: rotate(90deg);
+}
+:root:root .svg-icon.is-down {
+  transform: rotate(90deg);
+}
+:root:root .workshop-shape-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+:root:root .workshop-shape-form > .oh-button {
+  align-self: flex-start;
+}
+:root:root .workshop-file-tools {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+:root:root .oh-title-input {
+  flex: 0 1 240px;
+  min-width: 120px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+:root:root .oh-title-input:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+:root:root .oh-title-input:focus {
+  border-color: var(--green);
+  background: var(--surface-raised);
+  outline: none;
+}
+:root:root .workshop-log pre {
+  max-height: 220px;
+  overflow: auto;
+  margin: 8px 0 0;
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+@media (max-width: 1180px) {
+  :root:root .plotter-workshop .workshop-body {
+    grid-template-columns: var(--inspector-width, 300px) 6px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  :root:root .app .plotter-workshop .workshop-body.inspector-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :root:root .plotter-workshop .workshop-run.oh-inspector {
+    grid-column: 1 / -1;
+    max-height: 42vh;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+@media (max-width: 700px) {
+  :root:root .plotter-workshop .workshop-body,
+  :root:root .app .plotter-workshop .workshop-body.inspector-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(360px, 1fr) auto;
+    overflow-y: auto;
+  }
+}
+:root:root .workshop-canvas-bar {
+  gap: 2px;
+}
+:root:root .workshop-canvas-bar > .oh-divider {
+  margin: 0 6px;
+}
+
+/* Device page: white cards on the workspace ground. */
+:root:root .device-page {
+  background: var(--surface-workspace);
+}
+:root:root .device-page :is(.device-pen-card, .device-connection-card),
+:root:root .device-page .device-settings-sections .settings-section {
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+}
+:root:root .device-page .device-page-heading h1 {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+:root:root .oh-shell .editor-toolbar {
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 8px 6px 8px 10px;
+}
+:root:root .oh-shell .editor-toolbar .oh-segmented > button {
+  padding: 0 10px;
+}
+@media (max-width: 1180px) {
+  :root:root .oh-brand {
+    display: none;
+  }
+  :root:root .oh-header .appearance-control {
+    max-width: 128px;
+  }
+}
+@media (max-width: 900px) {
+  :root:root .oh-shell .editor-toolbar {
+    flex-wrap: wrap;
+  }
+}

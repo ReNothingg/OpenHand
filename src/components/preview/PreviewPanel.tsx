@@ -1,12 +1,21 @@
-import PlotterFooter, { formatNominalDuration, timingExplanation } from "../plotter/PlotterFooter";
+import { formatNominalDuration, timingExplanation } from "../plotter/PlotterFooter";
 import PlotterPaper from "../plotter/PlotterPaper";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import WritingStartLine from "../plotter/WritingStartLine";
 import { writingStartY } from "../../plotter/writingStart";
 import Icon from "../Icon";
 import BlockInspector from "./BlockInspector";
 import ManualPageContent from "./ManualPageContent";
+import { plural } from "../../lib/plural";
+
+const ZOOM_STEPS = [10, 25, 33, 50, 67, 75, 90, 100, 125, 150, 200, 300, 400];
+
+function stepZoom(zoom: number, direction: 1 | -1) {
+  const next = direction > 0
+    ? ZOOM_STEPS.find((step) => step > zoom + 0.5)
+    : [...ZOOM_STEPS].reverse().find((step) => step < zoom - 0.5);
+  return next ?? zoom;
+}
 
 export default function PreviewPanel({
   pages,
@@ -23,9 +32,9 @@ export default function PreviewPanel({
   setViewMode,
   editorCollapsed,
   setEditorCollapsed,
-  openExpandedEditor,
-  settingsCollapsed,
-  setSettingsCollapsed,
+  rightPanelOpen,
+  toggleRightPanel,
+  setZoom,
   reshuffle,
   previewRef,
   measureRef,
@@ -33,7 +42,6 @@ export default function PreviewPanel({
   plotterWorkspace,
   activeSheetIndex,
   onActiveSheetChange,
-  toolbarHost,
   onWritingStartChange,
 }: any) {
   const [selectedBlock, setSelectedBlock] = useState(null);
@@ -92,14 +100,12 @@ export default function PreviewPanel({
   }, [manualPages, selectedBlock]);
   useEffect(() => () => cancelAnimationFrame(activeSheetFrameRef.current), []);
   const sheetCount = displayedPages.length;
-  const plotterStatusLabel = {
-    disconnected: "Не подключён",
-    connecting: "Подключение…",
-    connected: "Подключён",
-    running: "Печать",
-    paused: "Пауза",
-    "waiting-paper": "Смените бумагу",
-  }[plotterWorkspace.plotter.status];
+  const goToSheet = (index: number) => {
+    const target = Math.max(0, Math.min(sheetCount - 1, index));
+    const shell = previewRef.current?.querySelector(`[data-sheet-index="${target}"]`) as HTMLElement | null;
+    shell?.scrollIntoView({ behavior: "smooth", block: "start", inline: "center" });
+    onActiveSheetChange(target);
+  };
 
   const detectActiveSheet = (event: React.UIEvent<HTMLElement>) => {
     const viewport = event.currentTarget;
@@ -129,152 +135,90 @@ export default function PreviewPanel({
 
   return (
     <main className="preview-panel">
-      {toolbarHost &&
-        createPortal(
-          <div className="document-toolbar" aria-label="Управление документом">
-            <div
-              className="preview-leading-actions"
-              role="group"
-              aria-label="Управление редактором"
-            >
-              <button
-                className="preview-icon-button"
-                type="button"
-                aria-label={
-                  editorCollapsed
-                    ? "Показать поле ввода"
-                    : "Свернуть поле ввода"
-                }
-                title={
-                  editorCollapsed
-                    ? "Показать поле ввода"
-                    : "Свернуть поле ввода"
-                }
-                aria-pressed={!editorCollapsed}
-                onClick={() => setEditorCollapsed((value) => !value)}
-              >
-                <Icon
-                  name={
-                    editorCollapsed
-                      ? "panel-left-expand"
-                      : "panel-left-collapse"
-                  }
-                />
-              </button>
-              <button
-                className="preview-icon-button"
-                type="button"
-                aria-label="Открыть большой редактор"
-                title="Открыть большой редактор"
-                onClick={openExpandedEditor}
-              >
-                <Icon name="window-expand" />
-              </button>
-            </div>
-            <div className="preview-context">
-              <span className="preview-sheet-status">
-                Лист {Math.min(activeSheetIndex + 1, sheetCount)} из{" "}
-                {sheetCount}
-                <i aria-hidden="true" />
-                {Math.round(settings.zoom)}%
-              </span>
-              {plotterMode &&
-                (settingsCollapsed ||
-                  plotterWorkspace.config.profile !== "grbl") && (
-                  <span
-                    className={`plotter-status ${plotterWorkspace.plotter.status}`}
-                  >
-                    <i />
-                    {plotterStatusLabel}
-                  </span>
-                )}
-            </div>
-            {plotterMode && (
-              <div
-                className="preview-job-stats"
-                aria-label="Статистика задания плоттера"
-              >
-                <span title="Непрерывные проходы пера, а не число отдельных отрезков">
-                  <strong>
-                    {plotterWorkspace.activeLayout.strokes.length.toLocaleString(
-                      "ru-RU",
-                    )}
-                  </strong>
-                  <small>проходов</small>
-                </span>
-                <span title="Количество команд">
-                  <strong>
-                    {plotterWorkspace.job.commands.length.toLocaleString(
-                      "ru-RU",
-                    )}
-                  </strong>
-                  <small>команд</small>
-                </span>
-                <span title="Длина линий пером">
-                  <strong>
-                    {(plotterWorkspace.job.drawDistance / 1000).toFixed(2)}
-                  </strong>
-                  <small>м пером</small>
-                </span>
-                <span title={timingExplanation}>
-                  <strong>
-                    {formatNominalDuration(plotterWorkspace.job.estimatedSeconds)}
-                  </strong>
-                  <small>без разгона</small>
-                </span>
-              </div>
-            )}
-            <button
-              className={`button compact placement-toggle ${manualEditing ? "active" : ""}`}
-              disabled={plotterWorkspace.running}
-              type="button"
-              aria-pressed={manualEditing}
-              onClick={() => setManualEditing((value) => !value)}
-            >
-              <span aria-hidden="true">⌁</span>
-              {manualEditing ? "Готово" : "Расставить"}
-            </button>
-            <select
-              className="layout-select"
-              value={viewMode}
-              onChange={(event) => setViewMode(event.target.value)}
-              aria-label="Раскладка страниц"
-            >
-              <option value="single">По 1 листу</option>
-              <option value="spread">По 2 листа</option>
-            </select>
-            {!plotterMode && (
-              <button
-                className="button ghost compact"
-                type="button"
-                onClick={reshuffle}
-              >
-                Перемешать
-              </button>
-            )}
-            <button
-              className="settings-toolbar-toggle"
-              type="button"
-              aria-label={
-                settingsCollapsed ? "Показать настройки" : "Свернуть настройки"
-              }
-              title={
-                settingsCollapsed ? "Показать настройки" : "Свернуть настройки"
-              }
-              aria-pressed={!settingsCollapsed}
-              onClick={() => setSettingsCollapsed((value) => !value)}
-            >
-              <Icon
-                name={
-                  settingsCollapsed
-                    ? "panel-right-expand"
-                    : "panel-right-collapse"
-                }
-              />
-            </button>
-          </div>,
-          toolbarHost,
+      <div className="oh-toolbar preview-toolbar" role="toolbar" aria-label="Управление листами">
+        <button
+          className="oh-icon-button"
+          type="button"
+          aria-label={editorCollapsed ? "Показать редактор" : "Скрыть редактор"}
+          title={editorCollapsed ? "Показать редактор" : "Скрыть редактор"}
+          aria-pressed={!editorCollapsed}
+          onClick={() => setEditorCollapsed((value) => !value)}
+        >
+          <Icon name={editorCollapsed ? "panel-left-expand" : "panel-left-collapse"} />
+        </button>
+        <div className="oh-pager">
+          <button
+            className="oh-icon-button"
+            type="button"
+            aria-label="Предыдущий лист"
+            disabled={activeSheetIndex <= 0}
+            onClick={() => goToSheet(activeSheetIndex - 1)}
+          >
+            <Icon name="chevron-left" />
+          </button>
+          <span className="oh-pager-label">
+            Лист {Math.min(activeSheetIndex + 1, sheetCount)} из {sheetCount}
+          </span>
+          <button
+            className="oh-icon-button"
+            type="button"
+            aria-label="Следующий лист"
+            disabled={activeSheetIndex >= sheetCount - 1}
+            onClick={() => goToSheet(activeSheetIndex + 1)}
+          >
+            <Icon name="chevron-right" />
+          </button>
+        </div>
+        <div className="oh-segmented" role="group" aria-label="Раскладка страниц">
+          <button type="button" aria-pressed={viewMode === "single"} onClick={() => setViewMode("single")}>
+            1 лист
+          </button>
+          <button type="button" aria-pressed={viewMode === "spread"} onClick={() => setViewMode("spread")}>
+            2 листа
+          </button>
+        </div>
+        <span className="oh-spacer" />
+        <button
+          className="oh-button is-quiet"
+          disabled={plotterWorkspace.running}
+          type="button"
+          aria-pressed={manualEditing}
+          aria-label={manualEditing ? "Готово" : "Расставить блоки на листе"}
+          title={manualEditing ? "Закончить расстановку" : "Расставить блоки на листе"}
+          onClick={() => setManualEditing((value) => !value)}
+        >
+          <Icon name="move" />
+          <span className="oh-collapsible-label">{manualEditing ? "Готово" : "Расставить"}</span>
+        </button>
+        {!plotterWorkspace.running && (
+          <button className="oh-button is-quiet" type="button" onClick={reshuffle} aria-label="Перемешать" title="Новое зерно случайности: текст останется прежним">
+            <Icon name="shuffle" />
+            <span className="oh-collapsible-label">Перемешать</span>
+          </button>
         )}
+        <span className="oh-divider" aria-hidden="true" />
+        <div className="oh-zoom">
+          <button className="oh-icon-button" type="button" aria-label="Уменьшить" disabled={settings.zoom <= ZOOM_STEPS[0]} onClick={() => setZoom(stepZoom(settings.zoom, -1))}>
+            <Icon name="minus" />
+          </button>
+          <button className="oh-zoom-value" type="button" title="Масштаб 100%" onClick={() => setZoom(100)}>
+            {Math.round(settings.zoom)}%
+          </button>
+          <button className="oh-icon-button" type="button" aria-label="Увеличить" disabled={settings.zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} onClick={() => setZoom(stepZoom(settings.zoom, 1))}>
+            <Icon name="plus" />
+          </button>
+        </div>
+        <button
+          className="oh-icon-button"
+          type="button"
+          aria-label={rightPanelOpen ? "Скрыть правую панель" : "Показать настройки"}
+          title={rightPanelOpen ? "Скрыть правую панель" : "Показать настройки"}
+          aria-pressed={rightPanelOpen}
+          onClick={toggleRightPanel}
+        >
+          <Icon name={rightPanelOpen ? "panel-right-collapse" : "panel-right-expand"} />
+        </button>
+      </div>
       {manualEditing && (
         <BlockInspector
           selected={selectedBlock}
@@ -416,7 +360,23 @@ export default function PreviewPanel({
           })}
         </div>
       </div>
-      <PlotterFooter workspace={plotterWorkspace} />
+      {plotterMode && (
+        <footer className="oh-statusbar" aria-label="Статистика задания плоттера">
+          <strong>Задание для пера</strong>
+          <span title="Непрерывные проходы пера, а не число отдельных отрезков">
+            {plural(plotterWorkspace.activeLayout.strokes.length, "проход", "прохода", "проходов")}
+          </span>
+          <span title="Количество команд">
+            {plural(plotterWorkspace.job.commands.length, "команда", "команды", "команд")}
+          </span>
+          <span title="Длина линий пером">
+            {(plotterWorkspace.job.drawDistance / 1000).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} м пером
+          </span>
+          <span title={timingExplanation}>
+            {formatNominalDuration(plotterWorkspace.job.estimatedSeconds)}
+          </span>
+        </footer>
+      )}
       <div className="measure-host" ref={measureRef} aria-hidden="true" />
     </main>
   );

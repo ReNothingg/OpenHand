@@ -2,6 +2,8 @@ import DOMPurify from "dompurify";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Icon from "../Icon";
+import MenuButton from "../shell/MenuButton";
+import { plural } from "../../lib/plural";
 import { vectorizeDrawingPhotoToSvg } from "../../font-builder/photoVectorization";
 import { delimitedTextToMarkdown } from "../../lib/tabularImport";
 import { dxfToSvg } from "../../lib/dxfImport";
@@ -226,6 +228,8 @@ interface EditorPanelProps {
   expanded: boolean;
   setExpanded: (expanded: boolean) => void;
   showPreview: () => void;
+  openSource: () => void;
+  downloadSource: () => void;
 }
 
 function cleanSvg(source) {
@@ -257,6 +261,8 @@ export default function EditorPanel({
   expanded,
   setExpanded,
   showPreview,
+  openSource,
+  downloadSource,
 }: EditorPanelProps) {
   const [helpOpen, setHelpOpen] = useState(false);
   const expandedRef = useRef(null);
@@ -461,9 +467,9 @@ export default function EditorPanel({
 
   return (
     <section className="editor-panel panel" inert={locked}>
-      <div className="panel-title editor-title">
+      <div className="oh-toolbar editor-toolbar">
         <div
-          className="source-tabs"
+          className="oh-segmented"
           role="tablist"
           aria-label="Формат исходника"
         >
@@ -471,67 +477,69 @@ export default function EditorPanel({
             type="button"
             role="tab"
             aria-selected={sourceMode === "markdown"}
-            className={sourceMode === "markdown" ? "active" : ""}
             onClick={() => setSourceMode("markdown")}
           >
-            MD
+            Markdown
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={sourceMode === "tex"}
-            className={sourceMode === "tex" ? "active" : ""}
             onClick={() => setSourceMode("tex")}
           >
-            TeX
+            LaTeX
           </button>
         </div>
-        <div className="editor-title-actions">
-          {sourceMode === "markdown" && (
-            <>
-              <button
-                type="button"
-                className="editor-expand-button editor-svg-button"
-                onClick={() => tableInputRef.current?.click()}
-                title="Вставить таблицу XLSX/CSV/TSV"
-              >
-                Табл.
-              </button>
-              <button
-                type="button"
-                className="editor-expand-button editor-svg-button"
-                onClick={() => imageInputRef.current?.click()}
-                title="Векторизовать локальное изображение"
-              >
-                Фото
-              </button>
-              <button
-                type="button"
-                className="editor-expand-button editor-svg-button"
-                onClick={() => dxfInputRef.current?.click()}
-                title="Вставить ASCII DXF"
-              >
-                DXF
-              </button>
-              <button
-                type="button"
-                className="editor-expand-button editor-svg-button"
-                onClick={() => svgInputRef.current?.click()}
-                title="Вставить SVG"
-              >
-                SVG
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            className="editor-preview-button"
-            onClick={showPreview}
-            aria-label="Перейти к предпросмотру листа"
-          >
-            К листу
-          </button>
-        </div>
+        <span className="oh-spacer" />
+        <button
+          type="button"
+          className="oh-icon-button"
+          onClick={openSource}
+          aria-label="Открыть файл"
+          title="Открыть файл"
+        >
+          <Icon name="folder-open" />
+        </button>
+        <button
+          type="button"
+          className="oh-icon-button"
+          onClick={downloadSource}
+          aria-label="Сохранить файл"
+          title="Сохранить файл · ⌘S"
+        >
+          <Icon name="download" />
+        </button>
+        {sourceMode === "markdown" && (
+          <MenuButton
+            label="Вставить таблицу, фото или чертёж"
+            icon="plus"
+            iconOnly
+            align="end"
+            items={[
+              { label: "Таблицу XLSX, CSV или TSV", onSelect: () => tableInputRef.current?.click() },
+              { label: "Фото как рисунок", onSelect: () => imageInputRef.current?.click() },
+              { label: "Чертёж DXF", onSelect: () => dxfInputRef.current?.click() },
+              { label: "Изображение SVG", onSelect: () => svgInputRef.current?.click() },
+            ]}
+          />
+        )}
+        <button
+          type="button"
+          className="oh-icon-button"
+          onClick={() => setExpanded(true)}
+          aria-label="Открыть большой редактор"
+          title="Открыть большой редактор"
+        >
+          <Icon name="window-expand" />
+        </button>
+        <button
+          type="button"
+          className="oh-button is-quiet editor-preview-button"
+          onClick={showPreview}
+          aria-label="Перейти к предпросмотру листа"
+        >
+          К листу
+        </button>
       </div>
       <textarea
         ref={textareaRef}
@@ -542,6 +550,24 @@ export default function EditorPanel({
         onKeyDown={handleEditorKeyDown}
         aria-label={sourceMode === "tex" ? "Редактор TeX" : "Редактор Markdown"}
       />
+      <footer className="oh-statusbar editor-footer">
+        <span>
+          {plural(wordCount, "слово", "слова", "слов")} ·{" "}
+          {plural(characterCount, "символ", "символа", "символов")}
+        </span>
+        <span className="oh-spacer" />
+        <button
+          type="button"
+          className="oh-link-button"
+          onClick={() => {
+            setExpanded(true);
+            setHelpOpen(true);
+          }}
+        >
+          <Icon name="help" />
+          Синтаксис
+        </button>
+      </footer>
       {expanded &&
         createPortal(
           <div

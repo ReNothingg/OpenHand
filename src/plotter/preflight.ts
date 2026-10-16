@@ -67,11 +67,16 @@ export interface PlotterDeviceReadinessInput {
   controllerSettingsKnown: boolean;
 }
 
+/** The header shows the connection state, so panels leave this blocker out. */
+export const CONNECT_BLOCKER = "Подключите плоттер во вкладке «Плоттер».";
+export const withoutConnectBlocker = (blockers: string[]) =>
+  blockers.filter((message) => message !== CONNECT_BLOCKER);
+
 /** Hardware gate shared by document, workshop, frame, imported and recovery jobs. */
 export function assessDeviceReadiness(input: PlotterDeviceReadinessInput, now = Date.now()) {
   const blockers: string[] = [];
   if (input.emergencyStopped) blockers.push("Действует СТОП. Проверьте механизм и разрешите управление.");
-  if (!input.connected) blockers.push("Подключите плоттер во вкладке «Плоттер».");
+  if (!input.connected) blockers.push(CONNECT_BLOCKER);
   if (input.running || input.busy) blockers.push("Дождитесь завершения текущей операции.");
   if (input.calibrationActive) blockers.push("Завершите настройку направлений и рабочей области.");
   if (input.connected && input.profile === "grbl") {

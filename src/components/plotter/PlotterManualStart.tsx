@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import PenTravelInfo from "./PenTravelInfo";
+import Icon from "../Icon";
 
 /** XY placement is independent of the pen's vertical reference. */
 export default function PlotterManualStart({ workspace, workshop = false }: { workspace: any; workshop?: boolean }) {
@@ -34,20 +35,21 @@ export default function PlotterManualStart({ workspace, workshop = false }: { wo
     </fieldset>}
     <p>Поставьте поднятое перо {selected === "text" ? "в точку первого штриха" : "над левым верхним углом бумаги"} и запомните положение.
       {" Кнопка не двигает механизм и не меняет высоту пера. Затем нажмите «Начать запись»."}</p>
-    <button className="button primary compact" type="button"
+    <button className="oh-button" type="button"
       disabled={!canSet || locked || (selected === "text" && textUnavailable)}
       title={!canSet ? workspace.placementReadiness.blockers[0] : selected === "text" && workspace.config.customStartGcode?.trim()
         ? "Уберите пользовательские стартовые команды для привязки первого штриха."
         : "Запоминает выбранную привязку по X/Y. Запись запускается отдельно."}
       data-plotter-motion="" onClick={selected === "text" ? workspace.setTextStart : workspace.setManualStart}>
-      {workspace.originConfirmed ? "Запомнить новую точку" : "Запомнить эту точку"}
+      <Icon name="crosshair" />
+      <span>{workspace.originConfirmed ? "Запомнить новую точку" : "Запомнить эту точку"}</span>
     </button>
     {selected === "text" && workspace.textStartChanged && <p role="status">Начало макета изменилось. Запомните точку текста заново.</p>}
-    {!workspace.penPositionsVerified && <button className="text-button" type="button"
+    {!workspace.penPositionsVerified && <button className="oh-link-button" type="button"
       onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>
       Один раз настроить подъём пера →
     </button>}
-    {workspace.penPositionsVerified && needsPenReference && !workspace.penReferenceConfirmed && <button className="text-button" type="button"
+    {workspace.penPositionsVerified && needsPenReference && !workspace.penReferenceConfirmed && <button className="oh-link-button" type="button"
       onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>
       Указать фактическое положение пера →
     </button>}
