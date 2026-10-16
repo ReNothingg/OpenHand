@@ -3,7 +3,6 @@ import { PAGE_SIZES } from "../../app/config";
 import { fonts } from "../../fonts";
 import FontPicker from "./controls/FontPicker";
 import RangeControl from "./controls/RangeControl";
-import SettingSection from "./controls/SettingSection";
 import Toggle from "./controls/Toggle";
 import NaturalnessReport from "./NaturalnessReport";
 import { HANDWRITING_PROFILES } from "../../handwriting/profiles";
@@ -396,9 +395,9 @@ export default function SettingsPanel({
                 </>
               )}
             </section>
-            <div className="oh-group oh-sections">
               {settings.trueHandwriting && (
-                <SettingSection title="Слова и строки" open={false}>
+                <section className="oh-group">
+                  <h3 className="oh-group-title">Слова и строки</h3>
                   {wordControls.map(structureControl)}
                   <RangeControl
                     label="Колебание строки"
@@ -409,9 +408,10 @@ export default function SettingsPanel({
                     hint="Плавный ход строки без резких скачков отдельных букв."
                     onChange={(value) => updateSetting("authorBaseline", value)}
                   />
-                </SettingSection>
+                </section>
               )}
-              <SettingSection title="Случайные отклонения" open={false}>
+              <section className="oh-group">
+                  <h3 className="oh-group-title">Случайные отклонения</h3>
                 <RangeControl
                   label="Наклон слов"
                   value={settings.maxWordTilt}
@@ -496,25 +496,25 @@ export default function SettingsPanel({
                   onChange={(value) => updateSetting("fontRandomization", value)}
                   hint="Вероятность замены шрифта слова. 0 — только выбранный шрифт."
                 />
-                <details className="font-pool">
-                  <summary>
-                    Шрифты в смешивании · {settings.fontPool?.length || 0}
-                  </summary>
-                  <div>
-                    {fonts.map((font) => (
-                      <label key={font.family}>
-                        <input
-                          type="checkbox"
-                          checked={settings.fontPool?.includes(font.family) || false}
-                          onChange={() => togglePoolFont(font.family)}
-                        />
-                        <span style={{ fontFamily: `'${font.family}'` }}>
-                          {font.name}
-                        </span>
-                      </label>
-                    ))}
+                {settings.fontRandomization > 0 && (
+                  <div className="font-pool oh-font-pool">
+                    <span className="oh-note">Шрифты в смешивании · {settings.fontPool?.length || 0}</span>
+                    <div>
+                      {fonts.map((font) => (
+                        <label key={font.family}>
+                          <input
+                            type="checkbox"
+                            checked={settings.fontPool?.includes(font.family) || false}
+                            onChange={() => togglePoolFont(font.family)}
+                          />
+                          <span style={{ fontFamily: `'${font.family}'` }}>
+                            {font.name}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </details>
+                )}
                 <label className="field seed-field">
                   <span>Зерно случайности</span>
                   <span>
@@ -537,9 +537,10 @@ export default function SettingsPanel({
                     </button>
                   </span>
                 </label>
-              </SettingSection>
+              </section>
               {settings.trueHandwriting && (
-                <SettingSection title="Перо и чернила" open={false}>
+                <section className="oh-group">
+                  <h3 className="oh-group-title">Перо и чернила</h3>
                   <RangeControl
                     label="Толщина линии"
                     value={settings.penWidthMm}
@@ -580,10 +581,11 @@ export default function SettingsPanel({
                     onChange={(value) => updateSetting("correctionChance", value)}
                     hint="Вероятность естественного зачёркивания слова."
                   />
-                </SettingSection>
+                </section>
               )}
               {settings.trueHandwriting && (
-                <SettingSection title="Усталость к концу страницы" open={false}>
+                <section className="oh-group">
+                  <h3 className="oh-group-title">Усталость к концу страницы</h3>
                   <Toggle
                     checked={settings.fatigueEnabled}
                     onChange={(value) => updateSetting("fatigueEnabled", value)}
@@ -599,10 +601,11 @@ export default function SettingsPanel({
                       onChange={(value) => updateSetting("fatigueStrength", value)}
                     />
                   )}
-                </SettingSection>
+                </section>
               )}
               {settings.trueHandwriting && (
-                <SettingSection title="Проверка и образцы" open={false}>
+                <section className="oh-group">
+                  <h3 className="oh-group-title">Проверка и образцы</h3>
                   <NaturalnessReport
                     report={naturalnessReport}
                     onAutofix={applyNaturalnessFix}
@@ -615,8 +618,8 @@ export default function SettingsPanel({
                     }
                   />
                   {plotterWorkspace?.activeLayout?.trajectoryReport?.length > 0 && (
-                    <details className="studio-detail">
-                      <summary>Траектории на странице</summary>
+                    <div className="oh-field">
+                      <span className="oh-note">Траектории на странице</span>
                       <div className="form-audit">
                         {plotterWorkspace.activeLayout.trajectoryReport.map((r) => (
                           <span key={r.character}>
@@ -624,11 +627,10 @@ export default function SettingsPanel({
                           </span>
                         ))}
                       </div>
-                    </details>
+                    </div>
                   )}
-                </SettingSection>
+                </section>
               )}
-            </div>
           </>
         )}
       </div>

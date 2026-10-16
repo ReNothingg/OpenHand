@@ -24,12 +24,22 @@ export default function HandwritingSamples({
     );
   });
   const [active, setActive] = useState(0);
+  const [writing, setWriting] = useState(false);
   const [notice, setNotice] = useState("");
   const penSeenRef = useRef(false);
   const result = analyzeSamples(samples);
   return (
-    <details className="studio-detail">
-      <summary>Настроить по своему письму</summary>
+    <div className="handwriting-samples">
+      <p className="oh-note">
+        Напишите три слова привычным темпом — по ним оцениваются наклон,
+        пропорции, ход строки и ритм.
+      </p>
+      {!writing ? (
+        <button type="button" className="oh-button" onClick={() => setWriting(true)}>
+          Написать образцы
+        </button>
+      ) : (
+      <div className="studio-detail handwriting-samples-body">
       <p>
         Напишите три слова привычным темпом и размером. Сохраняется весь жест:
         по нему оцениваются наклон, пропорции, ход строки и ритм. Это начальная
@@ -106,6 +116,8 @@ export default function HandwritingSamples({
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
-    </details>
+    </div>
+      )}
+    </div>
   );
 }

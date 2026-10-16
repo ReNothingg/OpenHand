@@ -1095,3 +1095,48 @@
 :root:root .svg-icon.is-flipped {
   transform: rotate(180deg);
 }
+:root:root .oh-inspector .oh-font-pool {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+:root:root .oh-inspector .oh-font-pool > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+:root:root .oh-inspector .oh-font-pool label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+:root:root .oh-inspector .oh-font-pool label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:root:root .handwriting-samples {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+:root:root .handwriting-samples > .handwriting-samples-body {
+  align-self: stretch;
+  margin: 0;
+}
+:root:root .oh-shell.editor-collapsed > .workspace {
+  --editor-panel-width: 0px;
+}
