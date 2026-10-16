@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fonts } from "../../../fonts";
+import Icon from "../../Icon";
 import {
   BUILTIN_GFONT_FAMILIES,
   BUILTIN_GFONT_OPTIONS,
@@ -137,23 +138,25 @@ export default function FontPicker({
           </em>
           <b>⌄</b>
         </button>
+      </div>
+      <div className="font-picker-actions">
         <button
-          className="font-upload-button"
+          className="oh-button is-quiet"
           type="button"
           title="Загрузить свой .gfont"
           onClick={() => uploadRef.current?.click()}
         >
-          <span aria-hidden="true">↑</span>
-          Загрузить
+          <Icon name="download" className="is-flipped" />
+          <span>Загрузить .gfont</span>
         </button>
+        <a className="oh-link-button" href="?view=font" onClick={event => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          window.dispatchEvent(new CustomEvent("openhand:view", { detail: "font" }));
+        }}>
+          Создать свой →
+        </a>
       </div>
-      <a className="font-studio-link" href="?view=font" onClick={event => {
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-        event.preventDefault();
-        window.dispatchEvent(new CustomEvent("openhand:view", { detail: "font" }));
-      }}>
-        Создать свой шрифт в мастерской <span>→</span>
-      </a>
       <input
         ref={uploadRef}
         type="file"

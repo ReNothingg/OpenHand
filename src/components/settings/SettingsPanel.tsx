@@ -29,6 +29,32 @@ function readTab(): SettingsTab {
   }
 }
 
+const PARAGRAPH_KEYS = ["paragraphIndent", "paragraphGap", "wordSpacing"];
+
+function MarginField({ label, value, onChange }) {
+  const id = useId();
+  return (
+    <div className="oh-field">
+      <label htmlFor={id}>{label}</label>
+      <span className="oh-number">
+        <input
+          id={id}
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={220}
+          value={value}
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            if (Number.isFinite(next)) onChange(Math.max(0, Math.min(220, Math.round(next))));
+          }}
+        />
+        <em aria-hidden="true">px</em>
+      </span>
+    </div>
+  );
+}
+
 export default function SettingsPanel({
   settings,
   metrics,
@@ -68,6 +94,25 @@ export default function SettingsPanel({
     260,
     metrics.width - Math.max(settings.marginLeft, settings.marginLeftEven) - 24,
   );
+
+  const structureControl = (control) => (
+    <RangeControl
+      key={control.key}
+      label={control.label}
+      value={settings[control.key] ?? control.initial}
+      min={control.min}
+      max={control.max}
+      suffix="%"
+      disabled={"plotterOnly" in control && settings.fontType !== "plotter"}
+      hint={control.hint}
+      onChange={(value) => updateSetting(control.key, value)}
+    />
+  );
+  const paragraphControls = STRUCTURE_CONTROLS.filter((control) => PARAGRAPH_KEYS.includes(control.key));
+  const wordControls = STRUCTURE_CONTROLS.filter((control) => !PARAGRAPH_KEYS.includes(control.key));
+  const profileLocked =
+    plotterWorkspace.running || plotterWorkspace.calibrationActive ||
+    plotterWorkspace.plotter.operationBusy || plotterWorkspace.plotter.status === "connecting";
 
   return (
     <aside
@@ -145,17 +190,13 @@ export default function SettingsPanel({
                 onUpload={uploadCustomFont}
               />
               {settings.fontType !== "plotter" && (
-                <div className="font-compat-warning" role="note">
-                  <b>!</b>
-                  <span>
-                    Для записи этого документа выберите однолинейный GFont.
-                    Настройки устройства доступны во вкладке «Плоттер».
-                  </span>
-                </div>
+                <p className="oh-callout" role="note">
+                  Для записи пером выберите однолинейный GFont.
+                </p>
               )}
             </section>
             <section className="oh-group">
-              <h3 className="oh-group-title">Текст</h3>
+              <h3 className="oh-group-title">Размер и строки</h3>
               <RangeControl
                 label="Размер шрифта"
                 value={settings.fontSize}
@@ -163,14 +204,6 @@ export default function SettingsPanel({
                 max={64}
                 suffix=" px"
                 onChange={(value) => updateSetting("fontSize", value)}
-              />
-              <RangeControl
-                label="Ширина текста"
-                value={Math.min(settings.textWidth, maxTextWidth)}
-                min={220}
-                max={maxTextWidth}
-                suffix=" px"
-                onChange={(value) => updateSetting("textWidth", value)}
               />
               <RangeControl
                 label="Расстояние между строками"
@@ -182,40 +215,54 @@ export default function SettingsPanel({
                 onChange={(value) => updateSetting("lineHeight", value)}
               />
               <RangeControl
-                label="Поворот текста"
-                value={settings.textRotation}
-                min={-8}
-                max={8}
-                step={0.1}
-                suffix="°"
-                onChange={(value) => updateSetting("textRotation", value)}
-                disabled={settings.fontType === "plotter"}
-                hint={
-                  settings.fontType === "plotter"
-                    ? "Поворот экранного текста не преобразуется в траекторию GFont, поэтому для плоттера настройка недоступна."
-                    : undefined
-                }
+                label="Ширина текста"
+                value={Math.min(settings.textWidth, maxTextWidth)}
+                min={220}
+                max={maxTextWidth}
+                suffix=" px"
+                onChange={(value) => updateSetting("textWidth", value)}
               />
+              {settings.fontType !== "plotter" && (
+                <RangeControl
+                  label="Поворот текста"
+                  value={settings.textRotation}
+                  min={-8}
+                  max={8}
+                  step={0.1}
+                  suffix="°"
+                  onChange={(value) => updateSetting("textRotation", value)}
+                />
+              )}
             </section>
             <section className="oh-group">
-              <h3 className="oh-group-title">Оформление конспекта</h3>
-              <div className="document-preset-list">
-                {DOCUMENT_PRESETS.map((p) => (
-                  <button
-                    className="document-preset"
-                    type="button"
-                    key={p.id}
-                    onClick={() =>
-                      Object.entries(p.settings).forEach(([key, value]) =>
-                        updateSetting(key, value),
-                      )
-                    }
-                  >
-                    <strong>{p.label}</strong>
-                    <small>{p.description}</small>
-                  </button>
+              <h3 className="oh-group-title">Абзацы</h3>
+              {paragraphControls.map(structureControl)}
+              <Toggle checked={settings.compactLayout} onChange={(value) => updateSetting("compactLayout", value)} label="Компактная разбивка">
+                <small>Убирает лишние пустые строки. Несколько заданий размещаются на одной странице, если хватает места; заголовок остаётся с началом решения.</small>
+              </Toggle>
+            </section>
+            <section className="oh-group">
+              <label className="oh-group-title" htmlFor={`${tabsId}-template`}>Шаблон оформления</label>
+              <select
+                id={`${tabsId}-template`}
+                className="oh-select"
+                value=""
+                onChange={(event) => {
+                  const preset = DOCUMENT_PRESETS.find((item) => item.id === event.target.value);
+                  if (preset)
+                    Object.entries(preset.settings).forEach(([key, value]) => updateSetting(key, value));
+                }}
+              >
+                <option value="" disabled>
+                  Применить шаблон…
+                </option>
+                {DOCUMENT_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label} — {preset.description.toLowerCase().replace(/\.$/, "")}
+                  </option>
                 ))}
-              </div>
+              </select>
+              <p className="oh-note">Меняет размер, интервалы и отступы. Шрифт и почерк остаются.</p>
             </section>
           </>
         )}
@@ -223,101 +270,61 @@ export default function SettingsPanel({
           <>
             <section className="oh-group">
               <h3 className="oh-group-title">Формат</h3>
-              <div className="page-format-field">
-                <div className="page-format-row">
-                  <select
-                    value={settings.pageSize}
-                    onChange={(event) => updatePageSize(event.target.value)}
-                    aria-label="Формат страницы"
-                  >
-                    {Object.entries(PAGE_SIZES).map(([key, page]) => (
-                      <option value={key} key={key}>
-                        {page.label}
-                      </option>
-                    ))}
-                  </select>
+              <div className="page-format-row oh-format-row">
+                <select
+                  className="oh-select"
+                  value={settings.pageSize}
+                  onChange={(event) => updatePageSize(event.target.value)}
+                  aria-label="Формат страницы"
+                >
+                  {Object.entries(PAGE_SIZES).map(([key, page]) => (
+                    <option value={key} key={key}>
+                      {page.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="oh-segmented" role="group" aria-label="Ориентация">
                   <button
-                    className="orientation-toggle"
                     type="button"
-                    aria-label={`Сменить ориентацию. Сейчас ${settings.pageOrientation === "landscape" ? "альбомная" : "книжная"}`}
-                    title={
-                      settings.pageOrientation === "landscape"
-                        ? "Альбомная ориентация"
-                        : "Книжная ориентация"
-                    }
-                    onClick={() =>
-                      updateSetting(
-                        "pageOrientation",
-                        settings.pageOrientation === "landscape"
-                          ? "portrait"
-                          : "landscape",
-                      )
-                    }
+                    aria-pressed={settings.pageOrientation !== "landscape"}
+                    onClick={() => updateSetting("pageOrientation", "portrait")}
                   >
-                    <span
-                      className={
-                        settings.pageOrientation === "landscape"
-                          ? "landscape"
-                          : "portrait"
-                      }
-                      aria-hidden="true"
-                    />
+                    Книжная
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={settings.pageOrientation === "landscape"}
+                    onClick={() => updateSetting("pageOrientation", "landscape")}
+                  >
+                    Альбомная
                   </button>
                 </div>
               </div>
-
             </section>
             <section className="oh-group">
               <h3 className="oh-group-title">Поля</h3>
-              <RangeControl
-                label="Отступ сверху"
-                value={settings.marginTop}
-                min={0}
-                max={220}
-                suffix=" px"
-                onChange={(value) => updateSetting("marginTop", value)}
-              />
-              <RangeControl
-                label="Отступ слева"
-                value={settings.marginLeft}
-                min={0}
-                max={220}
-                suffix=" px"
-                onChange={(value) => updateSetting("marginLeft", value)}
-              />
-              <RangeControl
-                label="Слева на чётных страницах"
-                value={settings.marginLeftEven}
-                min={0}
-                max={220}
-                suffix=" px"
-                onChange={(value) => updateSetting("marginLeftEven", value)}
-              />
-              <RangeControl
-                label="Отступ снизу"
-                value={settings.marginBottom}
-                min={0}
-                max={220}
-                suffix=" px"
-                onChange={(value) => updateSetting("marginBottom", value)}
-              />
+              <div className="oh-field-grid">
+                <MarginField label="Сверху" value={settings.marginTop} onChange={(value) => updateSetting("marginTop", value)} />
+                <MarginField label="Снизу" value={settings.marginBottom} onChange={(value) => updateSetting("marginBottom", value)} />
+                <MarginField label="Слева" value={settings.marginLeft} onChange={(value) => updateSetting("marginLeft", value)} />
+                <MarginField label="Слева на чётных" value={settings.marginLeftEven} onChange={(value) => updateSetting("marginLeftEven", value)} />
+              </div>
             </section>
             <section className="oh-group">
-              <h3 className="oh-group-title">Лист</h3>
-              <Toggle checked={settings.paperTexture} onChange={value => updateSetting("paperTexture", value)} label="Фактура бумаги" />
-              <Toggle checked={settings.compactLayout} onChange={value => updateSetting("compactLayout", value)} label="Компактная разбивка">
-                <small>Убирает лишние пустые строки. Несколько заданий размещаются на одной странице, если хватает места; заголовок остаётся с началом решения.</small>
-              </Toggle>
+              <h3 className="oh-group-title">Бумага</h3>
+              <Toggle checked={settings.paperTexture} onChange={(value) => updateSetting("paperTexture", value)} label="Фактура бумаги" />
             </section>
           </>
         )}
         {tab === "hand" && (
           <>
-            <label className="field handwriting-profile-field">
-              <span>Профиль автора</span>
+            <section className="oh-group">
+              <label className="oh-group-title" htmlFor={`${tabsId}-profile`}>Профиль автора</label>
               <select
+                id={`${tabsId}-profile`}
+                className="oh-select"
                 value={settings.handwritingProfile}
-                disabled={plotterWorkspace.running || plotterWorkspace.calibrationActive || plotterWorkspace.plotter.operationBusy || plotterWorkspace.plotter.status === "connecting"}
+                disabled={profileLocked}
                 onChange={(event) => applyHandwritingProfile(event.target.value)}
               >
                 {Object.entries(HANDWRITING_PROFILES).map(([id, profile]) => (
@@ -326,20 +333,19 @@ export default function SettingsPanel({
                   </option>
                 ))}
               </select>
-              <small>
+              <p className="oh-note">
                 {HANDWRITING_PROFILES[settings.handwritingProfile]?.description ||
                   HANDWRITING_PROFILES.personal.description}
-              </small>
-            </label>
-            <Toggle
-              checked={settings.trueHandwriting}
-              onChange={(value) => updateSetting("trueHandwriting", value)}
-              label="Настоящий почерк"
-            >
-
-            </Toggle>
-            {settings.trueHandwriting && (
-              <>
+              </p>
+            </section>
+            <section className="oh-group">
+              <h3 className="oh-group-title">Основное</h3>
+              <Toggle
+                checked={settings.trueHandwriting}
+                onChange={(value) => updateSetting("trueHandwriting", value)}
+                label="Настоящий почерк"
+              />
+              {settings.trueHandwriting && (
                 <RangeControl
                   label="Автоварианты формы букв"
                   value={settings.glyphVariation}
@@ -349,118 +355,51 @@ export default function SettingsPanel({
                   onChange={(value) => updateSetting("glyphVariation", value)}
                   hint="У GFont меняется геометрия петель, дуг и хвостов, а также пропорции букв. Варианты создаются автоматически из вашего начертания и сохраняются в траектории задания."
                 />
-                <SettingSection title="Изменение почерка по странице" open={false}>
-                <Toggle
-                  checked={settings.fatigueEnabled}
-                  onChange={(value) => updateSetting("fatigueEnabled", value)}
-                  label="Изменение письма по странице"
-                >
-
-                </Toggle>
-                {settings.fatigueEnabled && (
+              )}
+              {settings.trueHandwriting && (
+                <>
                   <RangeControl
-                    label="Выраженность изменения"
-                    value={settings.fatigueStrength}
-                    min={5}
+                    label="Наклон автора"
+                    value={settings.authorSlant}
+                    min={-12}
+                    max={16}
+                    step={0.5}
+                    suffix="°"
+                    onChange={(value) => updateSetting("authorSlant", value)}
+                  />
+                  <RangeControl
+                    label="Ширина букв автора"
+                    value={settings.authorWidth}
+                    min={82}
+                    max={118}
+                    suffix="%"
+                    onChange={(value) => updateSetting("authorWidth", value)}
+                  />
+                  <RangeControl
+                    label="Связность"
+                    value={settings.connectionStrength}
+                    min={0}
                     max={100}
                     suffix="%"
-                    onChange={(value) => updateSetting("fatigueStrength", value)}
+                    onChange={(value) => updateSetting("connectionStrength", value)}
+                    hint="Частота контекстных соединений между соседними буквами."
                   />
-                )}
-                </SettingSection>
-                <SettingSection title="Форма букв и соединения" open={false}>
-                <RangeControl
-                  label="Наклон автора"
-                  value={settings.authorSlant}
-                  min={-12}
-                  max={16}
-                  step={0.5}
-                  suffix="°"
-                  onChange={(value) => updateSetting("authorSlant", value)}
-                />
-                <RangeControl
-                  label="Ширина букв автора"
-                  value={settings.authorWidth}
-                  min={82}
-                  max={118}
-                  suffix="%"
-                  onChange={(value) => updateSetting("authorWidth", value)}
-                />
-                <RangeControl
-                  label="Живой ритм"
-                  value={settings.authorRhythm}
-                  min={0}
-                  max={100}
-                  suffix="%"
-                  onChange={(value) => updateSetting("authorRhythm", value)}
-                  hint="Слегка меняет наклон и движение строки внутри слов, сохраняя форму букв."
-                />
-                <RangeControl
-                  label="Связность"
-                  value={settings.connectionStrength}
-                  min={0}
-                  max={100}
-                  suffix="%"
-                  onChange={(value) => updateSetting("connectionStrength", value)}
-                  hint="Частота контекстных соединений между соседними буквами."
-                />
-                <RangeControl
-                  label="Редкие исправления"
-                  value={settings.correctionChance}
-                  min={0}
-                  max={5}
-                  step={0.1}
-                  suffix="%"
-                  onChange={(value) => updateSetting("correctionChance", value)}
-                  hint="Вероятность естественного зачёркивания слова."
-                />
-                <RangeControl
-                  label="Изменение давления"
-                  value={settings.pressureVariation}
-                  min={0}
-                  max={50}
-                  suffix="%"
-                  onChange={(value) => updateSetting("pressureVariation", value)}
-                  hint="Слегка меняет толщину предпросмотра и усилие пера между штрихами."
-                />
-                <RangeControl
-                  label="Толщина линии"
-                  value={settings.penWidthMm}
-                  min={0.1}
-                  max={1.2}
-                  step={0.01}
-                  suffix=" мм"
-                  disabled={settings.fontType !== "plotter"}
-                  onChange={(value) => updateSetting("penWidthMm", value)}
-                  hint="Толщина чернил на экране и в PDF. На бумаге она зависит от установленной ручки."
-                />
-                <RangeControl
-                  label="Колебание толщины"
-                  value={settings.inkVariation}
-                  min={0}
-                  max={50}
-                  suffix="%"
-                  disabled={settings.fontType !== "plotter"}
-                  onChange={(value) => updateSetting("inkVariation", value)}
-                  hint="Плавные изменения чернил внутри штриха на экране и в PDF. На команды плоттера не влияет."
-                />
-                </SettingSection>
-                <SettingSection title="Абзацы, интервалы и строки" open={false}>
-                  {STRUCTURE_CONTROLS.map((control) => (
-                    <RangeControl
-                      key={control.key}
-                      label={control.label}
-                      value={settings[control.key] ?? control.initial}
-                      min={control.min}
-                      max={control.max}
-                      suffix="%"
-                      disabled={
-                        "plotterOnly" in control && settings.fontType !== "plotter"
-                      }
-                      hint={control.hint}
-                      onChange={(value) => updateSetting(control.key, value)}
-                    />
-                  ))}
+                  <RangeControl
+                    label="Живой ритм"
+                    value={settings.authorRhythm}
+                    min={0}
+                    max={100}
+                    suffix="%"
+                    onChange={(value) => updateSetting("authorRhythm", value)}
+                    hint="Слегка меняет наклон и движение строки внутри слов, сохраняя форму букв."
+                  />
+                </>
+              )}
+            </section>
+            <div className="oh-group oh-sections">
+              {settings.trueHandwriting && (
+                <SettingSection title="Слова и строки" open={false}>
+                  {wordControls.map(structureControl)}
                   <RangeControl
                     label="Колебание строки"
                     value={settings.authorBaseline}
@@ -471,161 +410,225 @@ export default function SettingsPanel({
                     onChange={(value) => updateSetting("authorBaseline", value)}
                   />
                 </SettingSection>
-                <SettingSection title="Проверка и образцы почерка" open={false}>
-                <NaturalnessReport
-                  report={naturalnessReport}
-                  onAutofix={applyNaturalnessFix}
+              )}
+              <SettingSection title="Случайные отклонения" open={false}>
+                <RangeControl
+                  label="Наклон слов"
+                  value={settings.maxWordTilt}
+                  min={0}
+                  max={12}
+                  step={0.1}
+                  suffix="°"
+                  onChange={(value) => updateSetting("maxWordTilt", value)}
+                  hint="0 — без случайного наклона."
                 />
-                <HandwritingSamples
-                  onApply={(patch) =>
-                    Object.entries(patch).forEach(([key, value]) =>
-                      updateSetting(key, value),
-                    )
-                  }
+                <RangeControl
+                  label="Случайное направление"
+                  value={settings.directionChance}
+                  min={0}
+                  max={100}
+                  suffix="%"
+                  onChange={(value) => updateSetting("directionChance", value)}
+                  hint="Вероятность смены направления. 0 — без случайной смены знака."
                 />
-                {plotterWorkspace?.activeLayout?.trajectoryReport?.length > 0 && (
-                  <details className="studio-detail">
-                    <summary>Траектории на странице</summary>
-
-                    <div className="form-audit">
-                      {plotterWorkspace.activeLayout.trajectoryReport.map((r) => (
-                        <span key={r.character}>
-                          {r.character}: {r.distinct} форм на {r.count} букв
+                <RangeControl
+                  label="Высота подъёма"
+                  value={settings.maxLift}
+                  min={0}
+                  max={12}
+                  step={0.1}
+                  suffix=" px"
+                  onChange={(value) => updateSetting("maxLift", value)}
+                  hint="0 — без смещения слов вверх и вниз."
+                />
+                <RangeControl
+                  label="Расстояние между буквами"
+                  value={settings.maxLetterSpacing}
+                  min={0}
+                  max={4}
+                  step={0.05}
+                  suffix=" px"
+                  onChange={(value) => updateSetting("maxLetterSpacing", value)}
+                  hint="0 — обычные интервалы между буквами."
+                />
+                <RangeControl
+                  label="Съезд линий"
+                  value={settings.maxLineDrift}
+                  min={0}
+                  max={8}
+                  step={0.1}
+                  suffix=" px"
+                  onChange={(value) => updateSetting("maxLineDrift", value)}
+                  hint="0 — линии не съезжают."
+                />
+                <RangeControl
+                  label="Отступ линии"
+                  value={settings.maxLineIndent}
+                  min={0}
+                  max={80}
+                  suffix=" px"
+                  onChange={(value) => updateSetting("maxLineIndent", value)}
+                  hint="0 — без случайного отступа."
+                />
+                <RangeControl
+                  label="Частота слов"
+                  value={settings.wordFrequency}
+                  min={0}
+                  max={20}
+                  onChange={(value) => updateSetting("wordFrequency", value)}
+                  hint="0–1 — каждое слово; чем больше значение, тем реже применяются эффекты."
+                />
+                <RangeControl
+                  label="Частота букв"
+                  value={settings.letterFrequency}
+                  min={0}
+                  max={100}
+                  suffix="%"
+                  onChange={(value) => updateSetting("letterFrequency", value)}
+                  hint="Чем меньше значение, тем реже меняется интервал."
+                />
+                <RangeControl
+                  label="Смешивание шрифтов"
+                  value={settings.fontRandomization}
+                  min={0}
+                  max={100}
+                  suffix="%"
+                  onChange={(value) => updateSetting("fontRandomization", value)}
+                  hint="Вероятность замены шрифта слова. 0 — только выбранный шрифт."
+                />
+                <details className="font-pool">
+                  <summary>
+                    Шрифты в смешивании · {settings.fontPool?.length || 0}
+                  </summary>
+                  <div>
+                    {fonts.map((font) => (
+                      <label key={font.family}>
+                        <input
+                          type="checkbox"
+                          checked={settings.fontPool?.includes(font.family) || false}
+                          onChange={() => togglePoolFont(font.family)}
+                        />
+                        <span style={{ fontFamily: `'${font.family}'` }}>
+                          {font.name}
                         </span>
-                      ))}
-                    </div>
-                  </details>
-                )}
-                </SettingSection>
-              </>
-            )}
-            <SettingSection title="Случайные вариации" open={false}>
-            <RangeControl
-              label="Случайное направление"
-              value={settings.directionChance}
-              min={0}
-              max={100}
-              suffix="%"
-              onChange={(value) => updateSetting("directionChance", value)}
-              hint="Вероятность смены направления. 0 — без случайной смены знака."
-            />
-            <RangeControl
-              label="Наклон слов"
-              value={settings.maxWordTilt}
-              min={0}
-              max={12}
-              step={0.1}
-              suffix="°"
-              onChange={(value) => updateSetting("maxWordTilt", value)}
-              hint="0 — без случайного наклона."
-            />
-            <RangeControl
-              label="Высота подъёма"
-              value={settings.maxLift}
-              min={0}
-              max={12}
-              step={0.1}
-              suffix=" px"
-              onChange={(value) => updateSetting("maxLift", value)}
-              hint="0 — без смещения слов вверх и вниз."
-            />
-            <RangeControl
-              label="Расстояние между буквами"
-              value={settings.maxLetterSpacing}
-              min={0}
-              max={4}
-              step={0.05}
-              suffix=" px"
-              onChange={(value) => updateSetting("maxLetterSpacing", value)}
-              hint="0 — обычные интервалы между буквами."
-            />
-            <RangeControl
-              label="Рандомизация шрифта"
-              value={settings.fontRandomization}
-              min={0}
-              max={100}
-              suffix="%"
-              onChange={(value) => updateSetting("fontRandomization", value)}
-              hint="Вероятность замены шрифта слова. 0 — только выбранный шрифт."
-            />
-            <details className="font-pool">
-              <summary>
-                Шрифты в смешивании · {settings.fontPool?.length || 0}
-              </summary>
-              <div>
-                {fonts.map((font) => (
-                  <label key={font.family}>
+                      </label>
+                    ))}
+                  </div>
+                </details>
+                <label className="field seed-field">
+                  <span>Зерно случайности</span>
+                  <span>
                     <input
-                      type="checkbox"
-                      checked={settings.fontPool?.includes(font.family) || false}
-                      onChange={() => togglePoolFont(font.family)}
+                      type="number"
+                      value={settings.seed}
+                      onChange={(event) =>
+                        updateSetting("seed", Number(event.target.value))
+                      }
                     />
-                    <span style={{ fontFamily: `'${font.family}'` }}>
-                      {font.name}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </details>
-            <RangeControl
-              label="Съезд линий"
-              value={settings.maxLineDrift}
-              min={0}
-              max={8}
-              step={0.1}
-              suffix=" px"
-              onChange={(value) => updateSetting("maxLineDrift", value)}
-              hint="0 — линии не съезжают."
-            />
-            <RangeControl
-              label="Отступ линии"
-              value={settings.maxLineIndent}
-              min={0}
-              max={80}
-              suffix=" px"
-              onChange={(value) => updateSetting("maxLineIndent", value)}
-              hint="0 — без случайного отступа."
-            />
-            <RangeControl
-              label="Частота слов"
-              value={settings.wordFrequency}
-              min={0}
-              max={20}
-              onChange={(value) => updateSetting("wordFrequency", value)}
-              hint="0–1 — каждое слово; чем больше значение, тем реже применяются эффекты."
-            />
-            <RangeControl
-              label="Частота букв"
-              value={settings.letterFrequency}
-              min={0}
-              max={100}
-              suffix="%"
-              onChange={(value) => updateSetting("letterFrequency", value)}
-              hint="Чем меньше значение, тем реже меняется интервал."
-            />
-            <label className="field seed-field">
-              <span>Зерно случайности</span>
-              <span>
-                <input
-                  type="number"
-                  value={settings.seed}
-                  onChange={(event) =>
-                    updateSetting("seed", Number(event.target.value))
-                  }
-                />
-                <button
-                  type="button"
-                  aria-label="Создать новое зерно случайности"
-                  title="Создать новое зерно случайности"
-                  onClick={() =>
-                    updateSetting("seed", Math.floor(Math.random() * 999999))
-                  }
-                >
-                  ↻
-                </button>
-              </span>
-            </label>
-            </SettingSection>
+                    <button
+                      type="button"
+                      aria-label="Создать новое зерно случайности"
+                      title="Создать новое зерно случайности"
+                      onClick={() =>
+                        updateSetting("seed", Math.floor(Math.random() * 999999))
+                      }
+                    >
+                      ↻
+                    </button>
+                  </span>
+                </label>
+              </SettingSection>
+              {settings.trueHandwriting && (
+                <SettingSection title="Перо и чернила" open={false}>
+                  <RangeControl
+                    label="Толщина линии"
+                    value={settings.penWidthMm}
+                    min={0.1}
+                    max={1.2}
+                    step={0.01}
+                    suffix=" мм"
+                    disabled={settings.fontType !== "plotter"}
+                    onChange={(value) => updateSetting("penWidthMm", value)}
+                    hint="Толщина чернил на экране и в PDF. На бумаге она зависит от установленной ручки."
+                  />
+                  <RangeControl
+                    label="Колебание толщины"
+                    value={settings.inkVariation}
+                    min={0}
+                    max={50}
+                    suffix="%"
+                    disabled={settings.fontType !== "plotter"}
+                    onChange={(value) => updateSetting("inkVariation", value)}
+                    hint="Плавные изменения чернил внутри штриха на экране и в PDF. На команды плоттера не влияет."
+                  />
+                  <RangeControl
+                    label="Изменение давления"
+                    value={settings.pressureVariation}
+                    min={0}
+                    max={50}
+                    suffix="%"
+                    onChange={(value) => updateSetting("pressureVariation", value)}
+                    hint="Слегка меняет толщину предпросмотра и усилие пера между штрихами."
+                  />
+                  <RangeControl
+                    label="Редкие исправления"
+                    value={settings.correctionChance}
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    suffix="%"
+                    onChange={(value) => updateSetting("correctionChance", value)}
+                    hint="Вероятность естественного зачёркивания слова."
+                  />
+                </SettingSection>
+              )}
+              {settings.trueHandwriting && (
+                <SettingSection title="Усталость к концу страницы" open={false}>
+                  <Toggle
+                    checked={settings.fatigueEnabled}
+                    onChange={(value) => updateSetting("fatigueEnabled", value)}
+                    label="Изменение письма по странице"
+                  />
+                  {settings.fatigueEnabled && (
+                    <RangeControl
+                      label="Выраженность изменения"
+                      value={settings.fatigueStrength}
+                      min={5}
+                      max={100}
+                      suffix="%"
+                      onChange={(value) => updateSetting("fatigueStrength", value)}
+                    />
+                  )}
+                </SettingSection>
+              )}
+              {settings.trueHandwriting && (
+                <SettingSection title="Проверка и образцы" open={false}>
+                  <NaturalnessReport
+                    report={naturalnessReport}
+                    onAutofix={applyNaturalnessFix}
+                  />
+                  <HandwritingSamples
+                    onApply={(patch) =>
+                      Object.entries(patch).forEach(([key, value]) =>
+                        updateSetting(key, value),
+                      )
+                    }
+                  />
+                  {plotterWorkspace?.activeLayout?.trajectoryReport?.length > 0 && (
+                    <details className="studio-detail">
+                      <summary>Траектории на странице</summary>
+                      <div className="form-audit">
+                        {plotterWorkspace.activeLayout.trajectoryReport.map((r) => (
+                          <span key={r.character}>
+                            {r.character}: {r.distinct} форм на {r.count} букв
+                          </span>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </SettingSection>
+              )}
+            </div>
           </>
         )}
       </div>

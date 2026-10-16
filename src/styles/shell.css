@@ -998,3 +998,100 @@
     flex-wrap: wrap;
   }
 }
+
+/* Settings layout pieces */
+:root:root .oh-callout {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 12px;
+  line-height: 1.45;
+}
+:root:root .oh-format-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+:root:root .oh-format-row > .oh-select {
+  width: 100%;
+}
+:root:root .oh-format-row > .oh-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+:root:root .oh-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+:root:root .oh-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+:root:root .oh-field > label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+:root:root .oh-number {
+  position: relative;
+  display: block;
+}
+:root:root .oh-number > input {
+  width: 100%;
+  height: 36px;
+  padding: 0 30px 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--control-radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+:root:root .oh-number > em {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  pointer-events: none;
+}
+:root:root .oh-inspector .oh-group > .oh-select {
+  width: 100%;
+}
+:root:root .oh-inspector .oh-sections {
+  gap: 0;
+}
+:root:root .oh-inspector .oh-sections > .settings-section:last-child {
+  border-bottom: 1px solid var(--line);
+}
+:root:root .oh-inspector label.oh-group-title {
+  cursor: default;
+}
+:root:root .oh-inspector .font-picker-row {
+  display: block;
+}
+:root:root .oh-inspector .font-picker-trigger {
+  width: 100%;
+}
+:root:root .font-picker-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+:root:root .font-picker-actions > .oh-button {
+  margin-left: -10px;
+  padding: 0 10px;
+}
+:root:root .svg-icon.is-flipped {
+  transform: rotate(180deg);
+}
