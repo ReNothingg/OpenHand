@@ -61,7 +61,13 @@ export default function PlotterDevicePage({ workspace }: { workspace: any }) {
     <nav className="device-nav" aria-label="Разделы настроек плоттера">
       {DEVICE_SECTIONS.map(([id, label]) => <a key={id} href={`#${id}`} onClick={event => {
         event.preventDefault();
-        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Scroll only the page itself: scrollIntoView would also shift the app header.
+        const page = event.currentTarget.closest(".device-page");
+        const target = document.getElementById(id);
+        if (page && target) page.scrollTo({
+          top: page.scrollTop + target.getBoundingClientRect().top - page.getBoundingClientRect().top - 16,
+          behavior: "smooth",
+        });
       }}>{label}</a>)}
     </nav>
     <div className="device-content">

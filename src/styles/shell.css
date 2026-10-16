@@ -1263,3 +1263,89 @@
 :root:root .device-page .device-card .plotter-row {
   row-gap: 12px;
 }
+
+/* The shell never scrolls as a whole; only its panels do. */
+:root:root .app.oh-shell {
+  overflow: clip;
+}
+@media print {
+  :root:root .app.oh-shell {
+    overflow: visible;
+  }
+}
+
+/* Plotter page fields: one rhythm, labels above their controls. */
+:root:root .device-page :is(.device-card, .device-subsection, .device-connection-fields) {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+:root:root .device-page .device-card > :not(h2) + :not(h2) {
+  margin-top: 0;
+}
+:root:root .device-page .device-card > h2,
+:root:root .device-page .device-subsection > h3 {
+  margin: 0;
+}
+:root:root .device-page .device-subsection {
+  margin-top: 4px;
+}
+:root:root .device-page :is(.device-card, .device-subsection, .device-connection-fields) > :is(.field, .plotter-row, .device-number, p, small, .device-hint) {
+  margin: 0;
+}
+:root:root .device-page .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+:root:root .device-page .plotter-row {
+  gap: 14px 12px;
+  margin: 0;
+}
+:root:root .device-page .device-number {
+  min-height: 40px;
+}
+:root:root .device-page .device-number select {
+  width: 240px;
+  max-width: 55%;
+  min-height: 36px;
+  padding: 0 10px;
+}
+:root:root .device-page .device-number input {
+  width: 120px;
+  min-height: 36px;
+}
+:root:root .device-page .device-position-row input {
+  height: 44px;
+}
+:root:root .device-page .pen-next-step {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: var(--control-surface);
+}
+:root:root .device-page .machine-monitor:not(:has(> *)) {
+  display: none;
+}
+/* The block inspector sits under the sheet toolbar, inside the sheet column. */
+:root:root .oh-shell .preview-panel > .block-inspector {
+  top: calc(var(--oh-toolbar-height) + var(--preview-float-gap));
+  right: var(--preview-float-gap);
+}
+@container (max-width: 820px) {
+  :root:root .preview-toolbar {
+    gap: 2px;
+    padding-inline: 8px;
+  }
+  :root:root .preview-toolbar .oh-pager-label {
+    min-width: 80px;
+  }
+  :root:root .preview-toolbar .oh-divider {
+    margin: 0 2px;
+  }
+}
+@container (max-width: 640px) {
+  :root:root .preview-toolbar .oh-segmented {
+    display: none;
+  }
+}

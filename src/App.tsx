@@ -665,20 +665,27 @@ export default function App({ active = true }: { active?: boolean }) {
       ),
     [plotterPageBlocks],
   );
-  const plotterPageTexts = useMemo(
-    () =>
-      hasIntentionalPlacement
-        ? renderedPageTexts.length
-          ? renderedPageTexts
-          : [activeSource]
-        : [renderedDocumentText || activeSource],
-    [
-      activeSource,
-      hasIntentionalPlacement,
-      renderedDocumentText,
-      renderedPageTexts,
-    ],
-  );
+  const plotterPageTexts = useMemo(() => {
+    if (!hasIntentionalPlacement) return [renderedDocumentText || activeSource];
+    if (!renderedPageTexts.length) return [activeSource];
+    // A page that lost or gained a moved block must not repeat its original text:
+    // build it from the blocks that actually sit on it.
+    return plotterPageBlocks.map((blocks, pageIndex) => {
+      const unchanged =
+        blocks.length === (manualPages[pageIndex]?.length || 0) &&
+        blocks.every((block) => block.originPage === pageIndex);
+      return unchanged
+        ? renderedPageTexts[pageIndex] || ""
+        : blocks.map((block) => block.text).filter(Boolean).join("\n\n");
+    });
+  }, [
+    activeSource,
+    hasIntentionalPlacement,
+    manualPages,
+    plotterPageBlocks,
+    renderedDocumentText,
+    renderedPageTexts,
+  ]);
   const plotterLayoutBlocks = useMemo(
     () => (hasIntentionalPlacement ? plotterPageBlocks : [[]]),
     [hasIntentionalPlacement, plotterPageBlocks],
