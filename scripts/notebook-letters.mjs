@@ -17,12 +17,13 @@ const inLowerBody = p => p.y > -0.6 * NOTEBOOK_BODY_HEIGHT && p.y < 0.25 * NOTEB
 // (more than about 50 degrees), turns back or reaches half the body. Letters
 // whose own stroke starts at the top of the body (з, э, ч, у, ж, х, я) are
 // joined by a diagonal up to that top; their join is followed up to it.
-const TOP_START = new Set(Array.from('зэчужхя'));
+const TOP_START = new Set(Array.from('зэчужх'));
 // These letters start with a stem written upwards from the join (the first
 // stem of м, т, н, и, л…). The slanted stem is not steeper than 50 degrees,
 // so the join ends where the stroke leaves the baseline: everything above
 // it is the stem, and cutting at half the body made т read as п, м as ч.
-const STEM_START = new Set(Array.from('ийлмнптцшщыьъю'));
+const STEM_START = new Set(Array.from('ийлмнптцшщыьъюя'));
+const startsWithOwnStroke = char => STEM_START.has(char) || 'зэ'.includes(char) || char !== char.toLowerCase();
 function stemLeadIn(first) {
   const rise = first.findIndex(p => p.y < -0.2 * NOTEBOOK_BODY_HEIGHT);
   if (rise <= 0) return undefined;
@@ -149,7 +150,7 @@ function form(letter) {
     shift = body.length ? Math.min(...body.map(p => p.x)) : 0;
     strokes = strokes.map(stroke => stroke.map(p => ({ ...p, x: +(p.x - shift).toFixed(1) })));
   }
-  let lead = letter.entry ? leadIn(strokes, letter.char) : undefined;
+  let lead = letter.entry || (isLetter && !startsWithOwnStroke(letter.char)) ? leadIn(strokes, letter.char) : undefined;
   // The cut must only remove the join. A cut that takes away ink of the
   // letter's upper body (the left of the bowl of о, the first stem of и) is
   // dropped: such a form keeps its join and is not used to start a word.

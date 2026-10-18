@@ -309,6 +309,7 @@ export type PlannedLetter = {
   previous?: number;
   /** A form that must not be chosen here (the same letter earlier in the word). */
   avoid?: number;
+  afterLift?: boolean;
 };
 
 /**
@@ -369,7 +370,7 @@ function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number
     // A joined body at the start of a word keeps its shallow join as a leg,
     // so real word beginnings win even over a recorded syllable; a join too
     // short to cut back would stand before the word like a stroke (о as э).
-    if (letter.position === "initial" && form.entry) cost += startsCleanly(form) ? 2.6 : 3.8;
+    if ((letter.position === "initial" || letter.afterLift) && form.entry) cost += startsCleanly(form) ? 2.6 : 3.8;
     // A join left at the end of a word points into the space and seems to
     // link the next word.
     if (letter.position === "final" && form.exit) cost += 1.2;
@@ -399,13 +400,14 @@ function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number
       cost += 3 * dy * dy + 1.2 * dy;
       const da = direction(a, a.exit, true), db = direction(b, b.entry, false);
       if (da && db) cost += 0.6 * (1 - (da.x * db.x + da.y * db.y)) / 2;
-      if (wantsLift[i]) cost += 1.2;
+      if (wantsLift[i]) cost += 1.8;
     } else {
       // A pen lift recorded on both sides (a letter that ended, a letter
       // that started afresh) is part of the handwriting; a lift with a
       // dangling exit or lead-in is less natural. A lead-in that can be cut
       // back to its hook (as at the start of a word) hangs less.
-      if (a.exit || (b.entry && !startsCleanly(b))) cost += 0.5;
+      if (b.entry && !startsCleanly(b)) cost += 1.4;
+      else if (a.exit) cost += 0.5;
       else if (b.entry) cost += 0.25;
       if (!wantsLift[i]) cost += 1.2;
     }
@@ -464,13 +466,13 @@ function startsCleanly(form: LetterForm) {
 /** The same letter without its incoming join, for the start of a word. */
 export function withoutLeadIn(form: LetterForm): LetterForm {
   const first = form.strokes[0];
-  if (!form.entry || !first) return form;
+  if ((!form.entry && !form.leadIn) || !first) return form;
   const length = first.slice(1).reduce((sum, p, i) => sum + Math.hypot(p.x - first[i]!.x, p.y - first[i]!.y), 0);
   // A short separate join piece would be left hanging before the word. It
   // lies low and before the letter; a short piece over the letter is a part
   // of it that the trace split off (the first arm of у, the first stem of т).
   const others = form.strokes.slice(1).flat();
-  const detached = form.strokes.length > 1 && length < 70 && form.exit?.stroke !== 0 &&
+  const detached = Boolean(form.entry) && form.strokes.length > 1 && length < 70 && form.exit?.stroke !== 0 &&
     Math.max(...first.map(p => p.x)) <= Math.min(...others.map(p => p.x)) + 15 &&
     Math.min(...first.map(p => p.y)) > -110;
   if (!detached && (!form.leadIn || form.leadIn >= first.length - 1)) return form;

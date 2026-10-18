@@ -213,8 +213,13 @@ for (const [char, variants] of Object.entries(sheetFallback)) {
     const lift = restOnBaseline.has(char) ? -6 - Math.max(...form.strokes.flat().map(p => p.y * sheetScale)) : 0;
     // Digits were written in separate cells; keep their own width plus a pen gap.
     const inkRight = Math.max(...form.strokes.flat().map(p => p.x * sheetScale)) - (form.originX ?? 0) * sheetScale;
+    const lower = form.strokes.flat().map(p => ({ x: p.x * sheetScale, y: p.y * sheetScale + lift }))
+      .filter(p => p.y > -0.6 * NOTEBOOK_BODY_HEIGHT && p.y < 0.25 * NOTEBOOK_BODY_HEIGHT);
+    const lowerRight = lower.length ? Math.max(...lower.map(p => p.x)) - (form.originX ?? 0) * sheetScale : inkRight;
     return { ...form,
-      advance: /^\p{N}$/u.test(char) ? Math.max(form.advance * sheetScale, inkRight + 30, 120) : form.advance * sheetScale,
+      advance: /^\p{N}$/u.test(char) ? Math.max(form.advance * sheetScale, inkRight + 30, 120)
+        : /^\p{L}$/u.test(char) && Number.isFinite(form.advance) ? Math.max(20, lowerRight + 0.05 * NOTEBOOK_BODY_HEIGHT)
+        : form.advance * sheetScale,
       originX: (form.originX ?? 0) * sheetScale,
       strokes: form.strokes.map(stroke => stroke.map(p => ({ ...p,
         x: +(p.x * sheetScale).toFixed(4), y: +(p.y * sheetScale + lift).toFixed(4),
@@ -226,13 +231,21 @@ for (const [char, variants] of Object.entries(sheetFallback)) {
 // A sheet letter standing for a written one is written on its own: the
 // sheet has no recorded joins, and invented connectors into the bowls of ф
 // look nothing like the author's joins.
-for (const char of SHEET_PREFERRED)
-  if (forms[char]) forms[char] = forms[char].map(form => ({ ...form, joins: 'recorded' }));
+for (const char of Object.keys(forms))
+  if (/^\p{L}$/u.test(char)) forms[char] = forms[char].map(form => ({ ...form, joins: 'recorded' }));
 for (const [char, variants] of Object.entries(notebookForms)) {
   // A letter seen only once in the notes keeps the sheet's whole forms as
   // further real alternatives instead of repeating one shape.
   forms[char] = notebookOnly(char) || !sheetFallback[char] ? variants : [...variants, ...forms[char]];
   glyphs[char] = variants[0].strokes;
+}
+for (const char of [':', '!', '?']) {
+  if (!forms[char]) continue;
+  forms[char] = forms[char].map(form => {
+    const lift = -6 - Math.max(...form.strokes.flat().map(p => p.y));
+    return { ...form, strokes: form.strokes.map(stroke => stroke.map(p => ({ ...p, y: +(p.y + lift).toFixed(4) }))) };
+  });
+  glyphs[char] = forms[char][0].strokes;
 }
 // ё and ў are rare in the notes: add the dots and breve to written е and у.
 for (const [char, base, dots] of [['ё', 'е', true], ['ў', 'у', false]]) {

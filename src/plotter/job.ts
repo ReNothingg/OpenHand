@@ -200,6 +200,7 @@ function splitGlyphStrokes(
 const LETTER_PATTERN = /^\p{L}$/u;
 // Marks written after a word without joining it.
 const TRAILING_MARKS = new Set(Array.from(".,:;!?…»)"));
+const trailingGap = (char: string) => (char === ":" || char === ";" ? 0.12 : 0.07);
 
 function glyphStrokeBounds(strokes) {
   const points = strokes.flat();
@@ -886,9 +887,9 @@ export async function layoutText(
       let segment: number[] = [];
       const flush = () => {
         if (segment.length) {
-          const chosen = planConnectedForms(segment.map(i => ({
+          const chosen = planConnectedForms(segment.map((i, k) => ({
             char: visible[i], forms: forms.get(visible[i]) || [], position: letterPosition(visible, i),
-            previous: previousMap.get(visible[i]),
+            previous: previousMap.get(visible[i]), afterLift: k === 0 && liftedBefore(visible, plan, i),
           })), config.seed, occurrenceStart + segment[0]);
           segment.forEach((i, k) => { plan[i] = chosen[k]; });
         }
@@ -909,7 +910,10 @@ export async function layoutText(
   // was lifted there.
   const liftedBefore = (chars: string[], plan: number[], index: number) => {
     const previous = chars[index - 1];
-    const form = previous && (plan[index - 1] ?? -1) >= 0 ? forms.get(previous)?.[plan[index - 1]] : undefined;
+    if (!previous || !LETTER_PATTERN.test(previous)) return false;
+    if ((plan[index - 1] ?? -1) < 0)
+      return Boolean(config.trueHandwriting && !(forms.get(previous) || []).some(form => form.source || form.exit));
+    const form = forms.get(previous)?.[plan[index - 1]];
     return Boolean(form && !form.exit);
   };
   const letterLayout = (char, occurrence, position, motion, textScale, previous,
@@ -922,7 +926,7 @@ export async function layoutText(
     let base = form?.strokes.length ? formGlyphs.get(char)[selected] : glyphs.get(char);
     // A word starts with the letter itself, not with a join from nowhere;
     // so does a letter written after a pen lift.
-    if (config.trueHandwriting && (position === "initial" || afterLift) && form?.entry && form.source) {
+    if (config.trueHandwriting && (position === "initial" || afterLift) && (form?.entry || form?.leadIn) && form.source) {
       const key = `${char}:${selected}`;
       if (!leadless.has(key)) {
         const trimmed = withoutLeadIn(form);
@@ -1264,7 +1268,7 @@ export async function layoutText(
               after: visibleChars[index + 1]?.match(/^[\p{L}\p{N}]$/u)?.[0] || "" }, plan[index],
             liftedBefore(visibleChars, plan, index));
           if (config.trueHandwriting && TRAILING_MARKS.has(char))
-            cursor = Math.max(cursor, previousRight + page.fontSize * scaleForHeading(level) * 0.07);
+            cursor = Math.max(cursor, previousRight + page.fontSize * scaleForHeading(level) * trailingGap(char));
           cursor = clearKern(previousClear, cursor, letter.clear);
           previousClear = letter.clear ? { ...letter.clear, x: cursor } : null;
           right = Math.max(right, cursor + letter.inkAdvance);
@@ -1396,7 +1400,7 @@ export async function layoutText(
         // exit stroke: keep a small gap after a letter whose ink reaches
         // past its advance.
         if (config.trueHandwriting && TRAILING_MARKS.has(char))
-          x = Math.max(x, previousInkRight + page.fontSize * currentHeadingScale * 0.07);
+          x = Math.max(x, previousInkRight + page.fontSize * currentHeadingScale * trailingGap(char));
         x = clearKern(previousClear, x, clear);
         if (x > page.left && x + inkAdvance > maxX && !fitWordOnLine) {
           nextLine();
@@ -1530,7 +1534,7 @@ export async function layoutText(
           }
           strokes.push(...glyphStrokes);
           previousInkRight = -Infinity;
-          for (const stroke of glyphStrokes) for (const point of stroke) previousInkRight = Math.max(previousInkRight, point.x);
+          for (const stroke of [...primaryGlyphStrokes, ...glyphStrokes]) for (const point of stroke) previousInkRight = Math.max(previousInkRight, point.x);
           previousJoin = exitAnchor
             ? { anchor: exitAnchor, charIsLetter: isLetter, traced: Boolean(selectedForm?.style), stroke: primaryGlyphStrokes[exitAnchor.strokeIndex] }
             : null;
