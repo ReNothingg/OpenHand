@@ -59,11 +59,11 @@ export default function PlotterManualStart({ workspace, workshop = false }: { wo
     {selected === "sheet" && workspace.originConfirmed && <PaperAlignmentSteps workspace={workspace} locked={locked} />}
     {!workspace.penPositionsVerified && <button className="oh-link-button" type="button"
       onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>
-      Один раз настроить подъём пера →
+      Найти касание бумаги пером →
     </button>}
     {workspace.penPositionsVerified && needsPenReference && !workspace.penReferenceConfirmed && <button className="oh-link-button" type="button"
       onClick={() => window.dispatchEvent(new CustomEvent("openhand:workspace", { detail: "device" }))}>
-      Указать фактическое положение пера →
+      Отметить, где сейчас перо →
     </button>}
     <PenTravelInfo config={workspace.config} />
   </div>;

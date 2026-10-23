@@ -86,9 +86,9 @@ export function assessDeviceReadiness(input: PlotterDeviceReadinessInput, now = 
     else if (input.machineState === "Alarm") blockers.push("Контроллер сообщает Alarm. Устраните причину и снимите блокировку.");
     else if (input.machineState !== "Idle") blockers.push("Контроллер ещё не готов к запуску. Дождитесь состояния Idle.");
   }
-  if (!input.penPositionsVerified) blockers.push("Сохраните верхнее и нижнее положения пера во вкладке «Плоттер».");
+  if (!input.penPositionsVerified) blockers.push("Настройте перо во вкладке «Плоттер»: отметьте касание бумаги.");
   else if (!input.penReferenceConfirmed)
-    blockers.push("Высота пера неизвестна. В настройке пера укажите его фактическое положение; начало листа высоту не меняет.");
+    blockers.push("Высота пера неизвестна. Во вкладке «Плоттер» отметьте касание бумаги или подтвердите, что перо поднято; начало листа высоту не меняет.");
   if (!input.originConfirmed)
     blockers.push("Поставьте перо в нужную точку и нажмите «Запомнить эту точку».");
   return { blockers, canStart: blockers.length === 0 };

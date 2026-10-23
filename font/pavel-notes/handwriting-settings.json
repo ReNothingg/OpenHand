@@ -31,5 +31,6 @@
   "correctionChance": 0,
   "fatigueEnabled": false,
   "fontRandomization": 0,
-  "maxLineDrift": 0
+  "maxLineDrift": 0,
+  "lineLife": 55
 }

@@ -1,6 +1,6 @@
 import { serializePlotterGcode } from "../../gcode/penModel";
 import { useMemo, useState } from "react";
-import { createPenCalibration } from "../../plotter/penCalibration";
+import { calibrationMode, createPenCalibration } from "../../plotter/penCalibration";
 import { downloadFile } from "../../lib/files";
 
 export default function PenCalibrationSheet({ workspace }) {
@@ -10,8 +10,8 @@ export default function PenCalibrationSheet({ workspace }) {
   const sheet = useMemo(() => config.penMode === "laser" ? null : createPenCalibration(config), [config]);
   if (!sheet) return null;
   const candidate = sheet.candidates.find((c) => c.id === selected);
-  const variablePressure =
-    config.penMode === "servo" && config.profile !== "ebb";
+  const mode = calibrationMode(config);
+  const variablePressure = mode !== "speed";
   return (
     <section className="device-card" id="device-tuning" aria-labelledby="device-tuning-title">
             <h2 id="device-tuning-title">Подобрать перо и скорость</h2>
@@ -48,9 +48,10 @@ export default function PenCalibrationSheet({ workspace }) {
             ))}
           </svg>
           <figcaption>
-            {variablePressure
+            {mode === "servo"
               ? "Строки — скорость. Столбцы — прижим пера."
-              : "Сравнивается скорость. Касание настраивается в механике."}
+              : mode === "stepper" ? "Строки — скорость. Столбцы — прижим ниже касания."
+              : "Сравнивается скорость. Чтобы сравнить и прижим, отметьте касание бумаги в настройке пера."}
           </figcaption>
         </figure>
         <button
@@ -76,7 +77,7 @@ export default function PenCalibrationSheet({ workspace }) {
               config.profile === "ebb"
                 ? "pen-calibration.ebb"
                 : "pen-calibration.gcode",
-              serializePlotterGcode(sheet.commands, config),
+              serializePlotterGcode(sheet.commands, sheet.checkConfig || config),
               "text/plain",
             )
           }
@@ -102,8 +103,8 @@ export default function PenCalibrationSheet({ workspace }) {
             {sheet.candidates.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.id} · {c.feedRate} мм/мин
-                {variablePressure
-                  ? ` · прижим ${Math.round(c.pressure * 100)}%`
+                {mode === "stepper" ? ` · прижим ${c.pressureMm.toLocaleString("ru-RU")} мм`
+                  : variablePressure ? ` · прижим ${Math.round(c.pressure * 100)}%`
                   : ""}
               </option>
             ))}
@@ -118,8 +119,10 @@ export default function PenCalibrationSheet({ workspace }) {
           onClick={() => {
             if (!candidate) return;
             workspace.updateConfig("feedRate", candidate.feedRate);
-            if (variablePressure)
+            if (mode === "servo")
               workspace.updateConfig("penDown", candidate.penDown);
+            if (mode === "stepper")
+              void workspace.adjustPenGeometry({ pressure: candidate.pressureMm });
             setSelected("");
             setNotice("Параметры сохранены в профиле плоттера.");
           }}

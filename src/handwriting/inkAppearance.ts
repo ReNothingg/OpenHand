@@ -16,6 +16,13 @@ export function inkRibbonPath(stroke: InkStroke, width: number, variation = 0, s
   const pressure = Math.max(.6, Math.min(1.4, Number(stroke.pressure) || 1));
   const phase = ((Math.imul(seed | 0, 0x45d9f3b) >>> 0) / 4294967296) * Math.PI * 2;
   const left: Point[] = [], right: Point[] = [], radii: number[] = [];
+  let total = 0;
+  for (let i = 1; i < points.length; i++) total += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y);
+  const entry = Math.min(0.3, total * 0.3), exit = Math.min(0.42, total * 0.35);
+  const ease = (t: number) => { const v = Math.max(0, Math.min(1, t)); return v * v * (3 - 2 * v); };
+  const taper = (at: number) => Math.min(
+    entry > 0.02 ? 0.62 + 0.38 * ease(at / entry) : 1,
+    exit > 0.02 ? 0.56 + 0.44 * ease((total - at) / exit) : 1);
   let distance = 0;
   const direction = (a: Point, b: Point) => {
     const length = Math.max(.0001, Math.hypot(b.x - a.x, b.y - a.y));
@@ -28,7 +35,7 @@ export function inkRibbonPath(stroke: InkStroke, width: number, variation = 0, s
     const outgoing = direction(i < points.length - 1 ? p : previous, i < points.length - 1 ? next : p);
     if (i) distance += Math.hypot(p.x - previous.x, p.y - previous.y);
     const turn = Math.max(0, 1 - incoming.x * outgoing.x - incoming.y * outgoing.y);
-    const radius = width * pressure / 2 * (1 + strength * (
+    const radius = width * pressure / 2 * taper(distance) * (1 + strength * (
       .10 * Math.sin(distance * 1.1 + phase) + .12 * outgoing.y + .04 * turn));
     let tx = incoming.x + outgoing.x, ty = incoming.y + outgoing.y;
     const tangentLength = Math.hypot(tx, ty);
@@ -46,4 +53,28 @@ export function inkRibbonPath(stroke: InkStroke, width: number, variation = 0, s
     `A${lastRadius} ${lastRadius} 0 0 0 ${xy(right.at(-1)!)}` +
     right.slice(0, -1).reverse().map(p => `L${xy(p)}`).join("") +
     `A${firstRadius} ${firstRadius} 0 0 0 ${xy(left[0]!)}Z`;
+}
+
+export function inkCorePath(stroke: InkStroke, minimum = 0.5): string {
+  const runs: Point[][] = [];
+  let run: Point[] = [];
+  let length = 0;
+  const flush = () => {
+    if (run.length > 1 && length >= minimum) runs.push(run);
+    run = [];
+    length = 0;
+  };
+  for (let i = 1; i < stroke.length; i++) {
+    const a = stroke[i - 1]!, b = stroke[i]!;
+    const step = Math.hypot(b.x - a.x, b.y - a.y);
+    if (step < 1e-4) continue;
+    if ((b.y - a.y) / step > 0.45) {
+      if (!run.length) run.push(a);
+      run.push(b);
+      length += step;
+    } else flush();
+  }
+  flush();
+  const xy = (p: Point) => `${p.x.toFixed(3)} ${p.y.toFixed(3)}`;
+  return runs.map(points => `M${xy(points[0]!)}${points.slice(1).map(p => `L${xy(p)}`).join("")}`).join("");
 }

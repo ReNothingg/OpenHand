@@ -5,6 +5,7 @@ import { varyLetterGlyph } from "../handwriting/letterGeometry";
 import { fitHandwritingLine, type WordGap } from "../handwriting/lineFit";
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
 import { DEFAULT_AUTOMATIC_PEN_LIFT_MM, MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, automaticPenSpeed, automaticPenUpPosition, penTravelSeconds } from "./penLift";
+import { endDirection, hoverPosition, penAxis, rollDistance, softTouchSeconds, usesSoftTouch, writingHeights } from "./penTouch";
 import { chooseForm, planConnectedForms, withoutLeadIn, formGlyph, letterPosition, trajectoryFingerprint, mergeTrajectoryReports, clearanceShift, type LetterForm, type JoinAnchor } from '../font-builder/letterForms';
 import { layoutFormula } from "./mathLayout";
 import { NOTEBOOK_CELL_MM, isNotebookSpread, notebookColumn, notebookLinePitchPx, snapDownToRule, snapLineAdvance } from "../lib/notebookGrid";
@@ -77,6 +78,9 @@ export const DEFAULT_PLOTTER_CONFIG = {
   customStartGcode: "",
   customEndGcode: "",
   penLeadIn: true,
+  penSoftTouch: true,
+  penPressureVariation: 0,
+  zContact: null,
   cornerSlowdown: true,
   spreadPages: "both",
   ...DEFAULT_WRITING_CONFIG,
@@ -145,8 +149,9 @@ function splitGlyphStrokes(
   const randomSlant =
     (seededRandom(handwriting?.seed, `${handwriting?.key}:slant`) - 0.5) *
     (variation * 0.0017 + rhythm * 0.0008);
+  const lineSlant = Number(handwriting?.lineSlant) || 0;
   const slant =
-    Math.tan(((authorSlant + fatigue * 3.2) * Math.PI) / 180) + randomSlant;
+    Math.tan(((authorSlant + fatigue * 3.2 + lineSlant) * Math.PI) / 180) + randomSlant;
   const authorWidth = Math.max(
     0.78,
     Math.min(1.22, Number(handwriting?.authorWidth || 100) / 100),
@@ -156,10 +161,10 @@ function splitGlyphStrokes(
     motion.width * authorWidth * evolution.width *
     (1 + (seededRandom(handwriting?.seed, `${handwriting?.key}:width`) - 0.5) * variation * 0.0012);
   const scaleY =
-    1 +
+    (Number(handwriting?.lineHeight) || 1) * (1 +
     (seededRandom(handwriting?.seed, `${handwriting?.key}:height`) - 0.5) *
       variation * (1 - motion.coherence * 0.85) *
-      0.0022;
+      0.0022);
   const pressure =
     1 +
     (seededRandom(handwriting?.seed, `${handwriting?.key}:pressure`) - 0.5) *
@@ -555,6 +560,32 @@ export async function layoutText(
   const activeDecorations = new Set<string>();
   const decorationStarts = new Map<string, number>();
   const activeTextStyles = new Set<string>();
+  const life = config.trueHandwriting ? Math.max(0, Math.min(100, Number(config.lineLife ?? 0))) / 100 : 0;
+  const lineShapes: { margin: number; slope: number; shift: number; slant: number; height: number }[] = [];
+  const lineShape = (index: number) => {
+    while (lineShapes.length <= index) {
+      const i = lineShapes.length, previous = lineShapes[i - 1];
+      const noise = (key: string) => seededRandom(config.seed, `line-life:${i}:${key}`) * 2 - 1;
+      const carry = (key: string, keep: number) => (previous?.[key] ?? 0) * keep;
+      const tendency = (seededRandom(config.seed, "line-life:tendency") - 0.5) * 0.4;
+      lineShapes.push({
+        margin: carry("margin", 0.55) + (noise("margin") * 0.5 + 0.5) * 0.45,
+        slope: carry("slope", 0.5) + (noise("slope") + tendency) * 0.5,
+        shift: noise("shift"),
+        slant: carry("slant", 0.65) + noise("slant") * 0.35,
+        height: carry("height", 0.6) + noise("height") * 0.4,
+      });
+    }
+    const shape = lineShapes[index]!;
+    return {
+      margin: life * 2.6 * Math.max(0, Math.min(1, shape.margin)),
+      slope: Math.tan(life * 0.8 * Math.max(-1, Math.min(1, shape.slope)) * Math.PI / 180),
+      shift: life * 0.5 * shape.shift,
+      slant: life * 1.6 * shape.slant,
+      height: 1 + life * 0.03 * shape.height,
+    };
+  };
+  let lineIndex = 0;
   let x = page.left;
   // On squared paper every baseline lies on a horizontal rule.
   const ruleStep = Number(page.ruleStep) > 0 ? Number(page.ruleStep) : 0;
@@ -784,6 +815,11 @@ export async function layoutText(
 
   const finishLine = () => {
     closeLineDecorations();
+    if (life) {
+      const shape = lineShape(lineIndex);
+      for (let i = lineStrokeStart; i < strokes.length; i++)
+        for (const point of strokes[i]) point.y += shape.shift + (point.x - lineLeft) * shape.slope;
+    }
     if (!lineFitPending) return;
     let right = lineInkRight;
     for (let i = lineStrokeStart; i < strokes.length; i++)
@@ -801,7 +837,8 @@ export async function layoutText(
     finishLine();
     for (let i = lineStrokeStart; i < strokes.length; i++)
       for (const point of strokes[i]) previousLineBottom = Math.max(previousLineBottom, point.y);
-    x = page.left + (activeQuote ? quoteIndent : 0);
+    lineIndex += 1;
+    x = page.left + (activeQuote ? quoteIndent : 0) + lineShape(lineIndex).margin;
     const advance = page.lineHeight + pendingHeadingGap + lineFormulaDescent;
     baseline += ruleStep ? snapLineAdvance(advance, ruleStep) : advance;
     lineFormulaDescent = 0;
@@ -872,6 +909,7 @@ export async function layoutText(
     authorSlant: config.authorSlant, authorWidth: config.authorWidth,
     rhythm: config.authorRhythm, authorBaseline: config.authorBaseline,
     fatigueEnabled: config.fatigueEnabled, fatigueStrength: config.fatigueStrength,
+    lineSlant: lineShape(lineIndex).slant, lineHeight: lineShape(lineIndex).height,
     progress: (baseline - (config.evolutionPageTop ?? page.top)) / Math.max(page.lineHeight,
       (config.evolutionPageBottom ?? page.pageHeight - (page.bottom || 0)) - (config.evolutionPageTop ?? page.top)),
   });
@@ -1045,7 +1083,8 @@ export async function layoutText(
     } else if (activeAlignment === "right" && lineWidth < maxX - page.left) {
       x = maxX - lineWidth;
     } else {
-      x = page.left;
+      x = page.left + lineShape(lineIndex).margin;
+      if (strokes.length === lineStrokeStart) lineLeft = x;
     }
     if (activeQuote) x += quoteIndent;
     activeDecorations.forEach((style) => decorationStarts.set(style, x));
@@ -1582,6 +1621,12 @@ export async function layoutText(
         ];
         correction.pressure = 1.08;
         strokes.push(correction);
+      }
+      if (life && visibleChars.length && fittableWord) {
+        const bob = (seededRandom(config.seed, `word-life:${wordKey}:y`) * 2 - 1) * life * 0.4 * page.fontSize / 7.4;
+        const tilt = Math.tan((seededRandom(config.seed, `word-life:${wordKey}:tilt`) * 2 - 1) * life * 1.2 * Math.PI / 180);
+        for (let i = tokenStrokeStart; i < strokes.length; i++)
+          for (const point of strokes[i]) point.y += bob + (point.x - tokenStartX) * tilt;
       }
       if (visibleChars.length) lineInkRight = Math.max(lineInkRight, x);
       for (let i = tokenStrokeStart; i < strokes.length; i++)
@@ -2193,6 +2238,27 @@ export function compilePlotJob(strokes, config) {
     penLifts += 1;
   }
   const penPaths = joinPenPaths(machineStrokes);
+  const softTouch = usesSoftTouch(config);
+  const axis = penAxis(config);
+  const hover = softTouch ? hoverPosition(config) : 0;
+  const penSpeed = automaticPenSpeed(config);
+  const pageUp = transformVectorForMachine(0, -1, config);
+  const areaCorners = plotBounds([[
+    transformPointForMachine({ x: 0, y: 0 }, config),
+    transformPointForMachine({ x: Number(config.workAreaWidth), y: Number(config.workAreaHeight) }, config),
+  ]]);
+  const insideArea = (point: PlotPoint) => !areaCorners || !Number.isFinite(areaCorners.maxX) ||
+    (point.x >= areaCorners.minX - 0.01 && point.x <= areaCorners.maxX + 0.01 &&
+     point.y >= areaCorners.minY - 0.01 && point.y <= areaCorners.maxY + 0.01);
+  const rolledPoint = (origin: PlotPoint, direction: PlotPoint | null, distance: number) => {
+    if (!direction) return origin;
+    for (let reach = distance; reach > 0.05; reach *= 0.5) {
+      const point = { x: origin.x + direction.x * reach, y: origin.y + direction.y * reach };
+      if (insideArea(point)) return point;
+    }
+    return origin;
+  };
+  let softTouchTime = 0;
   for (const path of penPaths) {
     if (path.points.length < 2) continue;
     if (config.penLeadIn !== false) insertLeadInPoint(path);
@@ -2201,7 +2267,10 @@ export function compilePlotJob(strokes, config) {
     const feeds = drawingFeeds(stroke, baseFeed, config);
     if (recoverable) resumePoints.push(commands.length);
     const start = stroke[0];
-    const travel = Math.hypot(start.x - current.x, start.y - current.y);
+    const startDirection = softTouch ? endDirection(stroke, true) : null;
+    const approach = softTouch && startDirection
+      ? rolledPoint(start, { x: -startDirection.x, y: -startDirection.y }, rollDistance(stroke)) : start;
+    const travel = Math.hypot(approach.x - current.x, approach.y - current.y);
     distance += travel;
     travelDistance += travel;
     if (config.profile === "ebb")
@@ -2210,12 +2279,24 @@ export function compilePlotJob(strokes, config) {
       );
     else
       commands.push(
-        `G1X${number(start.x)}Y${number(start.y)}F${config.jogSpeed}`,
+        `G1X${number(approach.x)}Y${number(approach.y)}F${config.jogSpeed}`,
       );
-    current = start;
-    addPen(false);
+    current = approach;
+    const heights = softTouch ? writingHeights(stroke, config, pageUp, path.pressure) : null;
+    if (softTouch) {
+      const rampFeed = Math.round(Math.max(Math.min(baseFeed, MIN_DRAW_FEED), baseFeed * LEAD_IN_FEED));
+      commands.push(`G1${axis}${number(hover)}F${penSpeed}`);
+      const rampLength = Math.hypot(start.x - approach.x, start.y - approach.y);
+      commands.push(rampLength > 0.01
+        ? `G1X${number(start.x)}Y${number(start.y)}${axis}${number(heights![0]!)}F${rampFeed}`
+        : `G1${axis}${number(heights![0]!)}F${Math.min(penSpeed, rampFeed)}`);
+      distance += rampLength;
+      softTouchTime += softTouchSeconds(config, rampLength, rampFeed);
+      current = start;
+    } else addPen(false);
     const drawStart = commands.length;
     penChanges += 1;
+    let height = heights?.[0];
     for (let k = 1; k < stroke.length; k++) {
       const point = stroke[k]!;
       const drawn = Math.hypot(point.x - current.x, point.y - current.y);
@@ -2227,16 +2308,34 @@ export function compilePlotJob(strokes, config) {
         commands.push(
           buildEbbMove(current, point, feedRate, config, residue),
         );
-      else
+      else {
+        const next = heights?.[k];
+        const lift = next !== undefined && next !== height ? `${axis}${number(next)}` : "";
+        if (next !== undefined) height = next;
         commands.push(
-          `G1X${number(point.x)}Y${number(point.y)}F${feedRate}`,
+          `G1X${number(point.x)}Y${number(point.y)}${lift}F${feedRate}`,
         );
+      }
       current = point;
     }
     // Draw command i moves to path point i + 1.
     for (const piece of path.pieces)
       strokeCommandRanges[piece.index] = { start: drawStart + piece.from, end: drawStart + piece.to };
-    addPen(true);
+    if (softTouch) {
+      const end = stroke.at(-1)!;
+      const exit = rolledPoint(end, endDirection(stroke, false), rollDistance(stroke));
+      const rampFeed = Math.round(Math.max(Math.min(baseFeed, MIN_DRAW_FEED), baseFeed * LEAD_IN_FEED * 1.6));
+      const rampLength = Math.hypot(exit.x - end.x, exit.y - end.y);
+      commands.push(rampLength > 0.01
+        ? `G1X${number(exit.x)}Y${number(exit.y)}${axis}${number(hover)}F${rampFeed}`
+        : `G1${axis}${number(hover)}F${Math.min(penSpeed, rampFeed)}`);
+      distance += rampLength;
+      softTouchTime += softTouchSeconds(config, rampLength, rampFeed);
+      current = exit;
+      commands.push(penCommand(true, config));
+      const delay = penDelay(true, config);
+      if (delay > 0) commands.push(`G4P${number(config.profile === "marlin" ? delay * 1000 : delay)}`);
+    } else addPen(true);
     penChanges += 1;
     penLifts += 1;
   }
@@ -2262,10 +2361,10 @@ export function compilePlotJob(strokes, config) {
 
   const estimatedSeconds =
     drawSeconds +
-    penLifts * 2 * penTravelSeconds(config) +
+    (softTouch ? softTouchTime : penLifts * 2 * penTravelSeconds(config)) +
     (travelDistance / Math.max(1, Number(config.jogSpeed))) * 60 +
     (penLifts + 1) * penDelay(true, config) +
-    Math.max(0, penChanges - penLifts - 1) * penDelay(false, config);
+    (softTouch ? 0 : Math.max(0, penChanges - penLifts - 1) * penDelay(false, config));
   const resumePrefix =
     config.profile === "ebb"
       ? [penCommand(true, config)]

@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import { inkRibbonPath, penWidthMm } from "../../handwriting/inkAppearance";
+import { inkCorePath, inkRibbonPath, penWidthMm } from "../../handwriting/inkAppearance";
 
 function svgPath(strokes) {
   return strokes
@@ -61,6 +61,9 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
   const inkPaths = useMemo(() => orderedStrokes.map((stroke, index) => settings.trueHandwriting
     ? inkRibbonPath(stroke, inkWidthMm, settings.inkVariation, settings.seed + index)
     : ""), [orderedStrokes, inkWidthMm, settings.trueHandwriting, settings.inkVariation, settings.seed]);
+  const inkCores = useMemo(() => orderedStrokes.map(stroke => settings.trueHandwriting && settings.inkVariation > 0
+    ? inkCorePath(stroke) : ""), [orderedStrokes, settings.trueHandwriting, settings.inkVariation]);
+  const coreOpacity = Math.min(0.5, Number(settings.inkVariation) / 50 * 0.75);
   const playbackHead = useMemo(() => {
     if (!playback?.active) return null;
     for (let index = orderedStrokes.length - 1; index >= 0; index -= 1) {
@@ -175,9 +178,11 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
                 opacity: playback?.active ? 0.22 : 0,
               }}
             />
-            {completed >= 1 && inkPaths[index] ? (
-              <path d={inkPaths[index]} fill={settings.inkColor} opacity={Math.min(1, .88 + pressure * .1)} />
-            ) : completed > 0 && (
+            {completed >= 1 && inkPaths[index] ? (<>
+              <path d={inkPaths[index]} fill={settings.inkColor} opacity={Math.min(1, (inkCores[index] ? .8 : .88) + pressure * .1)} />
+              {inkCores[index] && <path d={inkCores[index]} fill="none" stroke={settings.inkColor} strokeWidth={inkWidthMm * .42}
+                strokeLinecap="round" strokeLinejoin="round" strokeOpacity={coreOpacity} />}
+            </>) : completed > 0 && (
               <path
                 className="plotter-playback-stroke"
                 d={path}

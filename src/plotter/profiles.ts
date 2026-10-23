@@ -1,5 +1,6 @@
 import { DEFAULT_PLOTTER_CONFIG } from "./job";
 import { MAX_AUTOMATIC_PEN_LIFT_MM, MAX_REQUESTED_PEN_SPEED_MM_MIN, normalizePenJogStep } from "./penLift";
+import { MAX_PEN_PRESSURE_MM } from "./penTouch";
 
 export const PLOTTER_PROFILES_KEY = "openhand.plotter.profiles.v1";
 export const LEGACY_PLOTTER_SETTINGS_KEY = "openhand.plotter.settings.v1";
@@ -170,7 +171,7 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
     profile,
     connectionType: option(
       incoming.connectionType,
-      ["serial", "network"],
+      ["serial", "network", "virtual"],
       DEFAULT_PLOTTER_CONFIG.connectionType,
     ),
     networkHost:
@@ -276,6 +277,10 @@ export function normalizePlotterConfig(incoming: Record<string, any> = {}) {
     ),
     compactPaths: boolean(incoming.compactPaths, true),
     penLeadIn: boolean(incoming.penLeadIn, DEFAULT_PLOTTER_CONFIG.penLeadIn),
+    penSoftTouch: boolean(incoming.penSoftTouch, true),
+    penPressureVariation: clamp(incoming.penPressureVariation, 0, MAX_PEN_PRESSURE_MM, 0),
+    zContact: incoming.zContact === null || incoming.zContact === undefined || incoming.zContact === "" || !Number.isFinite(Number(incoming.zContact))
+      ? null : clamp(incoming.zContact, -50, 50, 0),
     cornerSlowdown: boolean(incoming.cornerSlowdown, DEFAULT_PLOTTER_CONFIG.cornerSlowdown),
     spreadPages: option(incoming.spreadPages, ["both", "left", "right"], DEFAULT_PLOTTER_CONFIG.spreadPages),
     optimizePath: boolean(

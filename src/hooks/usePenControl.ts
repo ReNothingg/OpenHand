@@ -2,10 +2,12 @@ import { COORDINATE_FRAME_VERSION } from "../plotter/coordinateFrame";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPenCommand, createPenJogCommands, createPenReferenceCommands } from "../plotter/job";
 import { normalizePlotterConfig } from "../plotter/profiles";
-import { automaticPenUpPosition, clearPenSetup, hasVerifiedPenPositions, penTestDelta, PEN_TEST_STEP_MM, MAX_PEN_JOG_MM, savePenPosition } from "../plotter/penLift";
+import { automaticPenUpPosition, clearPenSetup, DEFAULT_PEN_CLEARANCE_MM, DEFAULT_PEN_PRESSURE_MM, hasVerifiedPenPositions, penGeometry, penTestDelta, PEN_TEST_STEP_MM, MAX_PEN_JOG_MM, savePenPosition, withPenGeometry, type PenGeometry } from "../plotter/penLift";
+import { contactFromLadder, contactLadderCommands, testStrokeCommands } from "../plotter/penSetup";
 
 type Config = ReturnType<typeof normalizePlotterConfig>;
 type Snapshot = { context: string; referenced: boolean; position: number | null };
+type Ladder = { context: string; revision: number; step: number };
 type Options = {
   config: Config;
   profileId: string;
@@ -30,6 +32,7 @@ export function usePenControl(options: Options) {
   const inflight = useRef(false);
   const [busy, setBusy] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot>({ context, referenced: false, position: null });
+  const [ladder, setLadder] = useState<Ladder | null>(null);
   const snapshotRef = useRef(snapshot);
   const publish = useCallback((next: Snapshot) => {
     snapshotRef.current = next;
@@ -97,9 +100,15 @@ export function usePenControl(options: Options) {
   const jog = useCallback((up: boolean, distance = PEN_TEST_STEP_MM) => operate(async (live, commit) => {
     if (!Number.isFinite(distance) || distance < 0.01 || distance > MAX_PEN_JOG_MM)
       throw new Error("Для настройки доступен один шаг от 0,01 до 1 мм.");
-    const before = pose();
-    if (!before.referenced || before.position === null) throw new Error("Сначала начните настройку в текущем положении.");
-    const position = Number((before.position + distance * live.config.zUpDirection * (up ? 1 : -1)).toFixed(3));
+    if (!["stepper", "estepper"].includes(live.config.penMode)) throw new Error("Короткий шаг доступен для шагового пера Z/E.");
+    let before = pose();
+    if (!before.referenced || before.position === null) {
+      if (!live.controllerPenKey) throw new Error("Дождитесь чтения параметров контроллера перед настройкой пера.");
+      await live.sendCommands([...createPenReferenceCommands({ ...live.config, zDown: 0, zUp: 0, zContact: null }, "down")]);
+      commit(0);
+      before = { context: live.context, referenced: true, position: 0 };
+    }
+    const position = Number((before.position! + distance * live.config.zUpDirection * (up ? 1 : -1)).toFixed(3));
     if (position < -50 || position > 50) throw new Error("Достигнут предел диапазона настройки пера.");
     await live.sendCommands(createPenJogCommands(up, distance, live.config), { waitForMotion: true });
     commit(position);
@@ -120,8 +129,68 @@ export function usePenControl(options: Options) {
   const reset = useCallback(() => {
     const live = ensureIdle(false);
     invalidate();
+    setLadder(null);
     live.setConfig(clearPenSetup);
   }, [ensureIdle, invalidate]);
+
+  const geometryFor = (config: Config, patch: Partial<PenGeometry> = {}): PenGeometry => {
+    const saved = penGeometry(config);
+    return {
+      contact: 0,
+      pressure: patch.pressure ?? saved?.pressure ?? DEFAULT_PEN_PRESSURE_MM,
+      clearance: patch.clearance ?? saved?.clearance ?? DEFAULT_PEN_CLEARANCE_MM,
+    };
+  };
+  const confirmContact = useCallback(() => operate(async (live, commit) => {
+    if (!["stepper", "estepper"].includes(live.config.penMode)) throw new Error("Выберите шаговый механизм пера.");
+    if (!live.controllerPenKey) throw new Error("Дождитесь чтения параметров контроллера перед настройкой пера.");
+    const next = withPenGeometry(live.config, geometryFor(live.config), live.controllerPenKey);
+    await live.sendCommands([...createPenReferenceCommands({ ...next, zDown: 0 }, "down")]);
+    commit(0);
+    live.setConfig(() => next);
+    setLadder(null);
+    await live.sendCommands(createPenCommand(true, next), { waitForMotion: true });
+    commit(automaticPenUpPosition(next));
+  }), [operate]);
+  const runLadder = useCallback((step: number) => operate(async (live, commit) => {
+    if (!live.controllerPenKey) throw new Error("Дождитесь чтения параметров контроллера перед настройкой пера.");
+    const commands = contactLadderCommands(live.config, step);
+    await live.sendCommands([...createPenReferenceCommands({ ...live.config, zDown: 0, zUp: 0, zContact: null }, "down")]);
+    commit(0);
+    await live.sendCommands(commands, { waitForMotion: true });
+    commit(0);
+    setLadder({ context: live.context, revision: revision.current, step });
+  }), [operate]);
+  const applyLadder = useCallback((firstInkIndex: number) => operate(async (live, commit) => {
+    const measured = ladder;
+    const state = pose();
+    if (!measured || measured.context !== live.context || measured.revision !== revision.current || !state.referenced || state.position !== 0)
+      throw new Error("Перо сдвинулось после лесенки. Повторите её.");
+    const depth = contactFromLadder(measured.step, firstInkIndex);
+    const above = Number((depth * live.config.zUpDirection).toFixed(3));
+    const next = withPenGeometry(live.config, geometryFor(live.config), live.controllerPenKey);
+    await live.sendCommands([`G92${live.config.penMode === "estepper" ? "E" : "Z"}${above}`]);
+    commit(above);
+    live.setConfig(() => next);
+    setLadder(null);
+    await live.sendCommands(createPenCommand(true, next), { waitForMotion: true });
+    commit(automaticPenUpPosition(next));
+  }), [operate, ladder, pose]);
+  const adjustGeometry = useCallback((patch: Partial<PenGeometry>) => {
+    const live = ensureIdle(false);
+    if (!penGeometry(live.config)) throw new Error("Сначала найдите касание бумаги.");
+    if (!hasVerifiedPenPositions(live.config, live.controllerPenKey)) throw new Error("Сначала найдите касание бумаги с подключённым плоттером.");
+    live.setConfig(() => withPenGeometry(live.config, { ...geometryFor(live.config, patch), contact: penGeometry(live.config)!.contact }, live.controllerPenKey));
+  }, [ensureIdle]);
+  const testStroke = useCallback(() => operate(async (live, commit) => {
+    if (!hasVerifiedPenPositions(live.config, live.controllerPenKey) || !penGeometry(live.config))
+      throw new Error("Сначала найдите касание бумаги.");
+    const state = pose();
+    if (!state.referenced || state.position === null) throw new Error("Высота пера неизвестна. Поднимите перо кнопкой выше.");
+    const { commands, endHeight } = testStrokeCommands(live.config, state.position);
+    await live.sendCommands(commands, { waitForMotion: true });
+    commit(endHeight);
+  }), [operate, pose]);
   const test = useCallback((up: boolean, value?: number) => operate(async (live, commit) => {
     const stepper = ["stepper", "estepper"].includes(live.config.penMode);
     const key = stepper ? (up ? "zUp" : "zDown") : (up ? "penUp" : "penDown");
@@ -140,5 +209,7 @@ export function usePenControl(options: Options) {
     live.setConfig(() => next);
   }), [operate, pose]);
 
-  return { busy, moveSaved, referenced: state.referenced, position: state.position, begin, reference, jog, save, reset, test, invalidate, forgetPosition };
+  const ladderReady = Boolean(ladder && ladder.context === context && ladder.revision === revision.current && state.referenced && state.position === 0);
+  return { busy, moveSaved, referenced: state.referenced, position: state.position, begin, reference, jog, save, reset, test, invalidate, forgetPosition,
+    confirmContact, runLadder, applyLadder, adjustGeometry, testStroke, ladderStep: ladderReady ? ladder!.step : null };
 }

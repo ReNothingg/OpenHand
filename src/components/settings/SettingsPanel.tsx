@@ -408,6 +408,15 @@ export default function SettingsPanel({
                     hint="Плавный ход строки без резких скачков отдельных букв."
                     onChange={(value) => updateSetting("authorBaseline", value)}
                   />
+                  {settings.fontType === "plotter" && <RangeControl
+                    label="Живые строки"
+                    value={settings.lineLife ?? 0}
+                    min={0}
+                    max={100}
+                    suffix="%"
+                    hint="Строки начинаются не ровно с одного места, слегка уходят вверх или вниз, наклон и размер букв плавно меняются от строки к строке — как у руки, а не у станка. 0 — идеально ровные строки."
+                    onChange={(value) => updateSetting("lineLife", value)}
+                  />}
                 </section>
               )}
               <section className="oh-group">

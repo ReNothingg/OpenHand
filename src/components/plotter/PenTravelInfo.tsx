@@ -1,4 +1,4 @@
-import { automaticPenSpeed, automaticPenUpPosition, penLiftDistance, penTravelSeconds } from "../../plotter/penLift";
+import { automaticPenSpeed, automaticPenUpPosition, penGeometry, penLiftDistance, penTravelSeconds } from "../../plotter/penLift";
 
 export default function PenTravelInfo({ config }: { config: any }) {
   const seconds = penTravelSeconds(config);
@@ -12,7 +12,7 @@ export default function PenTravelInfo({ config }: { config: any }) {
   return <div className={`pen-travel-info ${seconds >= 10 ? "plotter-warning" : "plotter-note"}`}>
     <strong>Команда записи: опустить на {format(travel)} мм</strong>
     <span>От Z{format(upper)} до Z{format(config.zDown)}. Расчётное время — {duration} при {format(automaticPenSpeed(config))} мм/мин.</span>
-    <span>Число Z{format(config.zDown)} — координата от назначенного нуля, а не величина опускания.</span>
+    <span>{penGeometry(config) ? `Z0 — лист бумаги: перо пишет на ${format(penGeometry(config)!.pressure)} мм ниже касания.` : `Число Z${format(config.zDown)} — координата от назначенного нуля, а не величина опускания.`}</span>
     {config.profile === "grbl" && upper !== config.zUp &&
       <span>Сохранённое верхнее положение Z{format(config.zUp)} выше допустимого автоматического хода. При записи подъём ограничен 3 мм, чтобы снизить риск удара в упор.</span>}
     {config.profile === "grbl" && automaticPenSpeed(config) !== config.zSpeed &&

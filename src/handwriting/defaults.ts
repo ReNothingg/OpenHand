@@ -21,7 +21,7 @@ export const DEFAULT_HANDWRITING_SETTINGS = {
   wordSpacing: 70, spaceVariation: 50, wordCoherence: 100, endCompression: 0,
   lineFitCompression: 6,
   ascenderScale: 100, descenderScale: 100, correctionChance: 0, fatigueEnabled: false,
-  fontRandomization: 0, maxLineDrift: 0,
+  fontRandomization: 0, maxLineDrift: 0, lineLife: 55,
 };
 
 // Earlier defaults (2026-10-04, the first letter-tracing build, the

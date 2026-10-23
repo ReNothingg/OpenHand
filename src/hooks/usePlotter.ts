@@ -3,6 +3,7 @@ import { acknowledgementTimeout, controllerStillBusy } from "../plotter/acknowle
 import { grblReceiveCapacity, grblStreamBudget, isBufferedMotion, streamMotionRange, MAX_STREAM_RANGE_COMMANDS } from "../plotter/streaming";
 import { GRBL_SETTINGS_REQUIRED } from "../plotter/controllerFingerprint";
 import { notifyPlotter } from "../lib/notifications";
+import { createVirtualSerialPort } from "../plotter/virtualPlotter";
 import type { PaperChange } from "../plotter/sheetQueue";
 import {
   GRBL_REALTIME,
@@ -85,6 +86,7 @@ export function usePlotter() {
   const [recovery, setRecovery] = useState(loadRecovery);
   const [recoveryWarning, setRecoveryWarning] = useState("");
   const portRef = useRef(null);
+  const virtualRef = useRef(false);
   const readerRef = useRef(null);
   const writerRef = useRef(null);
   const profileRef = useRef("grbl");
@@ -502,14 +504,17 @@ export function usePlotter() {
         throw new Error("Сначала закройте текущее соединение.");
       if (typeof window !== "undefined" && window.__openhandNativePlatform && (window.__openhandBridgeVersion ?? 0) < 8)
         throw new Error("Открыта старая версия OpenHand. Полностью закройте приложение и запустите новую сборку.");
-      if (!supported)
-        throw new Error(
-          "Web Serial недоступен. Используйте Chrome или Edge по HTTPS/localhost.",
-        );
       const options =
         typeof incomingOptions === "object" && incomingOptions
           ? incomingOptions
           : { baudRate: incomingOptions };
+      const virtual = options.connectionType === "virtual";
+      if (virtual && profile !== "grbl")
+        throw new Error("Виртуальный плоттер работает с прошивкой GRBL. Выберите GRBL в поле «Прошивка».");
+      if (!supported && !virtual)
+        throw new Error(
+          "Web Serial недоступен. Используйте Chrome или Edge по HTTPS/localhost.",
+        );
       const serialOptions = {
         profile,
         baudRate: Number(options.baudRate),
@@ -521,7 +526,7 @@ export function usePlotter() {
         flowControl: options.flowControl === "hardware" ? "hardware" : "none",
       };
       const connectionType =
-        options.connectionType === "network" ? "network" : "serial";
+        virtual ? "virtual" : options.connectionType === "network" ? "network" : "serial";
       const networkHost = String(options.networkHost || "").trim();
       const networkPort = Number(options.networkPort);
       if (connectionType === "network") {
@@ -552,6 +557,7 @@ export function usePlotter() {
           throw new DOMException("Подключение отменено.", "AbortError");
       };
       profileRef.current = profile;
+      virtualRef.current = virtual;
       desynchronizedRef.current = false;
       clearMachineStatus();
       statusReportRef.current = { sequence: 0, state: "" };
@@ -559,7 +565,7 @@ export function usePlotter() {
       setControllerSettings({});
       setControllerSettingsComplete(false);
       try {
-        const port = await navigator.serial.requestPort(
+        const port = virtual ? createVirtualSerialPort() : await navigator.serial.requestPort(
           connectionType === "network"
             ? { openhandNetwork: { host: networkHost, port: networkPort } }
             : undefined,
@@ -583,7 +589,9 @@ export function usePlotter() {
         void readLoop(readerRef.current, connectionEpoch);
         log(
           "system",
-          connectionType === "network"
+          connectionType === "virtual"
+            ? "GRBL · виртуальный плоттер"
+            : connectionType === "network"
             ? `${profile.toUpperCase()} · TCP ${networkHost}:${networkPort}`
             : `${profile.toUpperCase()} · ${serialOptions.baudRate} бод · ${serialOptions.dataBits}${serialOptions.parity === "none" ? "N" : serialOptions.parity === "even" ? "E" : "O"}${serialOptions.stopBits}`,
         );
@@ -634,7 +642,7 @@ export function usePlotter() {
         throw new Error("Realtime-команды доступны для GRBL.");
       const byte = GRBL_REALTIME[action];
       if (byte === undefined) throw new Error("Неизвестная realtime-команда.");
-      if (action === "status" && typeof window !== "undefined" && window.__openhandRequestStatus) {
+      if (action === "status" && !virtualRef.current && typeof window !== "undefined" && window.__openhandRequestStatus) {
         await window.__openhandRequestStatus();
         return;
       }
@@ -703,6 +711,7 @@ export function usePlotter() {
     if (!supported || typeof navigator.serial.addEventListener !== "function")
       return undefined;
     const handleDeviceDisconnect = (event: Event & { port?: unknown }) => {
+      if (virtualRef.current) return;
       const disconnectedPort = event.port || event.target;
       // Browser events identify a port; the native shim emits only current-session events.
       if (disconnectedPort && disconnectedPort !== navigator.serial && disconnectedPort !== portRef.current) return;
@@ -1026,7 +1035,7 @@ export function usePlotter() {
       desynchronizedRef.current = true;
       setControllerEpoch((epoch) => epoch + 1);
       clearMachineStatus();
-      const nativeStop = typeof window !== "undefined" && window.__openhandEmergencyStop;
+      const nativeStop = !virtualRef.current && typeof window !== "undefined" && window.__openhandEmergencyStop;
       let delivery: Promise<unknown>;
       if (nativeStop) {
         delivery = nativeStop(profileRef.current).then(result => {
@@ -1246,7 +1255,7 @@ export function usePlotter() {
         await nativeSessionReady.promise;
         const generation = emergencyGenerationRef.current;
         if (stopInFlightRef.current || operationRef.current || connectingRef.current) throw new Error("Дождитесь завершения отмены операции.");
-        if (typeof window !== "undefined" && window.__openhandReleaseEmergencyStop)
+        if (!virtualRef.current && typeof window !== "undefined" && window.__openhandReleaseEmergencyStop)
           await window.__openhandReleaseEmergencyStop();
         if (stopInFlightRef.current || generation !== emergencyGenerationRef.current) throw new Error("Запрошен новый СТОП. Управление остаётся заблокированным.");
         // A cancelled native write may have errored the WritableStream. A

@@ -63,13 +63,47 @@ export function penTestDelta(current: number, target: number): number {
 }
 
 export function clearPenSetup(config: any) {
-  return { ...config, zUp: 0, zDown: 0, penVerifiedUp: "", penVerifiedDown: "" };
+  return { ...config, zUp: 0, zDown: 0, zContact: null, penVerifiedUp: "", penVerifiedDown: "" };
+}
+
+export const DEFAULT_PEN_PRESSURE_MM = 0.3;
+export const DEFAULT_PEN_CLEARANCE_MM = 2.5;
+export const MAX_PEN_PRESS_MM = 1;
+export const MIN_PEN_CLEARANCE_MM = 0.5;
+export const MAX_PEN_CLEARANCE_MM = 10;
+
+export type PenGeometry = { contact: number; pressure: number; clearance: number };
+
+export function penGeometry(config: any): PenGeometry | null {
+  const contact = Number(config.zContact);
+  if (config.zContact === null || config.zContact === undefined || !Number.isFinite(contact)) return null;
+  const up = config.zUpDirection === 1 ? 1 : -1;
+  const pressure = (contact - config.zDown) * up;
+  const clearance = (config.zUp - contact) * up;
+  if (!(pressure >= -1e-6) || !(clearance > 0)) return null;
+  return { contact, pressure: Number(Math.max(0, pressure).toFixed(3)), clearance: Number(clearance.toFixed(3)) };
+}
+
+export function withPenGeometry(config: any, geometry: PenGeometry, controllerKey?: string | null) {
+  const up = config.zUpDirection === 1 ? 1 : -1;
+  const pressure = Math.max(0, Math.min(MAX_PEN_PRESS_MM, geometry.pressure));
+  const clearance = Math.max(MIN_PEN_CLEARANCE_MM, Math.min(MAX_PEN_CLEARANCE_MM, geometry.clearance));
+  const round = (value: number) => Number(value.toFixed(3));
+  const next = {
+    ...config,
+    penControllerKey: controllerKey ?? config.penControllerKey,
+    zContact: round(geometry.contact),
+    zDown: round(geometry.contact - up * pressure),
+    zUp: round(geometry.contact + up * clearance),
+    maxAutomaticPenLift: Math.min(MAX_AUTOMATIC_PEN_LIFT_MM, round(pressure + clearance)),
+  };
+  return { ...next, penVerifiedUp: penPositionKey(next, true), penVerifiedDown: penPositionKey(next, false) };
 }
 
 export function savePenPosition<T extends { zUp: number; zDown: number; zUpDirection: number; penVerifiedUp?: string; penVerifiedDown?: string }>(config: T, up: boolean, position: number): T {
   if (!Number.isFinite(position) || position < -50 || position > 50) throw new Error("Положение вне диапазона настройки пера.");
   const otherVerified = config[up ? "penVerifiedDown" : "penVerifiedUp"] === penPositionKey(config, !up);
-  const next = { ...config, [up ? "zUp" : "zDown"]: position };
+  const next = { ...config, [up ? "zUp" : "zDown"]: position, zContact: null };
   if (otherVerified && (next.zUp - next.zDown) * next.zUpDirection <= 0)
     throw new Error("Верхнее положение должно быть выше нижнего. Проверьте направление стрелок и подведите перо коротким шагом.");
   return { ...next, [up ? "penVerifiedUp" : "penVerifiedDown"]: penPositionKey(next, up) };

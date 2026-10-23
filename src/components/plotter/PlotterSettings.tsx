@@ -10,6 +10,7 @@ import {
 import PlotterCalibrationWizard from "./PlotterCalibrationWizard";
 import MachineMonitor from "./MachineMonitor";
 import PenCalibrationSheet from './PenCalibrationSheet';
+import VirtualPlotterPanel from './VirtualPlotterPanel';
 
 function Help({ children }: { children: string }) {
   return (
@@ -100,7 +101,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
           <fieldset disabled={locked}>
           <div className="device-connection-fields settings-content">
             <label className="field">
-              <Caption help="USB и Bluetooth используют системный последовательный порт. TCP подключается к сетевому модулю плоттера по адресу и порту.">
+              <Caption help="USB и Bluetooth используют системный последовательный порт. TCP подключается к сетевому модулю плоттера по адресу и порту. Виртуальный плоттер работает без устройства: на нём можно настроить перо и посмотреть, как ляжет запись.">
                 Транспорт
               </Caption>
               <select
@@ -112,6 +113,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
               >
                 <option value="serial">USB / Bluetooth Serial</option>
                 <option value="network">Wi‑Fi / TCP</option>
+                <option value="virtual">Виртуальный плоттер</option>
               </select>
             </label>
             <div className="plotter-row two">
@@ -131,7 +133,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
                   <option value="ebb">EBB / DrawCore</option>
                 </select>
               </label>
-              {config.connectionType === "serial" ? (
+              {config.connectionType === "virtual" ? null : config.connectionType === "serial" ? (
                 <label className="field">
                   <Caption help="Скорость обмена с платой. Обычно используется 115200. При неверном значении порт отвечает мусором или молчит.">
                     Скорость порта
@@ -276,7 +278,8 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
                 type="button"
                 disabled={
                   !enabled ||
-                  !plotter.supported ||
+                  (!plotter.supported && config.connectionType !== "virtual") ||
+                  (config.connectionType === "virtual" && config.profile !== "grbl") ||
                   plotter.status === "connecting" ||
                   (config.connectionType === "network" &&
                     (!plotter.networkSupported ||
@@ -285,7 +288,9 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
                 }
                 onClick={workspace.connect}
               >
-                {plotter.status === "connecting" ? "Проверка связи…" : config.connectionType === "network"
+                {plotter.status === "connecting" ? "Проверка связи…" : config.connectionType === "virtual"
+                  ? "Включить виртуальный плоттер"
+                  : config.connectionType === "network"
                   ? "Подключиться по TCP"
                   : "Выбрать USB / Bluetooth-порт"}
               </button>
@@ -299,7 +304,10 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
                 Отключить
               </button>
             )}
-            {!plotter.supported && (
+            {config.connectionType === "virtual" && config.profile !== "grbl" && (
+              <p className="plotter-warning">Виртуальный плоттер повторяет GRBL с шаговым подъёмом пера. Выберите прошивку GRBL.</p>
+            )}
+            {!plotter.supported && config.connectionType !== "virtual" && (
               <p className="plotter-warning">
                 В браузере Web Serial работает в Chrome/Edge на localhost или
                 HTTPS. В приложении доступны также системные Bluetooth COM-порты.
@@ -315,6 +323,7 @@ export default function PlotterSettings({ workspace, penControls }: { workspace:
           </div>
           </fieldset>
         </section>
+        {config.connectionType === "virtual" && <VirtualPlotterPanel workspace={workspace} />}
       </div>
             <fieldset disabled={locked}>
         <div className="device-settings-sections">

@@ -286,6 +286,7 @@ export function useIntegratedPlotter({
         descenderScale: settings.descenderScale,
         fatigueEnabled: settings.fatigueEnabled,
         fatigueStrength: settings.fatigueStrength,
+        lineLife: settings.lineLife,
       };
       const logicalLayouts = [];
       // Manually placed pages already include their leading blank pages.
@@ -405,6 +406,7 @@ export function useIntegratedPlotter({
     settings.descenderScale,
     settings.fatigueEnabled,
     settings.fatigueStrength,
+    settings.lineLife,
   ]);
 
   const activeIndex = Math.min(
@@ -966,6 +968,12 @@ export function useIntegratedPlotter({
     rememberPenPosition: (up: boolean) => safeAction(() => penControl.save(up)),
     setPenReference: (position: "up" | "down" = "up") => safeAction(() => penControl.reference(position)),
     jogPen: (up: boolean, distance: number) => safeAction(() => penControl.jog(up, distance)),
+    confirmPenContact: () => safeAction(penControl.confirmContact),
+    runPenLadder: (step: number) => safeAction(() => penControl.runLadder(step)),
+    applyPenLadder: (index: number) => safeAction(() => penControl.applyLadder(index)),
+    adjustPenGeometry: (patch) => safeAction(async () => penControl.adjustGeometry(patch)),
+    testPenStroke: () => safeAction(penControl.testStroke),
+    penLadderStep: penControl.ladderStep,
     resetProgress: () => safeAction(() => {
       if (running || calibrationActive) throw new Error("Сначала завершите текущую операцию.");
       plotter.resetProgress();
@@ -1063,8 +1071,9 @@ export function useIntegratedPlotter({
       return plotter.sendCommands(createDryRunCommands(strokes, config), { waitForMotion: true });
     }),
     runPenCalibration: (sheet) => safeAction(() => {
-      const readiness = assessJob({ strokes: sheet.strokes }, sheet.withinWorkArea, sheet.commands);
-      if (!readiness.canStart) throw new Error(readiness.blockers[0]);
+      const content = assessPlotterPreflight({ strokes: sheet.strokes }, { withinWorkArea: sheet.withinWorkArea });
+      const blockers = [...assessDevice().blockers, ...content.blockers, ...preparedProgramBlockers(sheet.commands, sheet.checkConfig || config)];
+      if (blockers.length) throw new Error(blockers[0]);
       return plotter.run({ ...sheet, recoverable: false });
     }),
     runImportedGcode: () => safeAction(() => {
