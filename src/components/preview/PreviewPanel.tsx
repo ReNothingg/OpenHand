@@ -286,6 +286,12 @@ export default function PreviewPanel({
                             ? plotterWorkspace.playback
                             : null
                         }
+                        startPoint={
+                          index === plotterWorkspace.activeIndex &&
+                          !plotterWorkspace.running
+                            ? plotterWorkspace.job?.strokes?.[0]?.[0] || null
+                            : null
+                        }
                       />
                       {plotterWorkspace.busy && (
                         <div className="integrated-plotter-loading">

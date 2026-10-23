@@ -102,6 +102,30 @@
   fill: var(--green);
 }
 
+.plotter-start-point {
+  pointer-events: none;
+}
+.plotter-start-point > circle:first-of-type {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 0.3;
+}
+.plotter-start-point > path {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 0.3;
+  stroke-linecap: round;
+}
+.plotter-start-point-dot {
+  fill: var(--green);
+}
+.plotter-start-point > text {
+  fill: var(--green);
+  font:
+    600 2.6px/1 ui-sans-serif,
+    sans-serif;
+}
+
 .integrated-plotter-loading {
   position: absolute;
   z-index: 4;

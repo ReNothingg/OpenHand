@@ -53,7 +53,7 @@ function pointOnStroke(stroke, progress) {
   };
 }
 
-function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
+function PlotterPaper({ layout, settings, metrics, pageIndex, playback, startPoint = null }) {
   const inkWidthMm = penWidthMm(settings);
   const orderedStrokes = playback?.strokes?.length
     ? playback.strokes
@@ -199,6 +199,18 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback }) {
           </g>
         );
       })}
+      {startPoint && !playback?.active && (
+        <g
+          className="plotter-start-point"
+          transform={`translate(${startPoint.x} ${startPoint.y})`}
+        >
+          <title>Перо начнёт отсюда</title>
+          <circle r="2.2" />
+          <path d="M-3.4 0H-1.2M1.2 0H3.4M0 -3.4V-1.2M0 1.2V3.4" />
+          <circle className="plotter-start-point-dot" r="0.45" />
+          <text x="3.2" y="-2.6">Старт</text>
+        </g>
+      )}
       {playbackHead && (
         <g
           className="plotter-playback-head"
@@ -235,5 +247,7 @@ export default memo(
     previous.playback?.progress === next.playback?.progress &&
     previous.playback?.active === next.playback?.active &&
     previous.playback?.strokeProgress === next.playback?.strokeProgress &&
-    previous.playback?.strokes === next.playback?.strokes,
+    previous.playback?.strokes === next.playback?.strokes &&
+    previous.startPoint?.x === next.startPoint?.x &&
+    previous.startPoint?.y === next.startPoint?.y,
 );
