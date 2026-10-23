@@ -13,16 +13,24 @@ export const DEFAULT_HANDWRITING_SETTINGS = {
   // the same word on the photos; the width restores it. The author carries
   // a word that does not fit to the next line instead of squeezing the
   // line, so line fitting only takes up a few percent.
-  fontSize: 28, lineHeight: 1.35, inkColor: "#2c2e72",
+  fontSize: 36, lineHeight: 1.15, inkColor: "#2c2e72",
   penWidthMm: 0.48, inkVariation: 12, paperTexture: true,
   glyphVariation: 4, connectionStrength: 100, pressureVariation: 0,
   maxWordTilt: 0.7, maxLift: 0.4, maxLetterSpacing: 0.15,
-  authorSlant: 0, authorWidth: 103, authorRhythm: 12, authorBaseline: 8,
-  wordSpacing: 70, spaceVariation: 50, wordCoherence: 100, endCompression: 0,
+  authorSlant: -3, authorWidth: 84, authorRhythm: 12, authorBaseline: 8,
+  wordSpacing: 76, spaceVariation: 50, wordCoherence: 100, endCompression: 0,
   lineFitCompression: 6,
-  ascenderScale: 100, descenderScale: 100, correctionChance: 0, fatigueEnabled: false,
+  ascenderScale: 85, descenderScale: 85, correctionChance: 0, fatigueEnabled: false,
   fontRandomization: 0, maxLineDrift: 0, lineLife: 55,
 };
+
+const SQUARED_LAYOUT = Object.freeze({
+  fontSize: 28, lineHeight: 1.35, authorSlant: 0, authorWidth: 103, wordSpacing: 70,
+  ascenderScale: 100, descenderScale: 100,
+});
+export const SQUARED_NOTEBOOK_DEFAULTS = Object.freeze({
+  ...DEFAULT_HANDWRITING_SETTINGS, ...SQUARED_LAYOUT,
+});
 
 // Earlier defaults (2026-10-04, the first letter-tracing build, the
 // twelve-photo build of 2026-10-05, the spacing build of 2026-10-06 and the
@@ -30,20 +38,20 @@ export const DEFAULT_HANDWRITING_SETTINGS = {
 // Untouched settings saved with these values, or with older drafts derived
 // from them, are upgraded.
 export const PREVIOUS_NOTEBOOK_DEFAULTS = Object.freeze({
-  ...DEFAULT_HANDWRITING_SETTINGS, inkColor: "#303f7b",
+  ...DEFAULT_HANDWRITING_SETTINGS, ...SQUARED_LAYOUT, inkColor: "#303f7b",
   fontSize: 32, lineHeight: 1.18, penWidthMm: 0.32, wordSpacing: 86, spaceVariation: 24,
   authorWidth: 100, lineFitCompression: 20,
 });
 export const TRACED_NOTEBOOK_DEFAULTS = Object.freeze({
-  ...DEFAULT_HANDWRITING_SETTINGS, inkColor: "#303f7b", penWidthMm: 0.42,
+  ...DEFAULT_HANDWRITING_SETTINGS, ...SQUARED_LAYOUT, inkColor: "#303f7b", penWidthMm: 0.42,
   wordSpacing: 105, spaceVariation: 40, authorWidth: 100, lineFitCompression: 20,
 });
 export const PHOTO_NOTEBOOK_DEFAULTS = Object.freeze({
-  ...DEFAULT_HANDWRITING_SETTINGS, penWidthMm: 0.58, wordSpacing: 100, authorWidth: 100, lineFitCompression: 20,
+  ...DEFAULT_HANDWRITING_SETTINGS, ...SQUARED_LAYOUT, penWidthMm: 0.58, wordSpacing: 100, authorWidth: 100, lineFitCompression: 20,
 });
 export const SPACED_NOTEBOOK_DEFAULTS = Object.freeze({
-  ...DEFAULT_HANDWRITING_SETTINGS, penWidthMm: 0.58, authorWidth: 105,
+  ...DEFAULT_HANDWRITING_SETTINGS, ...SQUARED_LAYOUT, penWidthMm: 0.58, authorWidth: 105,
 });
 export const AUDITED_NOTEBOOK_DEFAULTS = Object.freeze({
-  ...DEFAULT_HANDWRITING_SETTINGS, authorWidth: 105,
+  ...DEFAULT_HANDWRITING_SETTINGS, ...SQUARED_LAYOUT, authorWidth: 105,
 });

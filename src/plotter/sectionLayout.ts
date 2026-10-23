@@ -29,7 +29,6 @@ export async function layoutSections(text: string, font: any, page: any, config:
     const partConfig = { ...config, seed: Number(config.seed) + index * 1009 };
     let result = await layoutText(chunk, font, remaining, partConfig);
     if (strokes.length && result.clipped && startsHeading(chunk)) {
-      const onEmptyPage = await layoutText(chunk, font, page, partConfig);
       const lines = chunk.split("\n");
       let firstBody = 1;
       while (firstBody < lines.length && (!lines[firstBody].trim() || startsHeading(lines[firstBody]))) firstBody++;
@@ -37,7 +36,7 @@ export async function layoutSections(text: string, font: any, page: any, config:
       const openingBody = body.includes(PLOTTER_FORMULA_START) || body.includes(PLOTTER_SVG_START)
         ? body : body.split(/\s+/).slice(0, 6).join(" ");
       const opening = await layoutText([...lines.slice(0, firstBody), openingBody].join("\n"), font, remaining, partConfig);
-      if (!onEmptyPage.clipped || opening.clipped) {
+      if (opening.clipped) {
         overflowText = chunks.slice(index).join("\n");
         break;
       }

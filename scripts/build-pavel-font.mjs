@@ -270,6 +270,74 @@ try {
   const modulePath=join(directory,'export.mjs');
   await build({stdin:{contents: `export {createGFontBlob} from './src/font-builder/gfontExport.ts'; export {GFont} from './src/plotter/gfont.ts'; export {layoutText,DEFAULT_PLOTTER_CONFIG} from './src/plotter/job.ts'; export {profilePatch,DEFAULT_WRITING_CONFIG} from './src/handwriting/profiles.ts'; export {inkRibbonPath,penWidthMm} from './src/handwriting/inkAppearance.ts';`,resolveDir:process.cwd()},outfile:modulePath,bundle:true,format:'esm',platform:'node',loader:{'.gfont':'file'},logLevel:'silent'});
   const { createGFontBlob, GFont, layoutText, DEFAULT_PLOTTER_CONFIG, profilePatch, DEFAULT_WRITING_CONFIG, inkRibbonPath, penWidthMm } = await import(pathToFileURL(modulePath).href);
+  const printBytes = await readFile('font/plotter/ReTest.gfont');
+  const printFont = new GFont(printBytes.buffer.slice(printBytes.byteOffset, printBytes.byteOffset + printBytes.byteLength), 'ReTest');
+  const printX = (await printFont.getGlyph('x'.codePointAt(0))).bounds;
+  const printScale = NOTEBOOK_BODY_HEIGHT / (printX.maxY - printX.minY);
+  const PRINT_SHEAR = 0.3;
+  for (const char of Array.from('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"\'#@')) {
+    if (forms[char] || !printFont.has(char.codePointAt(0))) continue;
+    const glyph = await printFont.getGlyph(char.codePointAt(0));
+    const strokes = [];
+    glyph.points.forEach((p, i) => {
+      if (!glyph.flags[i] || !strokes.length) strokes.push([]);
+      const y = p.y * printScale;
+      strokes.at(-1).push({ x: +(p.x * printScale - PRINT_SHEAR * y).toFixed(2), y: +y.toFixed(2) });
+    });
+    const clean = strokes.filter(stroke => stroke.length > 1);
+    const xs = clean.flat().map(p => p.x);
+    const left = Math.min(...xs), right = Math.max(...xs);
+    forms[char] = [{ strokes: clean, originX: left, advance: right - left + 0.18 * NOTEBOOK_BODY_HEIGHT, joins: 'recorded' }];
+    glyphs[char] = clean;
+  }
+  const dot = (cx, cy, r) => Array.from({ length: 13 }, (_, i) => {
+    const a = i / 12 * Math.PI * 2.2, radius = r * (1 - 0.55 * i / 12);
+    return { x: +(cx + radius * Math.cos(a)).toFixed(2), y: +(cy + radius * Math.sin(a)).toFixed(2) };
+  });
+  const segment = (x0, y0, x1, y1) => [{ x: x0, y: y0 }, { x: (x0 + x1) / 2 + 2, y: (y0 + y1) / 2 }, { x: x1, y: y1 }];
+  const constructed = {
+    '•': [[...dot(34, -96, 15)]],
+    '·': [[...dot(26, -96, 8)]],
+    '…': [dot(20, -8, 7), dot(70, -8, 7), dot(120, -8, 7)],
+    '×': [segment(18, -150, 112, -40), segment(108, -152, 22, -38)],
+    '±': [segment(70, -170, 64, -60), segment(20, -116, 116, -118), segment(20, -26, 116, -28)],
+    '*': [segment(66, -230, 62, -130), segment(24, -205, 104, -155), segment(104, -207, 24, -153)],
+    '→': [segment(10, -98, 230, -102), [{ x: 186, y: -138 }, { x: 214, y: -116 }, { x: 232, y: -102 }, { x: 212, y: -84 }, { x: 184, y: -64 }]],
+    '←': [segment(232, -98, 12, -102), [{ x: 56, y: -138 }, { x: 28, y: -116 }, { x: 10, y: -102 }, { x: 30, y: -84 }, { x: 58, y: -64 }]],
+    '↔': [segment(10, -100, 250, -100), [{ x: 52, y: -136 }, { x: 10, y: -100 }, { x: 52, y: -64 }], [{ x: 208, y: -136 }, { x: 250, y: -100 }, { x: 208, y: -64 }]],
+    '|': [segment(52, -300, 22, 70)],
+    '_': [segment(0, 30, 170, 28)],
+    '~': [[{ x: 10, y: -90 }, { x: 40, y: -122 }, { x: 80, y: -112 }, { x: 120, y: -84 }, { x: 160, y: -82 }, { x: 186, y: -112 }]],
+    '^': [[{ x: 14, y: -210 }, { x: 60, y: -290 }, { x: 104, y: -212 }]],
+    '÷': [segment(16, -100, 136, -102), dot(76, -160, 9), dot(72, -40, 9)],
+    '≈': [[{ x: 10, y: -120 }, { x: 44, y: -150 }, { x: 84, y: -134 }, { x: 124, y: -110 }, { x: 160, y: -132 }], [{ x: 6, y: -60 }, { x: 40, y: -90 }, { x: 80, y: -74 }, { x: 120, y: -50 }, { x: 156, y: -72 }]],
+    'Δ': [[{ x: 10, y: 0 }, { x: 116, y: -300 }, { x: 200, y: -2 }, { x: 8, y: 2 }]],
+    'π': [segment(10, -180, 190, -186), segment(66, -182, 40, 0), [{ x: 140, y: -184 }, { x: 128, y: -60 }, { x: 140, y: -4 }, { x: 170, y: 4 }]],
+    'α': [[{ x: 170, y: -190 }, { x: 140, y: -90 }, { x: 110, y: -20 }, { x: 60, y: 6 }, { x: 22, y: -30 }, { x: 30, y: -130 }, { x: 80, y: -196 }, { x: 128, y: -170 }, { x: 150, y: -60 }, { x: 186, y: 2 }]],
+    'λ': [[{ x: 30, y: -300 }, { x: 70, y: -290 }, { x: 110, y: -180 }, { x: 160, y: -40 }, { x: 190, y: 0 }], segment(100, -170, 10, 2)],
+    '{': [[{ x: 110, y: -300 }, { x: 70, y: -280 }, { x: 64, y: -170 }, { x: 20, y: -120 }, { x: 60, y: -80 }, { x: 54, y: 20 }, { x: 90, y: 60 }]],
+    '}': [[{ x: 20, y: -300 }, { x: 60, y: -280 }, { x: 66, y: -170 }, { x: 110, y: -120 }, { x: 70, y: -80 }, { x: 76, y: 20 }, { x: 40, y: 60 }]],
+    '\\': [segment(10, -300, 120, 40)],
+    '&': [[{ x: 190, y: 0 }, { x: 60, y: -190 }, { x: 80, y: -280 }, { x: 130, y: -270 }, { x: 120, y: -200 }, { x: 20, y: -100 }, { x: 30, y: -10 }, { x: 110, y: -10 }, { x: 180, y: -110 }]],
+  };
+  constructed['∆'] = constructed['Δ'];
+  for (const [char, digit] of [['²', '2'], ['³', '3'], ['¹', '1'], ['⁰', '0'], ['⁴', '4'], ['⁵', '5']]) {
+    const base = forms[digit]?.[0];
+    if (!base || forms[char]) continue;
+    const xs = base.strokes.flat().map(p => p.x), left = Math.min(...xs);
+    constructed[char] = base.strokes.map(stroke => stroke.map(p => ({ x: +((p.x - left) * 0.55).toFixed(2), y: +(p.y * 0.55 - 170).toFixed(2) })));
+  }
+  for (const [alias, char] of [['−', '-'], ['‐', '-'], ['“', '"'], ['”', '"'], ['„', '"'], ['‘', "'"], ['’', "'"]]) {
+    if (forms[alias] || !forms[char]) continue;
+    forms[alias] = forms[char];
+    glyphs[alias] = glyphs[char];
+  }
+  for (const [char, strokes] of Object.entries(constructed)) {
+    if (forms[char]) continue;
+    const xs = strokes.flat().map(p => p.x);
+    forms[char] = [{ strokes, originX: Math.min(...xs), advance: Math.max(...xs) - Math.min(...xs) + 0.2 * NOTEBOOK_BODY_HEIGHT, joins: 'recorded' }];
+    glyphs[char] = strokes;
+  }
   const blob=createGFontBlob(glyphs,forms);
   await writeFile('font/plotter/pavel-notes.gfont',Buffer.from(await blob.arrayBuffer()));
   const notebookWords = new Set(notebookSource.letters.map(letter => letter.source.split(':')[0]));
@@ -292,7 +360,7 @@ try {
   await writeFile('font/pavel-notes/handwriting-settings.json',JSON.stringify(settings,null,2)+'\n');
   await writeFile('font/pavel-notes/writing-config.json',JSON.stringify(DEFAULT_WRITING_CONFIG,null,2)+'\n');
   const font = new GFont(await blob.arrayBuffer(),'По умолчанию');
-  const page = {pageWidth:148,pageHeight:210,left:12,right:12,top:12,bottom:12,fontSize:settings.fontSize*25.4/96,lineHeight:settings.fontSize*settings.lineHeight*25.4/96};
+  const page = {pageWidth:148,pageHeight:210,left:10,right:10,top:8,bottom:8,fontSize:settings.fontSize*25.4/96,lineHeight:Math.max(1,Math.ceil(settings.fontSize*settings.lineHeight*25.4/96/5-0.3))*5,ruleStep:5};
   const text = await readFile('font/pavel-notes/sample.txt','utf8');
   const layout = await layoutText(text,font,page,{...DEFAULT_PLOTTER_CONFIG,...settings,...DEFAULT_WRITING_CONFIG,seed:31847});
   if (layout.missing.length || layout.clipped) throw new Error('Personal font sample has missing glyphs or overflows.');

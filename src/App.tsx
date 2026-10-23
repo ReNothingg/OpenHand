@@ -546,7 +546,7 @@ export default function App({ active = true }: { active?: boolean }) {
         ...current,
         pageSize,
         pageOrientation: "landscape",
-        marginTop: 56,
+        marginTop: DEFAULT_SETTINGS.marginTop,
         marginLeft: 72,
         marginLeftEven: 72,
         marginBottom: 0,
@@ -555,8 +555,8 @@ export default function App({ active = true }: { active?: boolean }) {
           Math.max(PAGE_SIZES[pageSize].width, PAGE_SIZES[pageSize].height) -
             144,
         ),
-        fontSize: Math.min(current.fontSize, 24),
-        lineHeight: 1.25,
+        fontSize: DEFAULT_SETTINGS.fontSize,
+        lineHeight: DEFAULT_SETTINGS.lineHeight,
         ruledPaper: true,
       };
     });

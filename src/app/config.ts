@@ -1,4 +1,4 @@
-import { AUDITED_NOTEBOOK_DEFAULTS, DEFAULT_HANDWRITING_SETTINGS, PHOTO_NOTEBOOK_DEFAULTS, PREVIOUS_NOTEBOOK_DEFAULTS, SPACED_NOTEBOOK_DEFAULTS, TRACED_NOTEBOOK_DEFAULTS } from "../handwriting/defaults";
+import { AUDITED_NOTEBOOK_DEFAULTS, DEFAULT_HANDWRITING_SETTINGS, PHOTO_NOTEBOOK_DEFAULTS, PREVIOUS_NOTEBOOK_DEFAULTS, SPACED_NOTEBOOK_DEFAULTS, SQUARED_NOTEBOOK_DEFAULTS, TRACED_NOTEBOOK_DEFAULTS } from "../handwriting/defaults";
 import { STRUCTURE_CONTROLS, structureValue } from "../handwriting/structure";
 import { defaultFontPool } from "../fonts";
 
@@ -23,7 +23,7 @@ export const DEFAULT_SETTINGS = {
   fontFamily: "Caveat",
   textWidth: 620,
   compactLayout: true,
-  marginTop: 74,
+  marginTop: 30,
   writingStartEnabled: false,
   writingStartPage: 0,
   writingStartPositions: {} as Record<string, number>,
@@ -84,7 +84,7 @@ export function normalizeSettings(
     const photoDraft = { ...manualDefaults, ...previousMotion, fontSize: 25, lineHeight: 1.45, authorWidth: 100 };
     const previousDefault = { ...manualDefaults, ...previousMotion };
     const rasterDefault = { ...PREVIOUS_NOTEBOOK_DEFAULTS, inkColor: "#304d87", pressureVariation: 0 };
-    if ([AUDITED_NOTEBOOK_DEFAULTS, SPACED_NOTEBOOK_DEFAULTS, PHOTO_NOTEBOOK_DEFAULTS, TRACED_NOTEBOOK_DEFAULTS, PREVIOUS_NOTEBOOK_DEFAULTS, rasterDefault, photoDraft, previousDefault, manualDefaults].some(previous => Object.entries(previous).every(([key, value]) =>
+    if ([SQUARED_NOTEBOOK_DEFAULTS, AUDITED_NOTEBOOK_DEFAULTS, SPACED_NOTEBOOK_DEFAULTS, PHOTO_NOTEBOOK_DEFAULTS, TRACED_NOTEBOOK_DEFAULTS, PREVIOUS_NOTEBOOK_DEFAULTS, rasterDefault, photoDraft, previousDefault, manualDefaults].some(previous => Object.entries(previous).every(([key, value]) =>
         !Object.hasOwn(incoming, key) || incoming[key] === value))) {
       // Upgrade only a complete untouched profile; explicit custom values win.
       Object.assign(settings, DEFAULT_HANDWRITING_SETTINGS);
@@ -132,6 +132,9 @@ export function normalizeSettings(
     [44, 68].includes(Number(incoming.marginBottom))
   ) {
     settings.marginBottom = 0;
+  }
+  if (settings.pageSize === "NotebookSpread" && Number(incoming.marginTop) === 74) {
+    settings.marginTop = DEFAULT_SETTINGS.marginTop;
   }
 
   if (settings.fontType !== "plotter") settings.fontType = "screen";

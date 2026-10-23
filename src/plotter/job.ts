@@ -3,6 +3,7 @@ import { coordinateFrameCommands } from "./coordinateFrame";
 import { HEADING_SCALES } from "../handwriting/headings";
 import { varyLetterGlyph } from "../handwriting/letterGeometry";
 import { fitHandwritingLine, type WordGap } from "../handwriting/lineFit";
+import { hyphenSplits } from "../handwriting/hyphenation";
 import { wordMotion, spaceFactor, shapeVertical, structureValue, pageEvolution } from "../handwriting/structure";
 import { DEFAULT_AUTOMATIC_PEN_LIFT_MM, MAX_PEN_JOG_MM, PEN_TEST_STEP_MM, automaticPenSpeed, automaticPenUpPosition, penTravelSeconds } from "./penLift";
 import { endDirection, hoverPosition, penAxis, rollDistance, softTouchSeconds, usesSoftTouch, writingHeights } from "./penTouch";
@@ -204,7 +205,8 @@ function splitGlyphStrokes(
 
 const LETTER_PATTERN = /^\p{L}$/u;
 // Marks written after a word without joining it.
-const TRAILING_MARKS = new Set(Array.from(".,:;!?…»)"));
+const TRAILING_MARKS = new Set(Array.from(".,:;!?…»)-"));
+const HYPHEN_BREAK = "\u0000hyphen\u0000";
 const trailingGap = (char: string) => (char === ":" || char === ";" ? 0.12 : 0.07);
 
 function glyphStrokeBounds(strokes) {
@@ -474,6 +476,7 @@ export async function layoutText(
     if (/\s/u.test(char) || PLOTTER_CONTROL_MARKS.has(char)) continue;
     await getGlyph(char);
   }
+  if (config.trueHandwriting && config.hyphenate !== false) await getGlyph("-", false);
 
   const bodyHeights = [];
   for (const char of "аеиносуэх") {
@@ -1274,6 +1277,14 @@ export async function layoutText(
         markCalloutContent();
         continue;
       }
+      if (token === HYPHEN_BREAK) {
+        nextLine();
+        if (clipped) {
+          preserveOverflow(tokenIndex + 1);
+          break;
+        }
+        continue;
+      }
       if (/^\s+$/u.test(token)) {
         const gapStart = Math.max(x, lineInkRight);
         // An ending's long exit stroke is ink, not part of the following space.
@@ -1295,7 +1306,7 @@ export async function layoutText(
         startMarks.has(char) || endMarks.has(char) || textStyleStarts.has(char) ||
         textStyleEnds.has(char) || headingStarts.has(char) || headingEnds.has(char));
       const wordKey = `${rawLineIndex}:${tokenIndex}:${visibleChars.join("")}`;
-      const measureToken = () => {
+      const measureChars = (tokenChars: string[], visibleChars: string[], wordKey: string) => {
         const predictedForms = new Map(previousForms);
         const plan = planToken(visibleChars, glyphOccurrence, previousForms);
         let occurrence = glyphOccurrence, cursor = 0, right = 0, index = 0, previousRight = -Infinity;
@@ -1331,6 +1342,7 @@ export async function layoutText(
           ? page.fontSize * 0.08 : 0;
         return Math.max(cursor, right) + Math.max(decorationInset, Number(config.correctionChance) > 0 ? page.fontSize * 0.05 : 0);
       };
+      const measureToken = () => measureChars(tokenChars, visibleChars, wordKey);
       let tokenWidth = fittableWord ? measureToken() : widthForLine(token);
       const mayFit = () => config.trueHandwriting && !config.noWrap && fittableWord && lineTextOnly &&
         activeAlignment === "left" && !activeQuote && !activeCallout;
@@ -1340,6 +1352,20 @@ export async function layoutText(
         Math.max(lineInkRight, x + tokenWidth), maxX, lineGaps, structureValue(config, "lineFitCompression"));
       let fitWordOnLine = Boolean(fitCandidate());
       if (visibleChars.length && strokes.length > lineStrokeStart && x + tokenWidth > maxX && !fitWordOnLine) {
+        const split = mayFit() && config.hyphenate !== false && tokenChars.length === visibleChars.length &&
+          maxX - x >= page.fontSize * headingScale() * (1.3 + 1.5 * seededRandom(config.seed, `hyphen:${rawLineIndex}:${tokenIndex}`))
+          ? hyphenSplits(token).filter(({ head }) => Array.from(head).filter(char => /\p{L}/u.test(char)).length >= 3).find(({ head }) => {
+            const headChars = Array.from(head);
+            const width = measureChars(headChars, headChars, `${rawLineIndex}:${tokenIndex}:${head}`);
+            return x + width <= maxX || fitHandwritingLine(lineLeft, Math.max(lineInkRight, x + width), maxX, lineGaps,
+              structureValue(config, "lineFitCompression"));
+          })
+          : undefined;
+        if (split) {
+          tokens.splice(tokenIndex, 1, split.head, HYPHEN_BREAK, split.tail);
+          tokenIndex -= 1;
+          continue;
+        }
         nextLine();
         if (clipped) {
           preserveOverflow(tokenIndex);
@@ -1449,7 +1475,9 @@ export async function layoutText(
         // Punctuation is written after the letter's ink, not inside its
         // exit stroke: keep a small gap after a letter whose ink reaches
         // past its advance.
-        if (config.trueHandwriting && TRAILING_MARKS.has(char))
+        if (config.trueHandwriting && char === "-" && charIndex === tokenChars.length - 1 && Number.isFinite(previousInkRight))
+          x = previousInkRight + page.fontSize * currentHeadingScale * trailingGap(char);
+        else if (config.trueHandwriting && TRAILING_MARKS.has(char))
           x = Math.max(x, previousInkRight + page.fontSize * currentHeadingScale * trailingGap(char));
         x = clearKern(previousClear, x, clear);
         if (x > page.left && x + inkAdvance > maxX && !fitWordOnLine) {

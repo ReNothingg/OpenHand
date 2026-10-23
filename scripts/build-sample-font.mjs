@@ -79,8 +79,8 @@ try {
       `<svg xmlns="http://www.w3.org/2000/svg" width="994" height="1406" viewBox="0 0 595.2756 841.8898"><rect width="100%" height="100%" fill="white"/><text x="42" y="35" font-size="12" font-family="Arial, sans-serif">Исходные линии — серые; экспортированный шрифт — красный · ${pageNumber}/2</text><g fill="none" stroke="#999" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${sourcePaths.join('')}</g><g fill="none" stroke="#db273a" stroke-width=".45" stroke-linecap="round" stroke-linejoin="round">${exportedPaths.join('')}</g></svg>\n`);
   }
   const settings = profilePatch('pavelSamples');
-  const page = {pageWidth:148,pageHeight:210,left:12,right:12,top:12,bottom:12,
-    fontSize:settings.fontSize*25.4/96,lineHeight:settings.fontSize*settings.lineHeight*25.4/96};
+  const page = {pageWidth:148,pageHeight:210,left:10,right:10,top:8,bottom:8,
+    fontSize:settings.fontSize*25.4/96,lineHeight:Math.max(1,Math.ceil(settings.fontSize*settings.lineHeight*25.4/96/5-0.3))*5,ruleStep:5};
   const text = await readFile('font/pavel-notes/sample.txt', 'utf8');
   const layout = await layoutText(text, font, page, {...DEFAULT_PLOTTER_CONFIG,...settings,...DEFAULT_WRITING_CONFIG,seed:31847});
   if (layout.missing.length || layout.clipped) throw new Error('Sample text has missing characters or overflows.');
