@@ -628,10 +628,12 @@ export default function App({ active = true }: { active?: boolean }) {
   const wordCount = activeSource.trim()
     ? activeSource.trim().split(/\s+/u).length
     : 0;
+  const deferredActiveSource =
+    sourceMode === "tex" ? deferredTexSource : deferredMarkdown;
   const naturalnessReport = useMemo(
-    () => analyzeNaturalness(activeSource, settings),
+    () => analyzeNaturalness(deferredActiveSource, settings),
     [
-      activeSource,
+      deferredActiveSource,
       settings.glyphVariation,
       settings.pressureVariation,
       settings.authorRhythm,

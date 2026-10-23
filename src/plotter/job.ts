@@ -1048,6 +1048,8 @@ export async function layoutText(
   };
   let activeAlignment = "left";
 
+  const yieldToMain = typeof config.yieldToMain === "function" ? config.yieldToMain : null;
+  let lastYield = performance.now();
   const rawLines = text.replace(/\r/g, "").split("\n");
   for (
     let rawLineIndex = 0;
@@ -1110,6 +1112,10 @@ export async function layoutText(
     for (let tokenIndex = 0; tokenIndex < tokens.length; tokenIndex += 1) {
       const token = tokens[tokenIndex];
       if (clipped) break;
+      if (yieldToMain && performance.now() - lastYield > 12) {
+        await yieldToMain();
+        lastYield = performance.now();
+      }
       if (
         token.startsWith(PLOTTER_FORMULA_START) &&
         token.endsWith(PLOTTER_FORMULA_END)

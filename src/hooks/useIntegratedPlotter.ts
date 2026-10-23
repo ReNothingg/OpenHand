@@ -107,13 +107,43 @@ async function layoutBelowStart(text, font, page, config) {
   return { ...result, startLineSafe: false };
 }
 
+const combinedSpreads = new WeakMap<object, { right: object | undefined; combined: any }>();
+const LAYOUT_CACHE_LIMIT = 96;
+const LAYOUT_START_DELAY = 180;
+
+class LayoutCancelled extends Error {}
+
+function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+}
+
+function samePageTexts(left, right) {
+  return left === right || (Array.isArray(left) && Array.isArray(right) &&
+    left.length === right.length && left.every((text, index) => text === right[index]));
+}
+
+function useStablePageTexts(pageTexts) {
+  const stable = useRef(pageTexts);
+  if (!samePageTexts(stable.current, pageTexts)) stable.current = pageTexts;
+  return stable.current;
+}
+
 function combineLogicalLayouts(logicalLayouts, settings, metrics) {
-  if (settings.pageSize !== "NotebookSpread") return logicalLayouts;
+  if (settings.pageSize !== "NotebookSpread") return [...logicalLayouts];
   return Array.from(
     { length: Math.ceil(logicalLayouts.length / 2) },
     (_, index) => {
       const parts = logicalLayouts.slice(index * 2, index * 2 + 2);
-      return {
+      const known = combinedSpreads.get(parts[0]);
+      if (known && known.right === parts[1]) return known.combined;
+      const combined = {
         page: pageForLogicalIndex(settings, metrics, index * 2),
         strokes: parts.flatMap((part) => part.strokes),
         leftStrokeCount: parts[0]?.strokes.length ?? 0,
@@ -127,6 +157,8 @@ function combineLogicalLayouts(logicalLayouts, settings, metrics) {
           ...new Set(parts.flatMap((part) => part.clippedItems || [])),
         ],
       };
+      combinedSpreads.set(parts[0], { right: parts[1], combined });
+      return combined;
     },
   );
 }
@@ -142,7 +174,7 @@ export function useIntegratedPlotter({
   enabled,
   fontId,
   customFont,
-  pageTexts,
+  pageTexts: incomingPageTexts,
   pageBlocks = [],
   settings,
   metrics,
@@ -150,6 +182,9 @@ export function useIntegratedPlotter({
   onResetProgress = () => {},
   pending = false,
 }) {
+  const pageTexts = useStablePageTexts(incomingPageTexts);
+  const layoutCache = useRef(new Map());
+  const layoutCacheFont = useRef(null);
   const [profileStore, setProfileStore] = useState(loadPlotterProfileStore);
   const [font, setFont] = useState(null);
   const [fontStatus, setFontStatus] = useState("Выберите однолинейный GFont");
@@ -288,12 +323,53 @@ export function useIntegratedPlotter({
         fatigueStrength: settings.fatigueStrength,
         lineLife: settings.lineLife,
       };
+      if (layoutCacheFont.current !== font) {
+        layoutCache.current.clear();
+        layoutCacheFont.current = font;
+      }
+      const cache = layoutCache.current;
+      const cachedLayout = async (key, compute) => {
+        const known = cache.get(key);
+        if (known) {
+          cache.delete(key);
+          cache.set(key, known);
+          return { entry: known, computed: false };
+        }
+        const entry = await compute();
+        cache.set(key, entry);
+        if (cache.size > LAYOUT_CACHE_LIMIT) cache.delete(cache.keys().next().value);
+        return { entry, computed: true };
+      };
+      const liveConfig = {
+        ...layoutConfig,
+        yieldToMain: async () => {
+          if (cancelled) throw new LayoutCancelled();
+          await yieldToBrowser();
+          if (cancelled) throw new LayoutCancelled();
+        },
+      };
+      await new Promise((resolve) => window.setTimeout(resolve, LAYOUT_START_DELAY));
+      if (cancelled) return;
       const logicalLayouts = [];
+      let unpublished = false;
+      const publish = async (computed) => {
+        if (!computed) {
+          unpublished = true;
+          return;
+        }
+        unpublished = false;
+        setLayouts(combineLogicalLayouts(logicalLayouts, settings, metrics));
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+      };
       // Manually placed pages already include their leading blank pages.
       if (settings.writingStartEnabled && !pageBlocks.some(blocks => blocks.some(block => block.defaultLayout || block.layout?.dirty))) {
-        for (let i = 0; i < settings.writingStartPage; i++) logicalLayouts.push({
-          page: pageForLogicalIndex(settings, metrics, i), strokes: [], missing: [], clipped: false, startLineSafe: true,
-        });
+        for (let i = 0; i < settings.writingStartPage; i++) {
+          const page = pageForLogicalIndex(settings, metrics, i);
+          const { entry } = await cachedLayout(JSON.stringify(["blank", page]), async () => ({
+            page, strokes: [], missing: [], clipped: false, startLineSafe: true,
+          }));
+          logicalLayouts.push(entry);
+        }
       }
       for (
         let sourceIndex = 0;
@@ -311,14 +387,19 @@ export function useIntegratedPlotter({
             metrics,
             logicalLayouts.length,
           );
-          const result = await layoutBlocks(blocks, font, page, layoutConfig);
-          logicalLayouts.push({
-            page,
-            ...result,
-            startLineSafe: minStrokeY(result.strokes) >= page.top - 0.001,
-          });
-          setLayouts(combineLogicalLayouts(logicalLayouts, settings, metrics));
-          await new Promise((resolve) => window.setTimeout(resolve, 0));
+          const { entry, computed } = await cachedLayout(
+            JSON.stringify(["blocks", blocks, page, layoutConfig]),
+            async () => {
+              const result = await layoutBlocks(blocks, font, page, liveConfig);
+              return {
+                page,
+                ...result,
+                startLineSafe: minStrokeY(result.strokes) >= page.top - 0.001,
+              };
+            },
+          );
+          logicalLayouts.push(entry);
+          await publish(computed);
         } else {
           const sections = (pageTexts[sourceIndex] || "").split(
             PLOTTER_PAGE_BREAK,
@@ -332,22 +413,32 @@ export function useIntegratedPlotter({
                 metrics,
                 logicalLayouts.length,
               );
-              const result = await layoutBelowStart(remaining, font, page, {
+              const pageConfig = {
                 ...layoutConfig,
                 seed: Number(layoutConfig.seed) + logicalLayouts.length * 9973,
-              });
-              const nextText = result.overflowText || "";
-              const stalled = Boolean(nextText) && nextText === remaining;
-              logicalLayouts.push({
-                page,
-                ...result,
-                clipped:
-                  result.clipped && (!nextText || stalled || guard >= 99),
-              });
-              setLayouts(
-                combineLogicalLayouts(logicalLayouts, settings, metrics),
+              };
+              const text = remaining;
+              const lastTry = guard >= 99;
+              const { entry, computed } = await cachedLayout(
+                JSON.stringify(["text", text, page, pageConfig, lastTry]),
+                async () => {
+                  const result = await layoutBelowStart(text, font, page, {
+                    ...pageConfig,
+                    yieldToMain: liveConfig.yieldToMain,
+                  });
+                  const overflow = result.overflowText || "";
+                  return {
+                    page,
+                    ...result,
+                    clipped:
+                      result.clipped && (!overflow || overflow === text || lastTry),
+                  };
+                },
               );
-              await new Promise((resolve) => window.setTimeout(resolve, 0));
+              const nextText = entry.overflowText || "";
+              const stalled = Boolean(nextText) && nextText === remaining;
+              logicalLayouts.push(entry);
+              await publish(computed);
               if (cancelled) return;
               guard += 1;
               if (!nextText || stalled || guard >= 100) break;
@@ -358,9 +449,11 @@ export function useIntegratedPlotter({
         }
         if (cancelled) return;
       }
+      if (unpublished)
+        setLayouts(combineLogicalLayouts(logicalLayouts, settings, metrics));
     };
     calculate()
-      .catch((reason) => !cancelled && setError(reason.message))
+      .catch((reason) => !cancelled && !(reason instanceof LayoutCancelled) && setError(reason.message))
       .finally(() => !cancelled && setBusy(false));
     return () => {
       cancelled = true;

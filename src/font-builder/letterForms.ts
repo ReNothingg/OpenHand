@@ -161,7 +161,18 @@ function anchorPoint(form: LetterForm, anchor: JoinAnchor | undefined) {
   return stroke[anchor!.point ?? (anchor!.end === "start" ? 0 : stroke.length - 1)] ?? null;
 }
 
+const nextSourceKeys = new WeakMap<LetterForm, string | undefined>();
 function sourceKey(form: LetterForm, offset = 0) {
+  if (offset === 1) {
+    if (nextSourceKeys.has(form)) return nextSourceKeys.get(form);
+    const key = sourceKeyOf(form, 1);
+    nextSourceKeys.set(form, key);
+    return key;
+  }
+  return sourceKeyOf(form, offset);
+}
+
+function sourceKeyOf(form: LetterForm, offset: number) {
   const parts = form.source?.split(":");
   return parts?.length === 2 ? `${parts[0]}:${Number(parts[1]) + offset}` : undefined;
 }
@@ -338,6 +349,46 @@ export function planConnectedForms(letters: PlannedLetter[], seed: number, occur
   return plan;
 }
 
+type PairTerms = { syllable: boolean; joined: boolean; base: number; crowding?: number };
+const pairCache = new WeakMap<LetterForm, Map<LetterForm, PairTerms>>();
+function pairTerms(a: LetterForm, b: LetterForm): PairTerms {
+  let byNext = pairCache.get(a);
+  if (!byNext) pairCache.set(a, byNext = new Map());
+  const cached = byNext.get(b);
+  if (cached) return cached;
+  const joined = Boolean(a.exit && b.entry);
+  const terms: PairTerms = { syllable: Boolean(a.source && sourceKey(a, 1) === b.source), joined, base: 0 };
+  if (!terms.syllable) {
+    // One word is written in one sitting: letters from the same notebook page
+    // share their width, roundness and pressure.
+    let cost = a.style && b.style && a.style !== b.style ? 0.6 : 0;
+    if (joined) {
+      const pa = anchorPoint(a, a.exit), pb = anchorPoint(b, b.entry);
+      const dy = pa && pb ? Math.abs(pa.y - pb.y) / 200 : 1;
+      cost += 3 * dy * dy + 1.2 * dy;
+      const da = direction(a, a.exit!, true), db = direction(b, b.entry!, false);
+      if (da && db) cost += 0.6 * (1 - (da.x * db.x + da.y * db.y)) / 2;
+    } else {
+      // A pen lift recorded on both sides (a letter that ended, a letter
+      // that started afresh) is part of the handwriting; a lift with a
+      // dangling exit or lead-in is less natural. A lead-in that can be cut
+      // back to its hook (as at the start of a word) hangs less.
+      if (b.entry && !startsCleanly(b)) cost += 1.4;
+      else if (a.exit) cost += 0.5;
+      else if (b.entry) cost += 0.25;
+    }
+    terms.base = cost;
+    // Letters from different words must not run into each other: the
+    // author keeps clear paper between neighbours outside their joins.
+    if (a.advance !== undefined) {
+      const gap = estimatedGap(a, b, a.advance, joined);
+      if (gap < 2 * CORE_CLEARANCE) terms.crowding = 1.5 * ((2 * CORE_CLEARANCE - gap) / (2 * CORE_CLEARANCE)) ** 2;
+    }
+  }
+  byNext.set(b, terms);
+  return terms;
+}
+
 function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number, maxCandidates: number) {
   const candidates = letters.map((letter, i) => {
     const usable = letter.forms.map((form, index) => ({ form, index })).filter(({ form }) => form.strokes.length);
@@ -389,36 +440,16 @@ function viterbiForms(letters: PlannedLetter[], seed: number, occurrence: number
   });
   const wantsLift = letters.map((_, i) => i > 0 && unit(seed, occurrence, i, 13) < liftRate[i - 1]!);
   const pair = (a: LetterForm, aChar: string, b: LetterForm, bChar: string, i: number) => {
+    const terms = pairTerms(a, b);
     // A recorded syllable is kept, but not a word cut out of a longer one.
-    if (a.source && sourceKey(a, 1) === b.source) return letters[i]!.position === "final" && b.exit ? -0.6 : -2.2;
-    // One word is written in one sitting: letters from the same notebook page
-    // share their width, roundness and pressure.
-    let cost = a.style && b.style && a.style !== b.style ? 0.6 : 0;
-    if (a.exit && b.entry) {
-      const pa = anchorPoint(a, a.exit), pb = anchorPoint(b, b.entry);
-      const dy = pa && pb ? Math.abs(pa.y - pb.y) / 200 : 1;
-      cost += 3 * dy * dy + 1.2 * dy;
-      const da = direction(a, a.exit, true), db = direction(b, b.entry, false);
-      if (da && db) cost += 0.6 * (1 - (da.x * db.x + da.y * db.y)) / 2;
+    if (terms.syllable) return letters[i]!.position === "final" && b.exit ? -0.6 : -2.2;
+    let cost = terms.base;
+    if (terms.joined) {
       if (wantsLift[i]) cost += 1.8;
-    } else {
-      // A pen lift recorded on both sides (a letter that ended, a letter
-      // that started afresh) is part of the handwriting; a lift with a
-      // dangling exit or lead-in is less natural. A lead-in that can be cut
-      // back to its hook (as at the start of a word) hangs less.
-      if (b.entry && !startsCleanly(b)) cost += 1.4;
-      else if (a.exit) cost += 0.5;
-      else if (b.entry) cost += 0.25;
-      if (!wantsLift[i]) cost += 1.2;
-    }
+    } else if (!wantsLift[i]) cost += 1.2;
     if (b.context?.before === aChar) cost -= 0.35;
     if (a.context?.after === bChar) cost -= 0.35;
-    // Letters from different words must not run into each other: the
-    // author keeps clear paper between neighbours outside their joins.
-    if (a.advance !== undefined) {
-      const gap = estimatedGap(a, b, a.advance, Boolean(a.exit && b.entry));
-      if (gap < 2 * CORE_CLEARANCE) cost += 1.5 * ((2 * CORE_CLEARANCE - gap) / (2 * CORE_CLEARANCE)) ** 2;
-    }
+    if (terms.crowding !== undefined) cost += terms.crowding;
     return cost;
   };
   const best: number[][] = [], back: number[][] = [];

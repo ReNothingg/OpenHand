@@ -53,16 +53,72 @@ function pointOnStroke(stroke, progress) {
   };
 }
 
+const ribbonCache = new WeakMap<object, Map<string, string>>();
+const coreCache = new WeakMap<object, string>();
+
+function cachedRibbon(stroke, width, variation, seed) {
+  const key = `${width}|${variation}|${seed}`;
+  let byKey = ribbonCache.get(stroke);
+  if (!byKey) ribbonCache.set(stroke, byKey = new Map());
+  let path = byKey.get(key);
+  if (path === undefined) byKey.set(key, path = inkRibbonPath(stroke, width, variation, seed));
+  return path;
+}
+
+function cachedCore(stroke) {
+  let path = coreCache.get(stroke);
+  if (path === undefined) coreCache.set(stroke, path = inkCorePath(stroke));
+  return path;
+}
+
+const InkStroke = memo(function InkStroke({ stroke, inkPath, inkCore, completed, active, inkWidthMm, inkColor, coreOpacity }: any) {
+  const pressure = stroke.pressure || 1;
+  const path = active || (completed > 0 && !(completed >= 1 && inkPath)) ? svgPath([stroke]) : "";
+  return (
+    <g>
+      {active && (
+        <path
+          className="plotter-strokes playback-pending"
+          d={path}
+          style={{
+            stroke: "#64748b",
+            strokeWidth: inkWidthMm * pressure,
+            opacity: 0.22,
+          }}
+        />
+      )}
+      {completed >= 1 && inkPath ? (<>
+        <path d={inkPath} fill={inkColor} opacity={Math.min(1, (inkCore ? .8 : .88) + pressure * .1)} />
+        {inkCore && <path d={inkCore} fill="none" stroke={inkColor} strokeWidth={inkWidthMm * .42}
+          strokeLinecap="round" strokeLinejoin="round" strokeOpacity={coreOpacity} />}
+      </>) : completed > 0 && (
+        <path
+          className="plotter-playback-stroke"
+          d={path}
+          pathLength="1000"
+          style={{
+            stroke: inkColor,
+            strokeWidth: inkWidthMm * pressure,
+            strokeDasharray: 1000,
+            strokeDashoffset: 1000 * (1 - completed),
+            opacity: Math.min(1, 0.72 + pressure * 0.25),
+          }}
+        />
+      )}
+    </g>
+  );
+});
+
 function PlotterPaper({ layout, settings, metrics, pageIndex, playback, startPoint = null }) {
   const inkWidthMm = penWidthMm(settings);
   const orderedStrokes = playback?.strokes?.length
     ? playback.strokes
     : layout?.strokes || [];
   const inkPaths = useMemo(() => orderedStrokes.map((stroke, index) => settings.trueHandwriting
-    ? inkRibbonPath(stroke, inkWidthMm, settings.inkVariation, settings.seed + index)
+    ? cachedRibbon(stroke, inkWidthMm, settings.inkVariation, settings.seed + index)
     : ""), [orderedStrokes, inkWidthMm, settings.trueHandwriting, settings.inkVariation, settings.seed]);
   const inkCores = useMemo(() => orderedStrokes.map(stroke => settings.trueHandwriting && settings.inkVariation > 0
-    ? inkCorePath(stroke) : ""), [orderedStrokes, settings.trueHandwriting, settings.inkVariation]);
+    ? cachedCore(stroke) : ""), [orderedStrokes, settings.trueHandwriting, settings.inkVariation]);
   const coreOpacity = Math.min(0.5, Number(settings.inkVariation) / 50 * 0.75);
   const playbackHead = useMemo(() => {
     if (!playback?.active) return null;
@@ -161,44 +217,19 @@ function PlotterPaper({ layout, settings, metrics, pageIndex, playback, startPoi
           )}
         </>
       )}
-      {orderedStrokes.map((stroke, index) => {
-        const pressure = stroke.pressure || 1;
-        const completed = playback?.active
-          ? playback.strokeProgress?.[index] || 0
-          : 1;
-        const path = svgPath([stroke]);
-        return (
-          <g key={index}>
-            <path
-              className="plotter-strokes playback-pending"
-              d={path}
-              style={{
-                stroke: "#64748b",
-                strokeWidth: inkWidthMm * pressure,
-                opacity: playback?.active ? 0.22 : 0,
-              }}
-            />
-            {completed >= 1 && inkPaths[index] ? (<>
-              <path d={inkPaths[index]} fill={settings.inkColor} opacity={Math.min(1, (inkCores[index] ? .8 : .88) + pressure * .1)} />
-              {inkCores[index] && <path d={inkCores[index]} fill="none" stroke={settings.inkColor} strokeWidth={inkWidthMm * .42}
-                strokeLinecap="round" strokeLinejoin="round" strokeOpacity={coreOpacity} />}
-            </>) : completed > 0 && (
-              <path
-                className="plotter-playback-stroke"
-                d={path}
-                pathLength="1000"
-                style={{
-                  stroke: settings.inkColor,
-                  strokeWidth: inkWidthMm * pressure,
-                  strokeDasharray: 1000,
-                  strokeDashoffset: 1000 * (1 - completed),
-                  opacity: Math.min(1, 0.72 + pressure * 0.25),
-                }}
-              />
-            )}
-          </g>
-        );
-      })}
+      {orderedStrokes.map((stroke, index) => (
+        <InkStroke
+          key={index}
+          stroke={stroke}
+          inkPath={inkPaths[index]}
+          inkCore={inkCores[index]}
+          completed={playback?.active ? playback.strokeProgress?.[index] || 0 : 1}
+          active={Boolean(playback?.active)}
+          inkWidthMm={inkWidthMm}
+          inkColor={settings.inkColor}
+          coreOpacity={coreOpacity}
+        />
+      ))}
       {startPoint && !playback?.active && (
         <g
           className="plotter-start-point"
