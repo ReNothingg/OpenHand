@@ -1174,13 +1174,15 @@ export async function layoutText(
         );
         const drawing = svgDrawings.get(source);
         if (!drawing) continue;
+        const fillBlock = Boolean(config.fillBlockDrawing) && drawing.kind !== "table";
         if (x > page.left) nextLine();
-        const top = baseline - page.fontSize * 0.78;
-        const availableHeight =
-          drawing.kind === "table"
-            ? maxY - top - page.lineHeight
-            : Math.min(70, maxY - top - page.lineHeight);
-        const availableWidth = (maxX - page.left) * 0.86;
+        const areaTop = fillBlock ? page.top : baseline - page.fontSize * 0.78;
+        const availableHeight = fillBlock
+          ? maxY + inkDescent - areaTop
+          : drawing.kind === "table"
+            ? maxY - areaTop - page.lineHeight
+            : Math.min(70, maxY - areaTop - page.lineHeight);
+        const availableWidth = (maxX - page.left) * (fillBlock ? 1 : 0.86);
         const preferredScale =
           drawing.kind === "table" ? (page.fontSize * 0.8) / 22 : Infinity;
         const drawingScale = Math.min(
@@ -1194,6 +1196,9 @@ export async function layoutText(
         }
         const drawingWidth = drawing.width * drawingScale;
         const drawingHeight = drawing.height * drawingScale;
+        const top = fillBlock
+          ? areaTop + (availableHeight - drawingHeight) / 2
+          : areaTop;
         const drawingX = page.left + (maxX - page.left - drawingWidth) / 2;
         strokes.push(
           ...drawing.strokes.map((stroke) =>
@@ -1701,6 +1706,7 @@ export async function layoutBlocks(
       evolutionPageTop: page.top,
       evolutionPageBottom: page.pageHeight - (page.bottom || 0),
       noWrap: layout.noWrap,
+      fillBlockDrawing: block.kind === "svg" && Boolean(block.layout),
     });
     result.missing.forEach((char) => missing.add(char));
     reports.push(...result.trajectoryReport);
